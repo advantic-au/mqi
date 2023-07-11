@@ -1,0 +1,71 @@
+use std::{error::Error, thread};
+
+use mqi::{mqstr, sys, Connection, ConnectionOptions, Credentials, MqStr, ObjectName, ResultCompExt, Tls};
+
+#[test]
+fn thread() {
+    const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
+    let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
+    let conn = Connection::new(None, &cb).expect("Could not establish connection");
+    thread::spawn(move || {
+        let mut od = sys::MQOD::default();
+        let mut md = sys::MQMD::default();
+        let mut pmo = sys::MQPMO::default();
+
+        QUEUE.copy_into_mqchar(&mut od.ObjectName);
+
+        conn.put(&od, &mut md, &mut pmo, b"Hello ").expect("Put failed");
+    })
+    .join()
+    .expect("Failed to join");
+}
+
+#[test]
+fn default_binding() -> Result<(), Box<dyn Error>> {
+
+    // Use the default binding which is controlled through the MQI usually using environment variables
+    // eg `MQSERVER = '...'``
+    let connection_options = ConnectionOptions::default_binding()
+        .application_name(Some(mqstr!("readme_example")))
+        .credentials(Credentials::user("app", "app"));
+
+    // Connect to the default queue manager (None) with the provided `connection_options`
+    // Treat all MQCC_WARNING as an error
+    let connection = Connection::new(None, &connection_options)
+        .warn_as_error()?;
+    
+    // Disconnect. 
+    connection.disconnect().warn_as_error()?;
+
+    Ok(())
+}
+
+#[test]
+fn connect() -> Result<(), Box<dyn Error>> {
+    const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
+    let mut od = sys::MQOD::default();
+    let mut md = sys::MQMD::default();
+    let mut pmo = sys::MQPMO::default();
+
+    QUEUE.copy_into_mqchar(&mut od.ObjectName);
+    od.ObjectType = sys::MQOT_Q;
+    let cb = ConnectionOptions::from_mqserver("DEV.APP.SVRCONN/TCP/192.168.92.15(1414)")?
+        .tls(
+            &mqstr!("TLS_AES_128_GCM_SHA256"),
+            Tls::new(
+                &mqstr!("path"),
+                Some("password"),
+                Some(&mqstr!("label")),
+            ),
+        )
+        .application_name(Some(mqstr!("rust_testing")))
+        .credentials(Credentials::user("app", "app"));
+
+    let conn = Connection::new(None, &cb)?;
+    println!("{conn}");
+
+    pmo.Options |= sys::MQPMO_SYNCPOINT;
+    conn.put(&od, &mut md, &mut pmo, b"Hello")?;
+
+    Ok(())
+}

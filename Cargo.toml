@@ -1,0 +1,70 @@
+[package]
+name = "mqi"
+description = "Idiomatic IBM® MQ Interface (MQI) and MQ Administration Interface (MQAI) APIs"
+repository = "https://github.com/advantic-au/mqi"
+version = "0.1.0"
+authors = [ "Warren Spits <warren@advantic.au>" ]
+license = "Apache-2.0"
+keywords = [ "message-queue", "messaging" ]
+categories = [ "asynchronous" ]
+
+rust-version = "1.75"
+edition = "2021"
+build = "build/mod.rs"
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["lib"]
+
+[features]
+default = ["link", "constantgen", "libmqm-sys/mqi_helpers"]
+docsrs = ["libmqm-sys/docsrs", "pcf", "mqai", "link", "dlopen2"]
+
+constantgen = ["libmqm-sys/mqi_helpers"]
+tracing = ["dep:tracing"]
+pcf = ["libmqm-sys/pcf"]
+mqai = ["libmqm-sys/mqai"]
+link = ["libmqm-sys/link"]
+dlopen2 = ["libmqm-sys/dlopen2"]
+
+[dependencies]
+phf = { default-features = false, version="0.11.2" }
+num_enum = "0.7.2"
+num_enum_derive = "0.7.2"
+page_size = "0.6.0"
+thiserror = "1.0.59"
+libmqm-sys = { version="0.3.0", default-features = false }
+tracing = { version = "0.1.40", optional = true }
+dlopen2 = "0.7.0"
+regex = "1.10.4"
+
+[build-dependencies]
+libmqm-sys = { version="0.3.0", default-features = false }
+phf = { default-features=false, version="0.11" }
+phf_codegen = "0.11.2"
+
+## For development mode only
+[patch.crates-io]
+libmqm-sys = { git = 'https://github.com/advantic-au/libmqm-sys.git', branch = "develop" }
+
+## Lints
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+similar_names = "allow"
+
+# TODO - These should be removed and the underlying problem fixed
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+
+
+[package.metadata.docs.rs]
+features = ["docsrs"]
+no-default-features = true
