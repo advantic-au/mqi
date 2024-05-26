@@ -1,3 +1,5 @@
+#![cfg(feature = "admin")]
+
 use mqi::admin::{selectors, Bag, BagType};
 use mqi::{mqstr, prelude::*};
 use mqi::{sys, Connection, ConnectionOptions, Credentials};
