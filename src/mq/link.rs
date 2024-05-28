@@ -1,21 +1,21 @@
 use libmqm_sys::link::LinkedMQ;
 
 use super::{ConnectionOptions, ConnectionShare, HandleShare};
-use crate::{sys, DefinitionMethod, QMName, ResultComp, ResultErr, StructProvider};
+use crate::{sys, DefinitionMethod, QMName, ResultComp, ResultErr, StructBuilder, StructOptionBuilder};
 
 #[cfg(feature = "mqai")]
 use crate::admin::{Bag, BagType, Owned};
 
-impl<C: StructProvider<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
+impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
     pub fn connect<H: HandleShare>(self, qm_name: Option<&QMName>) -> ResultComp<ConnectionShare<&LinkedMQ, H>> {
         self.connect_lib(&LinkedMQ, qm_name)
     }
 }
 
 impl<H: HandleShare> ConnectionShare<&LinkedMQ, H> {
-    pub fn new<C: StructProvider<sys::MQCSP>, D: DefinitionMethod>(
+    pub fn new(
         qm_name: Option<&QMName>,
-        builder: &ConnectionOptions<C, D>,
+        builder: &impl StructBuilder<sys::MQCNO>,
     ) -> ResultComp<Self> {
         Self::new_lib(&LinkedMQ, qm_name, builder)
     }

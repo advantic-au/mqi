@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::thread;
 
-use mqi::{mqstr, sys, Connection, ConnectionOptions, Credentials, InqReqType, MqStr, Object, ObjectName};
+use mqi::{mqstr, sys, Connection, ConnectionOptions, Credentials, InqReqType, MqStr, Object, ObjectName, StructBuilder};
 use mqi::inq::{MQCA_DEF_XMIT_Q_NAME, MQIA_CODED_CHAR_SET_ID};
 use mqi::prelude::*;
 
@@ -58,6 +58,7 @@ fn transaction() {
     const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
     let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
 
+    let cb = cb.build();
     let mut od = sys::MQOD::default();
     let mut md = sys::MQMD::default();
     let mut pmo = sys::MQPMO::default();
