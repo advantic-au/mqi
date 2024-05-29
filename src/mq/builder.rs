@@ -1,8 +1,10 @@
+use std::marker::PhantomPinned;
 use std::ops::Deref;
+use std::pin::Pin;
 use std::{convert::Into, fmt::Debug, ptr};
 
 use crate::core::Library;
-use crate::{sys, CipherSpec, NoStruct, StructBuilder, StructOptionBuilder, StructType};
+use crate::{sys, CipherSpec, MqStructOwned, NoStruct, StructBuilder, StructOptionBuilder, StructType};
 use crate::{ApplName, ChannelName, ConnectionName, MqStr, MqStruct, QMName, ResultComp};
 use thiserror::Error;
 
@@ -47,15 +49,15 @@ pub type LocalBinding = ExternalConfig<0x400 /* sys::MQCNO_LOCAL_BINDING */>;
 pub type DefaultBinding = ExternalConfig<0 /* sys::MQCNO_NONE> */>;
 
 impl<const N: sys::MQLONG> DefinitionMethod for ExternalConfig<N> {
-    type Sco = NoStruct;
+    type ScoBuilder = NoStruct;
     fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>) {
         cno.Options &= !(sys::MQCNO_LOCAL_BINDING | sys::MQCNO_CLIENT_BINDING); // Clear the BINDING bits
         cno.Options |= N;
         cno.ClientConnPtr = ptr::null_mut();
         cno.CCDTUrlPtr = ptr::null_mut();
     }
-    
-    fn sco(&self) -> &Self::Sco {
+
+    fn sco(&self) -> &Self::ScoBuilder {
         &NoStruct
     }
 }
@@ -63,18 +65,19 @@ impl<const N: sys::MQLONG> DefinitionMethod for ExternalConfig<N> {
 pub struct ClientDefinition<C, T> {
     config: C,
     tls: T,
-    balance: Option<sys::MQBNO>
+    balance: Option<sys::MQBNO>,
 }
 
 impl<C: DefinitionMethod, T: StructOptionBuilder<sys::MQSCO>> DefinitionMethod for ClientDefinition<C, T> {
-    type Sco = T;
+    type ScoBuilder = T;
+
     fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>) {
         self.config.apply_cno(cno);
         cno.BalanceParmsPtr = self.balance.map_or(ptr::null_mut(), |b| ptr::addr_of!(b).cast_mut());
         cno.BalanceParmsOffset = 0;
     }
 
-    fn sco(&self) -> &Self::Sco {
+    fn sco(&self) -> &Self::ScoBuilder {
         &self.tls
     }
 }
@@ -95,7 +98,7 @@ impl Ccdt {
 }
 
 impl DefinitionMethod for Ccdt {
-    type Sco = NoStruct;
+    type ScoBuilder = NoStruct;
 
     fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>) {
         cno.Options &= !(sys::MQCNO_LOCAL_BINDING | sys::MQCNO_CLIENT_BINDING); // Clear the BINDING bits
@@ -108,8 +111,8 @@ impl DefinitionMethod for Ccdt {
             .try_into()
             .expect("CCDT url length exceeds maximum positive MQLONG");
     }
-    
-    fn sco(&self) -> &Self::Sco {
+
+    fn sco(&self) -> &Self::ScoBuilder {
         &NoStruct
     }
 }
@@ -131,14 +134,14 @@ impl<S> StructType<sys::MQCSP> for CredentialsSecret<S> {
 }
 
 impl<T: StructBuilder<sys::MQCSP>> StructOptionBuilder<sys::MQCSP> for T {
-    fn option_build<'a>(&'a self) -> Option<Self::Struct<'a>> {
+    fn option_build(&self) -> Option<Self::Struct<'_>> {
         Some(StructBuilder::build(self))
     }
 }
 
 #[allow(clippy::field_reassign_with_default)]
 impl<S: Secret> StructBuilder<sys::MQCSP> for CredentialsSecret<S> {
-    fn build<'a>(&'a self) -> Self::Struct<'a> {
+    fn build(&self) -> Self::Struct<'_> {
         let mut csp = MqStruct::<sys::MQCSP>::default();
         csp.Version = sys::MQCSP_VERSION_3;
 
@@ -192,13 +195,13 @@ impl<S: Secret> StructBuilder<sys::MQCSP> for CredentialsSecret<S> {
 
 /// Defines how the `MQCNO` is populated for the connection method
 pub trait DefinitionMethod {
-    type Sco: StructOptionBuilder<sys::MQSCO>;
+    type ScoBuilder: StructOptionBuilder<sys::MQSCO>;
 
     /// Update the provided `MQCNO` with method details
     fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>);
 
     /// Create and populate an optional `MQSCO` structure for the method
-    fn sco(&self) -> &Self::Sco;
+    fn sco(&self) -> &Self::ScoBuilder;
 }
 
 pub type Credentials = CredentialsSecret<ProtectedSecret>;
@@ -260,14 +263,13 @@ impl<S> StructType<sys::MQSCO> for TlsSecret<S> {
 }
 
 impl<T: StructBuilder<sys::MQSCO>> StructOptionBuilder<sys::MQSCO> for T {
-    fn option_build<'a>(&'a self) -> Option<Self::Struct<'a>> {
+    fn option_build(&self) -> Option<Self::Struct<'_>> {
         Some(StructBuilder::build(self))
     }
 }
 
-
 impl<S: Secret> StructBuilder<sys::MQSCO> for TlsSecret<S> {
-    fn build<'a>(&'a self) -> Self::Struct<'a> {
+    fn build(&self) -> Self::Struct<'_> {
         let mut sco = MqStruct::new(self.sco);
 
         if let Some(pwd) = &self.key_repo_password {
@@ -365,9 +367,9 @@ impl<S> TlsSecret<S> {
 #[derive(Debug, Clone, Default)]
 #[must_use]
 pub struct ConnectionOptions<C, D> {
-    pub(super) method: D,
-    pub(super) credentials: C,
-    pub(super) app_name: Option<ApplName>,
+    method: D,
+    credentials: C,
+    app_name: Option<ApplName>,
 }
 
 #[derive(Debug, Error)]
@@ -411,7 +413,7 @@ pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, sys::MQLON
 }
 
 impl DefinitionMethod for MqStruct<'_, sys::MQCD> {
-    type Sco = NoStruct;
+    type ScoBuilder = NoStruct;
 
     fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>) {
         cno.Options &= !(sys::MQCNO_LOCAL_BINDING | sys::MQCNO_CLIENT_BINDING); // Clear the BINDING bits
@@ -419,8 +421,8 @@ impl DefinitionMethod for MqStruct<'_, sys::MQCD> {
         cno.ClientConnPtr = ptr::addr_of!(**self).cast_mut().cast();
         cno.CCDTUrlPtr = ptr::null_mut();
     }
-    
-    fn sco(&self) -> &Self::Sco {
+
+    fn sco(&self) -> &Self::ScoBuilder {
         &NoStruct
     }
 }
@@ -449,7 +451,7 @@ impl<C, A> ClientDefinition<C, A> {
         Self {
             config,
             tls,
-            balance: options.into()
+            balance: options.into(),
         }
     }
 }
@@ -480,7 +482,11 @@ impl<'ptr> AppDefinedClient<'ptr, NoStruct> {
 
     #[must_use]
     pub const fn from_mqcd(config: MqStruct<'ptr, sys::MQCD>) -> Self {
-        ClientDefinition { config, tls: NoStruct, balance: None }
+        ClientDefinition {
+            config,
+            tls: NoStruct,
+            balance: None,
+        }
     }
 
     /// Create a channel definition (MQCD) from the minimal channel name, connection name and optional transport type.
@@ -504,6 +510,35 @@ impl<'ptr> AppDefinedClient<'ptr, NoStruct> {
     pub fn from_mqserver(server: &str) -> Result<Self, MqServerSyntaxError> {
         let (channel_name, connection_name, transport) = mqserver(server)?;
         Ok(Self::new_client(&channel_name, &connection_name, Some(transport)))
+    }
+}
+
+// The outcome of a ConnectionOptions build needs to hold the SCO and CSP in a stable memory location - use PhantomPinned + Pin
+type ConnectionOptionsBuild<Sco, Csp> = MqStructOwned<sys::MQCNO, Pin<Box<(Option<Sco>, Option<Csp>, PhantomPinned)>>>;
+
+impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> StructType<sys::MQCNO> for ConnectionOptions<C, D> {
+    type Struct<'a> = ConnectionOptionsBuild<C::Struct<'a>, <D::ScoBuilder as StructType<sys::MQSCO>>::Struct<'a>> where Self: 'a;
+}
+
+impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> StructBuilder<sys::MQCNO> for ConnectionOptions<C, D> {
+    fn build(&self) -> Self::Struct<'_> {
+        // Construct the MQCNO
+        let mut cno = MqStruct::<sys::MQCNO>::default();
+        cno.Version = sys::MQCNO_VERSION_8;
+        cno.Options |= sys::MQCNO_GENERATE_CONN_TAG;
+
+        self.method.apply_cno(&mut cno);
+        let referee = Box::pin((
+            self.credentials.option_build(),
+            self.method.sco().option_build(),
+            PhantomPinned,
+        ));
+        let (csp, sco, ..) = &*referee;
+        cno.set_sco(sco.as_deref());
+        cno.set_csp(csp.as_deref());
+        cno.set_app_name(self.app_name.as_ref());
+
+        MqStructOwned::new(*cno, referee)
     }
 }
 

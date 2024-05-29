@@ -1,5 +1,5 @@
 use std::{
-    marker::{PhantomData, PhantomPinned}, ops::{Deref, DerefMut}, ptr
+    marker::PhantomData, ops::{Deref, DerefMut}, ptr
 };
 
 use crate::{sys, ApplName, MqStr};
@@ -12,15 +12,11 @@ pub struct MqStruct<'ptr, T> {
 }
 
 pub trait StructBuilder<T>: StructType<T> {
-    fn build<'a>(&'a self) -> Self::Struct<'a>;
-
-    fn option_build<'a>(&'a self) -> Option<Self::Struct<'a>> where Self: Clone {
-        Some(Self::build(self))
-    }
+    fn build(&self) -> Self::Struct<'_>;
 }
 
 pub trait StructOptionBuilder<T>: StructType<T> {
-    fn option_build<'a>(&'a self) -> Option<Self::Struct<'a>>;
+    fn option_build(&self) -> Option<Self::Struct<'_>>;
 }
 
 pub trait StructType<T> {
@@ -32,33 +28,31 @@ impl<T> StructType<T> for MqStruct<'_, T> {
 }
 
 impl<'ptr, T: Clone> StructBuilder<T> for MqStruct<'ptr, T> {
-    fn build<'a>(&'a self) -> Self::Struct<'a> {
+    fn build(&self) -> Self::Struct<'_> {
         self.clone()
     }    
 }
 
-impl<T, E> StructType<T> for MqRefer<T, E> {
+impl<T, E> StructType<T> for MqStructOwned<T, E> {
     type Struct<'a> = Self where Self: 'a;
 }
 
-
-impl<T: Clone, E: Clone> StructBuilder<T> for MqRefer<T, E> {
-    fn build<'a>(&'a self) -> Self::Struct<'a> {
+impl<T: Clone, E: Clone> StructBuilder<T> for MqStructOwned<T, E> {
+    fn build(&self) -> Self::Struct<'_> {
         self.clone()
     }
 }
 
-pub type MqReferPinned<R, E> = MqRefer<R, std::pin::Pin<Box<(E, PhantomPinned)>>>;
 #[derive(Debug, Clone)]
-pub struct MqRefer<R, E>(R, E);
+pub struct MqStructOwned<R, E>(R, E);
 
-impl<R, E> MqRefer<R, E> {
-    pub fn new(referer: R, referee: E) -> Self {
+impl<R, E> MqStructOwned<R, E> {
+    pub const fn new(referer: R, referee: E) -> Self {
         Self(referer, referee)
     }
 }
 
-impl<R, E> Deref for MqRefer<R, E> {
+impl<R, E> Deref for MqStructOwned<R, E> {
     type Target = R;
 
     fn deref(&self) -> &Self::Target {
@@ -66,7 +60,7 @@ impl<R, E> Deref for MqRefer<R, E> {
     }
 }
 
-impl<R, E> DerefMut for MqRefer<R, E> {
+impl<R, E> DerefMut for MqStructOwned<R, E> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -80,7 +74,7 @@ impl<T> StructType<T> for NoStruct {
 }
 
 impl<T> StructOptionBuilder<T> for NoStruct {
-    fn option_build<'a>(&'a self) -> Option<Self::Struct<'a>> {
+    fn option_build(&self) -> Option<Self::Struct<'_>> {
         None
     }
 }
@@ -135,6 +129,6 @@ mod tests {
             a = b.option_build();
         }
 
-        assert!(a.is_none())
+        assert!(a.is_none());
     }
 }

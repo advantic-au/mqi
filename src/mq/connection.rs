@@ -1,12 +1,10 @@
 use std::fmt::Debug;
-use std::marker::{PhantomData, PhantomPinned};
+use std::marker::PhantomData;
 use std::{fmt::Display, ops::Deref};
 
 use crate::core::{self, Library};
-use crate::{sys, DefinitionMethod, MqRefer, MqReferPinned, MqStr, MqStruct, ResultCompErrExt as _, StructBuilder, StructOptionBuilder, StructType};
+use crate::{sys, MqStr, ResultCompErrExt as _, StructBuilder};
 use crate::{QMName, ResultComp};
-
-use super::ConnectionOptions;
 
 type ConnectionId = [sys::MQBYTE; 24];
 
@@ -28,6 +26,7 @@ trait Sealed {}
 /// `Connection` threading behaviour. Refer to `ShareNone`, `ShareNonBlock` and `ShareBlock`
 #[allow(private_bounds)] // Reason: Deliberate implementation of a sealed trait
 pub trait HandleShare: Sealed {
+    /// One of the `MQCNO_HANDLE_SHARE_*` MQ constants
     const MQCNO_HANDLE_SHARE: sys::MQLONG;
 }
 
@@ -83,40 +82,9 @@ impl<L: Library, H> Display for ConnectionShare<L, H> {
     }
 }
 
-impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> StructType<sys::MQCNO> for ConnectionOptions<C, D> {
-    type Struct<'a> = MqReferPinned<
-        sys::MQCNO, (
-            Option<C::Struct<'a>>,
-            Option<<D::Sco as StructType<sys::MQSCO>>::Struct<'a>>
-        )
-    > where Self: 'a;
-}
-
-impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> StructBuilder<sys::MQCNO> for ConnectionOptions<C, D> {
-    fn build<'a>(&'a self) -> Self::Struct<'a> {
-        // Create the connection options
-        let mut cno = MqStruct::<sys::MQCNO>::default();
-        cno.Version = sys::MQCNO_VERSION_8;
-        cno.Options |= sys::MQCNO_GENERATE_CONN_TAG;
-
-        self.method.apply_cno(&mut cno);
-        let referee = Box::pin(((self.credentials.option_build(), self.method.sco().option_build()), PhantomPinned));
-        let (csp, sco) = &referee.0;
-        cno.set_sco(sco.as_deref());
-        cno.set_csp(csp.as_deref());
-        cno.set_app_name(self.app_name.as_ref());
-
-        MqRefer::new(*cno, referee)
-    }
-}
-
 impl<L: Library, H: HandleShare> ConnectionShare<L, H> {
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder
-    pub fn new_lib(
-        lib: L,
-        qm_name: Option<&QMName>,
-        builder: &impl StructBuilder<sys::MQCNO>,
-    ) -> ResultComp<Self> {
+    pub fn new_lib(lib: L, qm_name: Option<&QMName>, builder: &impl StructBuilder<sys::MQCNO>) -> ResultComp<Self> {
         let mut cno_build = builder.build();
         let cno = &mut cno_build;
         cno.Options |= H::MQCNO_HANDLE_SHARE;
