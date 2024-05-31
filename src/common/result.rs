@@ -5,7 +5,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 use thiserror::Error;
-use crate::{constants::{self, mapping, MQConstant}, impl_constant_lookup, HasMqNames as _};
+use crate::{constants::{self, mapping, MQConstant}, impl_constant_lookup, HasMqNames};
 use crate::sys;
 
 /// MQ API reason code (`MQRC_*`)
@@ -14,6 +14,16 @@ pub struct ReasonCode(pub sys::MQLONG);
 
 #[derive(PartialEq, Eq, Clone, Copy, Default)]
 pub struct CompletionCode(pub sys::MQLONG);
+
+impl ReasonCode {
+    #[must_use]
+    pub fn ibm_reference_url(&self, language: &str, version: Option<&str>) -> Option<String> {
+        let name = self.mq_primary_name()?.to_lowercase().replace('_', "-");
+        let version = version.unwrap_or("latest");
+        let code = self.mq_value();
+        Some(format!("https://www.ibm.com/docs/{language}/ibm-mq/{version}?topic=codes-{code}-{code:04x}-rc{code}-{name}"))
+    }
+}
 
 impl_constant_lookup!(CompletionCode, mapping::MQCC_CONST);
 impl_constant_lookup!(ReasonCode, mapping::MQRC_FULL_CONST);
@@ -230,5 +240,13 @@ mod tests {
         );
         assert_eq!(ReasonCode(sys::MQRC_NONE).to_string(), "MQRC_NONE = 0");
         assert_eq!(ReasonCode(-1).to_string(), "-1");
+    }
+
+    #[test]
+    fn ibm_reference_url() {
+        assert_eq!(
+            ReasonCode(sys::MQRC_Q_ALREADY_EXISTS).ibm_reference_url("en", None),
+            Some("https://www.ibm.com/docs/en/ibm-mq/latest?topic=codes-2290-08f2-rc2290-mqrc-q-already-exists".to_owned())
+        );
     }
 }
