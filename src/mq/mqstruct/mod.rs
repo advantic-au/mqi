@@ -1,8 +1,9 @@
-use std::{
-    marker::PhantomData, ops::{Deref, DerefMut}, ptr
-};
+mod struct_attach;
 
-use crate::{sys, ApplName, MqStr};
+use std::{
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+};
 
 /// MQ structure holding a `T` with an associated lifetime for pointer fields
 #[derive(Default, Debug, Clone)]
@@ -20,7 +21,9 @@ pub trait StructOptionBuilder<T>: StructType<T> {
 }
 
 pub trait StructType<T> {
-    type Struct<'a>: Deref<Target = T> + DerefMut where Self: 'a;
+    type Struct<'a>: Deref<Target = T> + DerefMut
+    where
+        Self: 'a;
 }
 
 impl<T> StructType<T> for MqStruct<'_, T> {
@@ -30,29 +33,50 @@ impl<T> StructType<T> for MqStruct<'_, T> {
 impl<'ptr, T: Clone> StructBuilder<T> for MqStruct<'ptr, T> {
     fn build(&self) -> Self::Struct<'_> {
         self.clone()
-    }    
+    }
 }
 
-impl<T, E> StructType<T> for MqStructOwned<T, E> {
-    type Struct<'a> = Self where Self: 'a;
+impl<'ptr, T: Clone> StructOptionBuilder<T> for MqStruct<'ptr, T> {
+    fn option_build(&self) -> Option<Self::Struct<'_>> {
+        Some(self.build())
+    }
 }
 
-impl<T: Clone, E: Clone> StructBuilder<T> for MqStructOwned<T, E> {
+impl<T, E> StructType<T> for MqStructSelfRef<T, E> {
+    type Struct<'a> = MqStruct<'a, T> where Self: 'a;
+}
+
+impl<T: Clone, E> StructBuilder<T> for MqStructSelfRef<T, E> {
     fn build(&self) -> Self::Struct<'_> {
-        self.clone()
+        MqStruct::new(self.0.clone())
+    }
+}
+
+impl<T: Clone, E> StructOptionBuilder<T> for MqStructSelfRef<T, E> {
+    fn option_build(&self) -> Option<Self::Struct<'_>> {
+        Some(self.build())
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct MqStructOwned<R, E>(R, E);
+pub struct MqStructSelfRef<R, E>(R, E);
 
-impl<R, E> MqStructOwned<R, E> {
+impl<R, E> MqStructSelfRef<R, E> {
     pub const fn new(referer: R, referee: E) -> Self {
         Self(referer, referee)
     }
 }
 
-impl<R, E> Deref for MqStructOwned<R, E> {
+impl<R, E> MqStructSelfRef<R, E> {
+    pub fn referred(&self) -> &E::Target
+    where
+        E: Deref,
+    {
+        &self.1
+    }
+}
+
+impl<R, E> Deref for MqStructSelfRef<R, E> {
     type Target = R;
 
     fn deref(&self) -> &Self::Target {
@@ -60,7 +84,7 @@ impl<R, E> Deref for MqStructOwned<R, E> {
     }
 }
 
-impl<R, E> DerefMut for MqStructOwned<R, E> {
+impl<R, E> DerefMut for MqStructSelfRef<R, E> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -102,24 +126,9 @@ impl<T> Deref for MqStruct<'_, T> {
     }
 }
 
-impl<'ptr> MqStruct<'ptr, sys::MQCNO> {
-    pub(super) fn set_csp(&mut self, csp: Option<&'ptr sys::MQCSP>) {
-        self.SecurityParmsPtr = csp.map_or(ptr::null_mut(), |mqcsp| ptr::addr_of!(*mqcsp).cast_mut().cast());
-    }
-
-    pub(super) fn set_sco(&mut self, sco: Option<&'ptr sys::MQSCO>) {
-        self.SSLConfigPtr = sco.map_or(ptr::null_mut(), |mqsco| ptr::addr_of!(*mqsco).cast_mut().cast());
-    }
-
-    pub(super) fn set_app_name(&mut self, app: Option<&ApplName>) {
-        app.unwrap_or(&MqStr::empty()).copy_into_mqchar(&mut self.ApplName);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{NoStruct, StructOptionBuilder};
-
 
     #[test]
     fn lifetime() {
