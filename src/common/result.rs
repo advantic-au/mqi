@@ -5,7 +5,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 use thiserror::Error;
-use crate::{constants::{self, mapping, MQConstant}, impl_constant_lookup, HasMqNames};
+use crate::{constants::{mapping, MQConstant}, impl_constant_lookup, HasMqNames};
 use crate::sys;
 
 /// MQ API reason code (`MQRC_*`)

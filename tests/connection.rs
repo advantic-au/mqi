@@ -14,7 +14,7 @@ fn thread() {
 
         QUEUE.copy_into_mqchar(&mut od.ObjectName);
 
-        conn.put(&od, &mut md, &mut pmo, b"Hello ").expect("Put failed");
+        conn.put(&mut od, Some(&mut md), &mut pmo, b"Hello ").expect("Put failed");
     })
     .join()
     .expect("Failed to join");
@@ -44,7 +44,7 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
 fn connect() -> Result<(), Box<dyn Error>> {
     const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
     let mut od = sys::MQOD::default();
-    let mut md = sys::MQMD::default();
+    let mut md = sys::MQMD2::default();
     let mut pmo = sys::MQPMO::default();
 
     QUEUE.copy_into_mqchar(&mut od.ObjectName);
@@ -65,7 +65,7 @@ fn connect() -> Result<(), Box<dyn Error>> {
     println!("{conn}");
 
     pmo.Options |= sys::MQPMO_SYNCPOINT;
-    conn.put(&od, &mut md, &mut pmo, b"Hello")?;
+    conn.put(&mut od, Some(&mut md), &mut pmo, b"Hello")?;
 
     Ok(())
 }

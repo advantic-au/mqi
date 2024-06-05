@@ -3,11 +3,10 @@ use std::mem::{size_of_val, MaybeUninit};
 use std::ptr;
 
 use super::{
-    ConnectionHandle, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid, MessageHandle, ObjectHandle,
-    SubscriptionHandle, MQHO_NONE, UNNASSOCIATED_HCONN,
+    CallbackOperation, CloseOptions, ConnectionHandle, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid, MessageHandle,
+    ObjectHandle, OpenOptions, SubscriptionHandle, MQHO_NONE, UNNASSOCIATED_HCONN,
 };
-use crate::sys;
-use crate::{QMName, ResultComp, ResultErr};
+use crate::{impl_constant_lookup, mapping, sys, Attribute, Mask, MqValue, QMName, RawValue, ResultComp, ResultErr, MQMD};
 use libmqm_sys::MQI;
 
 #[cfg(feature = "tracing")]
@@ -16,27 +15,26 @@ use {
     tracing::instrument,
 };
 
-#[derive(Debug)]
-pub enum MQMDType {
-    Mqmd(sys::MQMD),
-    Mqmd2(sys::MQMD2),
-    Mqmde(sys::MQMDE),
+#[derive(Debug, Clone, Copy)]
+pub struct SubReqAction;
+impl_constant_lookup!(SubReqAction, mapping::MQSR_CONST);
+impl RawValue for SubReqAction {
+    type ValueType = sys::MQLONG;
 }
 
-impl MQMDType {
-    pub(super) const unsafe fn as_mut_ptr<T>(&self) -> *mut T {
-        match self {
-            Self::Mqmd(m) => ptr::addr_of!(*m).cast_mut().cast(),
-            Self::Mqmd2(m) => ptr::addr_of!(*m).cast_mut().cast(),
-            Self::Mqmde(m) => ptr::addr_of!(*m).cast_mut().cast(),
-        }
-    }
+#[derive(Clone, Copy)]
+pub struct MqType;
+impl_constant_lookup!(MqType, mapping::MQTYPE_CONST);
+impl RawValue for MqType {
+    type ValueType = sys::MQLONG;
 }
 
-impl Default for MQMDType {
-    fn default() -> Self {
-        Self::Mqmd2(sys::MQMD2::default())
-    }
+// TODO: overaching Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash
+#[derive(Clone, Copy)]
+pub struct MqStat;
+impl_constant_lookup!(MqStat, mapping::MQSTAT_CONST);
+impl RawValue for MqStat {
+    type ValueType = sys::MQLONG;
 }
 
 impl<L: Library> MQFunctions<L> {
@@ -95,16 +93,16 @@ impl<L: Library> MQFunctions<L> {
     pub fn mqopen(
         &self,
         connection_handle: &ConnectionHandle,
-        mqod: &sys::MQOD,
-        options: sys::MQLONG,
+        mqod: &mut sys::MQOD,
+        options: Mask<OpenOptions>,
     ) -> ResultComp<ObjectHandle> {
         let mut outcome = MQIOutcome::<ObjectHandle>::with_verb("MQOPEN");
 
         unsafe {
             self.0.MQOPEN(
                 connection_handle.raw_handle(),
-                ptr::addr_of!(*mqod).cast_mut().cast(),
-                options,
+                ptr::addr_of_mut!(*mqod).cast(),
+                options.0,
                 outcome.mut_raw_handle(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -120,8 +118,8 @@ impl<L: Library> MQFunctions<L> {
     pub fn mqput1<T>(
         &self,
         connection_handle: &ConnectionHandle,
-        mqod: &sys::MQOD,
-        mqmd: &mut sys::MQMD,
+        mqod: &mut sys::MQOD,
+        mqmd: Option<&mut impl MQMD>,
         pmo: &mut sys::MQPMO,
         body: &T,
     ) -> ResultComp<()> {
@@ -130,7 +128,7 @@ impl<L: Library> MQFunctions<L> {
             self.0.MQPUT1(
                 connection_handle.raw_handle(),
                 ptr::addr_of!(*mqod).cast_mut().cast(),
-                ptr::addr_of_mut!(*mqmd).cast(),
+                mqmd.map_or_else(ptr::null_mut, |md| ptr::addr_of_mut!(*md).cast()),
                 ptr::addr_of_mut!(*pmo).cast(),
                 size_of_val(body)
                     .try_into()
@@ -151,14 +149,14 @@ impl<L: Library> MQFunctions<L> {
         &self,
         connection_handle: &ConnectionHandle,
         object_handle: &mut ObjectHandle,
-        options: sys::MQLONG,
+        options: Mask<CloseOptions>,
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCLOSE");
         unsafe {
             self.0.MQCLOSE(
                 connection_handle.raw_handle(),
                 object_handle.mut_raw_handle(),
-                options,
+                options.0,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -189,16 +187,17 @@ impl<L: Library> MQFunctions<L> {
         &self,
         connection_handle: &ConnectionHandle,
         object_handle: &ObjectHandle,
-        mqmd: &mut sys::MQMD,
+        mqmd: Option<&mut impl MQMD>,
         pmo: &mut sys::MQPMO,
         body: &T,
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQPUT");
+        
         unsafe {
             self.0.MQPUT(
                 connection_handle.raw_handle(),
                 object_handle.raw_handle(),
-                ptr::addr_of_mut!(*mqmd).cast(),
+                mqmd.map_or_else(ptr::null_mut, |md| ptr::addr_of_mut!(*md).cast()),
                 ptr::addr_of_mut!(*pmo).cast(),
                 size_of_val(body)
                     .try_into()
@@ -219,7 +218,7 @@ impl<L: Library> MQFunctions<L> {
         &self,
         connection_handle: &ConnectionHandle,
         object_handle: &ObjectHandle,
-        mqmd: &mut MQMDType,
+        mqmd: Option<&mut impl MQMD>,
         gmo: &mut sys::MQGMO,
         body: &mut T,
     ) -> ResultComp<sys::MQLONG> {
@@ -228,7 +227,7 @@ impl<L: Library> MQFunctions<L> {
             self.0.MQGET(
                 connection_handle.raw_handle(),
                 object_handle.raw_handle(),
-                mqmd.as_mut_ptr(),
+                mqmd.map_or_else(ptr::null_mut, |md| ptr::addr_of_mut!(*md).cast()),
                 ptr::addr_of_mut!(*gmo).cast(),
                 size_of_val(body)
                     .try_into()
@@ -251,7 +250,7 @@ impl<L: Library> MQFunctions<L> {
         &self,
         connection_handle: &ConnectionHandle,
         object_handle: &ObjectHandle,
-        selectors: &[sys::MQLONG],
+        selectors: &[MqValue<Attribute>],
         int_attr: &mut [MaybeUninit<sys::MQLONG>],
         text_attr: &mut [MaybeUninit<sys::MQCHAR>],
     ) -> ResultComp<()> {
@@ -264,7 +263,7 @@ impl<L: Library> MQFunctions<L> {
                     .len()
                     .try_into()
                     .expect("selectors count exceeds maximum positive MQLONG"),
-                selectors.as_ptr().cast_mut(),
+                selectors.as_ptr().cast_mut().cast(),
                 int_attr
                     .len()
                     .try_into()
@@ -315,7 +314,7 @@ impl<L: Library> MQFunctions<L> {
         &self,
         connection_handle: &ConnectionHandle,
         subscription_handle: &SubscriptionHandle,
-        action: sys::MQLONG,
+        action: MqValue<SubReqAction>,
         mqsro: &mut sys::MQSRO,
     ) -> ResultErr<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQSUBRQ");
@@ -323,7 +322,7 @@ impl<L: Library> MQFunctions<L> {
             self.0.MQSUBRQ(
                 connection_handle.raw_handle(),
                 subscription_handle.raw_handle(),
-                action,
+                action.0,
                 ptr::addr_of_mut!(*mqsro).cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -421,7 +420,7 @@ impl<L: Library> MQFunctions<L> {
         inq_prop_opts: &mut sys::MQIMPO,
         name: &sys::MQCHARV,
         prop_desc: &mut sys::MQPD,
-        prop_type: &mut sys::MQLONG,
+        prop_type: &mut MqValue<MqType>,
         value: &mut T,
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MQIOutcome::with_verb("MQINQMP");
@@ -475,13 +474,13 @@ impl<L: Library> MQFunctions<L> {
     /// Retrieve status information. The type of status information returned is
     /// determined by the `stat_type` value parameter
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqstat(&self, connection_handle: &ConnectionHandle, stat_type: sys::MQLONG) -> ResultErr<sys::MQSTS> {
+    pub fn mqstat(&self, connection_handle: &ConnectionHandle, stat_type: MqValue<MqStat>) -> ResultErr<sys::MQSTS> {
         let mut outcome = MQIOutcome::<sys::MQSTS>::with_verb("MQSTAT");
         outcome.Version = 2;
         unsafe {
             self.0.MQSTAT(
                 connection_handle.raw_handle(),
-                stat_type,
+                stat_type.0,
                 ptr::addr_of_mut!(outcome.value).cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -502,7 +501,7 @@ impl<L: Library> MQFunctions<L> {
         set_prop_opts: &sys::MQSMPO,
         name: &sys::MQCHARV,
         prop_desc: &mut sys::MQPD,
-        prop_type: sys::MQLONG,
+        prop_type: MqValue<MqType>,
         value: &T,
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQSETMP");
@@ -513,7 +512,7 @@ impl<L: Library> MQFunctions<L> {
                 ptr::addr_of!(*set_prop_opts).cast_mut().cast(),
                 ptr::addr_of!(*name).cast_mut().cast(),
                 ptr::addr_of_mut!(*prop_desc).cast(),
-                prop_type,
+                prop_type.0,
                 size_of_val(value)
                     .try_into()
                     .expect("value length exceeds maximum positive MQLONG"),
@@ -533,7 +532,7 @@ impl<L: Library> MQFunctions<L> {
         &self,
         connection_handle: &ConnectionHandle,
         object_handle: &ObjectHandle,
-        selectors: &[sys::MQLONG],
+        selectors: &[MqValue<Attribute>],
         int_attr: &[sys::MQLONG],
         text_attr: &[sys::MQCHAR],
     ) -> ResultErr<()> {
@@ -546,7 +545,7 @@ impl<L: Library> MQFunctions<L> {
                     .len()
                     .try_into()
                     .expect("selectors count exceeds maximum positive MQLONG"),
-                selectors.as_ptr().cast_mut(),
+                selectors.as_ptr().cast_mut().cast(),
                 int_attr
                     .len()
                     .try_into()
@@ -571,20 +570,20 @@ impl<L: Library> MQFunctions<L> {
     pub fn mqcb(
         &self,
         connection_handle: &ConnectionHandle,
-        operation: sys::MQLONG,
+        operations: Mask<CallbackOperation>,
         callback_desc: &sys::MQCBD,
         object_handle: Option<&ObjectHandle>,
-        mqmd: &MQMDType,
+        mqmd: &impl MQMD,
         gmo: &sys::MQGMO,
     ) -> ResultErr<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCB");
         unsafe {
             self.0.MQCB(
                 connection_handle.raw_handle(),
-                operation,
+                operations.0,
                 ptr::addr_of!(*callback_desc).cast_mut().cast(),
                 object_handle.unwrap_or(&MQHO_NONE).raw_handle(),
-                mqmd.as_mut_ptr(),
+                ptr::addr_of!(*mqmd).cast_mut().cast(),
                 ptr::addr_of!(*gmo).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -601,14 +600,14 @@ impl<L: Library> MQFunctions<L> {
     pub fn mqctl(
         &self,
         connection_handle: &ConnectionHandle,
-        operation: sys::MQLONG,
+        operation: MqValue<CallbackOperation>,
         control_options: &sys::MQCTLO,
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCTL");
         unsafe {
             self.0.MQCTL(
                 connection_handle.raw_handle(),
-                operation,
+                operation.0,
                 ptr::addr_of!(*control_options).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -627,7 +626,7 @@ impl<L: Library> MQFunctions<L> {
         message_handle: &MessageHandle,
         mhbuf_options: &sys::MQMHBO,
         name: &sys::MQCHARV,
-        mqmd: &mut MQMDType,
+        mqmd: &mut impl MQMD,
         buffer: &mut T,
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MQIOutcome::with_verb("MQMHBUF");
@@ -637,7 +636,7 @@ impl<L: Library> MQFunctions<L> {
                 message_handle.raw_handle(),
                 ptr::addr_of!(*mhbuf_options).cast_mut().cast(),
                 ptr::addr_of!(*name).cast_mut().cast(),
-                mqmd.as_mut_ptr(),
+                ptr::addr_of_mut!(*mqmd).cast(),
                 size_of_val(buffer)
                     .try_into()
                     .expect("buffer length exceeds maximum positive MQLONG"),
@@ -659,7 +658,7 @@ impl<L: Library> MQFunctions<L> {
         connection_handle: Option<&ConnectionHandle>,
         message_handle: &MessageHandle,
         bufmh_options: &sys::MQBMHO,
-        mqmd: &mut MQMDType,
+        mqmd: &mut impl MQMD,
         buffer: &mut T,
     ) -> ResultErr<sys::MQLONG> {
         let mut outcome = MQIOutcome::with_verb("MQBUFMH");
@@ -668,7 +667,7 @@ impl<L: Library> MQFunctions<L> {
                 connection_handle.unwrap_or(&UNNASSOCIATED_HCONN).raw_handle(),
                 message_handle.raw_handle(),
                 ptr::addr_of!(*bufmh_options).cast_mut().cast(),
-                mqmd.as_mut_ptr(),
+                ptr::addr_of_mut!(*mqmd).cast(),
                 size_of_val(buffer)
                     .try_into()
                     .expect("buffer length exceeds maximum positive MQLONG"),

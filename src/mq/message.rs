@@ -5,7 +5,9 @@ use crate::core::Library;
 use crate::core::MQFunctions;
 use crate::sys;
 use crate::Completion;
+use crate::MqValue;
 use crate::ResultCompErrExt as _;
+use crate::MQMD;
 use crate::{CompletionCode, Error, ReasonCode, ResultComp, ResultErr};
 
 use super::ConnectionShare;
@@ -51,7 +53,7 @@ impl<L: Library> Iterator for MsgPropIter<'_, L> {
             rn_mqcharv.VSCCSID = 0;
 
             let mut value = Vec::<u8>::with_capacity(page_size::get());
-            let mut prop_type = sys::MQTYPE_AS_SET;
+            let mut prop_type = MqValue::new(sys::MQTYPE_AS_SET);
             let mut prop_desc = sys::MQPD::default();
 
             let inq_length = it.message.mq.mqinqmp(
@@ -122,7 +124,7 @@ pub enum MessageHandleOptions {
 impl Value {
     #[must_use]
     #[allow(clippy::cast_possible_wrap)] // Masks are unsigned.
-    pub fn from(data: &[u8], prop_type: sys::MQLONG, ccsid: sys::MQLONG, encoding: sys::MQLONG) -> Self {
+    pub fn from(data: &[u8], MqValue(prop_type): MqValue<core::MqType>, ccsid: sys::MQLONG, encoding: sys::MQLONG) -> Self {
         static ENC_NATIVE_INTEGER: sys::MQLONG = sys::MQENC_INTEGER_MASK as sys::MQLONG & sys::MQENC_NATIVE;
         static ENC_NATIVE_FLOAT: sys::MQLONG = sys::MQENC_FLOAT_MASK as sys::MQLONG & sys::MQENC_NATIVE;
         match prop_type {
@@ -184,7 +186,7 @@ impl<'connection, L: Library> Message<'connection, L> {
 }
 
 impl<L: Library, H> ConnectionShare<L, H> {
-    pub fn put<B>(&self, mqod: &sys::MQOD, mqmd: &mut sys::MQMD, pmo: &mut sys::MQPMO, body: &B) -> ResultComp<()> {
+    pub fn put<B>(&self, mqod: &mut sys::MQOD, mqmd: Option<&mut impl MQMD>, pmo: &mut sys::MQPMO, body: &B) -> ResultComp<()> {
         self.mq.mqput1(self.handle(), mqod, mqmd, pmo, body)
     }
 }

@@ -2,8 +2,9 @@ use std::marker::PhantomData;
 
 use libmqm_sys::function;
 
+use crate::core::mqai::MqaiSelector;
 use crate::core::Library;
-use crate::sys;
+use crate::{sys, MqValue};
 
 use crate::{CompletionCode, Error, ReasonCode, ResultErr};
 
@@ -15,7 +16,7 @@ where
     L: Library,
     L::MQ: function::MQAI,
 {
-    selector: sys::MQLONG,
+    selector: MqValue<MqaiSelector>,
     index: sys::MQLONG,
     count: sys::MQLONG,
     bag: &'bag Bag<B, L>,
@@ -39,8 +40,8 @@ where
         };
         let result = match T::inq_bag_item(self.selector, self.index, self.bag) {
             Err(e) => match e.mqi() {
-                Some(Error(CompletionCode(sys::MQCC_FAILED), _, ReasonCode(rc)))
-                    if (*rc == sys::MQRC_SELECTOR_NOT_PRESENT || *rc == sys::MQRC_INDEX_NOT_PRESENT) =>
+                Some(&Error(CompletionCode(sys::MQCC_FAILED), _, ReasonCode(rc)))
+                    if (rc == sys::MQRC_SELECTOR_NOT_PRESENT || rc == sys::MQRC_INDEX_NOT_PRESENT) =>
                 {
                     None
                 }
@@ -58,7 +59,7 @@ impl<B: BagDrop, L: Library> Bag<B, L>
 where
     L::MQ: function::MQAI,
 {
-    pub fn try_iter<T: BagItemGet<L>>(&self, selector: sys::MQLONG) -> ResultErr<BagItem<'_, T, B, L>> {
+    pub fn try_iter<T: BagItemGet<L>>(&self, selector: MqValue<MqaiSelector>) -> ResultErr<BagItem<'_, T, B, L>> {
         self.mq.mq_count_items(self, selector).map(|count| BagItem {
             selector,
             count,

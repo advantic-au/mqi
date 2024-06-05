@@ -57,28 +57,3 @@ impl constants::MQConstant for Locking {
 }
 
 impl_constant_lookup!(Locking, mapping::MQGMO_CONST);
-
-struct Options {
-    gmo: sys::MQGMO,
-}
-
-impl Default for Options {
-    fn default() -> Self {
-        Self {
-            gmo: sys::MQGMO {
-                Version: sys::MQGMO_VERSION_4,
-                ..sys::MQGMO::default()
-            },
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn defaults() {
-        debug_assert_eq!(Options::default().gmo.Version, sys::MQGMO_VERSION_4);
-    }
-}

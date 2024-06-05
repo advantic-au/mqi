@@ -5,7 +5,7 @@ use crate::constants::HasConstLookup as _;
 
 use crate::sys;
 use crate::{
-    constants::{self, mapping},
+    constants::mapping,
     impl_constant_lookup,
 };
 

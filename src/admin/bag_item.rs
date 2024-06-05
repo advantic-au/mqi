@@ -2,10 +2,9 @@ use libmqm_sys::function;
 use std::{fmt::Debug, num::NonZeroI32};
 use thiserror::Error;
 
-use crate::core::{mqai, Library};
-use crate::sys;
-use crate::mq;
-use crate::{Error, MqStr, ResultErr};
+use crate::core::mqai::{self, MqaiSelector};
+use crate::core::Library;
+use crate::{mq, sys, Error, MqStr, MqValue, ResultErr};
 
 use super::{Bag, BagDrop, BagIndex};
 
@@ -35,10 +34,10 @@ where
 {
     type Error;
 
-    fn add_to_bag<B: BagDrop>(self, selector: sys::MQLONG, bag: &Bag<B, L>) -> Result<(), Self::Error>;
+    fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> Result<(), Self::Error>;
     fn set_bag_item<B: BagDrop>(
         self,
-        selector: sys::MQLONG,
+        selector: MqValue<MqaiSelector>,
         index: BagIndex,
         bag: &Bag<B, L>,
     ) -> Result<(), Self::Error>;
@@ -50,7 +49,7 @@ where
 {
     type Error: WithMQError;
     fn inq_bag_item<B: BagDrop>(
-        selector: sys::MQLONG,
+        selector: MqValue<MqaiSelector>,
         index: sys::MQLONG,
         bag: &Bag<B, L>,
     ) -> Result<Self, Self::Error>;
@@ -62,11 +61,11 @@ where
 {
     type Error = Error;
 
-    fn add_to_bag<B: BagDrop>(self, selector: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_add_integer(bag, selector, self)
     }
 
-    fn set_bag_item<B: BagDrop>(self, selector: sys::MQLONG, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn set_bag_item<B: BagDrop>(self, selector: MqValue<MqaiSelector>, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_set_integer(bag, selector, index.into(), self)
     }
 }
@@ -75,7 +74,7 @@ impl<L: Library> BagItemGet<L> for sys::MQLONG
 where
     L::MQ: function::MQAI,
 {
-    fn inq_bag_item<B: BagDrop>(selector: sys::MQLONG, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
+    fn inq_bag_item<B: BagDrop>(selector: MqValue<MqaiSelector>, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
         bag.mq.mq_inquire_integer(bag, selector, index)
     }
 
@@ -88,11 +87,11 @@ where
 {
     type Error = Error;
 
-    fn add_to_bag<B: BagDrop>(self, selector: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_add_integer_filter(bag, selector, self)
     }
 
-    fn set_bag_item<B: BagDrop>(self, selector: sys::MQLONG, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn set_bag_item<B: BagDrop>(self, selector: MqValue<MqaiSelector>, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_set_integer_filter(bag, selector, index.into(), self)
     }
 }
@@ -101,7 +100,7 @@ impl<L: Library> BagItemGet<L> for mqai::Filter<sys::MQLONG>
 where
     L::MQ: function::MQAI,
 {
-    fn inq_bag_item<B: BagDrop>(selector: sys::MQLONG, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
+    fn inq_bag_item<B: BagDrop>(selector: MqValue<MqaiSelector>, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
         bag.mq.mq_inquire_integer_filter(bag, selector, index)
     }
 
@@ -114,11 +113,11 @@ where
 {
     type Error = Error;
 
-    fn add_to_bag<B: BagDrop>(self, selector: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_add_integer64(bag, selector, self)
     }
 
-    fn set_bag_item<B: BagDrop>(self, selector: sys::MQLONG, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn set_bag_item<B: BagDrop>(self, selector: MqValue<MqaiSelector>, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_set_integer64(bag, selector, index.into(), self)
     }
 }
@@ -127,7 +126,7 @@ impl<L: Library> BagItemGet<L> for i64
 where
     L::MQ: function::MQAI,
 {
-    fn inq_bag_item<B: BagDrop>(selector: sys::MQLONG, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
+    fn inq_bag_item<B: BagDrop>(selector: MqValue<MqaiSelector>, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
         bag.mq.mq_inquire_integer64(bag, selector, index)
     }
 
@@ -140,11 +139,11 @@ where
 {
     type Error = Error;
 
-    fn add_to_bag<B: BagDrop>(self, selector: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_add_byte_string(bag, selector, self)
     }
 
-    fn set_bag_item<B: BagDrop>(self, selector: sys::MQLONG, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn set_bag_item<B: BagDrop>(self, selector: MqValue<MqaiSelector>, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_set_byte_string(bag, selector, index.into(), self)
     }
 }
@@ -155,11 +154,11 @@ where
 {
     type Error = Error;
 
-    fn add_to_bag<B: BagDrop>(self, selector: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_add_byte_string(bag, selector, &self)
     }
 
-    fn set_bag_item<B: BagDrop>(self, selector: sys::MQLONG, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn set_bag_item<B: BagDrop>(self, selector: MqValue<MqaiSelector>, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq
             .mq_set_byte_string(bag, selector, index.into(), AsRef::<[sys::MQCHAR]>::as_ref(&self))
     }
@@ -171,8 +170,8 @@ where
 {
     type Error = PutStringCcsidError;
 
-    fn add_to_bag<B: BagDrop>(self, selector: sys::MQLONG, bag: &Bag<B, L>) -> Result<(), Self::Error> {
-        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, sys::MQIASY_CODED_CHAR_SET_ID, 0)?);
+    fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> Result<(), Self::Error> {
+        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::new(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
         if bag_ccsid != self.ccsid() {
             return Err(PutStringCcsidError::CcsidMismatch(self.ccsid(), bag_ccsid));
         }
@@ -181,11 +180,11 @@ where
 
     fn set_bag_item<B: BagDrop>(
         self,
-        selector: sys::MQLONG,
+        selector: MqValue<MqaiSelector>,
         index: BagIndex,
         bag: &Bag<B, L>,
     ) -> Result<(), Self::Error> {
-        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, sys::MQIASY_CODED_CHAR_SET_ID, 0)?);
+        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::new(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
         if bag_ccsid != self.ccsid() {
             return Err(PutStringCcsidError::CcsidMismatch(self.ccsid(), bag_ccsid));
         }
@@ -202,9 +201,9 @@ where
 {
     type Error = PutStringCcsidError;
 
-    fn add_to_bag<B: BagDrop>(self, selector: sys::MQLONG, bag: &Bag<B, L>) -> Result<(), Self::Error> {
+    fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> Result<(), Self::Error> {
         let Self { operator, value } = self;
-        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, sys::MQIASY_CODED_CHAR_SET_ID, 0)?);
+        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::new(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
         if bag_ccsid != value.ccsid() {
             return Err(PutStringCcsidError::CcsidMismatch(value.ccsid(), bag_ccsid));
         }
@@ -222,12 +221,12 @@ where
 
     fn set_bag_item<B: BagDrop>(
         self,
-        selector: sys::MQLONG,
+        selector: MqValue<MqaiSelector>,
         index: BagIndex,
         bag: &Bag<B, L>,
     ) -> Result<(), Self::Error> {
         let Self { operator, value } = self;
-        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, sys::MQIASY_CODED_CHAR_SET_ID, 0)?);
+        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::new(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
         if bag_ccsid != value.ccsid() {
             return Err(PutStringCcsidError::CcsidMismatch(value.ccsid(), bag_ccsid));
         }
@@ -249,7 +248,7 @@ impl<L: Library, const N: usize> BagItemGet<L> for MqStr<N>
 where
     L::MQ: function::MQAI,
 {
-    fn inq_bag_item<B: BagDrop>(selector: sys::MQLONG, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
+    fn inq_bag_item<B: BagDrop>(selector: MqValue<MqaiSelector>, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
         let mut result = Self::default();
         bag.mq.mq_inquire_string(bag, selector, index, result.as_mut())?;
         Ok(result) // FIXME: This ignores CCSID
@@ -262,7 +261,7 @@ impl<L: Library> BagItemGet<L> for mq::StringCcsid
 where
     L::MQ: function::MQAI,
 {
-    fn inq_bag_item<B: BagDrop>(selector: sys::MQLONG, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
+    fn inq_bag_item<B: BagDrop>(selector: MqValue<MqaiSelector>, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
         let mut data: Vec<u8> = Vec::with_capacity(page_size::get());
         let (mut str_length, mut ccsid) = bag
             .mq
@@ -291,7 +290,7 @@ impl<L: Library> BagItemGet<L> for mqai::Filter<mq::StringCcsid>
 where
     L::MQ: function::MQAI,
 {
-    fn inq_bag_item<B: BagDrop>(selector: sys::MQLONG, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
+    fn inq_bag_item<B: BagDrop>(selector: MqValue<MqaiSelector>, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
         let mut data = Vec::with_capacity(page_size::get());
         let (mut str_length, mut ccsid, mut operator) =
             bag.mq
@@ -332,7 +331,7 @@ impl<L: Library> BagItemGet<L> for Vec<sys::MQCHAR>
 where
     L::MQ: function::MQAI,
 {
-    fn inq_bag_item<B: BagDrop>(selector: sys::MQLONG, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
+    fn inq_bag_item<B: BagDrop>(selector: MqValue<MqaiSelector>, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
         let mut data = Self::with_capacity(page_size::get());
 
         let mut str_length = bag
@@ -366,11 +365,11 @@ where
 {
     type Error = Error;
 
-    fn add_to_bag<B: BagDrop>(self, selector: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_add_byte_string_filter(bag, selector, self)
     }
 
-    fn set_bag_item<B: BagDrop>(self, selector: sys::MQLONG, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn set_bag_item<B: BagDrop>(self, selector: MqValue<MqaiSelector>, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
         bag.mq.mq_set_byte_string_filter(bag, selector, index.into(), self)
     }
 }
@@ -381,7 +380,7 @@ where
 {
     type Error = Error;
 
-    fn add_to_bag<B: BagDrop>(self, selector: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> ResultErr<()> {
         let Self { operator, value } = self;
         bag.mq.mq_add_byte_string_filter(
             bag,
@@ -393,7 +392,7 @@ where
         )
     }
 
-    fn set_bag_item<B: BagDrop>(self, selector: sys::MQLONG, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
+    fn set_bag_item<B: BagDrop>(self, selector: MqValue<MqaiSelector>, index: BagIndex, bag: &Bag<B, L>) -> ResultErr<()> {
         let Self { operator, value } = self;
         bag.mq.mq_set_byte_string_filter(
             bag,
@@ -411,7 +410,7 @@ impl<L: Library> BagItemGet<L> for mqai::Filter<Vec<sys::MQCHAR>>
 where
     L::MQ: function::MQAI,
 {
-    fn inq_bag_item<'bag, B: BagDrop>(selector: sys::MQLONG, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
+    fn inq_bag_item<'bag, B: BagDrop>(selector: MqValue<MqaiSelector>, index: sys::MQLONG, bag: &Bag<B, L>) -> ResultErr<Self> {
         let mut data = Vec::with_capacity(page_size::get());
         let (mut length, mut operator) =
             bag.mq

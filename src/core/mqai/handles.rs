@@ -1,13 +1,9 @@
 use std::fmt::Display;
 
 use crate::core::Handle;
-use crate::mapping;
-use crate::constants;
-use crate::impl_constant_lookup;
-use crate::sys;
+use crate::{impl_constant_lookup, mapping, sys};
 
-use crate::constants::HasConstLookup;
-use crate::constants::ConstLookup;
+use crate::constants::{ConstLookup, HasConstLookup};
 
 pub mod raw {
     use crate::{core::RawHandle, sys};

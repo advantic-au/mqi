@@ -26,6 +26,10 @@ mod generated {
 
 pub use generated::*;
 
+type MqxaSource<'a> = ConstSource<BinarySearchSource<'a>, BinarySearchSource<'a>>;
+
+/// Selectors for MQIA and MQCA combined
+pub const MQXA_FULL_CONST: MqxaSource = ConstSource(mapping::MQIA_CONST, mapping::MQCA_CONST);
 
 /// Return codes can sometimes be in the MQRCCF range so combine the two
 pub const MQRC_FULL_CONST: ConstSource<PhfSource, PhfSource> = ConstSource(mapping::MQRC_CONST, mapping::MQRCCF_CONST);
