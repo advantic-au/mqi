@@ -5,15 +5,41 @@ use std::{
     ops::{Deref, DerefMut},
 };
 use thiserror::Error;
-use crate::{constants::{mapping, MQConstant}, impl_constant_lookup, HasMqNames};
+use crate::{constants::{mapping, MQConstant}, impl_constant_lookup, HasMqNames, MqValue, RawValue};
 use crate::sys;
 
-/// MQ API reason code (`MQRC_*`)
-#[derive(PartialEq, Eq, Clone, Copy)]
-pub struct ReasonCode(pub sys::MQLONG);
+impl_constant_lookup!(RC, mapping::MQRC_FULL_CONST);
+impl_constant_lookup!(CC, mapping::MQCC_CONST);
 
-#[derive(PartialEq, Eq, Clone, Copy, Default)]
-pub struct CompletionCode(pub sys::MQLONG);
+impl RawValue for RC {
+    type ValueType = sys::MQLONG;
+}
+
+impl RawValue for CC {
+    type ValueType = sys::MQLONG;
+}
+
+/// MQ API reason code (`MQRC_*`)
+#[derive(Clone, Copy)]
+pub struct RC;
+pub type ReasonCode = MqValue<RC>;
+
+/// MQ API completion code (`MQCC_*`)
+#[derive(Clone, Copy)]
+pub struct CC;
+pub type CompletionCode = MqValue<CC>;
+
+impl Default for ReasonCode {
+    fn default() -> Self {
+        Self(sys::MQRC_NONE)
+    }
+}
+
+impl Default for CompletionCode {
+    fn default() -> Self {
+        Self(sys::MQCC_UNKNOWN)
+    }
+}
 
 impl ReasonCode {
     #[must_use]
@@ -22,59 +48,6 @@ impl ReasonCode {
         let version = version.unwrap_or("latest");
         let code = self.mq_value();
         Some(format!("https://www.ibm.com/docs/{language}/ibm-mq/{version}?topic=codes-{code}-{code:04x}-rc{code}-{name}"))
-    }
-}
-
-impl_constant_lookup!(CompletionCode, mapping::MQCC_CONST);
-impl_constant_lookup!(ReasonCode, mapping::MQRC_FULL_CONST);
-
-impl MQConstant for CompletionCode {
-    fn mq_value(&self) -> sys::MQLONG {
-        let Self(value) = self;
-        *value
-    }
-}
-
-impl MQConstant for ReasonCode {
-    fn mq_value(&self) -> sys::MQLONG {
-        let Self(value) = self;
-        *value
-    }
-}
-
-impl Debug for ReasonCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self(rc) = self;
-        let code = format!("{} = {rc}", self.mq_primary_name().unwrap_or("*UNKNOWN*"));
-        f.debug_tuple("ReasonCode").field(&code).finish()
-    }
-}
-
-impl Display for ReasonCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self(rc) = self;
-        match self.mq_primary_name() {
-            Some(name) => write!(f, "{name} = {rc}"),
-            None => write!(f, "{rc}"),
-        }
-    }
-}
-
-impl Debug for CompletionCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self(cc) = self;
-        let code = self.mq_primary_name().map_or(format!("{cc} (Unknown)"), ToOwned::to_owned);
-        f.debug_tuple("CompletionCode").field(&code).finish()
-    }
-}
-
-impl Display for CompletionCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self(cc) = self;
-        match self.mq_primary_name() {
-            Some(name) => write!(f, "{name}"),
-            None => write!(f, "{cc}"),
-        }
     }
 }
 
@@ -209,15 +182,9 @@ impl<T, E: std::fmt::Debug> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
 impl<T> ResultCompExt<T> for ResultComp<T> {
     fn warn_as_error(self) -> ResultErr<T> {
         match self {
-            Ok(Completion(_, Some(warn_cc), verb)) => Err(Error(CompletionCode(sys::MQCC_WARNING), verb, warn_cc)),
+            Ok(Completion(_, Some(warn_cc), verb)) => Err(Error(CompletionCode::from(sys::MQCC_WARNING), verb, warn_cc)),
             other => other.map(|Completion(value, ..)| value),
         }
-    }
-}
-
-impl Default for ReasonCode {
-    fn default() -> Self {
-        Self(sys::MQRC_NONE)
     }
 }
 
@@ -235,17 +202,17 @@ mod tests {
     #[test]
     fn reason_code_display() {
         assert_eq!(
-            ReasonCode(sys::MQRC_Q_MGR_ACTIVE).to_string(),
-            "MQRC_Q_MGR_ACTIVE = 2222"
+            ReasonCode::from(sys::MQRC_Q_MGR_ACTIVE).to_string(),
+            "MQRC_Q_MGR_ACTIVE"
         );
-        assert_eq!(ReasonCode(sys::MQRC_NONE).to_string(), "MQRC_NONE = 0");
-        assert_eq!(ReasonCode(-1).to_string(), "-1");
+        assert_eq!(ReasonCode::from(sys::MQRC_NONE).to_string(), "MQRC_NONE");
+        assert_eq!(ReasonCode::from(-1).to_string(), "-1");
     }
 
     #[test]
     fn ibm_reference_url() {
         assert_eq!(
-            ReasonCode(sys::MQRC_Q_ALREADY_EXISTS).ibm_reference_url("en", None),
+            ReasonCode::from(sys::MQRC_Q_ALREADY_EXISTS).ibm_reference_url("en", None),
             Some("https://www.ibm.com/docs/en/ibm-mq/latest?topic=codes-2290-08f2-rc2290-mqrc-q-already-exists".to_owned())
         );
     }

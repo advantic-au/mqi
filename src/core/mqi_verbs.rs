@@ -573,7 +573,7 @@ impl<L: Library> MQFunctions<L> {
         operations: Mask<CallbackOperation>,
         callback_desc: &sys::MQCBD,
         object_handle: Option<&ObjectHandle>,
-        mqmd: &impl MQMD,
+        mqmd: Option<&impl MQMD>,
         gmo: &sys::MQGMO,
     ) -> ResultErr<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCB");
@@ -583,7 +583,7 @@ impl<L: Library> MQFunctions<L> {
                 operations.0,
                 ptr::addr_of!(*callback_desc).cast_mut().cast(),
                 object_handle.unwrap_or(&MQHO_NONE).raw_handle(),
-                ptr::addr_of!(*mqmd).cast_mut().cast(),
+                mqmd.map_or_else(ptr::null_mut, |md| ptr::addr_of!(*md).cast_mut().cast()),
                 ptr::addr_of!(*gmo).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,

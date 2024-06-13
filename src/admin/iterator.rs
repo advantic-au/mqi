@@ -6,7 +6,7 @@ use crate::core::mqai::MqaiSelector;
 use crate::core::Library;
 use crate::{sys, MqValue};
 
-use crate::{CompletionCode, Error, ReasonCode, ResultErr};
+use crate::{Error, ResultErr};
 
 use super::{Bag, BagDrop, BagItemGet, WithMQError};
 
@@ -40,7 +40,7 @@ where
         };
         let result = match T::inq_bag_item(self.selector, self.index, self.bag) {
             Err(e) => match e.mqi() {
-                Some(&Error(CompletionCode(sys::MQCC_FAILED), _, ReasonCode(rc)))
+                Some(&Error(MqValue(sys::MQCC_FAILED), _, MqValue(rc)))
                     if (rc == sys::MQRC_SELECTOR_NOT_PRESENT || rc == sys::MQRC_INDEX_NOT_PRESENT) =>
                 {
                     None

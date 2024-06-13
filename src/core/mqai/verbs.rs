@@ -86,7 +86,7 @@ where
 {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_create_bag(&self, options: Mask<CreateBagOptions>) -> ResultErr<BagHandle> {
-        let mut outcome: MQIOutcome<BagHandle> = MQIOutcome::with_verb("mqCreateBag");
+        let mut outcome = MQIOutcome::<BagHandle>::with_verb("mqCreateBag");
         unsafe {
             self.0.mqCreateBag(
                 options.0,
@@ -548,7 +548,7 @@ where
     ) -> ResultErr<Filter<sys::MQLONG>> {
         let mut outcome = MQIOutcome::new(
             "mqInquireIntegerFilter",
-            Filter::new(0, MqValue::new(0)),
+            Filter::new(0, MqValue::from(0)),
         );
         unsafe {
             self.0.mqInquireIntegerFilter(
@@ -655,7 +655,7 @@ where
         index: sys::MQLONG,
         value: &mut T,
     ) -> ResultErr<(sys::MQLONG, sys::MQLONG, MqValue<CommandOperator>)> {
-        let mut outcome = MQIOutcome::new("mqInquireStringFilter", (0, 0, MqValue::new(0)));
+        let mut outcome = MQIOutcome::new("mqInquireStringFilter", (0, 0, MqValue::from(0)));
         let (length, ccsid, operator) = &mut outcome.value;
         unsafe {
             self.0.mqInquireStringFilter(
@@ -686,7 +686,7 @@ where
         index: sys::MQLONG,
         value: &mut T,
     ) -> ResultErr<(sys::MQLONG, MqValue<CommandOperator>)> {
-        let mut outcome = MQIOutcome::new("mqInquireByteStringFilter", (0, MqValue::new(0)));
+        let mut outcome = MQIOutcome::new("mqInquireByteStringFilter", (0, MqValue::from(0)));
         let (length, operator) = &mut outcome.value;
         unsafe {
             self.0.mqInquireByteStringFilter(
@@ -884,18 +884,18 @@ mod tests {
             .expect("Failed to create MQ BAG");
         let mut wally: [sys::MQCHAR; 3] = [1, 2, 3];
         mq_lib
-            .mq_add_bag(&bag, MqValue::new(0), &bag_attached)
+            .mq_add_bag(&bag, MqValue::from(0), &bag_attached)
             .expect("Failed to add bag");
-        dbg!(mq_lib.mq_inquire_bag(&bag, MqValue::new(0), 0)).expect("Failed to inquire embedded bag");
-        dbg!(mq_lib.mq_add_integer(&bag_attached, MqValue::new(0), 999)).expect("BLA");
-        dbg!(mq_lib.mq_add_string(&bag_attached, MqValue::new(1), &wally)).expect("BLA");
+        dbg!(mq_lib.mq_inquire_bag(&bag, MqValue::from(0), 0)).expect("Failed to inquire embedded bag");
+        dbg!(mq_lib.mq_add_integer(&bag_attached, MqValue::from(0), 999)).expect("BLA");
+        dbg!(mq_lib.mq_add_string(&bag_attached, MqValue::from(1), &wally)).expect("BLA");
 
         wally[0] = 9;
 
         //dbg!(mq_lib.mq_add_string(&bag_attached, 2, "hello".as_bytes())).expect("BLA2");
         let mut data = Vec::<u8>::with_capacity(page_size::get());
         let (length, ..) =
-            dbg!(mq_lib.mq_inquire_string(&bag_attached, MqValue::new(1), 0, data.spare_capacity_mut())).expect("BLA2");
+            dbg!(mq_lib.mq_inquire_string(&bag_attached, MqValue::from(1), 0, data.spare_capacity_mut())).expect("BLA2");
         unsafe {
             data.set_len(
                 length
@@ -905,8 +905,8 @@ mod tests {
         }
         dbg!(data);
         //mq_lib.mq_delete_bag(&mut bag_attached).expect("Failed to delete MQ BAG");
-        let r = dbg!(mq_lib.mq_inquire_bag(&bag, MqValue::new(0), 0)).expect("Failed to inquire bag");
-        dbg!(mq_lib.mq_inquire_integer(&r, MqValue::new(0), 0)).expect("Failed to retrieve it again");
+        let r = dbg!(mq_lib.mq_inquire_bag(&bag, MqValue::from(0), 0)).expect("Failed to inquire bag");
+        dbg!(mq_lib.mq_inquire_integer(&r, MqValue::from(0), 0)).expect("Failed to retrieve it again");
         dbg!(&bag);
         dbg!(&bag_attached);
         mq_lib.mq_delete_bag(&mut bag).expect("Failed to delete MQ BAG");
@@ -914,17 +914,17 @@ mod tests {
 
     #[test]
     fn mqaiselector() {
-        assert_eq!(format!("{}", MqValue::<MqaiSelector>::new(0)), "0");
+        assert_eq!(format!("{}", MqValue::<MqaiSelector>::from(0)), "0");
         assert_eq!(
-            format!("{}", MqValue::<MqaiSelector>::new(sys::MQCA_ALTERATION_TIME)),
+            format!("{}", MqValue::<MqaiSelector>::from(sys::MQCA_ALTERATION_TIME)),
             "MQCA_ALTERATION_TIME"
         );
         assert_eq!(
-            format!("{}", MqValue::<MqaiSelector>::new(sys::MQIACF_INQUIRY)),
+            format!("{}", MqValue::<MqaiSelector>::from(sys::MQIACF_INQUIRY)),
             "MQIACF_INQUIRY"
         );
         assert_eq!(
-            format!("{}", MqValue::<MqaiSelector>::new(sys::MQSEL_ANY_SELECTOR)),
+            format!("{}", MqValue::<MqaiSelector>::from(sys::MQSEL_ANY_SELECTOR)),
             "-30001"
         );
     }

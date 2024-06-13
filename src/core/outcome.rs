@@ -2,7 +2,7 @@ use crate::prelude::*;
 use std::ops::{Deref, DerefMut};
 
 use crate::sys;
-use crate::{Completion, CompletionCode, Error, ReasonCode, ResultComp, ResultErr};
+use crate::{Completion, CompletionCode, Error, ResultComp, ResultErr};
 
 #[derive(Default)]
 pub struct MQIOutcome<T> {

@@ -132,13 +132,13 @@ impl GetMessage {
 impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub(super) fn handle(&self) -> &core::ObjectHandle {
+    pub fn handle(&self) -> &core::ObjectHandle {
         &self.handle
     }
 
     pub fn open(connection: C, mqod: &impl StructBuilder<sys::MQOD>, options: Mask<OpenOptions>) -> ResultComp<Self> {
         let mut mqod_build = mqod.build();
-        let result = connection.mq.mqopen(connection.handle(), &mut mqod_build, options);
+        let result = connection.mq().mqopen(connection.handle(), &mut mqod_build, options);
         result.map_completion(|handle| Self {
             handle,
             connection,
@@ -166,7 +166,7 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
         let mut int_attr = Vec::with_capacity(int_len);
 
         self.connection
-            .mq
+            .mq()
             .mqinq(
                 self.connection.handle(),
                 self,
@@ -191,7 +191,7 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
     // TODO: deal with optional mqmd
     pub fn put<B>(&self, mqmd: &mut impl MQMD, pmo: &mut sys::MQPMO, body: &B) -> ResultComp<()> {
         self.connection
-            .mq
+            .mq()
             .mqput(self.connection.handle(), self, Some(mqmd), pmo, body)
     }
 
@@ -226,7 +226,7 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
         }
 
         self.connection
-            .mq
+            .mq()
             .mqget(
                 self.connection.handle(),
                 self,
@@ -255,7 +255,7 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
         s.connection
-            .mq
+            .mq()
             .mqclose(s.connection.handle(), &mut s.handle, s.close_options)
     }
 }
@@ -280,7 +280,7 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Drop for Object<L,
         if self.is_closeable() {
             let _ = self
                 .connection
-                .mq
+                .mq()
                 .mqclose(self.connection.handle(), &mut self.handle, self.close_options);
         }
     }

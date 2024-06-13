@@ -4,7 +4,7 @@ use libmqm_sys::function;
 
 use crate::core::mqai::{Command, CreateBagOptions, MqaiSelector};
 use crate::core::{self, mqai, ConnectionHandle, Library};
-use crate::{sys, CompletionCode, Error, Mask, MqValue, ReasonCode, ResultComp, ResultErr};
+use crate::{sys, Error, Mask, MqValue, ResultComp, ResultErr};
 
 pub trait BagDrop: Sized {
     fn drop_bag<L: Library>(bag: &mut Bag<Self, L>) -> ResultErr<()>
@@ -86,7 +86,7 @@ where
     pub fn new_lib(lib: L, options: Mask<CreateBagOptions>) -> ResultErr<Self> {
         let mq = core::MQFunctions(lib);
         let bag = mq.mq_create_bag(options)?;
-        mq.mq_set_integer(&bag, MqValue::new(sys::MQIASY_CODED_CHAR_SET_ID), sys::MQIND_NONE, 1208)?;
+        mq.mq_set_integer(&bag, MqValue::from(sys::MQIASY_CODED_CHAR_SET_ID), sys::MQIND_NONE, 1208)?;
 
         Ok(Self {
             bag,
@@ -150,9 +150,9 @@ where
         match T::inq_bag_item(selector, index.unwrap_or(sys::MQIND_NONE), self) {
             Err(e) => match e.mqi() {
                 Some(Error(
-                    CompletionCode(sys::MQCC_FAILED),
+                    MqValue(sys::MQCC_FAILED),
                     _verb, // Ignore the verb
-                    ReasonCode(sys::MQRC_SELECTOR_NOT_PRESENT),
+                    MqValue(sys::MQRC_SELECTOR_NOT_PRESENT),
                 )) => Ok(None),
                 _ => Err(e),
             },
@@ -221,13 +221,13 @@ mod tests {
     fn add_items() {
         let bag = Bag::new(Mask::from(sys::MQCBO_GROUP_BAG)).expect("Failed to create bag");
         let property = bag
-            .inquire::<sys::MQLONG>(MqValue::new(0), Option::None)
+            .inquire::<sys::MQLONG>(MqValue::from(0), Option::None)
             .expect("Failed to retrieve item");
         property.map_or_else(|| eprintln!("No CCSID!"), |ccsid| println!("CCSID is {ccsid}"));
 
-        bag.add(MqValue::new(0), "abc").expect("Failed to add string");
+        bag.add(MqValue::from(0), "abc").expect("Failed to add string");
 
-        bag.delete(MqValue::new(0), BagIndex::None)
+        bag.delete(MqValue::from(0), BagIndex::None)
             .expect("Failed to delete item");
     }
 }

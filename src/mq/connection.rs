@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::{fmt::Display, ops::Deref};
 
-use crate::core::{self, Library};
+use crate::core::{self, Library, MQFunctions};
 use crate::{sys, MqStr, ResultCompErrExt as _, StructBuilder};
 use crate::{QMName, ResultComp};
 
@@ -12,7 +12,7 @@ type ConnectionId = [sys::MQBYTE; 24];
 #[derive(Debug)]
 pub struct ConnectionShare<L: Library, H> {
     handle: core::ConnectionHandle,
-    pub(crate) mq: core::MQFunctions<L>,
+    mq: core::MQFunctions<L>,
     id: ConnectionId,
     tag: Option<String>,
     _mark: PhantomData<H>, // Send and Sync control
@@ -113,10 +113,16 @@ impl<L: Library, H> ConnectionShare<L, H> {
         &self.id
     }
 
+    #[must_use]
+    pub const fn mq(&self) -> &MQFunctions<L> {
+        &self.mq
+    }
+
     pub fn tag(&self) -> Option<&str> {
         self.tag.as_deref()
     }
 
+    #[must_use]
     pub const fn handle(&self) -> &core::ConnectionHandle {
         &self.handle
     }

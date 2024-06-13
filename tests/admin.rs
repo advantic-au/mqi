@@ -7,8 +7,8 @@ use mqi::{sys, Connection, ConnectionOptions, Credentials};
 #[test]
 fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
     let admin_bag = Bag::new(Mask::from(sys::MQCBO_ADMIN_BAG))?;
-    admin_bag.add(MqValue::new(sys::MQCA_Q_NAME), "*")?;
-    admin_bag.add(MqValue::new(sys::MQIA_Q_TYPE), sys::MQQT_ALL)?;
+    admin_bag.add(MqValue::from(sys::MQCA_Q_NAME), "*")?;
+    admin_bag.add(MqValue::from(sys::MQIA_Q_TYPE), sys::MQQT_ALL)?;
     //admin_bag.add_inquiry(mqi::MQIA_CURRENT_Q_DEPTH)?;
 
     let cb = ConnectionOptions::from_mqserver("DEV.ADMIN.SVRCONN/TCP/192.168.92.15(1414)")?
@@ -24,11 +24,11 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         .credentials(Credentials::user("admin", "admin"));
     let conn = Connection::new(None, &cb).warn_as_error()?;
     let execute_result = admin_bag
-        .execute(conn.handle(), MqValue::new(sys::MQCMD_INQUIRE_Q), None, None, None)
+        .execute(conn.handle(), MqValue::from(sys::MQCMD_INQUIRE_Q), None, None, None)
         .warn_as_error()?;
 
     for bag in execute_result
-        .try_iter::<Bag<_, _>>(MqValue::new(sys::MQHA_BAG_HANDLE))?
+        .try_iter::<Bag<_, _>>(MqValue::from(sys::MQHA_BAG_HANDLE))?
         .flatten()
     // Ignore items that have errors
     {

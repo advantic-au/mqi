@@ -1,115 +1,6 @@
-use std::{borrow::Cow, marker::PhantomData};
 use crate::sys;
 
 pub mod mapping;
-
-pub trait RawValue {
-    type ValueType: Copy;
-}
-
-#[derive(PartialEq, Eq, Clone, Copy, Hash)]
-#[repr(transparent)]
-pub struct MqValue<T: RawValue>(pub(super) T::ValueType);
-
-impl<T: RawValue> MqValue<T> {
-    pub const fn new(value: T::ValueType) -> Self {
-        Self(value)
-    }
-}
-
-impl<T: HasConstLookup + RawValue<ValueType = sys::MQLONG>> HasMqNames for MqValue<T> {
-    fn mq_names(&self) -> impl Iterator<Item = &'static str> {
-        T::const_lookup().by_value(self.0)
-    }
-    fn mq_primary_name(&self) -> Option<&'static str> {
-        self.mq_names().next()
-    }
-}
-
-impl<T: RawValue<ValueType = sys::MQLONG>> MQConstant for MqValue<T> {
-    fn mq_value(&self) -> sys::MQLONG {
-        let Self(value) = self;
-        *value
-    }
-}
-
-impl<T: RawValue<ValueType = sys::MQLONG> + HasConstLookup> std::fmt::Display for MqValue<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self(attribute) = self;
-        let code = self.mq_primary_name().map_or_else(|| Cow::from(attribute.to_string()), Cow::from);
-        f.write_str(&code)
-    }
-}
-
-impl<T: RawValue<ValueType = sys::MQLONG> + HasConstLookup> std::fmt::Debug for MqValue<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self(attribute) = self;
-        let code = format!("{} = {attribute}", self.mq_primary_name().unwrap_or("Unknown"));
-        f.debug_tuple("MqValue").field(&code).finish()
-    }
-}
-
-#[derive(PartialEq, Eq, Clone, Copy, Hash)]
-#[repr(transparent)]
-pub struct Mask<T>(pub(super) sys::MQLONG, PhantomData<T>);
-
-impl<T: HasConstLookup> Mask<T> {
-    pub fn masked_list(&self) -> (impl Iterator<Item = ConstantItem<'static>>, sys::MQLONG) {
-        mask_list(T::const_lookup(), self.0)
-    }
-}
-
-impl<T: HasConstLookup> std::fmt::Display for Mask<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (list_iter, residual) = self.masked_list();
-        let residual = (residual != 0).then(|| Cow::from(format!("{residual:#X}")));
-        let list = list_iter.map(|(.., name)| Cow::from(name)).chain(residual);
-        let list_str = list.reduce(|mut acc, name| {
-            let acc_mut = acc.to_mut();
-            acc_mut.push('|');
-            acc_mut.push_str(&name);
-            acc
-        }).unwrap_or_else(|| Cow::from(format!("{:#X}", self.0)));
-        f.write_str(&list_str)
-    }
-}
-
-impl<T: HasConstLookup> std::fmt::Debug for Mask<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Mask").field(&format!("{self} = {:#X}", self.0)).finish()
-    }
-}
-
-
-fn mq_mask<'a>(
-    source: impl IntoIterator<Item = ConstantItem<'a>>,
-    input: sys::MQLONG,
-) -> (impl Iterator<Item = ConstantItem<'a>>, sys::MQLONG) {
-    let mut mask_list = Vec::new();
-    let residual = source.into_iter().filter(|&(value, ..)| value != 0).fold(input, |acc, f| {
-        let masked = input & f.0;
-        if masked == f.0 {
-            mask_list.push(f);
-            acc & !masked
-        }
-        else {
-            acc
-        }
-    });
-    (mask_list.into_iter(), residual)
-}
-
-impl<T> From<sys::MQLONG> for Mask<T> {
-    fn from(value: sys::MQLONG) -> Self {
-        Self(value, PhantomData)
-    }
-}
-
-impl<T: RawValue<ValueType = sys::MQLONG>> From<sys::MQLONG> for MqValue<T> {
-    fn from(value: T::ValueType) -> Self {
-        Self(value)
-    }
-}
 
 /// Implements `HasConstLookup` using the provided `ConstSource` static instance
 #[macro_export]
@@ -124,20 +15,6 @@ macro_rules! impl_constant_lookup {
 }
 pub trait MQConstant {
     fn mq_value(&self) -> sys::MQLONG;
-}
-
-fn mask_list(cl: &impl ConstLookup, value: sys::MQLONG) -> (impl Iterator<Item = ConstantItem>, sys::MQLONG) {
-    let (list, residual) = mq_mask(cl.all(), value);
-    (
-        list.chain(
-            (value == 0)
-                .then(|| cl.by_value(value).take(1))
-                .into_iter()
-                .flatten()
-                .map(|name| (0, name)),
-        ),
-        residual,
-    )
 }
 
 pub type ConstantItem<'a> = (sys::MQLONG, &'a str);
@@ -259,11 +136,11 @@ impl<T: AsRef<sys::MQLONG>> MQConstant for T {
 mod tests {
     use crate::ConstLookup;
 
-    use super::{mq_mask, ConstSource, LinearSource};
+    use super::{ConstSource, LinearSource};
 
     const ZERO: LinearSource = ConstSource(&[], &[]);
     const ONE: LinearSource = ConstSource(&[(1, "ONE")], &[]);
-    const ONEB: LinearSource = ConstSource(&[(1, "ONE")], &[(1, "ONEB")]);
+    const ONEB: LinearSource = ConstSource(&[(1, "ONE")], &[(1, "ONEB"), (2, "TWO")]);
 
     #[test]
     fn const_source() {
@@ -277,11 +154,4 @@ mod tests {
         assert_eq!(ONEB.by_value(0).collect::<Vec<_>>(), Vec::<&str>::new());
     }
 
-    #[test]
-    fn mask() {
-        let (mask_list, residual) = mq_mask(ONEB.all(), 3);
-
-        assert_eq!(mask_list.into_iter().collect::<Vec<_>>(), &[(1, "ONE"), (1, "ONEB")]);
-        assert_eq!(residual, 2);
-    }
 }

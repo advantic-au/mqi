@@ -8,7 +8,7 @@ use crate::Completion;
 use crate::MqValue;
 use crate::ResultCompErrExt as _;
 use crate::MQMD;
-use crate::{CompletionCode, Error, ReasonCode, ResultComp, ResultErr};
+use crate::{Error, ResultComp, ResultErr};
 
 use super::ConnectionShare;
 
@@ -53,7 +53,7 @@ impl<L: Library> Iterator for MsgPropIter<'_, L> {
             rn_mqcharv.VSCCSID = 0;
 
             let mut value = Vec::<u8>::with_capacity(page_size::get());
-            let mut prop_type = MqValue::new(sys::MQTYPE_AS_SET);
+            let mut prop_type = MqValue::from(sys::MQTYPE_AS_SET);
             let mut prop_desc = sys::MQPD::default();
 
             let inq_length = it.message.mq.mqinqmp(
@@ -87,7 +87,7 @@ impl<L: Library> Iterator for MsgPropIter<'_, L> {
         }
 
         match next_result(self) {
-            Err(Error(CompletionCode(sys::MQCC_FAILED), _, ReasonCode(sys::MQRC_PROPERTY_NOT_AVAILABLE))) => None,
+            Err(Error(MqValue(sys::MQCC_FAILED), _, MqValue(sys::MQRC_PROPERTY_NOT_AVAILABLE))) => None,
             result => Some(result),
         }
     }
@@ -187,6 +187,6 @@ impl<'connection, L: Library> Message<'connection, L> {
 
 impl<L: Library, H> ConnectionShare<L, H> {
     pub fn put<B>(&self, mqod: &mut sys::MQOD, mqmd: Option<&mut impl MQMD>, pmo: &mut sys::MQPMO, body: &B) -> ResultComp<()> {
-        self.mq.mqput1(self.handle(), mqod, mqmd, pmo, body)
+        self.mq().mqput1(self.handle(), mqod, mqmd, pmo, body)
     }
 }

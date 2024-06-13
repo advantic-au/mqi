@@ -66,8 +66,7 @@ fn transaction() -> Result<(), Box<dyn Error>> {
     let mut pmo = MqStruct::<sys::MQPMO>::default();
 
     QUEUE.copy_into_mqchar(&mut od.ObjectName);
-    let connection = Connection::new(None, &cb)
-        .warn_as_error()?;
+    let connection = Connection::new(None, &cb).warn_as_error()?;
     let object = Object::open(&connection, &od, Mask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
 
     object.put(&mut *md, &mut pmo, b"Hello ").warn_as_error()?;

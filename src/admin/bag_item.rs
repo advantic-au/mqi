@@ -171,7 +171,7 @@ where
     type Error = PutStringCcsidError;
 
     fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> Result<(), Self::Error> {
-        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::new(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
+        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::from(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
         if bag_ccsid != self.ccsid() {
             return Err(PutStringCcsidError::CcsidMismatch(self.ccsid(), bag_ccsid));
         }
@@ -184,7 +184,7 @@ where
         index: BagIndex,
         bag: &Bag<B, L>,
     ) -> Result<(), Self::Error> {
-        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::new(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
+        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::from(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
         if bag_ccsid != self.ccsid() {
             return Err(PutStringCcsidError::CcsidMismatch(self.ccsid(), bag_ccsid));
         }
@@ -203,7 +203,7 @@ where
 
     fn add_to_bag<B: BagDrop>(self, selector: MqValue<MqaiSelector>, bag: &Bag<B, L>) -> Result<(), Self::Error> {
         let Self { operator, value } = self;
-        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::new(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
+        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::from(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
         if bag_ccsid != value.ccsid() {
             return Err(PutStringCcsidError::CcsidMismatch(value.ccsid(), bag_ccsid));
         }
@@ -226,7 +226,7 @@ where
         bag: &Bag<B, L>,
     ) -> Result<(), Self::Error> {
         let Self { operator, value } = self;
-        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::new(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
+        let bag_ccsid = NonZeroI32::new(bag.mq.mq_inquire_integer(bag, MqValue::from(sys::MQIASY_CODED_CHAR_SET_ID), 0)?);
         if bag_ccsid != value.ccsid() {
             return Err(PutStringCcsidError::CcsidMismatch(value.ccsid(), bag_ccsid));
         }
