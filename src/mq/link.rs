@@ -1,10 +1,14 @@
 use libmqm_sys::link::LinkedMQ;
 
 use super::{ConnectionOptions, ConnectionShare, HandleShare};
-use crate::{core::mqai::CreateBagOptions, sys, DefinitionMethod, Mask, QMName, ResultComp, ResultErr, StructBuilder, StructOptionBuilder};
+use crate::{sys, DefinitionMethod, QMName, ResultComp, StructBuilder, StructOptionBuilder};
 
 #[cfg(feature = "mqai")]
-use crate::admin::{Bag, Owned};
+use crate::{
+    admin::{Bag, Owned},
+    core::mqai::CreateBagOptions,
+    Mask, ResultErr
+};
 
 impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
     pub fn connect<H: HandleShare>(self, qm_name: Option<&QMName>) -> ResultComp<ConnectionShare<&LinkedMQ, H>> {
