@@ -22,6 +22,10 @@ mod generated {
 
     #[cfg(all(target_os="linux", target_arch="x86_64"))]
     include!("pregen/x86_64-linux-mqconstants.rs");
+
+    #[cfg(target_os="macos")]
+    include!("pregen/any-macos-mqconstants.rs");
+
 }
 
 pub use generated::*;
