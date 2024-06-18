@@ -20,7 +20,7 @@ Usage
 -----
 
 1. As per `libmqm-sys` crate, download and install the redistributable client from IBM:
-  [https://ibm.biz/mq93redistclients]
+  [https://ibm.biz/mq94redistclients]
 
 2. Install the client in `/opt/mqm` or another location.
 
