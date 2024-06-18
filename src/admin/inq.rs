@@ -8,10 +8,8 @@ use crate::core::mqai::MqaiSelector;
 use crate::core::Library;
 use crate::MqValue;
 
-pub trait InqSelector<L: Library> {
-    type Out: BagItemGet<L>
-    where
-        L::MQ: function::MQAI;
+pub trait InqSelector<L: Library<MQ: function::MQAI>> {
+    type Out: BagItemGet<L>;
     fn attribute(&self) -> MqValue<MqaiSelector>;
 }
 
@@ -24,10 +22,7 @@ impl<T> Selector<T> {
     }
 }
 
-impl<L: Library, T: BagItemGet<L>> InqSelector<L> for Selector<T>
-where
-    L::MQ: function::MQAI,
-{
+impl<L: Library<MQ: function::MQAI>, T: BagItemGet<L>> InqSelector<L> for Selector<T> {
     type Out = T;
 
     fn attribute(&self) -> MqValue<MqaiSelector> {

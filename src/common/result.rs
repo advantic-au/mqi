@@ -1,33 +1,36 @@
 #![allow(clippy::module_name_repetitions)]
 
+use crate::sys;
+use crate::{
+    constants::{mapping, MQConstant},
+    impl_constant_lookup, HasMqNames, MqValue, RawValue,
+};
 use std::{
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
 };
 use thiserror::Error;
-use crate::{constants::{mapping, MQConstant}, impl_constant_lookup, HasMqNames, MqValue, RawValue};
-use crate::sys;
 
-impl_constant_lookup!(RC, mapping::MQRC_FULL_CONST);
-impl_constant_lookup!(CC, mapping::MQCC_CONST);
+impl_constant_lookup!(MQRC, mapping::MQRC_FULL_CONST);
+impl_constant_lookup!(MQCC, mapping::MQCC_CONST);
 
-impl RawValue for RC {
+impl RawValue for MQRC {
     type ValueType = sys::MQLONG;
 }
 
-impl RawValue for CC {
+impl RawValue for MQCC {
     type ValueType = sys::MQLONG;
 }
 
 /// MQ API reason code (`MQRC_*`)
 #[derive(Clone, Copy)]
-pub struct RC;
-pub type ReasonCode = MqValue<RC>;
+pub struct MQRC;
+pub type ReasonCode = MqValue<MQRC>;
 
 /// MQ API completion code (`MQCC_*`)
 #[derive(Clone, Copy)]
-pub struct CC;
-pub type CompletionCode = MqValue<CC>;
+pub struct MQCC;
+pub type CompletionCode = MqValue<MQCC>;
 
 impl Default for ReasonCode {
     fn default() -> Self {
@@ -47,18 +50,18 @@ impl ReasonCode {
         let name = self.mq_primary_name()?.to_lowercase().replace('_', "-");
         let version = version.unwrap_or("latest");
         let code = self.mq_value();
-        Some(format!("https://www.ibm.com/docs/{language}/ibm-mq/{version}?topic=codes-{code}-{code:04x}-rc{code}-{name}"))
+        Some(format!(
+            "https://www.ibm.com/docs/{language}/ibm-mq/{version}?topic=codes-{code}-{code:04x}-rc{code}-{name}"
+        ))
     }
 }
 
 /// A value returned from an MQ API call, optionally with a warning `ReasonCode`
 #[derive(Debug, Clone)]
+#[must_use]
 pub struct Completion<T>(pub T, pub Option<ReasonCode>, pub &'static str);
 
-impl<T> std::process::Termination for Completion<T>
-where
-    T: std::process::Termination,
-{
+impl<T: std::process::Termination> std::process::Termination for Completion<T> {
     fn report(self) -> std::process::ExitCode {
         let Self(value, ..) = self;
         value.report()
@@ -66,10 +69,7 @@ where
 }
 
 impl<T> Completion<T> {
-    pub fn map<U, F>(self, op: F) -> Completion<U>
-    where
-        F: FnOnce(T) -> U,
-    {
+    pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> Completion<U> {
         let Self(value, warning, verb) = self;
         Completion(op(value), warning, verb)
     }
@@ -80,6 +80,12 @@ impl<T> Completion<T> {
     pub fn warning(&self) -> Option<ReasonCode> {
         let Self(_, warning, _) = self;
         *warning
+    }
+
+    /// Discards the `MQCC_WARNING` in the Completion
+    pub fn discard_warning(self) -> T {
+        let Self(value, ..) = self;
+        value
     }
 }
 
@@ -158,14 +164,13 @@ pub trait ResultCompErrExt<T, E> {
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E>;
 
     /// Returns the contained `Ok(Completion(..))` value, discarding any warning and consumes the `self` value.
-    /// 
+    ///
     /// This function can panic, so use it with caution.
-    /// 
+    ///
     /// # Panic
     /// Panics if the value is an `Err`, with a panic message provided by the `Err`'s value.
     fn unwrap_completion(self) -> T;
-
-} 
+}
 
 impl<T, E: std::fmt::Debug> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E> {
@@ -174,15 +179,16 @@ impl<T, E: std::fmt::Debug> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
 
     #[allow(clippy::unwrap_used)]
     fn unwrap_completion(self) -> T {
-        let Completion(result, ..) = self.unwrap();
-        result
+        self.unwrap().discard_warning()
     }
 }
 
 impl<T> ResultCompExt<T> for ResultComp<T> {
     fn warn_as_error(self) -> ResultErr<T> {
         match self {
-            Ok(Completion(_, Some(warn_cc), verb)) => Err(Error(CompletionCode::from(sys::MQCC_WARNING), verb, warn_cc)),
+            Ok(Completion(_, Some(warn_cc), verb)) => {
+                Err(Error(CompletionCode::from(sys::MQCC_WARNING), verb, warn_cc))
+            }
             other => other.map(|Completion(value, ..)| value),
         }
     }
@@ -213,7 +219,10 @@ mod tests {
     fn ibm_reference_url() {
         assert_eq!(
             ReasonCode::from(sys::MQRC_Q_ALREADY_EXISTS).ibm_reference_url("en", None),
-            Some("https://www.ibm.com/docs/en/ibm-mq/latest?topic=codes-2290-08f2-rc2290-mqrc-q-already-exists".to_owned())
+            Some(
+                "https://www.ibm.com/docs/en/ibm-mq/latest?topic=codes-2290-08f2-rc2290-mqrc-q-already-exists"
+                    .to_owned()
+            )
         );
     }
 }

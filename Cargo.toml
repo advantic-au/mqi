@@ -8,7 +8,7 @@ license = "Apache-2.0"
 keywords = [ "message-queue", "messaging" ]
 categories = [ "asynchronous" ]
 
-rust-version = "1.75"
+rust-version = "1.79"
 edition = "2021"
 build = "build/mod.rs"
 

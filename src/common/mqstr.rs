@@ -15,11 +15,11 @@ pub struct MqStr<const N: usize> {
     data: [u8; N],
 }
 
-/// Define a `MqStr` from literal `&str`.
+/// Define a `MqStr` from constant `&str`.
 #[macro_export]
 macro_rules! mqstr {
-    ($val:literal) => {
-        MqStr::from_str($val)
+    ($val:expr) => {
+        const { MqStr::from_str($val) }
     };
 }
 

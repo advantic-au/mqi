@@ -2,11 +2,11 @@
 
 use mqi::admin::{selectors, Bag};
 use mqi::{mqstr, prelude::*};
-use mqi::{sys, Connection, ConnectionOptions, Credentials};
+use mqi::{sys, QueueManager, ConnectionOptions, Credentials};
 
 #[test]
 fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
-    let admin_bag = Bag::new(Mask::from(sys::MQCBO_ADMIN_BAG))?;
+    let admin_bag = Bag::new(MqMask::from(sys::MQCBO_ADMIN_BAG))?;
     admin_bag.add(MqValue::from(sys::MQCA_Q_NAME), "*")?;
     admin_bag.add(MqValue::from(sys::MQIA_Q_TYPE), sys::MQQT_ALL)?;
     //admin_bag.add_inquiry(mqi::MQIA_CURRENT_Q_DEPTH)?;
@@ -22,7 +22,7 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         // )
         .application_name(Some(mqstr!("rust_testing")))
         .credentials(Credentials::user("admin", "admin"));
-    let conn = Connection::new(None, &cb).warn_as_error()?;
+    let (conn, ..) = QueueManager::new(None, &cb).warn_as_error()?;
     let execute_result = admin_bag
         .execute(conn.handle(), MqValue::from(sys::MQCMD_INQUIRE_Q), None, None, None)
         .warn_as_error()?;

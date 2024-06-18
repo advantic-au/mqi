@@ -18,8 +18,6 @@ pub mod raw {
 
 pub type BagHandle = Handle<raw::Bag>;
 
-pub const MQHB_NONE: BagHandle = Handle(sys::MQHB_NONE);
-
 impl From<sys::MQHBAG> for BagHandle {
     fn from(value: sys::MQHBAG) -> Self {
         Self(value)

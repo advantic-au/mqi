@@ -79,8 +79,6 @@ impl From<sys::MQHOBJ> for ObjectHandle {
     }
 }
 
-pub const UNNASSOCIATED_HCONN: ConnectionHandle = Handle(sys::MQHC_UNASSOCIATED_HCONN);
-
 impl ConnectionHandle {
     #[must_use]
     pub const fn is_disconnectable(&self) -> bool {
@@ -104,8 +102,6 @@ impl Display for ConnectionHandle {
         }
     }
 }
-
-pub const MQHO_NONE: ObjectHandle = Handle(sys::MQHO_NONE);
 
 impl ObjectHandle {
     #[must_use]

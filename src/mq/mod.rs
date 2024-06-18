@@ -2,7 +2,8 @@
 mod link;
 
 mod builder;
-mod connection;
+mod queue_manager;
+mod callback;
 mod get;
 mod message;
 mod mqstruct;
@@ -15,7 +16,7 @@ pub mod inq {
 }
 
 pub use builder::*;
-pub use connection::*;
+pub use queue_manager::*;
 pub use get::*;
 pub use message::*;
 pub use mqstruct::*;

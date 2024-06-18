@@ -3,7 +3,7 @@ use std::ptr;
 use crate::sys;
 use super::MqStruct;
 
-const C_EMPTY: *mut std::ffi::c_void = (b"\0" as *const u8).cast_mut().cast();
+const C_EMPTY: *mut std::ffi::c_void = c"".as_ptr().cast_mut().cast();
 
 // Zero length strings seem to require null termination
 /// Returns a pointer to a string, with a nul termination for empty strings

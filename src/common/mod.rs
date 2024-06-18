@@ -1,9 +1,9 @@
 mod mqstr;
 mod mqvalue;
-mod mask;
+mod mqmask;
 mod result;
 
 pub use mqstr::*;
 pub use mqvalue::*;
-pub use mask::*;
+pub use mqmask::*;
 pub use result::*;

@@ -3,18 +3,19 @@ use std::ptr;
 
 use libmqm_sys::MQAI;
 
+use crate::core::{Library, MQFunctions, MQIOutcome, MQIOutcomeVoid};
 use crate::{core, MQMD};
-use crate::core::{mqai, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid};
-use crate::{impl_constant_lookup, mapping, sys, ConstLookup, Mask, MqValue, RawValue, ResultComp, ResultErr};
+use crate::{impl_constant_lookup, mapping, sys, ConstLookup, MqMask, MqValue, RawValue, ResultComp, ResultErr};
 
-use super::{BagHandle, CommandOperator, Filter};
+use super::{BagHandle, MQCFOP, Filter};
 
 #[cfg(feature = "tracing")]
 use {core::tracing_outcome, tracing::instrument};
 
+/// Create bag options mask
 #[derive(Clone, Copy)]
-pub struct CreateBagOptions;
-impl_constant_lookup!(CreateBagOptions, mapping::MQCBO_CONST);
+pub struct MQCBO;
+impl_constant_lookup!(MQCBO, mapping::MQCBO_CONST);
 
 #[derive(Clone, Copy)]
 pub struct MqaiSelector;
@@ -30,13 +31,11 @@ https://www.ibm.com/docs/en/ibm-mq/latest?topic=reference-mqai-selectors
 
 It would be more efficient to generate one large set as part of the build process, but this will do for now.
 
-+ MQSEL_* inconstistencies (not solutioned here)
-
 */
 
 struct MqaiSelectorLookup;
 impl ConstLookup for MqaiSelectorLookup {
-    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &'static str> {
+    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &str> {
         mapping::MQIA_CONST
             .by_value(value)
             .chain(mapping::MQCA_CONST.by_value(value))
@@ -74,18 +73,15 @@ impl ConstLookup for MqaiSelectorLookup {
 }
 
 #[derive(Clone, Copy)]
-pub struct Command;
-impl RawValue for Command {
+pub struct MQCMD;
+impl RawValue for MQCMD {
     type ValueType = sys::MQLONG;
 }
-impl_constant_lookup!(Command, mapping::MQCMD_CONST);
+impl_constant_lookup!(MQCMD, mapping::MQCMD_CONST);
 
-impl<L: Library> MQFunctions<L>
-where
-    L::MQ: MQAI,
-{
+impl<L: Library<MQ: MQAI>> MQFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_create_bag(&self, options: Mask<CreateBagOptions>) -> ResultErr<BagHandle> {
+    pub fn mq_create_bag(&self, options: MqMask<MQCBO>) -> ResultErr<BagHandle> {
         let mut outcome = MQIOutcome::<BagHandle>::with_verb("mqCreateBag");
         unsafe {
             self.0.mqCreateBag(
@@ -546,10 +542,7 @@ where
         selector: MqValue<MqaiSelector>,
         index: sys::MQLONG,
     ) -> ResultErr<Filter<sys::MQLONG>> {
-        let mut outcome = MQIOutcome::new(
-            "mqInquireIntegerFilter",
-            Filter::new(0, MqValue::from(0)),
-        );
+        let mut outcome = MQIOutcome::new("mqInquireIntegerFilter", Filter::new(0, MqValue::from(0)));
         unsafe {
             self.0.mqInquireIntegerFilter(
                 bag.raw_handle(),
@@ -654,8 +647,8 @@ where
         selector: MqValue<MqaiSelector>,
         index: sys::MQLONG,
         value: &mut T,
-    ) -> ResultErr<(sys::MQLONG, sys::MQLONG, MqValue<CommandOperator>)> {
-        let mut outcome = MQIOutcome::new("mqInquireStringFilter", (0, 0, MqValue::from(0)));
+    ) -> ResultErr<(sys::MQLONG, sys::MQLONG, MqValue<MQCFOP>)> {
+        let mut outcome = MQIOutcome::new("mqInquireStringFilter", (-1, 0, MqValue::from(0)));
         let (length, ccsid, operator) = &mut outcome.value;
         unsafe {
             self.0.mqInquireStringFilter(
@@ -685,8 +678,8 @@ where
         selector: MqValue<MqaiSelector>,
         index: sys::MQLONG,
         value: &mut T,
-    ) -> ResultErr<(sys::MQLONG, MqValue<CommandOperator>)> {
-        let mut outcome = MQIOutcome::new("mqInquireByteStringFilter", (0, MqValue::from(0)));
+    ) -> ResultErr<(sys::MQLONG, MqValue<MQCFOP>)> {
+        let mut outcome = MQIOutcome::new("mqInquireByteStringFilter", (-1, MqValue::from(0)));
         let (length, operator) = &mut outcome.value;
         unsafe {
             self.0.mqInquireByteStringFilter(
@@ -753,7 +746,7 @@ where
     pub fn mq_execute(
         &self,
         handle: &core::ConnectionHandle,
-        command: MqValue<Command>,
+        command: MqValue<MQCMD>,
         options: Option<&BagHandle>,
         admin: &BagHandle,
         response: &BagHandle,
@@ -765,11 +758,11 @@ where
             self.0.mqExecute(
                 handle.raw_handle(),
                 command.0,
-                options.unwrap_or(&mqai::MQHB_NONE).raw_handle(),
+                options.map_or(sys::MQHB_NONE, |h| h.raw_handle()),
                 admin.raw_handle(),
                 response.raw_handle(),
-                admin_q.unwrap_or(&core::MQHO_NONE).raw_handle(),
-                response_q.unwrap_or(&core::MQHO_NONE).raw_handle(),
+                admin_q.map_or(sys::MQHO_NONE, |h| h.raw_handle()),
+                response_q.map_or(sys::MQHO_NONE, |h| h.raw_handle()),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -822,7 +815,7 @@ where
                 object.raw_handle(),
                 ptr::addr_of_mut!(*mqmd).cast(),
                 ptr::addr_of_mut!(*gmo).cast(),
-                bag.unwrap_or(&mqai::MQHB_NONE).raw_handle(),
+                bag.map_or(sys::MQHB_NONE, |h| h.raw_handle()),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -868,7 +861,7 @@ mod tests {
     fn create_bag() {
         let linked = MQFunctions::linked();
         let mut bag = linked
-            .mq_create_bag(Mask::from(sys::MQCBO_COMMAND_BAG))
+            .mq_create_bag(MqMask::from(sys::MQCBO_COMMAND_BAG))
             .expect("Failed to create MQ BAG");
         linked.mq_delete_bag(&mut bag).expect("Failed to delete MQ BAG");
     }
@@ -877,10 +870,10 @@ mod tests {
     fn add_bag() {
         let mq_lib = MQFunctions::linked();
         let mut bag = mq_lib
-            .mq_create_bag(Mask::from(sys::MQCBO_GROUP_BAG))
+            .mq_create_bag(MqMask::from(sys::MQCBO_GROUP_BAG))
             .expect("Failed to create MQ BAG");
         let bag_attached = mq_lib
-            .mq_create_bag(Mask::from(sys::MQCBO_GROUP_BAG))
+            .mq_create_bag(MqMask::from(sys::MQCBO_GROUP_BAG))
             .expect("Failed to create MQ BAG");
         let mut wally: [sys::MQCHAR; 3] = [1, 2, 3];
         mq_lib
@@ -895,7 +888,8 @@ mod tests {
         //dbg!(mq_lib.mq_add_string(&bag_attached, 2, "hello".as_bytes())).expect("BLA2");
         let mut data = Vec::<u8>::with_capacity(page_size::get());
         let (length, ..) =
-            dbg!(mq_lib.mq_inquire_string(&bag_attached, MqValue::from(1), 0, data.spare_capacity_mut())).expect("BLA2");
+            dbg!(mq_lib.mq_inquire_string(&bag_attached, MqValue::from(1), 0, data.spare_capacity_mut()))
+                .expect("BLA2");
         unsafe {
             data.set_len(
                 length

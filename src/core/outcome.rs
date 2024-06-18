@@ -12,7 +12,7 @@ pub struct MQIOutcome<T> {
     pub cc: CompletionCode,
     /// Reason code of the MQI function call
     pub rc: ReasonCode,
-    /// Return valie of the MQI function call
+    /// Return value of the MQI function call
     pub value: T,
 }
 

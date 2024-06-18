@@ -23,7 +23,7 @@ pub type ConstantItem<'a> = (sys::MQLONG, &'a str);
 pub trait ConstLookup {
     /// All the constant names for the provided value.
     /// The first value returned by the iterator is the primary constant for the value.
-    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &'static str>;
+    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &str>;
     /// The constant value for the provided name.
     fn by_name(&self, name: &str) -> Option<sys::MQLONG>;
     /// The complete list of value and name constants
@@ -35,6 +35,8 @@ pub struct ConstSource<P, S>(P, S);
 pub type PhfSource<'a> = ConstSource<&'a ::phf::Map<sys::MQLONG, &'a str>, &'a [ConstantItem<'a>]>;
 pub type LinearSource<'a> = ConstSource<&'a [ConstantItem<'a>], &'a [ConstantItem<'a>]>;
 pub type BinarySearchSource<'a> = ConstSource<BinarySearch<'a>, &'a [ConstantItem<'a>]>;
+
+/// MQ constant repository to be searched by value using binary search
 pub struct BinarySearch<'a>(&'a [ConstantItem<'a>]);
 
 /// Associated constant lookup table with a type
@@ -44,7 +46,7 @@ pub trait HasConstLookup {
 }
 
 impl<P: ConstLookup, S: ConstLookup> ConstLookup for ConstSource<P, S> {
-    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &'static str> {
+    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &str> {
         let Self(source, extra) = self;
         source.by_value(value).chain(extra.by_value(value))
     }
@@ -60,19 +62,17 @@ impl<P: ConstLookup, S: ConstLookup> ConstLookup for ConstSource<P, S> {
     }
 }
 
-impl ConstLookup for BinarySearch<'static> {
-    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &'static str> {
-        let list = &self.0;
+impl ConstLookup for BinarySearch<'_> {
+    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &str> {
+        let Self(list) = self;
         list.binary_search_by_key(&value, |&(value, ..)| value)
             .map(|index| list[index].1)
             .into_iter()
     }
 
     fn by_name(&self, name: &str) -> Option<sys::MQLONG> {
-        let list = &self.0;
-        list.binary_search_by_key(&name, |&(.., name)| name)
-            .map(|index| list[index].0)
-            .ok()
+        let &Self(list) = self;
+        list.by_name(name)
     }
 
     fn all(&self) -> impl Iterator<Item = ConstantItem> {
@@ -81,8 +81,9 @@ impl ConstLookup for BinarySearch<'static> {
     }
 }
 
-impl ConstLookup for &::phf::Map<sys::MQLONG, &'static str> {
-    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &'static str> {
+// phf map of ConstItem
+impl ConstLookup for &::phf::Map<sys::MQLONG, &str> {
+    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &str> {
         self.get(&value).copied().into_iter()
     }
 
@@ -98,9 +99,12 @@ impl ConstLookup for &::phf::Map<sys::MQLONG, &'static str> {
     }
 }
 
-impl ConstLookup for &[ConstantItem<'static>] {
-    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &'static str> {
-        self.iter().filter_map(move |&(v, name)| (v == value).then_some(name))
+// Ordered array of ConstItems
+impl ConstLookup for &[ConstantItem<'_>] {
+    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &str> {
+        self.iter()
+            .take_while(move |&(v, ..)| *v <= value)
+            .filter_map(move |&(v, name)| (v == value).then_some(name))
     }
 
     fn by_name(&self, name: &str) -> Option<sys::MQLONG> {
@@ -153,5 +157,4 @@ mod tests {
         assert_eq!(ONEB.by_value(1).collect::<Vec<_>>(), &["ONE", "ONEB"]);
         assert_eq!(ONEB.by_value(0).collect::<Vec<_>>(), Vec::<&str>::new());
     }
-
 }

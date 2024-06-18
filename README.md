@@ -46,7 +46,7 @@ Example
 Connect to the default queue manager using the MQSERVER environment variable.
 
 ```rust
-use mqi::{mqstr, prelude::*, Connection, ConnectionOptions, Credentials};
+use mqi::{mqstr, prelude::*, QueueManager, ConnectionOptions, Credentials};
 
 #[test]
 fn default_binding() -> Result<(), Box<dyn Error>> {
@@ -59,11 +59,11 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
 
     // Connect to the default queue manager (None) with the provided `connection_options`
     // Treat all MQCC_WARNING as an error
-    let connection = Connection::new(None, &connection_options)
+    let qm = QueueManager::new(None, &connection_options)
         .warn_as_error()?;
     
     // Disconnect. 
-    connection.disconnect().warn_as_error()?;
+    qm.disconnect().warn_as_error()?;
 
     Ok(())
 }

@@ -1,34 +1,38 @@
-use num_enum::IntoPrimitive;
+use libmqm_sys::function;
 
 use crate::core;
 use crate::core::Library;
 use crate::core::MQFunctions;
+use crate::impl_constant_lookup;
+use crate::mapping;
 use crate::sys;
 use crate::Completion;
+use crate::MQConstant;
 use crate::MqValue;
+use crate::RawValue;
 use crate::ResultCompErrExt as _;
 use crate::MQMD;
 use crate::{Error, ResultComp, ResultErr};
 
-use super::ConnectionShare;
+use super::QueueManagerShare;
 
-pub struct Message<'ch, L: Library> {
+pub struct Message<'ch, L: Library<MQ: function::MQI>> {
     handle: core::MessageHandle,
     mq: MQFunctions<L>,
     connection: &'ch core::ConnectionHandle,
 }
 
-pub struct MsgPropIter<'mh, L: Library> {
+pub struct MsgPropIter<'mh, L: Library<MQ: function::MQI>> {
     name: String,
     message: &'mh Message<'mh, L>,
     inq_prop_opts: sys::MQIMPO,
 }
 
-impl<L: Library> Iterator for MsgPropIter<'_, L> {
+impl<L: Library<MQ: function::MQI>> Iterator for MsgPropIter<'_, L> {
     type Item = ResultComp<()>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        fn next_result<A: Library>(it: &mut MsgPropIter<A>) -> ResultComp<()> {
+        fn next_result<A: Library<MQ: function::MQI>>(it: &mut MsgPropIter<A>) -> ResultComp<()> {
             let name_ref: &str = &it.name;
             let len = name_ref
                 .len()
@@ -112,19 +116,18 @@ pub enum Coding {
     TextCCSID(sys::MQLONG),
 }
 
-#[derive(Default, IntoPrimitive)]
-#[repr(i32)]
-pub enum MessageHandleOptions {
-    Validate = sys::MQCMHO_VALIDATE,
-    NoValidation = sys::MQCMHO_NO_VALIDATION,
-    #[default]
-    Default = sys::MQCMHO_DEFAULT_VALIDATION,
+/// Create message handle option value
+#[derive(Debug, Clone, Copy)]
+pub struct MQCMHO;
+impl_constant_lookup!(MQCMHO, mapping::MQCMHO_CONST);
+impl RawValue for MQCMHO {
+    type ValueType = sys::MQLONG;
 }
 
 impl Value {
     #[must_use]
     #[allow(clippy::cast_possible_wrap)] // Masks are unsigned.
-    pub fn from(data: &[u8], MqValue(prop_type): MqValue<core::MqType>, ccsid: sys::MQLONG, encoding: sys::MQLONG) -> Self {
+    pub fn from(data: &[u8], MqValue(prop_type): MqValue<core::MQTYPE>, ccsid: sys::MQLONG, encoding: sys::MQLONG) -> Self {
         static ENC_NATIVE_INTEGER: sys::MQLONG = sys::MQENC_INTEGER_MASK as sys::MQLONG & sys::MQENC_NATIVE;
         static ENC_NATIVE_FLOAT: sys::MQLONG = sys::MQENC_FLOAT_MASK as sys::MQLONG & sys::MQENC_NATIVE;
         match prop_type {
@@ -154,21 +157,21 @@ impl Value {
     }
 }
 
-impl<L: Library> Drop for Message<'_, L> {
+impl<L: Library<MQ: function::MQI>> Drop for Message<'_, L> {
     fn drop(&mut self) {
         let mqdmho = sys::MQDMHO::default();
         let _ = self.mq.mqdltmh(Some(self.connection), &mut self.handle, &mqdmho);
     }
 }
 
-impl<'connection, L: Library> Message<'connection, L> {
+impl<'connection, L: Library<MQ: function::MQI>> Message<'connection, L> {
     pub fn new(
         lib: L,
         connection: &'connection core::ConnectionHandle,
-        options: MessageHandleOptions,
+        options: MqValue<MQCMHO>,
     ) -> ResultErr<Self> {
         let mqcmho = sys::MQCMHO {
-            Options: options.into(),
+            Options: options.mq_value(),
             ..sys::MQCMHO::default()
         };
         let mq = MQFunctions(lib);
@@ -185,7 +188,7 @@ impl<'connection, L: Library> Message<'connection, L> {
     }
 }
 
-impl<L: Library, H> ConnectionShare<L, H> {
+impl<L: Library<MQ: function::MQI>, H> QueueManagerShare<L, H> {
     pub fn put<B>(&self, mqod: &mut sys::MQOD, mqmd: Option<&mut impl MQMD>, pmo: &mut sys::MQPMO, body: &B) -> ResultComp<()> {
         self.mq().mqput1(self.handle(), mqod, mqmd, pmo, body)
     }

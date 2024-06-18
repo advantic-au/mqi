@@ -1,4 +1,4 @@
-use libmqm_sys::{function, MQI};
+use libmqm_sys::MQI;
 
 #[cfg(feature = "link")]
 use libmqm_sys::link;
@@ -8,7 +8,7 @@ pub struct MQFunctions<L>(pub L);
 
 /// Holds a smart pointer to a `MQFunctions`
 pub trait Library: std::ops::Deref<Target = Self::MQ> + Clone {
-    type MQ: function::MQI;
+    type MQ;
 }
 
 impl<T: MQI> Library for &T {

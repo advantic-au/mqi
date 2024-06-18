@@ -5,32 +5,32 @@ use crate::{impl_constant_lookup, sys, MqValue, RawValue};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Filter<T> {
-    pub operator: MqValue<CommandOperator>,
+    pub operator: MqValue<MQCFOP>,
     pub value: T,
 }
 
 #[derive(Clone, Copy)]
-pub struct CommandOperator;
+pub struct MQCFOP;
 
-impl RawValue for CommandOperator {
+impl RawValue for MQCFOP {
     type ValueType = sys::MQLONG;
 }
 
-impl_constant_lookup!(CommandOperator, mapping::MQCFOP_CONST);
+impl_constant_lookup!(MQCFOP, mapping::MQCFOP_CONST);
 
 impl<T> Filter<T> {
     pub const fn value(&self) -> &T {
         &self.value
     }
 
-    pub const fn operator(&self) -> MqValue<CommandOperator> {
+    pub const fn operator(&self) -> MqValue<MQCFOP> {
         let &Self {
             operator, ..
         } = self;
         operator
     }
 
-    pub const fn new(value: T, operator: MqValue<CommandOperator>) -> Self {
+    pub const fn new(value: T, operator: MqValue<MQCFOP>) -> Self {
         Self { operator, value }
     }
 

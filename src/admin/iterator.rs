@@ -10,12 +10,7 @@ use crate::{Error, ResultErr};
 
 use super::{Bag, BagDrop, BagItemGet, WithMQError};
 
-pub struct BagItem<'bag, T, B, L>
-where
-    B: BagDrop,
-    L: Library,
-    L::MQ: function::MQAI,
-{
+pub struct BagItem<'bag, T, B: BagDrop, L: Library<MQ: function::MQAI>> {
     selector: MqValue<MqaiSelector>,
     index: sys::MQLONG,
     count: sys::MQLONG,
@@ -23,10 +18,7 @@ where
     data: PhantomData<T>,
 }
 
-impl<T: BagItemGet<L>, B: BagDrop, L: Library> Iterator for BagItem<'_, T, B, L>
-where
-    L::MQ: function::MQAI,
-{
+impl<T: BagItemGet<L>, B: BagDrop, L: Library<MQ: function::MQAI>> Iterator for BagItem<'_, T, B, L> {
     type Item = Result<T, T::Error>;
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -55,10 +47,7 @@ where
     }
 }
 
-impl<B: BagDrop, L: Library> Bag<B, L>
-where
-    L::MQ: function::MQAI,
-{
+impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
     pub fn try_iter<T: BagItemGet<L>>(&self, selector: MqValue<MqaiSelector>) -> ResultErr<BagItem<'_, T, B, L>> {
         self.mq.mq_count_items(self, selector).map(|count| BagItem {
             selector,

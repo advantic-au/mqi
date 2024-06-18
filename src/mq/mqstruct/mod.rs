@@ -7,6 +7,7 @@ use std::{
 
 /// MQ structure holding a `T` with an associated lifetime for pointer fields
 #[derive(Default, Debug, Clone)]
+#[repr(transparent)]
 pub struct MqStruct<'ptr, T> {
     struc: T,
     _marker: PhantomData<&'ptr mut ()>, // Lifetime reference required for pointers in the MQ structure
@@ -67,11 +68,8 @@ impl<R, E> MqStructSelfRef<R, E> {
     }
 }
 
-impl<R, E> MqStructSelfRef<R, E> {
-    pub fn referred(&self) -> &E::Target
-    where
-        E: Deref,
-    {
+impl<R, E: Deref> MqStructSelfRef<R, E> {
+    pub fn referred(&self) -> &E::Target {
         &self.1
     }
 }

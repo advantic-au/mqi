@@ -4,11 +4,12 @@ use std::pin::Pin;
 use std::{convert::Into, fmt::Debug};
 
 use crate::core::Library;
-use crate::{sys, CipherSpec, MqStructSelfRef, NoStruct, StructBuilder, StructOptionBuilder, StructType};
+use crate::{sys, CipherSpec, ConnectionId, MqStructSelfRef, NoStruct, StructBuilder, StructOptionBuilder, StructType};
 use crate::{ApplName, ChannelName, ConnectionName, MqStr, MqStruct, QMName, ResultComp};
+use libmqm_sys::function;
 use thiserror::Error;
 
-use super::{ConnectionShare, HandleShare};
+use super::{QueueManagerShare, HandleShare};
 
 pub trait Secret<T: Deref = String> {
     fn expose_secret(&self) -> &T::Target;
@@ -670,12 +671,12 @@ impl<C, D> ConnectionOptions<C, D> {
 
 impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
     /// Execute a connection to MQ using the provided `qm_name` and the `ConnectionOptions` settings
-    pub fn connect_lib<L: Library, H: HandleShare>(
+    pub fn connect_lib<L: Library<MQ: function::MQI>, H: HandleShare>(
         &self,
         lib: L,
         qm_name: Option<&QMName>,
-    ) -> ResultComp<ConnectionShare<L, H>> {
-        ConnectionShare::new_lib(lib, qm_name, self)
+    ) -> ResultComp<(QueueManagerShare<L, H>, ConnectionId, Option<String>)> {
+        QueueManagerShare::new_lib(lib, qm_name, self)
     }
 }
 

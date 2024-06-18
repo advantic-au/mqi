@@ -1,14 +1,17 @@
 use crate::{impl_constant_lookup, mapping, sys, RawValue};
 
-pub struct OpenOptions;
-impl_constant_lookup!(OpenOptions, mapping::MQOO_CONST);
+/// Close Options mask
+pub struct MQOO;
+impl_constant_lookup!(MQOO, mapping::MQOO_CONST);
 
-pub struct CloseOptions;
-impl_constant_lookup!(CloseOptions, mapping::MQCO_CONST);
+/// Open Options mask
+pub struct MQCO;
+impl_constant_lookup!(MQCO, mapping::MQCO_CONST);
 
+/// Callback Operation mask/value
 #[derive(Clone, Copy)]
-pub struct CallbackOperation;
-impl_constant_lookup!(CallbackOperation, mapping::MQOP_CONST);
-impl RawValue for CallbackOperation {
+pub struct MQOP;
+impl_constant_lookup!(MQOP, mapping::MQOP_CONST);
+impl RawValue for MQOP {
     type ValueType = sys::MQLONG;
 }

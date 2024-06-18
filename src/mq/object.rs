@@ -3,17 +3,18 @@ use std::{
     collections::VecDeque,
     fmt::Debug,
     mem::size_of_val,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut}, sync::Arc,
 };
 
+use libmqm_sys::function;
+
 use crate::{
-    core::{self, CloseOptions, Library, OpenOptions},
-    Mask, MqValue, RawValue, ResultCompErrExt as _,
+    core::{self, ConnectionHandle, Library, MQFunctions, MQCO, MQOO}, Conn, MqMask, MqValue, RawValue, ResultCompErrExt as _
 };
 use crate::{impl_constant_lookup, mapping, sys, MqStr, QMName, QName, StructBuilder};
 use crate::{ObjectName, ResultComp};
 
-use super::{ConnectionShare, StringCcsid};
+use super::{QueueManagerShare, StringCcsid};
 
 trait Sealed {}
 #[allow(private_bounds)]
@@ -26,26 +27,56 @@ impl MQMD for sys::MQMD {}
 impl MQMD for sys::MQMD2 {}
 impl MQMD for sys::MQMDE {}
 
-#[derive(PartialEq, Eq, Clone, Copy, Hash)]
-pub struct Attribute;
+#[derive(Clone, Copy)]
+pub struct MQXA;
 
-impl RawValue for Attribute {
+impl RawValue for MQXA {
     type ValueType = sys::MQLONG;
 }
-impl_constant_lookup!(Attribute, mapping::MQXA_FULL_CONST);
+impl_constant_lookup!(MQXA, mapping::MQXA_FULL_CONST);
 
-pub type InqReqType = (MqValue<Attribute>, InqReqItem);
-pub type InqResType = (MqValue<Attribute>, InqResItem);
+pub type InqReqType = (MqValue<MQXA>, InqReqItem);
+pub type InqResType = (MqValue<MQXA>, InqResItem);
 
 #[must_use]
-pub struct Object<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> {
+pub struct Object<C: Conn> {
     handle: core::ObjectHandle,
     connection: C,
-    close_options: Mask<CloseOptions>,
+    close_options: MqMask<MQCO>,
     name: QName,               // When a model queue is used
     qmgr_name: Option<QMName>, // When a model queue is used
     resolved_name: Option<QName>,
     resolved_qmgr_name: Option<QMName>,
+}
+
+impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<L, H>> {
+    fn mq(&self) -> &MQFunctions<impl Library<MQ: function::MQI>> {
+        self.deref().mq()
+    }
+
+    fn handle(&self) -> &ConnectionHandle {
+        self.deref().handle()
+    }
+}
+
+impl<L: Library<MQ: function::MQI>, H> Conn for QueueManagerShare<L, H> {
+    fn mq(&self) -> &MQFunctions<impl Library<MQ: function::MQI>> {
+        Self::mq(self)
+    }
+
+    fn handle(&self) -> &ConnectionHandle {
+        Self::handle(self)
+    }
+}
+
+impl<L: Library<MQ: function::MQI>, H> Conn for &QueueManagerShare<L, H> {
+    fn mq(&self) -> &MQFunctions<impl Library<MQ: function::MQI>> {
+        QueueManagerShare::<L, H>::mq(self)
+    }
+
+    fn handle(&self) -> &ConnectionHandle {
+        QueueManagerShare::<L, H>::handle(self)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -129,20 +160,20 @@ impl GetMessage {
     }
 }
 
-impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
+impl<C: Conn> Object<C> {
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn handle(&self) -> &core::ObjectHandle {
         &self.handle
     }
 
-    pub fn open(connection: C, mqod: &impl StructBuilder<sys::MQOD>, options: Mask<OpenOptions>) -> ResultComp<Self> {
+    pub fn open(connection: C, mqod: &impl StructBuilder<sys::MQOD>, options: MqMask<MQOO>) -> ResultComp<Self> {
         let mut mqod_build = mqod.build();
         let result = connection.mq().mqopen(connection.handle(), &mut mqod_build, options);
         result.map_completion(|handle| Self {
             handle,
             connection,
-            close_options: Mask::from(sys::MQCO_NONE),
+            close_options: MqMask::from(sys::MQCO_NONE),
             name: mqod_build.ObjectName.into(),
             qmgr_name: Some(mqod_build.ObjectQMgrName.into()).filter(MqStr::has_value),
             resolved_name: Some(mqod_build.ResolvedQName.into()).filter(MqStr::has_value),
@@ -169,7 +200,7 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
             .mq()
             .mqinq(
                 self.connection.handle(),
-                self,
+                self.handle(),
                 &select_inq,
                 &mut int_attr.spare_capacity_mut()[..int_len],
                 &mut text_attr.spare_capacity_mut()[..text_len],
@@ -192,7 +223,7 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
     pub fn put<B>(&self, mqmd: &mut impl MQMD, pmo: &mut sys::MQPMO, body: &B) -> ResultComp<()> {
         self.connection
             .mq()
-            .mqput(self.connection.handle(), self, Some(mqmd), pmo, body)
+            .mqput(self.connection.handle(), self.handle(), Some(mqmd), pmo, body)
     }
 
     pub fn get_message<B>(
@@ -229,7 +260,7 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
             .mq()
             .mqget(
                 self.connection.handle(),
-                self,
+                self.handle(),
                 Some(&mut md),
                 &mut gmo,
                 body,
@@ -248,7 +279,7 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
             })
     }
 
-    pub fn close_options(&mut self, options: Mask<CloseOptions>) {
+    pub fn close_options(&mut self, options: MqMask<MQCO>) {
         self.close_options = options;
     }
 
@@ -260,7 +291,7 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Object<L, H, C> {
     }
 }
 
-impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Deref for Object<L, H, C> {
+impl<C: Conn> Deref for Object<C> {
     type Target = core::ObjectHandle;
 
     fn deref(&self) -> &Self::Target {
@@ -268,13 +299,13 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Deref for Object<L
     }
 }
 
-impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> DerefMut for Object<L, H, C> {
+impl<C: Conn> DerefMut for Object<C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.handle
     }
 }
 
-impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Drop for Object<L, H, C> {
+impl<C: Conn> Drop for Object<C> {
     fn drop(&mut self) {
         // TODO: handle close failure
         if self.is_closeable() {
@@ -288,33 +319,33 @@ impl<L: Library, H, C: Deref<Target = ConnectionShare<L, H>>> Drop for Object<L,
 
 #[cfg(test)]
 mod tests {
-    use crate::core::CloseOptions;
+    use crate::core::MQCO;
     use crate::sys;
-    use crate::Mask;
+    use crate::MqMask;
 
     #[test]
     fn close_option() {
         assert_eq!(
-            Mask::<CloseOptions>::from(sys::MQCO_DELETE | 0xFF00).to_string(),
+            MqMask::<MQCO>::from(sys::MQCO_DELETE | 0xFF00).to_string(),
             "MQCO_DELETE|0xFF00"
         );
         assert_eq!(
-            Mask::<CloseOptions>::from(sys::MQCO_DELETE | sys::MQCO_QUIESCE).to_string(),
+            MqMask::<MQCO>::from(sys::MQCO_DELETE | sys::MQCO_QUIESCE).to_string(),
             "MQCO_DELETE|MQCO_QUIESCE"
         );
-        assert_eq!(Mask::<CloseOptions>::from(sys::MQCO_DELETE).to_string(), "MQCO_DELETE");
-        assert_eq!(Mask::<CloseOptions>::from(0).to_string(), "MQCO_NONE");
-        assert_eq!(Mask::<CloseOptions>::from(0xFF00).to_string(), "0xFF00");
+        assert_eq!(MqMask::<MQCO>::from(sys::MQCO_DELETE).to_string(), "MQCO_DELETE");
+        assert_eq!(MqMask::<MQCO>::from(0).to_string(), "MQCO_NONE");
+        assert_eq!(MqMask::<MQCO>::from(0xFF00).to_string(), "0xFF00");
 
-        let (list_iter, _) = Mask::<CloseOptions>::from(sys::MQCO_DELETE).masked_list();
+        let (list_iter, _) = MqMask::<MQCO>::from(sys::MQCO_DELETE).masked_list();
         let list = list_iter.collect::<Vec<_>>();
         assert_eq!(list, &[(1, "MQCO_DELETE")]);
 
-        let (list_iter, _) = Mask::<CloseOptions>::from(sys::MQCO_NONE).masked_list();
+        let (list_iter, _) = MqMask::<MQCO>::from(sys::MQCO_NONE).masked_list();
         let list = list_iter.collect::<Vec<_>>();
         assert_eq!(list, &[(0, "MQCO_NONE")]);
 
-        let (list_iter, _) = Mask::<CloseOptions>::from(sys::MQCO_DELETE | sys::MQCO_QUIESCE).masked_list();
+        let (list_iter, _) = MqMask::<MQCO>::from(sys::MQCO_DELETE | sys::MQCO_QUIESCE).masked_list();
         let list = list_iter.collect::<Vec<_>>();
         assert_eq!(list, &[(1, "MQCO_DELETE"), (32, "MQCO_QUIESCE")]);
 

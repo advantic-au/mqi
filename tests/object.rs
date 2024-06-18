@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
-use mqi::{inq, mqstr, sys, Connection, ConnectionOptions, Credentials, InqReqType, MqStr, MqStruct, Object, ObjectName, StructBuilder};
+use mqi::{inq, mqstr, sys, QueueManager, ConnectionOptions, Credentials, InqReqType, MqStr, MqStruct, Object, ObjectName, StructBuilder};
 use mqi::prelude::*;
 
 #[test]
 fn object() {
     const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
     let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
-    let conn = Connection::new(None, &cb).expect("Could not establish connection");
+    let (qm, ..) = QueueManager::new(None, &cb).warn_as_error().expect("Could not establish connection");
 
     thread::spawn(move || {
         let mut od = sys::MQOD::default();
@@ -17,9 +17,9 @@ fn object() {
         let mut pmo = sys::MQPMO::default();
 
         QUEUE.copy_into_mqchar(&mut od.ObjectName);
-        od.ObjectType = sys::MQOT_Q_MGR;
+        od.ObjectType = sys::MQOT_Q;
 
-        conn.put(&mut od, Some(&mut md), &mut pmo, b"Hello ").expect("Put failed");
+        qm.put(&mut od, Some(&mut md), &mut pmo, b"Hello ").warn_as_error().expect("Put failed");
     })
     .join()
     .expect("Panic from connection thread");
@@ -34,7 +34,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         //inq::MQCA_Q_MGR_NAME,
         inq::MQCA_ALTERATION_TIME,
     ];
-    let conn = Connection::new(
+    let (conn, ..) = QueueManager::new(
         None,
         &ConnectionOptions::default_binding().credentials(Credentials::user("app", "app")),
     )
@@ -43,7 +43,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
     od.Version = sys::MQOD_VERSION_4;
     od.ObjectName = mqstr!("DEV.QUEUE.1").into();
     od.ObjectType = sys::MQOT_Q;
-    let object = Object::open(&conn, &od, Mask::from(sys::MQOO_INQUIRE)).warn_as_error()?;
+    let object = Object::open(&conn, &od, MqMask::from(sys::MQOO_INQUIRE)).warn_as_error()?;
 
     let result = object.inq(INQ)?;
     if let Some(rc) = result.warning() {
@@ -66,8 +66,8 @@ fn transaction() -> Result<(), Box<dyn Error>> {
     let mut pmo = MqStruct::<sys::MQPMO>::default();
 
     QUEUE.copy_into_mqchar(&mut od.ObjectName);
-    let connection = Connection::new(None, &cb).warn_as_error()?;
-    let object = Object::open(&connection, &od, Mask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
+    let (connection, ..) = QueueManager::new(None, &cb).warn_as_error()?;
+    let object = Object::open(&connection, &od, MqMask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
 
     object.put(&mut *md, &mut pmo, b"Hello ").warn_as_error()?;
 
