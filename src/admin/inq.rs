@@ -17,7 +17,7 @@ pub struct Selector<T>(MqValue<MqaiSelector>, PhantomData<T>);
 
 impl<T> Selector<T> {
     #[must_use]
-    pub const fn new(attribute: MqValue<MqaiSelector>) -> Self {
+    pub const fn from(attribute: MqValue<MqaiSelector>) -> Self {
         Self(attribute, PhantomData)
     }
 }

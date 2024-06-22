@@ -17,7 +17,7 @@ path = "src/lib.rs"
 crate-type = ["lib"]
 
 [features]
-default = ["link", "constantgen", "libmqm-sys/mqi_helpers"]
+default = ["link", "constantgen", "libmqm-sys/mqi_helpers", "bindgen"]
 docsrs = ["libmqm-sys/docsrs", "pcf", "mqai", "link", "dlopen2"]
 
 constantgen = ["libmqm-sys/mqi_helpers"]
@@ -26,6 +26,7 @@ pcf = ["libmqm-sys/pcf"]
 mqai = ["libmqm-sys/mqai"]
 link = ["libmqm-sys/link"]
 dlopen2 = ["libmqm-sys/dlopen2"]
+bindgen = ["libmqm-sys/bindgen"]
 
 [dependencies]
 phf = { default-features = false, version="0.11.2" }

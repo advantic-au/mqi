@@ -2,31 +2,60 @@ use std::marker::PhantomData;
 
 use libmqm_sys::function;
 
-use crate::core::mqai::{MQCMD, MQCBO, MqaiSelector};
+use crate::core::mqai::{MqaiSelector, MQCBO, MQCMD};
 use crate::core::{self, mqai, ConnectionHandle, Library};
-use crate::{sys, Error, MqMask, MqValue, ResultComp, ResultErr};
+use crate::{
+    define_mqvalue, mapping, sys, Completion, Error, MqMask, MqValue, ResultComp, ResultCompErr, ResultCompErrExt,
+    ResultCompExt,
+};
 
 pub trait BagDrop: Sized {
-    fn drop_bag<L: Library<MQ: function::MQAI>>(bag: &mut Bag<Self, L>) -> ResultErr<()>;
+    fn drop_bag<L: Library<MQ: function::MQAI>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
 }
 
 use super::WithMQError;
-use super::{inq, BagItemGet, BagItemPut};
+use super::{BagItemGet, BagItemPut};
 
-#[derive(Debug, Clone, Copy, Hash)]
-pub enum BagIndex {
-    Position(i32),
-    None,
-    All,
+define_mqvalue!(MQIND, mapping::MQIND_CONST);
+impl Default for MqValue<MQIND> {
+    fn default() -> Self {
+        Self::from(sys::MQIND_NONE)
+    }
 }
 
-impl From<BagIndex> for sys::MQLONG {
-    fn from(value: BagIndex) -> Self {
-        match value {
-            BagIndex::Position(n) => n as _,
-            BagIndex::None => sys::MQIND_NONE,
-            BagIndex::All => sys::MQIND_ALL,
-        }
+impl MqValue<MqaiSelector> {
+    #[must_use]
+    pub const fn with_index(self, index: MqValue<MQIND>) -> (Self, MqValue<MQIND>) {
+        (self, index)
+    }
+}
+
+pub trait InqSelect: Copy {
+    fn selector(&self) -> MqValue<MqaiSelector>;
+    fn index(&self) -> Option<MqValue<MQIND>> {
+        None
+    }
+}
+
+impl InqSelect for MqValue<MqaiSelector> {
+    fn selector(&self) -> MqValue<MqaiSelector> {
+        *self
+    }
+}
+
+impl InqSelect for sys::MQLONG {
+    fn selector(&self) -> MqValue<MqaiSelector> {
+        MqValue::from(*self)
+    }
+}
+
+impl InqSelect for (MqValue<MqaiSelector>, MqValue<MQIND>) {
+    fn selector(&self) -> MqValue<MqaiSelector> {
+        self.0
+    }
+
+    fn index(&self) -> Option<MqValue<MQIND>> {
+        Some(self.1)
     }
 }
 
@@ -36,17 +65,17 @@ pub struct Owned {}
 pub struct Embedded {}
 
 impl BagDrop for Owned {
-    fn drop_bag<L: Library<MQ: function::MQAI>>(bag: &mut Bag<Self, L>) -> ResultErr<()> {
+    fn drop_bag<L: Library<MQ: function::MQAI>>(bag: &mut Bag<Self, L>) -> ResultComp<()> {
         if bag.is_deletable() {
             bag.mq.mq_delete_bag(&mut bag.bag)
         } else {
-            Ok(())
+            Ok(Completion((), None))
         }
     }
 }
 impl BagDrop for Embedded {
-    fn drop_bag<L: Library<MQ: function::MQAI>>(_bag: &mut Bag<Self, L>) -> ResultErr<()> {
-        Ok(())
+    fn drop_bag<L: Library<MQ: function::MQAI>>(_bag: &mut Bag<Self, L>) -> ResultComp<()> {
+        Ok(Completion((), None))
     }
 }
 
@@ -66,36 +95,39 @@ impl<T: BagDrop, L: Library<MQ: function::MQAI>> std::ops::Deref for Bag<T, L> {
 }
 
 impl<L: Library<MQ: function::MQAI>> Bag<Owned, L> {
-    pub fn new_lib(lib: L, options: MqMask<MQCBO>) -> ResultErr<Self> {
+    pub fn new_lib(lib: L, options: MqMask<MQCBO>) -> ResultComp<Self> {
         let mq = core::MQFunctions(lib);
         let bag = mq.mq_create_bag(options)?;
+
         mq.mq_set_integer(
             &bag,
             MqValue::from(sys::MQIASY_CODED_CHAR_SET_ID),
-            sys::MQIND_NONE,
+            MqValue::default(),
             1208,
-        )?;
+        )
+        .discard_completion()?;
 
-        Ok(Self {
+        Ok(bag.map(|bag| Self {
             bag,
             mq,
             _marker: PhantomData,
-        })
+        }))
     }
 }
 
 impl<L: Library<MQ: function::MQAI>> BagItemGet<L> for Bag<Embedded, L> {
     fn inq_bag_item<B: BagDrop>(
         selector: MqValue<MqaiSelector>,
-        index: sys::MQLONG,
+        index: MqValue<MQIND>,
         bag: &Bag<B, L>,
-    ) -> ResultErr<Self> {
-        let bag_handle = bag.mq.mq_inquire_bag(bag, selector, index)?;
-        Ok(Self {
-            bag: bag_handle,
-            mq: bag.mq.clone(),
-            _marker: PhantomData,
-        })
+    ) -> ResultComp<Self> {
+        bag.mq
+            .mq_inquire_bag(bag, selector, index)
+            .map_completion(|bag_handle| Self {
+                bag: bag_handle,
+                mq: bag.mq.clone(),
+                _marker: PhantomData,
+            })
     }
 
     type Error = Error;
@@ -108,7 +140,7 @@ impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
         &self.bag
     }
 
-    pub fn add_inquiry(&self, selector: MqValue<MqaiSelector>) -> ResultErr<()> {
+    pub fn add_inquiry(&self, selector: MqValue<MqaiSelector>) -> ResultComp<()> {
         self.mq.mq_add_inquiry(self, selector)
     }
 
@@ -116,51 +148,41 @@ impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
         &'a self,
         selector: MqValue<MqaiSelector>,
         to_attach: &'bag Bag<Owned, L>,
-    ) -> ResultErr<()> {
+    ) -> ResultComp<()> {
         self.mq.mq_add_bag(self, selector, to_attach)
     }
 
-    pub fn add<T: BagItemPut<L>>(&self, selector: MqValue<MqaiSelector>, value: T) -> Result<(), T::Error> {
+    pub fn add<T: BagItemPut<L>>(&self, selector: MqValue<MqaiSelector>, value: T) -> ResultCompErr<(), T::Error> {
         value.add_to_bag(selector, self)
     }
 
-    pub fn inquire<T: BagItemGet<L>>(
-        &self,
-        selector: MqValue<MqaiSelector>,
-        index: Option<sys::MQLONG>,
-    ) -> Result<Option<T>, T::Error> {
-        match T::inq_bag_item(selector, index.unwrap_or(sys::MQIND_NONE), self) {
+    pub fn inquire<T: BagItemGet<L>>(&self, selector: impl InqSelect) -> ResultCompErr<Option<T>, T::Error> {
+        match T::inq_bag_item(selector.selector(), selector.index().unwrap_or_default(), self) {
             Err(e) => match e.mqi() {
-                Some(Error(
-                    MqValue(sys::MQCC_FAILED),
-                    _verb, // Ignore the verb
-                    MqValue(sys::MQRC_SELECTOR_NOT_PRESENT),
-                )) => Ok(None),
+                Some(&Error(cc, _, rc)) if cc == sys::MQCC_FAILED && rc == sys::MQRC_SELECTOR_NOT_PRESENT => {
+                    Ok(Completion(None, None))
+                }
                 _ => Err(e),
             },
-            other => other.map(Option::Some),
+            other => other.map_completion(Option::Some),
         }
     }
 
-    pub fn inq<T: inq::InqSelector<L>>(
-        &self,
-        selector: &T,
-        index: Option<sys::MQLONG>,
-    ) -> Result<Option<T::Out>, <T::Out as BagItemGet<L>>::Error> {
-        self.inquire(selector.attribute(), index)
+    // pub fn inq<T: inq::InqSelector<L>>(
+    //     &self,
+    //     selector: &T,
+    //     index: Option<sys::MQLONG>,
+    // ) -> Result<Option<T::Out>, <T::Out as BagItemGet<L>>::Error> {
+    //     self.inquire(selector.attribute(), index)
+    // }
+
+    pub fn set<T: BagItemPut<L>>(&self, selector: impl InqSelect, value: T) -> ResultCompErr<(), T::Error> {
+        T::set_bag_item(value, selector.selector(), selector.index().unwrap_or_default(), self)
     }
 
-    pub fn set<T: BagItemPut<L>>(
-        &self,
-        selector: MqValue<MqaiSelector>,
-        index: BagIndex,
-        value: T,
-    ) -> Result<(), T::Error> {
-        T::set_bag_item(value, selector, index, self)
-    }
-
-    pub fn delete(&self, selector: MqValue<MqaiSelector>, index: BagIndex) -> ResultErr<()> {
-        self.mq.mq_delete_item(self, selector, index.into())
+    pub fn delete(&self, selector: impl InqSelect) -> ResultComp<()> {
+        self.mq
+            .mq_delete_item(self, selector.selector(), selector.index().unwrap_or_default())
     }
 
     pub fn execute(
@@ -171,17 +193,19 @@ impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
         admin_q: Option<&core::ObjectHandle>,
         response_q: Option<&core::ObjectHandle>,
     ) -> ResultComp<Bag<Owned, L>> {
-        let response_bag = Bag::new_lib(self.mq.0.clone(), MqMask::from(sys::MQCBO_ADMIN_BAG))?;
-        let completion = self.mq.mq_execute(
-            handle,
-            command,
-            options,
-            self.handle(),
-            response_bag.handle(),
-            admin_q,
-            response_q,
-        )?;
-        Ok(completion.map(|()| response_bag))
+        // There shouldn't be any warnings for creating a bag - so treat the warning as an error
+        let response_bag = Bag::new_lib(self.mq.0.clone(), MqMask::from(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
+        self.mq
+            .mq_execute(
+                handle,
+                command,
+                options,
+                self.handle(),
+                response_bag.handle(),
+                admin_q,
+                response_q,
+            )
+            .map_completion(|()| response_bag)
     }
 }
 
@@ -200,13 +224,12 @@ mod tests {
     fn add_items() {
         let bag = Bag::new(MqMask::from(sys::MQCBO_GROUP_BAG)).expect("Failed to create bag");
         let property = bag
-            .inquire::<sys::MQLONG>(MqValue::from(0), Option::None)
+            .inquire::<sys::MQLONG>(MqValue::from(0))
             .expect("Failed to retrieve item");
         property.map_or_else(|| eprintln!("No CCSID!"), |ccsid| println!("CCSID is {ccsid}"));
 
-        bag.add(MqValue::from(0), "abc").expect("Failed to add string");
+        bag.add(MqValue::from(0), "abc").discard_completion().expect("Failed to add string");
 
-        bag.delete(MqValue::from(0), BagIndex::None)
-            .expect("Failed to delete item");
+        bag.delete(MqValue::from(0)).discard_completion().expect("Failed to delete item");
     }
 }

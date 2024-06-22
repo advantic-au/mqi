@@ -1,15 +1,21 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
-use mqi::{inq, mqstr, sys, QueueManager, ConnectionOptions, Credentials, InqReqType, MqStr, MqStruct, Object, ObjectName, StructBuilder};
 use mqi::prelude::*;
+use mqi::{
+    inq, mqstr, sys, ConnectionOptions, Credentials, InqReqItem, InqReqType, MqStr, MqStruct, Object,
+    ObjectName, QueueManager, StructBuilder,
+};
 
 #[test]
 fn object() {
     const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
     let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
-    let (qm, ..) = QueueManager::new(None, &cb).warn_as_error().expect("Could not establish connection");
+    let (qm, ..) = QueueManager::new(None, &cb)
+        .warn_as_error()
+        .expect("Could not establish connection");
 
     thread::spawn(move || {
         let mut od = sys::MQOD::default();
@@ -19,7 +25,9 @@ fn object() {
         QUEUE.copy_into_mqchar(&mut od.ObjectName);
         od.ObjectType = sys::MQOT_Q;
 
-        qm.put(&mut od, Some(&mut md), &mut pmo, b"Hello ").warn_as_error().expect("Put failed");
+        qm.put(&mut od, Some(&mut md), &mut pmo, b"Hello ")
+            .warn_as_error()
+            .expect("Put failed");
     })
     .join()
     .expect("Panic from connection thread");
@@ -28,29 +36,43 @@ fn object() {
 #[test]
 fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
     const INQ: &[InqReqType] = &[
-        //inq::MQCA_DEF_XMIT_Q_NAME,
+        inq::MQCA_Q_MGR_NAME,
         inq::MQCA_ALTERATION_DATE,
-        // MQIA_CODED_CHAR_SET_ID,
-        //inq::MQCA_Q_MGR_NAME,
+        inq::MQCA_DEAD_LETTER_Q_NAME,
         inq::MQCA_ALTERATION_TIME,
+        inq::MQCA_CREATION_DATE,
+        inq::MQCA_CREATION_TIME,
+        inq::MQIA_CODED_CHAR_SET_ID,
+        inq::MQCA_DEF_XMIT_Q_NAME,
+        (
+            // Hmmm... this works. Not documented for MQINQ though.
+            MqValue::from(sys::MQCA_VERSION),
+            InqReqItem::Str(sys::MQ_VERSION_LENGTH),
+        ),
+        inq::MQIA_COMMAND_LEVEL,
     ];
-    let (conn, ..) = QueueManager::new(
+    let Completion((qm, ..), ..) = QueueManager::new(
         None,
         &ConnectionOptions::default_binding().credentials(Credentials::user("app", "app")),
-    )
-    .warn_as_error()?;
+    )?;
     let mut od = MqStruct::<sys::MQOD>::default();
-    od.Version = sys::MQOD_VERSION_4;
-    od.ObjectName = mqstr!("DEV.QUEUE.1").into();
-    od.ObjectType = sys::MQOT_Q;
-    let object = Object::open(&conn, &od, MqMask::from(sys::MQOO_INQUIRE)).warn_as_error()?;
+    od.ObjectQMgrName = mqstr!("QM1").into();
+    od.ObjectType = sys::MQOT_Q_MGR;
+    let object = Object::open(&qm, &od, MqMask::from(sys::MQOO_INQUIRE))?;
 
     let result = object.inq(INQ)?;
-    if let Some(rc) = result.warning() {
-        eprintln!("MQRC warning: {rc}");
+    if let Some((rc, verb)) = result.warning() {
+        eprintln!("MQRC warning: {verb} {rc}");
     }
-    let a: HashMap<_, _> = result.collect();
-    println!("{a:?}");
+
+    let values: HashMap<_, _> = result.iter().map(|(attr, value)| (attr, match value {
+        mqi::InqResItem::Str(value) => Cow::from(value),
+        mqi::InqResItem::Long(value) => Cow::from(value.to_string()),
+    })).collect();
+
+    for (attr, value) in values {
+        println!("{attr}: {value}");
+    }
 
     Ok(())
 }

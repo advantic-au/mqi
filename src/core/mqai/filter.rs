@@ -1,7 +1,7 @@
 use std::{fmt::Display, num::NonZeroI32};
 
 use crate::constants::mapping;
-use crate::{impl_constant_lookup, sys, MqValue, RawValue};
+use crate::{impl_constant_lookup, sys, MqValue};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Filter<T> {
@@ -11,11 +11,6 @@ pub struct Filter<T> {
 
 #[derive(Clone, Copy)]
 pub struct MQCFOP;
-
-impl RawValue for MQCFOP {
-    type ValueType = sys::MQLONG;
-}
-
 impl_constant_lookup!(MQCFOP, mapping::MQCFOP_CONST);
 
 impl<T> Filter<T> {

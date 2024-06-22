@@ -5,7 +5,7 @@ use std::ptr;
 use super::{
     ConnectionHandle, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle, MQCO, MQOO, MQOP
 };
-use crate::{impl_constant_lookup, mapping, sys, MQXA, MqMask, MqValue, QMName, RawValue, ResultComp, ResultErr, MQMD};
+use crate::{impl_constant_lookup, mapping, sys, MQXA, MqMask, MqValue, QMName, ResultComp, ResultErr, MQMD};
 use libmqm_sys::{function, MQI};
 
 #[cfg(feature = "tracing")]
@@ -17,23 +17,14 @@ use {
 #[derive(Debug, Clone, Copy)]
 pub struct MQSR;
 impl_constant_lookup!(MQSR, mapping::MQSR_CONST);
-impl RawValue for MQSR {
-    type ValueType = sys::MQLONG;
-}
 
 #[derive(Clone, Copy)]
 pub struct MQTYPE;
 impl_constant_lookup!(MQTYPE, mapping::MQTYPE_CONST);
-impl RawValue for MQTYPE {
-    type ValueType = sys::MQLONG;
-}
 
 #[derive(Clone, Copy)]
 pub struct MQSTAT;
 impl_constant_lookup!(MQSTAT, mapping::MQSTAT_CONST);
-impl RawValue for MQSTAT {
-    type ValueType = sys::MQLONG;
-}
 
 impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     /// Connects an application program to a queue manager.
@@ -125,13 +116,13 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         unsafe {
             self.0.MQPUT1(
                 connection_handle.raw_handle(),
-                ptr::addr_of!(*mqod).cast_mut().cast(),
+                ptr::addr_of_mut!(*mqod).cast(),
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::addr_of_mut!(*md).cast()),
                 ptr::addr_of_mut!(*pmo).cast(),
                 size_of_val(body)
                     .try_into()
                     .expect("body length exceeds maximum positive MQLONG"),
-                ptr::addr_of!(*body).cast_mut().cast(),
+                ptr::from_ref(body).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -200,7 +191,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
                 size_of_val(body)
                     .try_into()
                     .expect("body length exceeds maximum positive MQLONG"),
-                ptr::addr_of!(*body).cast_mut().cast(),
+                ptr::from_ref(body).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -374,7 +365,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         unsafe {
             self.0.MQCRTMH(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
-                ptr::addr_of!(*cmho).cast_mut().cast(),
+                ptr::from_ref(cmho).cast_mut().cast(),
                 outcome.mut_raw_handle(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -398,7 +389,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
             self.0.MQDLTMH(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.mut_raw_handle(),
-                ptr::addr_of!(*dmho).cast_mut().cast(),
+                ptr::from_ref(dmho).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -427,7 +418,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
                 ptr::addr_of_mut!(*inq_prop_opts).cast(),
-                ptr::addr_of!(*name).cast_mut().cast(),
+                ptr::from_ref(name).cast_mut().cast(),
                 ptr::addr_of_mut!(*prop_desc).cast(),
                 ptr::addr_of_mut!(*prop_type).cast(),
                 size_of_val(value)
@@ -458,8 +449,8 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
             self.0.MQDLTMP(
                 connection_handle.raw_handle(),
                 message_handle.raw_handle(),
-                ptr::addr_of!(*delete_prop_opts).cast_mut().cast(),
-                ptr::addr_of!(*name).cast_mut().cast(),
+                ptr::from_ref(delete_prop_opts).cast_mut().cast(),
+                ptr::from_ref(name).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -507,14 +498,14 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
             self.0.MQSETMP(
                 connection_handle.raw_handle(),
                 message_handle.raw_handle(),
-                ptr::addr_of!(*set_prop_opts).cast_mut().cast(),
-                ptr::addr_of!(*name).cast_mut().cast(),
+                ptr::from_ref(set_prop_opts).cast_mut().cast(),
+                ptr::from_ref(name).cast_mut().cast(),
                 ptr::addr_of_mut!(*prop_desc).cast(),
                 prop_type.0,
                 size_of_val(value)
                     .try_into()
                     .expect("value length exceeds maximum positive MQLONG"),
-                ptr::addr_of!(*value).cast_mut().cast(),
+                ptr::from_ref(value).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -579,10 +570,10 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
             self.0.MQCB(
                 connection_handle.raw_handle(),
                 operations.0,
-                ptr::addr_of!(*callback_desc).cast_mut().cast(),
+                ptr::from_ref(callback_desc).cast_mut().cast(),
                 object_handle.map_or(sys::MQHO_NONE, |h| h.raw_handle()),
-                mqmd.map_or_else(ptr::null_mut, |md| ptr::addr_of!(*md).cast_mut().cast()),
-                gmo.map_or_else(ptr::null_mut, |mo| ptr::addr_of!(*mo).cast_mut().cast()),
+                mqmd.map_or_else(ptr::null_mut, |md| ptr::from_ref(md).cast_mut().cast()),
+                gmo.map_or_else(ptr::null_mut, |mo| ptr::from_ref(mo).cast_mut().cast()),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -606,7 +597,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
             self.0.MQCTL(
                 connection_handle.raw_handle(),
                 operation.0,
-                ptr::addr_of!(*control_options).cast_mut().cast(),
+                ptr::from_ref(control_options).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -632,8 +623,8 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
             self.0.MQMHBUF(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
-                ptr::addr_of!(*mhbuf_options).cast_mut().cast(),
-                ptr::addr_of!(*name).cast_mut().cast(),
+                ptr::from_ref(mhbuf_options).cast_mut().cast(),
+                ptr::from_ref(name).cast_mut().cast(),
                 ptr::addr_of_mut!(*mqmd).cast(),
                 size_of_val(buffer)
                     .try_into()
@@ -664,7 +655,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
             self.0.MQBUFMH(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
-                ptr::addr_of!(*bufmh_options).cast_mut().cast(),
+                ptr::from_ref(bufmh_options).cast_mut().cast(),
                 ptr::addr_of_mut!(*mqmd).cast(),
                 size_of_val(buffer)
                     .try_into()

@@ -1,25 +1,17 @@
 #![cfg(feature = "mqai")]
 
-use mqi::admin::{selectors, Bag};
+use mqi::admin::selectors::MQQT;
+use mqi::admin::Bag;
 use mqi::{mqstr, prelude::*};
-use mqi::{sys, QueueManager, ConnectionOptions, Credentials};
+use mqi::{sys, ConnectionOptions, Credentials, QueueManager};
 
 #[test]
 fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
-    let admin_bag = Bag::new(MqMask::from(sys::MQCBO_ADMIN_BAG))?;
-    admin_bag.add(MqValue::from(sys::MQCA_Q_NAME), "*")?;
-    admin_bag.add(MqValue::from(sys::MQIA_Q_TYPE), sys::MQQT_ALL)?;
-    //admin_bag.add_inquiry(mqi::MQIA_CURRENT_Q_DEPTH)?;
+    let admin_bag = Bag::new(MqMask::from(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
+    admin_bag.add(MqValue::from(sys::MQCA_Q_NAME), "*")?.discard_warning();
+    admin_bag.add(MqValue::from(sys::MQIA_Q_TYPE), sys::MQQT_ALL)?.discard_warning();
 
     let cb = ConnectionOptions::from_mqserver("DEV.ADMIN.SVRCONN/TCP/192.168.92.15(1414)")?
-        // .tls(
-        //     &mqstr!("TLS_RSA_WITH_AES_128_CBC_SHA256"),
-        //     Tls::new(
-        //         &mqstr!("path"),
-        //         Some("password"),
-        //         None,
-        //     ),
-        // )
         .application_name(Some(mqstr!("rust_testing")))
         .credentials(Credentials::user("admin", "admin"));
     let (conn, ..) = QueueManager::new(None, &cb).warn_as_error()?;
@@ -30,28 +22,25 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
     for bag in execute_result
         .try_iter::<Bag<_, _>>(MqValue::from(sys::MQHA_BAG_HANDLE))?
         .flatten()
-    // Ignore items that have errors
+    // flatten effectively ignores items that have errors
     {
-        let q = bag.inq(&selectors::MQCA_Q_NAME, Option::None)?;
-        let depth = bag.inq(&selectors::MQIA_CURRENT_Q_DEPTH, Option::None)?;
-        let alt_date = bag.inq(&selectors::MQCA_ALTERATION_DATE, Option::None)?;
-        let alt_time = bag.inq(&selectors::MQCA_ALTERATION_TIME, Option::None)?;
-        let ccsid = bag.inq(&selectors::MQIA_CODED_CHAR_SET_ID, Option::None)?;
-        let q_type = bag.inq(&selectors::MQIA_Q_TYPE, Option::None)?;
-        let q_pageset = bag.inq(&selectors::MQIA_PAGESET_ID, Option::None)?;
-        let q_desc = bag.inq(&selectors::MQCA_Q_DESC, Option::None)?;
-        println!(
-            "Queue Name: '{}'",
-            String::from_utf8_lossy(q.unwrap_or_default().value())
-        );
-        println!("Depth: {depth:?}");
-        println!("Type: {q_type:?}");
+        let q = bag.inquire::<QMName>(sys::MQCA_Q_NAME)?;
+        let depth = *bag.inquire::<sys::MQLONG>(sys::MQIA_CURRENT_Q_DEPTH)?;
+        let alt_date = *bag.inquire::<MqStr<12>>(sys::MQCA_ALTERATION_DATE)?;
+        let alt_time = *bag.inquire::<MqStr<12>>(sys::MQCA_ALTERATION_TIME)?;
+        let ccsid = *bag.inquire::<sys::MQLONG>(sys::MQIA_CODED_CHAR_SET_ID)?;
+        let q_type = *bag.inquire::<MqValue<MQQT>>(sys::MQIA_Q_TYPE)?;
+        let q_pageset = *bag.inquire::<sys::MQLONG>(sys::MQIA_PAGESET_ID)?;
+        let q_desc = *bag.inquire::<MqStr<64>>(sys::MQCA_Q_DESC)?;
+        println!("Queue Name: {}", q.unwrap_or_default());
+        println!("Depth: {}", depth.map_or("{n/a}".to_string(), |t| t.to_string()));
+        println!("Type: {}", q_type.map_or("{n/a}".to_string(), |t| t.to_string()));
         println!("Alteration Date: '{}'", alt_date.unwrap_or_default());
         println!("Alteration Time: '{}'", alt_time.unwrap_or_default());
         println!("CCSID: {ccsid:?}");
         println!("Pageset: {q_pageset:?}");
         println!("Description: '{}'", q_desc.unwrap_or_default());
         println!("-----");
-    };
+    }
     Ok(())
 }

@@ -1,36 +1,39 @@
-use std::{borrow::Cow, hash::Hash, str::FromStr};
+use std::{borrow::Cow, hash::Hash, marker::PhantomData, str::FromStr};
 
 use crate::{sys, ConstLookup as _, HasConstLookup, HasMqNames, MQConstant};
 
-pub trait RawValue {
-    type ValueType: Copy;
-}
-
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-pub struct MqValue<T: RawValue>(pub T::ValueType);
+pub struct MqValue<T>(pub(crate) sys::MQLONG, PhantomData<T>);
 
-impl<T: RawValue<ValueType: PartialEq>> PartialEq for MqValue<T> {
+impl<T> PartialEq for MqValue<T> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
-impl<T: RawValue<ValueType: Eq>> Eq for MqValue<T> {}
+impl<T> PartialEq<sys::MQLONG> for MqValue<T> {
+    fn eq(&self, other: &sys::MQLONG) -> bool {
+        self.0 == *other
+    }
+}
 
-impl<T: RawValue<ValueType: Hash>> Hash for MqValue<T> {
+impl<T> Eq for MqValue<T> {}
+
+impl<T> Hash for MqValue<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.hash(state);
     }
 }
 
-impl<T: RawValue> MqValue<T> {
-    pub const fn from(value: T::ValueType) -> Self {
-        Self(value)
+impl<T> MqValue<T> {
+    #[must_use]
+    pub const fn from(value: sys::MQLONG) -> Self {
+        Self(value, PhantomData)
     }
 }
 
-impl<T: HasConstLookup + RawValue<ValueType = sys::MQLONG>> FromStr for MqValue<T> {
+impl<T: HasConstLookup> FromStr for MqValue<T> {
     type Err = <sys::MQLONG as FromStr>::Err;
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
@@ -38,11 +41,12 @@ impl<T: HasConstLookup + RawValue<ValueType = sys::MQLONG>> FromStr for MqValue<
             T::const_lookup()
                 .by_name(name)
                 .map_or_else(|| FromStr::from_str(name), Ok)?,
+            PhantomData
         ))
     }
 }
 
-impl<T: HasConstLookup + RawValue<ValueType = sys::MQLONG>> HasMqNames for MqValue<T> {
+impl<T: HasConstLookup> HasMqNames for MqValue<T> {
     fn mq_names(&self) -> impl Iterator<Item = &'static str> {
         T::const_lookup().by_value(self.0)
     }
@@ -51,16 +55,16 @@ impl<T: HasConstLookup + RawValue<ValueType = sys::MQLONG>> HasMqNames for MqVal
     }
 }
 
-impl<T: RawValue<ValueType = sys::MQLONG>> MQConstant for MqValue<T> {
+impl<T> MQConstant for MqValue<T> {
     fn mq_value(&self) -> sys::MQLONG {
-        let Self(value) = self;
+        let Self(value, ..) = self;
         *value
     }
 }
 
-impl<T: RawValue<ValueType = sys::MQLONG> + HasConstLookup> std::fmt::Display for MqValue<T> {
+impl<T: HasConstLookup> std::fmt::Display for MqValue<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self(attribute) = self;
+        let Self(attribute, ..) = self;
         let code = self
             .mq_primary_name()
             .map_or_else(|| Cow::from(attribute.to_string()), Cow::from);
@@ -68,9 +72,9 @@ impl<T: RawValue<ValueType = sys::MQLONG> + HasConstLookup> std::fmt::Display fo
     }
 }
 
-impl<T: RawValue<ValueType = sys::MQLONG> + HasConstLookup> std::fmt::Debug for MqValue<T> {
+impl<T: HasConstLookup> std::fmt::Debug for MqValue<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self(attribute) = self;
+        let Self(attribute, ..) = self;
         let names = self
             .mq_names()
             .map(Cow::from)
@@ -85,9 +89,9 @@ impl<T: RawValue<ValueType = sys::MQLONG> + HasConstLookup> std::fmt::Debug for 
     }
 }
 
-impl<T: RawValue<ValueType = sys::MQLONG>> From<sys::MQLONG> for MqValue<T> {
-    fn from(value: T::ValueType) -> Self {
-        Self(value)
+impl<T> From<sys::MQLONG> for MqValue<T> {
+    fn from(value: sys::MQLONG) -> Self {
+        Self(value, PhantomData)
     }
 }
 
@@ -95,14 +99,11 @@ impl<T: RawValue<ValueType = sys::MQLONG>> From<sys::MQLONG> for MqValue<T> {
 mod test {
     use std::{error::Error, str::FromStr};
 
-    use crate::{impl_constant_lookup, sys, ConstantItem, HasMqNames, MqValue, RawValue};
+    use crate::{impl_constant_lookup, ConstantItem, HasMqNames, MqValue};
 
     const LOOKUP: &[ConstantItem] = &[(0, "ZERO"), (0, "ZERO_ALIAS"), (1, "ONE"), (1, "ONE_ALIAS")];
     #[derive(PartialEq)]
     struct L;
-    impl RawValue for L {
-        type ValueType = sys::MQLONG;
-    }
     impl_constant_lookup!(L, LOOKUP);
 
     #[test]

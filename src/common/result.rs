@@ -3,7 +3,7 @@
 use crate::sys;
 use crate::{
     constants::{mapping, MQConstant},
-    impl_constant_lookup, HasMqNames, MqValue, RawValue,
+    impl_constant_lookup, HasMqNames, MqValue,
 };
 use std::{
     fmt::{Debug, Display},
@@ -13,14 +13,6 @@ use thiserror::Error;
 
 impl_constant_lookup!(MQRC, mapping::MQRC_FULL_CONST);
 impl_constant_lookup!(MQCC, mapping::MQCC_CONST);
-
-impl RawValue for MQRC {
-    type ValueType = sys::MQLONG;
-}
-
-impl RawValue for MQCC {
-    type ValueType = sys::MQLONG;
-}
 
 /// MQ API reason code (`MQRC_*`)
 #[derive(Clone, Copy)]
@@ -34,13 +26,13 @@ pub type CompletionCode = MqValue<MQCC>;
 
 impl Default for ReasonCode {
     fn default() -> Self {
-        Self(sys::MQRC_NONE)
+        Self::from(sys::MQRC_NONE)
     }
 }
 
 impl Default for CompletionCode {
     fn default() -> Self {
-        Self(sys::MQCC_UNKNOWN)
+        Self::from(sys::MQCC_UNKNOWN)
     }
 }
 
@@ -59,7 +51,7 @@ impl ReasonCode {
 /// A value returned from an MQ API call, optionally with a warning `ReasonCode`
 #[derive(Debug, Clone)]
 #[must_use]
-pub struct Completion<T>(pub T, pub Option<ReasonCode>, pub &'static str);
+pub struct Completion<T>(pub T, pub Option<(ReasonCode, &'static str)>);
 
 impl<T: std::process::Termination> std::process::Termination for Completion<T> {
     fn report(self) -> std::process::ExitCode {
@@ -70,16 +62,16 @@ impl<T: std::process::Termination> std::process::Termination for Completion<T> {
 
 impl<T> Completion<T> {
     pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> Completion<U> {
-        let Self(value, warning, verb) = self;
-        Completion(op(value), warning, verb)
+        let Self(value, warning) = self;
+        Completion(op(value), warning)
     }
 
     /// Returns the reason code associated with the warning. Returns `None` when no warning is issued.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn warning(&self) -> Option<ReasonCode> {
-        let Self(_, warning, _) = self;
-        *warning
+    pub fn warning(&self) -> Option<&(ReasonCode, &'static str)> {
+        let Self(_, warning) = self;
+        warning.as_ref()
     }
 
     /// Discards the `MQCC_WARNING` in the Completion
@@ -106,8 +98,8 @@ impl<I: Iterator> Iterator for Completion<I> {
 impl<T: Display> Display for Completion<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self(value, Some(warning), verb) => write!(f, "MQCC_WARNING: {verb} {warning} {value}"),
-            Self(value, None, verb) => write!(f, "MQCC_OK: {verb} {value}"),
+            Self(value, Some((warning, verb))) => write!(f, "MQCC_WARNING: {verb} {warning} {value}"),
+            Self(value, None) => write!(f, "MQCC_OK: {value}"),
         }
     }
 }
@@ -163,6 +155,9 @@ pub trait ResultCompErrExt<T, E> {
     /// Maps the the value of the MQI API Result, maintaining the `Completion` wrapper with any associated warning.
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E>;
 
+    /// Discards the completion
+    fn discard_completion(self) -> Result<T, E>;
+
     /// Returns the contained `Ok(Completion(..))` value, discarding any warning and consumes the `self` value.
     ///
     /// This function can panic, so use it with caution.
@@ -173,6 +168,7 @@ pub trait ResultCompErrExt<T, E> {
 }
 
 impl<T, E: std::fmt::Debug> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
+
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E> {
         self.map(|mq| mq.map(op))
     }
@@ -181,12 +177,16 @@ impl<T, E: std::fmt::Debug> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
     fn unwrap_completion(self) -> T {
         self.unwrap().discard_warning()
     }
+    
+    fn discard_completion(self) -> Result<T, E> {
+        self.map(|Completion(value, _)| value)
+    }
 }
 
 impl<T> ResultCompExt<T> for ResultComp<T> {
     fn warn_as_error(self) -> ResultErr<T> {
         match self {
-            Ok(Completion(_, Some(warn_cc), verb)) => {
+            Ok(Completion(_, Some((warn_cc, verb)))) => {
                 Err(Error(CompletionCode::from(sys::MQCC_WARNING), verb, warn_cc))
             }
             other => other.map(|Completion(value, ..)| value),

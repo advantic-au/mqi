@@ -9,7 +9,6 @@ use crate::sys;
 use crate::Completion;
 use crate::MQConstant;
 use crate::MqValue;
-use crate::RawValue;
 use crate::ResultCompErrExt as _;
 use crate::MQMD;
 use crate::{Error, ResultComp, ResultErr};
@@ -91,7 +90,7 @@ impl<L: Library<MQ: function::MQI>> Iterator for MsgPropIter<'_, L> {
         }
 
         match next_result(self) {
-            Err(Error(MqValue(sys::MQCC_FAILED), _, MqValue(sys::MQRC_PROPERTY_NOT_AVAILABLE))) => None,
+            Err(Error(cc, _, rc)) if cc == sys::MQCC_FAILED && rc == sys::MQRC_PROPERTY_NOT_AVAILABLE => None,
             result => Some(result),
         }
     }
@@ -108,7 +107,7 @@ pub enum Value {
     Float64(f64) = sys::MQTYPE_FLOAT64,
     String(String) = sys::MQTYPE_STRING,
     Null = sys::MQTYPE_NULL,
-    Data(sys::MQLONG, Vec<u8>, Coding),
+    Data(MqValue<core::MQTYPE>, Vec<u8>, Coding),
 }
 
 pub enum Coding {
@@ -120,17 +119,14 @@ pub enum Coding {
 #[derive(Debug, Clone, Copy)]
 pub struct MQCMHO;
 impl_constant_lookup!(MQCMHO, mapping::MQCMHO_CONST);
-impl RawValue for MQCMHO {
-    type ValueType = sys::MQLONG;
-}
 
 impl Value {
     #[must_use]
     #[allow(clippy::cast_possible_wrap)] // Masks are unsigned.
-    pub fn from(data: &[u8], MqValue(prop_type): MqValue<core::MQTYPE>, ccsid: sys::MQLONG, encoding: sys::MQLONG) -> Self {
+    pub fn from(data: &[u8], prop_type: MqValue<core::MQTYPE>, ccsid: sys::MQLONG, encoding: sys::MQLONG) -> Self {
         static ENC_NATIVE_INTEGER: sys::MQLONG = sys::MQENC_INTEGER_MASK as sys::MQLONG & sys::MQENC_NATIVE;
         static ENC_NATIVE_FLOAT: sys::MQLONG = sys::MQENC_FLOAT_MASK as sys::MQLONG & sys::MQENC_NATIVE;
-        match prop_type {
+        match prop_type.mq_value() {
             sys::MQTYPE_BOOLEAN => Ok(Self::Boolean(data[0] != 0)),
             sys::MQTYPE_BYTE_STRING => Ok(Self::Bytes(data.to_owned())),
             sys::MQTYPE_INT16 if (encoding & ENC_NATIVE_INTEGER) != 0 => {
@@ -165,11 +161,7 @@ impl<L: Library<MQ: function::MQI>> Drop for Message<'_, L> {
 }
 
 impl<'connection, L: Library<MQ: function::MQI>> Message<'connection, L> {
-    pub fn new(
-        lib: L,
-        connection: &'connection core::ConnectionHandle,
-        options: MqValue<MQCMHO>,
-    ) -> ResultErr<Self> {
+    pub fn new(lib: L, connection: &'connection core::ConnectionHandle, options: MqValue<MQCMHO>) -> ResultErr<Self> {
         let mqcmho = sys::MQCMHO {
             Options: options.mq_value(),
             ..sys::MQCMHO::default()
@@ -189,7 +181,13 @@ impl<'connection, L: Library<MQ: function::MQI>> Message<'connection, L> {
 }
 
 impl<L: Library<MQ: function::MQI>, H> QueueManagerShare<L, H> {
-    pub fn put<B>(&self, mqod: &mut sys::MQOD, mqmd: Option<&mut impl MQMD>, pmo: &mut sys::MQPMO, body: &B) -> ResultComp<()> {
+    pub fn put<B>(
+        &self,
+        mqod: &mut sys::MQOD,
+        mqmd: Option<&mut impl MQMD>,
+        pmo: &mut sys::MQPMO,
+        body: &B,
+    ) -> ResultComp<()> {
         self.mq().mqput1(self.handle(), mqod, mqmd, pmo, body)
     }
 }

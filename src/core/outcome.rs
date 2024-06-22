@@ -57,8 +57,8 @@ impl<T> From<MQIOutcome<T>> for ResultComp<T> {
     fn from(outcome: MQIOutcome<T>) -> Self {
         let MQIOutcome { cc, rc, value, verb } = outcome;
         match cc.mq_value() {
-            sys::MQCC_OK => Ok(Completion(value, None, verb)),
-            sys::MQCC_WARNING => Ok(Completion(value, Some(rc), verb)),
+            sys::MQCC_OK => Ok(Completion(value, None)),
+            sys::MQCC_WARNING => Ok(Completion(value, Some((rc, verb)))),
             _ => Err(Error(cc, verb, rc)),
         }
     }

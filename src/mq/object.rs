@@ -1,20 +1,24 @@
 use std::{
     cmp::min,
-    collections::VecDeque,
+    collections::{vec_deque::Iter, VecDeque},
     fmt::Debug,
     mem::size_of_val,
-    ops::{Deref, DerefMut}, sync::Arc,
+    ops::{Deref, DerefMut},
+    ptr,
+    str::from_utf8_unchecked,
+    sync::Arc,
 };
 
 use libmqm_sys::function;
 
 use crate::{
-    core::{self, ConnectionHandle, Library, MQFunctions, MQCO, MQOO}, Conn, MqMask, MqValue, RawValue, ResultCompErrExt as _
+    core::{self, ConnectionHandle, Library, MQFunctions, MQCO, MQOO},
+    Conn, MqMask, MqValue, ResultCompErrExt as _,
 };
 use crate::{impl_constant_lookup, mapping, sys, MqStr, QMName, QName, StructBuilder};
 use crate::{ObjectName, ResultComp};
 
-use super::{QueueManagerShare, StringCcsid};
+use super::QueueManagerShare;
 
 trait Sealed {}
 #[allow(private_bounds)]
@@ -29,14 +33,10 @@ impl MQMD for sys::MQMDE {}
 
 #[derive(Clone, Copy)]
 pub struct MQXA;
-
-impl RawValue for MQXA {
-    type ValueType = sys::MQLONG;
-}
 impl_constant_lookup!(MQXA, mapping::MQXA_FULL_CONST);
 
 pub type InqReqType = (MqValue<MQXA>, InqReqItem);
-pub type InqResType = (MqValue<MQXA>, InqResItem);
+pub type InqResType<'a, T> = (MqValue<MQXA>, InqResItem<'a, T>);
 
 #[must_use]
 pub struct Object<C: Conn> {
@@ -86,38 +86,65 @@ pub enum InqReqItem {
 }
 
 #[derive(Debug, Clone)]
-pub enum InqResItem {
-    Str(StringCcsid),
+pub enum InqResItem<'a, T: ?Sized> {
+    Str(&'a T),
     Long(sys::MQLONG),
 }
-#[derive(Debug, Clone)]
-pub struct InqResIterator {
-    text_pos: usize,
 
+#[derive(Debug, Clone)]
+pub struct InqRes {
     strings: Vec<sys::MQCHAR>,
     longs: VecDeque<sys::MQLONG>,
     select: VecDeque<InqReqType>,
 }
 
-impl Iterator for InqResIterator {
-    type Item = InqResType;
+impl InqRes {
+    pub fn iter_mqchar(&self) -> impl Iterator<Item = InqResType<[sys::MQCHAR]>> {
+        InqResIter {
+            text_pos: 0,
+            strings: &self.strings,
+            select: self.select.iter(),
+            longs: self.longs.iter(),
+        }
+    }
 
-    fn next(&mut self) -> Option<InqResType> {
-        match self.select.pop_front() {
-            Some((sel, InqReqItem::Str(len))) => {
-                let data: &[u8] =
-                    unsafe { &*(std::ptr::addr_of!(self.strings[self.text_pos..len + self.text_pos]) as *const [u8]) };
-                let value = InqResItem::Str(StringCcsid {
-                    ccsid: Option::None,
-                    data: data.into(),
-                });
+    pub fn iter(&self) -> impl Iterator<Item = InqResType<str>> {
+        self.iter_mqchar().map(|(attr, item)| {
+            (
+                attr,
+                match item {
+                    // SAFETY: MQ client CCSID is UTF-8. IBM MQ documentation states the MQINQ will
+                    // use the client CCSID. Interpret as utf-8 unchecked, without allocation.
+                    // Refer https://www.ibm.com/docs/en/ibm-mq/9.4?topic=application-using-mqinq-in-client-aplication
+                    InqResItem::Str(value) => InqResItem::Str(
+                        unsafe { from_utf8_unchecked(&*(ptr::from_ref::<[sys::MQCHAR]>(value) as *const [u8])) }
+                            .trim_end_matches([' ', '\0']),
+                    ),
+                    InqResItem::Long(value) => InqResItem::Long(value),
+                },
+            )
+        })
+    }
+}
+
+struct InqResIter<'a> {
+    text_pos: usize,
+    strings: &'a [sys::MQCHAR],
+    select: Iter<'a, InqReqType>,
+    longs: Iter<'a, sys::MQLONG>,
+}
+
+impl<'a> Iterator for InqResIter<'a> {
+    type Item = InqResType<'a, [sys::MQCHAR]>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.select.next() {
+            Some(&(sel, InqReqItem::Str(len))) => {
+                let mqchar = &self.strings[self.text_pos..len + self.text_pos];
                 self.text_pos += len;
-                Some((sel, value))
+                Some((sel, InqResItem::Str(mqchar)))
             }
-            Some((sel, InqReqItem::Long)) => {
-                let value = InqResItem::Long(self.longs.pop_front().expect("InqResIterator inconsistent state"));
-                Some((sel, value))
-            }
+            Some(&(sel, InqReqItem::Long)) => self.longs.next().map(|&l| (sel, InqResItem::Long(l))),
             None => None,
         }
     }
@@ -181,7 +208,7 @@ impl<C: Conn> Object<C> {
         })
     }
 
-    pub fn inq<'a>(&self, selectors: impl IntoIterator<Item = &'a InqReqType>) -> ResultComp<InqResIterator> {
+    pub fn inq<'a>(&self, selectors: impl IntoIterator<Item = &'a InqReqType>) -> ResultComp<InqRes> {
         let mut text_len = 0;
         let mut int_len = 0;
         let select: VecDeque<_> = selectors.into_iter().copied().collect();
@@ -210,8 +237,7 @@ impl<C: Conn> Object<C> {
                     text_attr.set_len(text_len);
                     int_attr.set_len(int_len);
                 };
-                InqResIterator {
-                    text_pos: 0,
+                InqRes {
                     strings: text_attr,
                     longs: VecDeque::from(int_attr),
                     select,
@@ -258,13 +284,7 @@ impl<C: Conn> Object<C> {
 
         self.connection
             .mq()
-            .mqget(
-                self.connection.handle(),
-                self.handle(),
-                Some(&mut md),
-                &mut gmo,
-                body,
-            )
+            .mqget(self.connection.handle(), self.handle(), Some(&mut md), &mut gmo, body)
             .map_completion(|len| GetMessage {
                 returned_length: match gmo.ReturnedLength {
                     sys::MQRL_UNDEFINED => min(

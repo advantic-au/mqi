@@ -7,7 +7,7 @@ use crate::{sys, ConnectionId, DefinitionMethod, QMName, ResultComp, StructBuild
 use crate::{
     admin::{Bag, Owned},
     core::mqai::MQCBO,
-    MqMask, ResultErr
+    MqMask,
 };
 
 impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
@@ -27,7 +27,7 @@ impl<H: HandleShare> QueueManagerShare<&LinkedMQ, H> {
 
 #[cfg(feature = "mqai")]
 impl Bag<Owned, &LinkedMQ> {
-    pub fn new(options: MqMask<MQCBO>) -> ResultErr<Self> {
+    pub fn new(options: MqMask<MQCBO>) -> ResultComp<Self> {
         Self::new_lib(&LinkedMQ, options)
     }
 }
