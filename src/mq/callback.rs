@@ -1,44 +1,60 @@
-use std::{marker::PhantomData, pin::Pin, ptr};
+use std::{pin::Pin, ptr};
 
 use libmqm_sys::function;
 
 use crate::{
-    core::{ConnectionHandle, Library},
-    sys, MqMask, MqStruct, QueueManagerShare, MQCBDO,
+    core::{mqai, ConnectionHandle, Library}, sys, Error, MqMask, MqStruct, QueueManagerShare, MQCBDO
 };
 
 /// Holds the callback function and ties it to the lifetime of the connection
-pub struct CallbackHandle<'a, F> {
-    _callback: Pin<Box<F>>,
-    _marker: PhantomData<&'a mut ()>,
+pub struct CallbackHandle<F> {
+    callback: Pin<Box<F>>,
 }
 
-fn event_callback<F: FnMut(ConnectionHandle, &MqStruct<sys::MQCBC>)>(
-    conn: sys::MQHCONN,
-    _: sys::PMQVOID,
-    _: sys::PMQVOID,
-    _: sys::PMQVOID,
-    cbc: *const sys::MQCBC,
-) {
-    unsafe {
-        if let Some(context) = cbc.cast::<MqStruct<sys::MQCBC>>().as_ref() {
-            let cb = &mut *context.CallbackArea.cast::<F>();
-            cb(conn.into(), context);
+impl<'a, L: Library<MQ: function::MQI>,  H> QueueManagerShare<'a, L, H> {
+    fn event_callback<F: FnMut(&'_ QueueManagerShare<'_, L, H>, &'_ MqStruct<sys::MQCBC>)>(
+        conn: sys::MQHCONN,
+        _: sys::PMQVOID,
+        _: sys::PMQVOID,
+        _: sys::PMQVOID,
+        cbc: *const sys::MQCBC,
+    ) {
+        unsafe {
+            if let Some(context) = cbc.cast::<MqStruct<sys::MQCBC>>().as_ref() {
+                let (mq, cb) = &mut *context.CallbackArea.cast::<(L, F)>();
+                let qm = Self {
+                    handle: conn.into(),
+                    mq,
+                    _share: std::marker::PhantomData,
+                    _ref: std::marker::PhantomData,
+                };
+                cb(&qm, context);
+                if context.CallType == sys::MQCBCT_DEREGISTER_CALL {
+                    let _ = Box::<(L, F)>::from_raw(context.CallbackArea.cast());
+                }
+            }
         }
+    }
+    
+}
+
+impl<F: FnMut(ConnectionHandle, &'_ MqStruct<sys::MQCBC>)> From<F> for CallbackHandle<F> {
+    fn from(f: F)-> Self {
+        Self { callback: Box::pin(f) }
     }
 }
 
-impl<L: Library<MQ: function::MQI>, H> QueueManagerShare<L, H> {
-    pub fn register_event_handler<F: FnMut(ConnectionHandle, &MqStruct<sys::MQCBC>)>(
-        &self,
+impl<'a, L: Library<MQ: function::MQI>, H> QueueManagerShare<'a, L, H> {
+
+    pub fn register_event_handler<F: FnMut(&QueueManagerShare<'_, L, H>, &'_ MqStruct<sys::MQCBC>)>(
+        &mut self,
         options: MqMask<MQCBDO>,
-        callback: F,
-    ) -> Result<CallbackHandle<'_, F>, crate::Error> {
+        handle: &'a F,
+    ) -> Result<(), Error> {
         let mut cbd = MqStruct::<sys::MQCBD>::default();
-        let cb_pin = Box::pin(callback);
-        cbd.CallbackArea = ptr::addr_of!(*cb_pin).cast_mut().cast();
+        cbd.CallbackArea = ptr::addr_of!(*handle).cast_mut().cast();
         cbd.Options = options.0;
-        cbd.CallbackFunction = event_callback::<F> as *mut _;
+        cbd.CallbackFunction = QueueManagerShare::<L, H>::event_callback::<F> as *mut _;
         cbd.CallbackType = sys::MQCBT_EVENT_HANDLER;
 
         self.mq().mqcb(
@@ -50,9 +66,6 @@ impl<L: Library<MQ: function::MQI>, H> QueueManagerShare<L, H> {
             None,
         )?;
 
-        Ok(CallbackHandle {
-            _callback: cb_pin,
-            _marker: PhantomData,
-        })
+        Ok(())
     }
 }

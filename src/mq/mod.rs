@@ -17,6 +17,7 @@ pub mod inq {
 
 pub use builder::*;
 pub use queue_manager::*;
+pub use callback::*;
 pub use get::*;
 pub use message::*;
 pub use mqstruct::*;

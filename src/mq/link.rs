@@ -16,7 +16,7 @@ impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<
     }
 }
 
-impl<H: HandleShare> QueueManagerShare<&LinkedMQ, H> {
+impl<H: HandleShare> QueueManagerShare<'_, &LinkedMQ, H> {
     pub fn new(
         qm_name: Option<&QMName>,
         builder: &impl StructBuilder<sys::MQCNO>,

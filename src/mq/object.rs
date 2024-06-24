@@ -49,7 +49,7 @@ pub struct Object<C: Conn> {
     resolved_qmgr_name: Option<QMName>,
 }
 
-impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<L, H>> {
+impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<'_, L, H>> {
     fn mq(&self) -> &MQFunctions<impl Library<MQ: function::MQI>> {
         self.deref().mq()
     }
@@ -59,7 +59,7 @@ impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<L, H>> {
     }
 }
 
-impl<L: Library<MQ: function::MQI>, H> Conn for QueueManagerShare<L, H> {
+impl<L: Library<MQ: function::MQI>, H> Conn for QueueManagerShare<'_, L, H> {
     fn mq(&self) -> &MQFunctions<impl Library<MQ: function::MQI>> {
         Self::mq(self)
     }
@@ -69,7 +69,7 @@ impl<L: Library<MQ: function::MQI>, H> Conn for QueueManagerShare<L, H> {
     }
 }
 
-impl<L: Library<MQ: function::MQI>, H> Conn for &QueueManagerShare<L, H> {
+impl<L: Library<MQ: function::MQI>, H> Conn for &QueueManagerShare<'_, L, H> {
     fn mq(&self) -> &MQFunctions<impl Library<MQ: function::MQI>> {
         QueueManagerShare::<L, H>::mq(self)
     }
@@ -115,9 +115,11 @@ impl InqRes {
                 match item {
                     // SAFETY: MQ client CCSID is UTF-8. IBM MQ documentation states the MQINQ will
                     // use the client CCSID. Interpret as utf-8 unchecked, without allocation.
+                    // Note: some fields, such as the initial key are binary and therefore should
+                    // use the `iter_mqchar` function.
                     // Refer https://www.ibm.com/docs/en/ibm-mq/9.4?topic=application-using-mqinq-in-client-aplication
                     InqResItem::Str(value) => InqResItem::Str(
-                        unsafe { from_utf8_unchecked(&*(ptr::from_ref::<[sys::MQCHAR]>(value) as *const [u8])) }
+                        unsafe { from_utf8_unchecked(&*(ptr::from_ref(value) as *const [u8])) }
                             .trim_end_matches([' ', '\0']),
                     ),
                     InqResItem::Long(value) => InqResItem::Long(value),

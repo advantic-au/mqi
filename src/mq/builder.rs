@@ -671,11 +671,11 @@ impl<C, D> ConnectionOptions<C, D> {
 
 impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
     /// Execute a connection to MQ using the provided `qm_name` and the `ConnectionOptions` settings
-    pub fn connect_lib<L: Library<MQ: function::MQI>, H: HandleShare>(
+    pub fn connect_lib<'a, L: Library<MQ: function::MQI>, H: HandleShare>(
         &self,
         lib: L,
         qm_name: Option<&QMName>,
-    ) -> ResultComp<(QueueManagerShare<L, H>, ConnectionId, Option<String>)> {
+    ) -> ResultComp<(QueueManagerShare<'a, L, H>, ConnectionId, Option<String>)> {
         QueueManagerShare::new_lib(lib, qm_name, self)
     }
 }

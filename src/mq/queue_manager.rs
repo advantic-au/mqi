@@ -17,14 +17,15 @@ pub trait Conn {
 
 /// A connection to an IBM MQ queue manager
 #[derive(Debug)]
-pub struct QueueManagerShare<L: Library<MQ: function::MQI>, H> {
+pub struct QueueManagerShare<'a, L: Library<MQ: function::MQI>, H> {
     handle: core::ConnectionHandle,
     mq: core::MQFunctions<L>,
-    _mark: PhantomData<H>, // Send and Sync control
+    _share: PhantomData<H>, // Send and Sync control
+    _ref: PhantomData<&'a mut ()> // Connection may refer to callback function
 }
 
 /// Thread movable `QueueManagerShare`
-pub type QueueManager<L> = QueueManagerShare<L, ShareBlock>;
+pub type QueueManager<'a, L> = QueueManagerShare<'a, L, ShareBlock>;
 
 trait Sealed {}
 
@@ -74,7 +75,7 @@ impl HandleShare for ShareNonBlock {
     const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_NO_BLOCK;
 }
 
-impl<L: Library<MQ: function::MQI>, H> Drop for QueueManagerShare<L, H> {
+impl<L: Library<MQ: function::MQI>, H> Drop for QueueManagerShare<'_, L, H> {
     fn drop(&mut self) {
         let _ = self.mq.mqdisc(&mut self.handle);
     }
@@ -94,7 +95,7 @@ impl<L: Library<MQ: function::MQI>, H> Drop for QueueManagerShare<L, H> {
 //     }
 // }
 
-impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<L, H> {
+impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder
     pub fn new_lib(
         lib: L,
@@ -112,7 +113,8 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<L, H> {
                     Self {
                         mq,
                         handle,
-                        _mark: PhantomData,
+                        _share: PhantomData,
+                        _ref: PhantomData
                     },
                     cno.ConnectionId,
                     Some(
@@ -126,7 +128,7 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<L, H> {
     }
 }
 
-impl<L: Library<MQ: function::MQI>, H> QueueManagerShare<L, H> {
+impl<'a, L: Library<MQ: function::MQI>, H> QueueManagerShare<'a, L, H> {
     #[must_use]
     pub const fn mq(&self) -> &MQFunctions<L> {
         &self.mq
@@ -142,7 +144,7 @@ impl<L: Library<MQ: function::MQI>, H> QueueManagerShare<L, H> {
         s.mq.mqdisc(&mut s.handle)
     }
 
-    pub fn syncpoint(&mut self) -> Syncpoint<'_, L, H> {
+    pub fn syncpoint(&mut self) -> Syncpoint<'_, 'a, L, H> {
         Syncpoint {
             connection: self,
             state: SyncpointState::Open,
@@ -158,12 +160,12 @@ enum SyncpointState {
 }
 
 #[must_use]
-pub struct Syncpoint<'connection, L: Library<MQ: function::MQI>, H> {
+pub struct Syncpoint<'connection, 'a, L: Library<MQ: function::MQI>, H> {
     state: SyncpointState,
-    connection: &'connection mut QueueManagerShare<L, H>,
+    connection: &'connection mut QueueManagerShare<'a, L, H>,
 }
 
-impl<L: Library<MQ: function::MQI>, H> Syncpoint<'_, L, H> {
+impl<L: Library<MQ: function::MQI>, H> Syncpoint<'_, '_, L, H> {
     pub fn commit(mut self) -> ResultComp<()> {
         let result = self.mq.mqcmit(self.handle());
         self.state = SyncpointState::Committed;
@@ -177,7 +179,7 @@ impl<L: Library<MQ: function::MQI>, H> Syncpoint<'_, L, H> {
     }
 }
 
-impl<L: Library<MQ: function::MQI>, H> Drop for Syncpoint<'_, L, H> {
+impl<L: Library<MQ: function::MQI>, H> Drop for Syncpoint<'_, '_, L, H> {
     fn drop(&mut self) {
         // TODO: handle close failure
         if matches!(self.state, SyncpointState::Open) {
@@ -186,8 +188,8 @@ impl<L: Library<MQ: function::MQI>, H> Drop for Syncpoint<'_, L, H> {
     }
 }
 
-impl<L: Library<MQ: function::MQI>, H> Deref for Syncpoint<'_, L, H> {
-    type Target = QueueManagerShare<L, H>;
+impl<'a, L: Library<MQ: function::MQI>, H> Deref for Syncpoint<'_, 'a, L, H> {
+    type Target = QueueManagerShare<'a, L, H>;
 
     fn deref(&self) -> &Self::Target {
         self.connection

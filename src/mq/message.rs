@@ -180,7 +180,7 @@ impl<'connection, L: Library<MQ: function::MQI>> Message<'connection, L> {
     }
 }
 
-impl<L: Library<MQ: function::MQI>, H> QueueManagerShare<L, H> {
+impl<L: Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
     pub fn put<B>(
         &self,
         mqod: &mut sys::MQOD,
