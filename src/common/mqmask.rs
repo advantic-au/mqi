@@ -54,6 +54,12 @@ impl<T> PartialEq for MqMask<T> {
     }
 }
 
+impl<T> PartialEq<sys::MQLONG> for MqMask<T> {
+    fn eq(&self, other: &sys::MQLONG) -> bool {
+        self.0 == *other
+    }
+}
+
 impl<T> std::hash::Hash for MqMask<T> {
     // Implement Hash for *any* T
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

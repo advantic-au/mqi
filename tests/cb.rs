@@ -2,20 +2,21 @@ use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
 use mqi::{
-    core::ConnectionHandle, mqstr, sys, ConnectionOptions, Credentials, MqMask, MqStr, MqStruct, MqValue, Object, CallbackHandle,
+    core::ConnectionHandle, mqstr, sys, ConnectionOptions, Credentials, MqMask, MqStr, MqStruct, MqValue, Object,
     ObjectName, QueueManager, ResultCompExt as _, MQMD,
 };
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
-    let connection_options = ConnectionOptions::default_binding()
-        .credentials(Credentials::user("app", "app"));
+    let connection_options = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
 
-    let d = MqStruct::<sys::MQCBD>::default();
-    let bb = CallbackHandle::from(|_, _: &MqStruct<sys::MQCBC>| println!("{}", &d.Options));
     let (mut qm, ..) = QueueManager::new(None, &connection_options).warn_as_error()?;
 
-    qm.register_event_handler(MqMask::from(sys::MQCBDO_REGISTER_CALL|sys::MQCBDO_DEREGISTER_CALL), &bb)?;
+    //let cb = move |_, _: &MqStruct<sys::MQCBC>| println!("{}", "hello");
+    qm.register_event_handler(
+        MqMask::from(sys::MQCBDO_REGISTER_CALL | sys::MQCBDO_DEREGISTER_CALL),
+        move |_, _: &MqStruct<sys::MQCBC>| println!("{}", "hello"),
+    )?;
     //qm.register_event_handler(MqMask::from(sys::MQCBDO_REGISTER_CALL), &CallbackHandle::from(|_, _: &'_ MqStruct<sys::MQCBC>| ()));
     Ok(())
 }
