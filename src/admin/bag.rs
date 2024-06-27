@@ -2,7 +2,8 @@ use std::marker::PhantomData;
 
 use libmqm_sys::function;
 
-use crate::core::values::{MqaiSelector, MQCBO};
+use crate::core::mqai::values::{MqaiSelector, MQCMD};
+use crate::core::values::MQCBO;
 use crate::core::{self, mqai, ConnectionHandle, Library};
 use crate::{
     define_mqvalue, mapping, sys, Completion, Error, MqMask, MqValue, ResultComp, ResultCompErr, ResultCompErrExt,
@@ -13,7 +14,6 @@ pub trait BagDrop: Sized {
     fn drop_bag<L: Library<MQ: function::MQAI>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
 }
 
-use super::values::MQCMD;
 use super::WithMQError;
 use super::{BagItemGet, BagItemPut};
 

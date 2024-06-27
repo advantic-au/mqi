@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
-use crate::core::values::MQCFOP;
 use crate::{sys, MqValue};
+
+use super::values::MQCFOP;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Filter<T> {

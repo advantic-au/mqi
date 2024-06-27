@@ -3,13 +3,13 @@ use std::ptr;
 
 use libmqm_sys::MQAI;
 
-use crate::admin::values::MQCMD;
 use crate::admin::MQIND;
-use crate::core::values::{MqaiSelector, MQCBO, MQCFOP};
+use crate::core::values::MQCBO;
 use crate::core::{Library, MQFunctions, MQIOutcome, MQIOutcomeVoid};
 use crate::{core, MQMD};
 use crate::{sys, MqMask, MqValue, ResultComp};
 
+use super::values::{MqaiSelector, MQCFOP, MQCMD};
 use super::{BagHandle, Filter};
 
 #[cfg(feature = "tracing")]

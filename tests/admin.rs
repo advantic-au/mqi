@@ -1,7 +1,7 @@
 #![cfg(feature = "mqai")]
 
-use mqi::admin::values::MQQT;
 use mqi::admin::Bag;
+use mqi::core::mqai::values::MQQT;
 use mqi::{mqstr, prelude::*};
 use mqi::{sys, ConnectionOptions, Credentials, QueueManager};
 

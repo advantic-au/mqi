@@ -3,7 +3,7 @@ use std::{fmt::Debug, num::NonZeroI32};
 use thiserror::Error;
 
 use crate::core::mqai;
-use crate::core::values::MqaiSelector;
+use crate::core::mqai::values::MqaiSelector;
 use crate::core::Library;
 use crate::{mq, sys, Completion, EncodedString, Error, MqMask, MqStr, MqValue, ResultComp, ResultCompErr, ResultCompErrExt, ResultCompExt};
 

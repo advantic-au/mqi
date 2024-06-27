@@ -1,9 +1,7 @@
-#![allow(clippy::module_name_repetitions)]
-
+use crate::core::values::{MQCC, MQRC};
 use crate::sys;
 use crate::{
-    constants::mapping,
-    impl_constant_lookup, HasMqNames, MqValue,
+    HasMqNames, MqValue,
 };
 use std::{
     fmt::{Debug, Display},
@@ -11,17 +9,10 @@ use std::{
 };
 use thiserror::Error;
 
-impl_constant_lookup!(MQRC, mapping::MQRC_FULL_CONST);
-impl_constant_lookup!(MQCC, mapping::MQCC_CONST);
-
 /// MQ API reason code (`MQRC_*`)
-#[derive(Clone, Copy)]
-pub struct MQRC;
 pub type ReasonCode = MqValue<MQRC>;
 
 /// MQ API completion code (`MQCC_*`)
-#[derive(Clone, Copy)]
-pub struct MQCC;
 pub type CompletionCode = MqValue<MQCC>;
 
 impl Default for ReasonCode {
