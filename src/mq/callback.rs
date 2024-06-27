@@ -1,7 +1,7 @@
 use libmqm_sys::function;
 
 use crate::{
-    core::{ConnectionHandle, Library}, sys, Error, MqMask, MqStruct, QueueManagerShare, MQCBDO
+    core::{values::MQCBDO, ConnectionHandle, Library}, sys, Error, MqMask, MqStruct, QueueManagerShare
 };
 
 type CallbackData<F> = (MqMask<MQCBDO>, F);

@@ -15,7 +15,7 @@ fn qm() -> Result<(), Box<dyn Error>> {
     //let cb = move |_, _: &MqStruct<sys::MQCBC>| println!("{}", "hello");
     qm.register_event_handler(
         MqMask::from(sys::MQCBDO_REGISTER_CALL | sys::MQCBDO_DEREGISTER_CALL),
-        move |_, _: &MqStruct<sys::MQCBC>| println!("{}", "hello"),
+        move |handle, _: &MqStruct<sys::MQCBC>| println!("{handle}"),
     )?;
     //qm.register_event_handler(MqMask::from(sys::MQCBDO_REGISTER_CALL), &CallbackHandle::from(|_, _: &'_ MqStruct<sys::MQCBC>| ()));
     Ok(())

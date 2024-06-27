@@ -12,10 +12,9 @@ use std::{
 use libmqm_sys::function;
 
 use crate::{
-    core::{self, ConnectionHandle, Library, MQFunctions, MQCO, MQOO},
-    Conn, MqMask, MqValue, ResultCompErrExt as _,
+    core::{self, values::{MQCO, MQOO, MQXA}, ConnectionHandle, Library, MQFunctions} , Conn, MqMask, MqValue, ResultCompErrExt as _
 };
-use crate::{impl_constant_lookup, mapping, sys, MqStr, QMName, QName, StructBuilder};
+use crate::{sys, MqStr, QMName, QName, StructBuilder};
 use crate::{ObjectName, ResultComp};
 
 use super::QueueManagerShare;
@@ -30,10 +29,6 @@ impl Sealed for sys::MQMDE {}
 impl MQMD for sys::MQMD {}
 impl MQMD for sys::MQMD2 {}
 impl MQMD for sys::MQMDE {}
-
-#[derive(Clone, Copy)]
-pub struct MQXA;
-impl_constant_lookup!(MQXA, mapping::MQXA_FULL_CONST);
 
 pub type InqReqType = (MqValue<MQXA>, InqReqItem);
 pub type InqResType<'a, T> = (MqValue<MQXA>, InqResItem<'a, T>);
@@ -341,7 +336,7 @@ impl<C: Conn> Drop for Object<C> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::MQCO;
+    use crate::core::values::MQCO;
     use crate::sys;
     use crate::MqMask;
 
@@ -365,11 +360,11 @@ mod tests {
 
         let (list_iter, _) = MqMask::<MQCO>::from(sys::MQCO_NONE).masked_list();
         let list = list_iter.collect::<Vec<_>>();
-        assert_eq!(list, &[(0, "MQCO_NONE")]);
+        assert_eq!(list, &[]);
 
         let (list_iter, _) = MqMask::<MQCO>::from(sys::MQCO_DELETE | sys::MQCO_QUIESCE).masked_list();
         let list = list_iter.collect::<Vec<_>>();
-        assert_eq!(list, &[(1, "MQCO_DELETE"), (32, "MQCO_QUIESCE")]);
+        assert_eq!(list, &[(sys::MQCO_DELETE, "MQCO_DELETE"), (sys::MQCO_QUIESCE, "MQCO_QUIESCE")]);
 
         // assert_eq!(format!("{oo:?}"), "");
     }

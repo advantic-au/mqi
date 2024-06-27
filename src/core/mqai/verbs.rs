@@ -3,76 +3,17 @@ use std::ptr;
 
 use libmqm_sys::MQAI;
 
+use crate::admin::values::MQCMD;
 use crate::admin::MQIND;
+use crate::core::values::{MqaiSelector, MQCBO, MQCFOP};
 use crate::core::{Library, MQFunctions, MQIOutcome, MQIOutcomeVoid};
 use crate::{core, MQMD};
-use crate::{impl_constant_lookup, mapping, sys, ConstLookup, MqMask, MqValue, ResultComp};
+use crate::{sys, MqMask, MqValue, ResultComp};
 
-use super::{BagHandle, MQCFOP, Filter};
+use super::{BagHandle, Filter};
 
 #[cfg(feature = "tracing")]
 use {core::tracing_outcome, tracing::instrument};
-
-/// Create bag options mask
-#[derive(Clone, Copy)]
-pub struct MQCBO;
-impl_constant_lookup!(MQCBO, mapping::MQCBO_CONST);
-
-#[derive(Clone, Copy)]
-pub struct MqaiSelector;
-impl_constant_lookup!(MqaiSelector, MqaiSelectorLookup);
-
-/*
-
-MQAI selector constant lookup is complex... thanks to this - no less than 8 different constant sets.
-https://www.ibm.com/docs/en/ibm-mq/latest?topic=reference-mqai-selectors
-
-It would be more efficient to generate one large set as part of the build process, but this will do for now.
-
-*/
-
-struct MqaiSelectorLookup;
-impl ConstLookup for MqaiSelectorLookup {
-    fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &str> {
-        mapping::MQIA_CONST
-            .by_value(value)
-            .chain(mapping::MQCA_CONST.by_value(value))
-            .chain(mapping::MQIACF_CONST.by_value(value))
-            .chain(mapping::MQCACF_CONST.by_value(value))
-            .chain(mapping::MQIACH_CONST.by_value(value))
-            .chain(mapping::MQCACH_CONST.by_value(value))
-            .chain(mapping::MQIASY_CONST.by_value(value))
-            .chain(mapping::MQHA_CONST.by_value(value))
-    }
-
-    fn by_name(&self, name: &str) -> Option<sys::MQLONG> {
-        mapping::MQIA_CONST
-            .by_name(name)
-            .or_else(|| mapping::MQCA_CONST.by_name(name))
-            .or_else(|| mapping::MQIACF_CONST.by_name(name))
-            .or_else(|| mapping::MQCACF_CONST.by_name(name))
-            .or_else(|| mapping::MQIACH_CONST.by_name(name))
-            .or_else(|| mapping::MQCACH_CONST.by_name(name))
-            .or_else(|| mapping::MQIASY_CONST.by_name(name))
-            .or_else(|| mapping::MQHA_CONST.by_name(name))
-    }
-
-    fn all(&self) -> impl Iterator<Item = crate::ConstantItem> {
-        mapping::MQIA_CONST
-            .all()
-            .chain(mapping::MQCA_CONST.all())
-            .chain(mapping::MQIACF_CONST.all())
-            .chain(mapping::MQCACF_CONST.all())
-            .chain(mapping::MQIACH_CONST.all())
-            .chain(mapping::MQCACH_CONST.all())
-            .chain(mapping::MQIASY_CONST.all())
-            .chain(mapping::MQHA_CONST.all())
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct MQCMD;
-impl_constant_lookup!(MQCMD, mapping::MQCMD_CONST);
 
 impl<L: Library<MQ: MQAI>> MQFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]

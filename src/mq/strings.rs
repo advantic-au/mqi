@@ -44,3 +44,28 @@ impl FromStr for mq::StringCcsid {
         })
     }
 }
+
+pub trait EncodedString: std::fmt::Debug {
+    fn ccsid(&self) -> Option<NonZeroI32>;
+    fn data(&self) -> &[u8];
+}
+
+impl EncodedString for str {
+    fn ccsid(&self) -> Option<NonZeroI32> {
+        NonZeroI32::new(1208) // = UTF-8 CCSID. str types are _always_ UTF-8
+    }
+
+    fn data(&self) -> &[u8] {
+        unsafe { &*(std::ptr::from_ref(self) as *const [u8]) }
+    }
+}
+
+impl EncodedString for StringCcsid {
+    fn ccsid(&self) -> Option<NonZeroI32> {
+        self.ccsid
+    }
+
+    fn data(&self) -> &[u8] {
+        &self.data
+    }
+}

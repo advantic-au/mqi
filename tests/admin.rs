@@ -1,6 +1,6 @@
 #![cfg(feature = "mqai")]
 
-use mqi::admin::selectors::MQQT;
+use mqi::admin::values::MQQT;
 use mqi::admin::Bag;
 use mqi::{mqstr, prelude::*};
 use mqi::{sys, ConnectionOptions, Credentials, QueueManager};
@@ -9,7 +9,7 @@ use mqi::{sys, ConnectionOptions, Credentials, QueueManager};
 fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
     let admin_bag = Bag::new(MqMask::from(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
     admin_bag.add(MqValue::from(sys::MQCA_Q_NAME), "*")?.discard_warning();
-    admin_bag.add(MqValue::from(sys::MQIA_Q_TYPE), sys::MQQT_ALL)?.discard_warning();
+    admin_bag.add(MqValue::from(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?.discard_warning();
 
     let cb = ConnectionOptions::from_mqserver("DEV.ADMIN.SVRCONN/TCP/192.168.92.15(1414)")?
         .application_name(Some(mqstr!("rust_testing")))

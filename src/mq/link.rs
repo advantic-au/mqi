@@ -1,12 +1,11 @@
 use libmqm_sys::link::LinkedMQ;
 
 use super::{ConnectionOptions, QueueManagerShare, HandleShare};
-use crate::{sys, ConnectionId, DefinitionMethod, QMName, ResultComp, StructBuilder, StructOptionBuilder};
+use crate::{core::values::MQCBO, sys, ConnectionId, DefinitionMethod, QMName, ResultComp, StructBuilder, StructOptionBuilder};
 
 #[cfg(feature = "mqai")]
 use crate::{
     admin::{Bag, Owned},
-    core::mqai::MQCBO,
     MqMask,
 };
 

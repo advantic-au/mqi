@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use libmqm_sys::function;
 
-use crate::core::mqai::MqaiSelector;
+use crate::core::values::MqaiSelector;
 use crate::core::Library;
 use crate::{sys, MqValue, ResultComp, ResultCompErr, ResultCompErrExt};
 

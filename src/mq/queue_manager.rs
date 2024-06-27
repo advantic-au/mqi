@@ -5,7 +5,7 @@ use std::ops::Deref;
 use libmqm_sys::function;
 
 use crate::core::{self, Library, MQFunctions};
-use crate::{impl_constant_lookup, mapping, sys, MqStr, ResultCompErrExt as _, StructBuilder};
+use crate::{sys, MqStr, ResultCompErrExt as _, StructBuilder};
 use crate::{QMName, ResultComp};
 
 pub type ConnectionId = [sys::MQBYTE; 24];
@@ -53,10 +53,6 @@ pub struct ShareNonBlock(*const ()); // Send + !Sync
 /// See the `MQCNO_HANDLE_SHARE_BLOCK` connection option.
 #[derive(Debug)]
 pub struct ShareBlock; // Send + Sync
-
-/// Callback options (`MQCBDO_*`)
-pub struct MQCBDO;
-impl_constant_lookup!(MQCBDO, mapping::MQCBDO_CONST);
 
 impl Sealed for ShareNone {}
 impl Sealed for ShareNonBlock {}

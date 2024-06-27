@@ -1,19 +1,21 @@
+use std::error::Error;
+
 use libmqm_sys::link::LinkedMQ;
-use mqi::{sys, QueueManager, ConnectionOptions, Credentials, Message, MqValue, ResultCompExt};
+use mqi::{sys, ConnectionOptions, Credentials, Message, MqStruct, MqValue, QueueManager, ResultCompExt};
 
 #[test]
-fn message_handle() {
+fn message_handle() -> Result<(), Box<dyn Error>> {
     let (conn, ..) = QueueManager::new(
         None,
         &ConnectionOptions::default_binding().credentials(Credentials::user("app", "app")),
     )
-    .warn_as_error()
-    .expect("Could not establish connection");
+    .warn_as_error()?;
     let handle = &conn.handle();
 
-    // let l = unsafe { MqmContainer::load_mqm_default() }.expect("Could not load library");
-    let result = Message::new(&LinkedMQ, handle, MqValue::from(sys::MQCMHO_DEFAULT_VALIDATION))
-        .expect("Unable to create message handle");
-    let prop = result.inq_properties("property").next();
+    let message = Message::new(&LinkedMQ, handle, MqValue::from(sys::MQCMHO_DEFAULT_VALIDATION))?;
+    message.set_property("property", "hello", MqValue::from(sys::MQSMPO_NONE), &MqStruct::<sys::MQPD>::default()).warn_as_error()?;
+    let prop = message.inq_properties("property").next().map(mqi::ResultCompExt::warn_as_error).transpose()?;
     println!("{prop:?}");
+
+    Ok(())
 }

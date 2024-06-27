@@ -2,7 +2,7 @@
 
 use crate::sys;
 use crate::{
-    constants::{mapping, MQConstant},
+    constants::mapping,
     impl_constant_lookup, HasMqNames, MqValue,
 };
 use std::{
@@ -41,7 +41,7 @@ impl ReasonCode {
     pub fn ibm_reference_url(&self, language: &str, version: Option<&str>) -> Option<String> {
         let name = self.mq_primary_name()?.to_lowercase().replace('_', "-");
         let version = version.unwrap_or("latest");
-        let code = self.mq_value();
+        let code = self.value();
         Some(format!(
             "https://www.ibm.com/docs/{language}/ibm-mq/{version}?topic=codes-{code}-{code:04x}-rc{code}-{name}"
         ))

@@ -1,17 +1,13 @@
-use std::{fmt::Display, num::NonZeroI32};
+use std::fmt::Display;
 
-use crate::constants::mapping;
-use crate::{impl_constant_lookup, sys, MqValue};
+use crate::core::values::MQCFOP;
+use crate::{sys, MqValue};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Filter<T> {
     pub operator: MqValue<MQCFOP>,
     pub value: T,
 }
-
-#[derive(Clone, Copy)]
-pub struct MQCFOP;
-impl_constant_lookup!(MQCFOP, mapping::MQCFOP_CONST);
 
 impl<T> Filter<T> {
     pub const fn value(&self) -> &T {
@@ -118,9 +114,4 @@ impl<T: Display> Display for Filter<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} <{}>", self.value, self.operator)
     }
-}
-
-pub trait EncodedString {
-    fn ccsid(&self) -> Option<NonZeroI32>;
-    fn data(&self) -> &[u8];
 }

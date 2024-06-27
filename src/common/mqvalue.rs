@@ -31,6 +31,11 @@ impl<T> MqValue<T> {
     pub const fn from(value: sys::MQLONG) -> Self {
         Self(value, PhantomData)
     }
+
+    #[must_use]
+    pub const fn value(&self) -> sys::MQLONG {
+        self.0
+    }
 }
 
 impl<T: HasConstLookup> FromStr for MqValue<T> {

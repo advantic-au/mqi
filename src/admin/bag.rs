@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use libmqm_sys::function;
 
-use crate::core::mqai::{MqaiSelector, MQCBO, MQCMD};
+use crate::core::values::{MqaiSelector, MQCBO};
 use crate::core::{self, mqai, ConnectionHandle, Library};
 use crate::{
     define_mqvalue, mapping, sys, Completion, Error, MqMask, MqValue, ResultComp, ResultCompErr, ResultCompErrExt,
@@ -13,6 +13,7 @@ pub trait BagDrop: Sized {
     fn drop_bag<L: Library<MQ: function::MQAI>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
 }
 
+use super::values::MQCMD;
 use super::WithMQError;
 use super::{BagItemGet, BagItemPut};
 
@@ -152,7 +153,7 @@ impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
         self.mq.mq_add_bag(self, selector, to_attach)
     }
 
-    pub fn add<T: BagItemPut<L>>(&self, selector: MqValue<MqaiSelector>, value: T) -> ResultCompErr<(), T::Error> {
+    pub fn add<T: BagItemPut<L> + ?Sized>(&self, selector: MqValue<MqaiSelector>, value: &T) -> ResultCompErr<(), T::Error> {
         value.add_to_bag(selector, self)
     }
 
@@ -168,15 +169,7 @@ impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
         }
     }
 
-    // pub fn inq<T: inq::InqSelector<L>>(
-    //     &self,
-    //     selector: &T,
-    //     index: Option<sys::MQLONG>,
-    // ) -> Result<Option<T::Out>, <T::Out as BagItemGet<L>>::Error> {
-    //     self.inquire(selector.attribute(), index)
-    // }
-
-    pub fn set<T: BagItemPut<L>>(&self, selector: impl InqSelect, value: T) -> ResultCompErr<(), T::Error> {
+    pub fn set<T: BagItemPut<L>>(&self, selector: impl InqSelect, value: &T) -> ResultCompErr<(), T::Error> {
         T::set_bag_item(value, selector.selector(), selector.index().unwrap_or_default(), self)
     }
 

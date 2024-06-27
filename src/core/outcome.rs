@@ -56,7 +56,7 @@ impl<T> DerefMut for MQIOutcome<T> {
 impl<T> From<MQIOutcome<T>> for ResultComp<T> {
     fn from(outcome: MQIOutcome<T>) -> Self {
         let MQIOutcome { cc, rc, value, verb } = outcome;
-        match cc.mq_value() {
+        match cc.value() {
             sys::MQCC_OK => Ok(Completion(value, None)),
             sys::MQCC_WARNING => Ok(Completion(value, Some((rc, verb)))),
             _ => Err(Error(cc, verb, rc)),
@@ -67,7 +67,7 @@ impl<T> From<MQIOutcome<T>> for ResultComp<T> {
 impl<T> From<MQIOutcome<T>> for ResultErr<T> {
     fn from(outcome: MQIOutcome<T>) -> Self {
         let MQIOutcome { cc, rc, value, verb } = outcome;
-        match cc.mq_value() {
+        match cc.value() {
             sys::MQCC_OK => Ok(value),
             _ => Err(Error(cc, verb, rc)),
         }
@@ -78,31 +78,31 @@ impl<T> From<MQIOutcome<T>> for ResultErr<T> {
 #[cfg(feature = "tracing")]
 pub fn tracing_outcome<T: std::fmt::Debug>(outcome: &MQIOutcome<T>) {
     let MQIOutcome { verb, cc, rc, value } = outcome;
-    match cc.mq_value() {
+    match cc.value() {
         sys::MQCC_OK => tracing::event!(
             tracing::Level::DEBUG,
             value = ?value,
             cc_name = cc.mq_primary_name(),
-            cc = cc.mq_value(),
+            cc = cc.value(),
             rc_name = rc.mq_primary_name(),
-            rc = rc.mq_value(),
+            rc = rc.value(),
             verb
         ),
         sys::MQCC_WARNING => tracing::event!(
             tracing::Level::WARN,
             value = ?value,
             cc_name = cc.mq_primary_name(),
-            cc = cc.mq_value(),
+            cc = cc.value(),
             rc_name = rc.mq_primary_name(),
-            rc = rc.mq_value(),
+            rc = rc.value(),
             verb
         ),
         _ => tracing::event!(
             tracing::Level::ERROR,
             cc_name = cc.mq_primary_name(),
-            cc = cc.mq_value(),
+            cc = cc.value(),
             rc_name = rc.mq_primary_name(),
-            rc = rc.mq_value(),
+            rc = rc.value(),
             verb
         ),
     }
@@ -112,29 +112,29 @@ pub fn tracing_outcome<T: std::fmt::Debug>(outcome: &MQIOutcome<T>) {
 #[cfg(feature = "tracing")]
 pub fn tracing_outcome_basic<T>(outcome: &MQIOutcome<T>) {
     let MQIOutcome { verb, cc, rc, .. } = outcome;
-    match cc.mq_value() {
+    match cc.value() {
         sys::MQCC_OK => tracing::event!(
             tracing::Level::DEBUG,
             cc_name = cc.mq_primary_name(),
-            cc = cc.mq_value(),
+            cc = cc.value(),
             rc_name = rc.mq_primary_name(),
-            rc = rc.mq_value(),
+            rc = rc.value(),
             verb
         ),
         sys::MQCC_WARNING => tracing::event!(
             tracing::Level::WARN,
             cc_name = cc.mq_primary_name(),
-            cc = cc.mq_value(),
+            cc = cc.value(),
             rc_name = rc.mq_primary_name(),
-            rc = rc.mq_value(),
+            rc = rc.value(),
             verb
         ),
         _ => tracing::event!(
             tracing::Level::ERROR,
             cc_name = cc.mq_primary_name(),
-            cc = cc.mq_value(),
+            cc = cc.value(),
             rc_name = rc.mq_primary_name(),
-            rc = rc.mq_value(),
+            rc = rc.value(),
             verb
         ),
     }

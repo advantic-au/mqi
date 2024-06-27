@@ -2,10 +2,11 @@ use std::fmt::Debug;
 use std::mem::{size_of_val, MaybeUninit};
 use std::ptr;
 
+use super::values::{MQCO, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
 use super::{
-    ConnectionHandle, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle, MQCO, MQOO, MQOP
+    ConnectionHandle, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle,
 };
-use crate::{impl_constant_lookup, mapping, sys, MQXA, MqMask, MqValue, QMName, ResultComp, ResultErr, MQMD};
+use crate::{sys, MqMask, MqValue, QMName, ResultComp, ResultErr, MQMD};
 use libmqm_sys::{function, MQI};
 
 #[cfg(feature = "tracing")]
@@ -13,18 +14,6 @@ use {
     super::{tracing_outcome, tracing_outcome_basic},
     tracing::instrument,
 };
-
-#[derive(Debug, Clone, Copy)]
-pub struct MQSR;
-impl_constant_lookup!(MQSR, mapping::MQSR_CONST);
-
-#[derive(Clone, Copy)]
-pub struct MQTYPE;
-impl_constant_lookup!(MQTYPE, mapping::MQTYPE_CONST);
-
-#[derive(Clone, Copy)]
-pub struct MQSTAT;
-impl_constant_lookup!(MQSTAT, mapping::MQSTAT_CONST);
 
 impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     /// Connects an application program to a queue manager.
@@ -483,7 +472,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     /// Set or modify a property of a message handle
     #[allow(clippy::too_many_arguments)]
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqsetmp<T: Debug>(
+    pub fn mqsetmp<T: Debug + ?Sized>(
         &self,
         connection_handle: &ConnectionHandle,
         message_handle: &MessageHandle,
