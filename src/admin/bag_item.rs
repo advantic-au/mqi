@@ -299,84 +299,84 @@ impl<L: Library<MQ: function::MQAI>, const N: usize> BagItemGet<L> for MqStr<N> 
 
 
 // TODO: Handle warnings better here
-impl<L: Library<MQ: function::MQAI>> BagItemGet<L> for mq::StringCcsid {
-    fn inq_bag_item<B: BagDrop>(
-        selector: MqValue<MqaiSelector>,
-        index: MqValue<MQIND>,
-        bag: &Bag<B, L>,
-    ) -> ResultComp<Self> {
-        let mut data: Vec<u8> = Vec::with_capacity(page_size::get());
-        let (mut str_length, mut ccsid) = bag
-            .mq
-            .mq_inquire_string(bag, selector, index, data.spare_capacity_mut()).warn_as_error()?; // TODO: warn_as_error is probably wrong
-        let ulength: usize = str_length
-            .try_into()
-            .expect("mq_inquire_string returned a negative length");
-        if ulength > data.len() {
-            data = Vec::with_capacity(ulength);
-            (str_length, ccsid) = bag
-                .mq
-                .mq_inquire_string(bag, selector, index, data.spare_capacity_mut()).warn_as_error()?; // TODO: warn_as_error is probably wrong
-        }
-        unsafe {
-            data.set_len(
-                str_length
-                    .try_into()
-                    .expect("mq_inquire_string returned a negative length"),
-            );
-        }
+// impl<L: Library<MQ: function::MQAI>> BagItemGet<L> for mq::StringCcsid {
+//     fn inq_bag_item<B: BagDrop>(
+//         selector: MqValue<MqaiSelector>,
+//         index: MqValue<MQIND>,
+//         bag: &Bag<B, L>,
+//     ) -> ResultComp<Self> {
+//         let mut data: Vec<u8> = Vec::with_capacity(page_size::get());
+//         let (mut str_length, mut ccsid) = bag
+//             .mq
+//             .mq_inquire_string(bag, selector, index, data.spare_capacity_mut()).warn_as_error()?; // TODO: warn_as_error is probably wrong
+//         let ulength: usize = str_length
+//             .try_into()
+//             .expect("mq_inquire_string returned a negative length");
+//         if ulength > data.len() {
+//             data = Vec::with_capacity(ulength);
+//             (str_length, ccsid) = bag
+//                 .mq
+//                 .mq_inquire_string(bag, selector, index, data.spare_capacity_mut()).warn_as_error()?; // TODO: warn_as_error is probably wrong
+//         }
+//         unsafe {
+//             data.set_len(
+//                 str_length
+//                     .try_into()
+//                     .expect("mq_inquire_string returned a negative length"),
+//             );
+//         }
 
-        Ok(Completion(Self {
-            ccsid: NonZeroI32::new(ccsid),
-            data,
-        }, None))
+//         Ok(Completion(Self {
+//             ccsid: NonZeroI32::new(ccsid),
+//             data,
+//         }, None))
 
-    }
+//     }
 
-    type Error = crate::Error;
-}
+//     type Error = crate::Error;
+// }
 
-impl<L: Library<MQ: function::MQAI>> BagItemGet<L> for mqai::Filter<mq::StringCcsid> {
-    fn inq_bag_item<B: BagDrop>(
-        selector: MqValue<MqaiSelector>,
-        index: MqValue<MQIND>,
-        bag: &Bag<B, L>,
-    ) -> ResultComp<Self> {
-        let mut data = Vec::with_capacity(page_size::get());
-        let (mut str_length, mut ccsid, mut operator) =
-            bag.mq
-                .mq_inquire_string_filter(bag, selector, index, data.spare_capacity_mut()).warn_as_error()?; // TODO: warn_as_error is probably wrong
+// impl<L: Library<MQ: function::MQAI>> BagItemGet<L> for mqai::Filter<mq::StringCcsid> {
+//     fn inq_bag_item<B: BagDrop>(
+//         selector: MqValue<MqaiSelector>,
+//         index: MqValue<MQIND>,
+//         bag: &Bag<B, L>,
+//     ) -> ResultComp<Self> {
+//         let mut data = Vec::with_capacity(page_size::get());
+//         let (mut str_length, mut ccsid, mut operator) =
+//             bag.mq
+//                 .mq_inquire_string_filter(bag, selector, index, data.spare_capacity_mut()).warn_as_error()?; // TODO: warn_as_error is probably wrong
 
-        let ulength: usize = str_length
-            .try_into()
-            .expect("mq_inquire_string_filter returned a negative length");
-        if ulength > data.capacity() {
-            data = Vec::with_capacity(ulength);
-            (str_length, ccsid, operator) =
-                bag.mq
-                    .mq_inquire_string_filter(bag, selector, index, data.spare_capacity_mut()).warn_as_error()?; // TODO: warn_as_error is probably wrong
-        }
-        unsafe {
-            data.set_len(
-                str_length
-                    .try_into()
-                    .expect("mq_inquire_string_filter returned a negative length"),
-            );
-        }
+//         let ulength: usize = str_length
+//             .try_into()
+//             .expect("mq_inquire_string_filter returned a negative length");
+//         if ulength > data.capacity() {
+//             data = Vec::with_capacity(ulength);
+//             (str_length, ccsid, operator) =
+//                 bag.mq
+//                     .mq_inquire_string_filter(bag, selector, index, data.spare_capacity_mut()).warn_as_error()?; // TODO: warn_as_error is probably wrong
+//         }
+//         unsafe {
+//             data.set_len(
+//                 str_length
+//                     .try_into()
+//                     .expect("mq_inquire_string_filter returned a negative length"),
+//             );
+//         }
 
-        let b = unsafe { &*std::ptr::from_ref::<[u8]>(data.as_ref()) };
+//         let b = unsafe { &*std::ptr::from_ref::<[u8]>(data.as_ref()) };
 
-        Ok(Completion(Self::new(
-            mq::StringCcsid {
-                ccsid: NonZeroI32::new(ccsid),
-                data: b.into(),
-            },
-            operator,
-        ), None))
-    }
+//         Ok(Completion(Self::new(
+//             mq::StringCcsid {
+//                 ccsid: NonZeroI32::new(ccsid),
+//                 data: b.into(),
+//             },
+//             operator,
+//         ), None))
+//     }
 
-    type Error = crate::Error;
-}
+//     type Error = crate::Error;
+// }
 
 impl<L: Library<MQ: function::MQAI>> BagItemGet<L> for Vec<sys::MQCHAR> {
     fn inq_bag_item<B: BagDrop>(

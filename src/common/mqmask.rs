@@ -45,6 +45,11 @@ impl<T> MqMask<T> {
     pub const fn from(value: sys::MQLONG) -> Self {
         Self(value, std::marker::PhantomData)
     }
+
+    #[must_use]
+    pub const fn value(&self) -> sys::MQLONG {
+        self.0
+    }
 }
 
 impl<T> PartialEq for MqMask<T> {

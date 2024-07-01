@@ -535,7 +535,7 @@ impl<L: Library<MQ: MQAI>> MQFunctions<L> {
                 size_of_val(value)
                     .try_into()
                     .expect("value length exceeds maximum positive MQLONG"),
-                ptr::addr_of_mut!(*value).cast(),
+                ptr::from_mut(value).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -564,7 +564,7 @@ impl<L: Library<MQ: MQAI>> MQFunctions<L> {
                 size_of_val(value)
                     .try_into()
                     .expect("value length exceeds maximum positive MQLONG"),
-                ptr::addr_of_mut!(*value).cast(),
+                ptr::from_mut(value).cast(),
                 length,
                 ccsid,
                 &mut outcome.cc.0,
@@ -594,7 +594,7 @@ impl<L: Library<MQ: MQAI>> MQFunctions<L> {
                 size_of_val(value)
                     .try_into()
                     .expect("value length exceeds maximum positive MQLONG"),
-                ptr::addr_of_mut!(*value).cast(),
+                ptr::from_mut(value).cast(),
                 length,
                 ccsid,
                 &mut operator.0,
@@ -625,7 +625,7 @@ impl<L: Library<MQ: MQAI>> MQFunctions<L> {
                 size_of_val(value)
                     .try_into()
                     .expect("value length exceeds maximum positive MQLONG"),
-                ptr::addr_of_mut!(*value).cast(),
+                ptr::from_mut(value).cast(),
                 length,
                 &mut operator.0,
                 &mut outcome.cc.0,
@@ -749,8 +749,8 @@ impl<L: Library<MQ: MQAI>> MQFunctions<L> {
             self.0.mqGetBag(
                 handle.raw_handle(),
                 object.raw_handle(),
-                ptr::addr_of_mut!(*mqmd).cast(),
-                ptr::addr_of_mut!(*gmo).cast(),
+                ptr::from_mut(mqmd).cast(),
+                ptr::from_mut(gmo).cast(),
                 bag.map_or(sys::MQHB_NONE, |h| h.raw_handle()),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -776,8 +776,8 @@ impl<L: Library<MQ: MQAI>> MQFunctions<L> {
             self.0.mqPutBag(
                 handle.raw_handle(),
                 object.raw_handle(),
-                ptr::addr_of_mut!(*mqmd).cast(),
-                ptr::addr_of_mut!(*pmo).cast(),
+                ptr::from_mut(mqmd).cast(),
+                ptr::from_mut(pmo).cast(),
                 bag.raw_handle(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
