@@ -1,22 +1,27 @@
 use std::array::TryFromSliceError;
+use std::borrow::Cow;
 use std::convert::Infallible;
 use std::mem::size_of;
 use std::mem::size_of_val;
 use std::num::NonZero;
 use std::ops::Deref;
 use std::ptr;
-use std::str::from_utf8_unchecked;
+use std::string::FromUtf8Error;
 
 use libmqm_sys::function;
+use thiserror::Error;
 
 use crate::core;
 use crate::core::values::MQIMPO;
 use crate::sys;
+use crate::Completion;
 use crate::EncodedString;
+use crate::MQStrError;
 use crate::MqMask;
 use crate::MqStr;
 use crate::MqStruct;
 use crate::MqValue;
+use crate::ResultCompErr;
 use crate::StructBuilder;
 use crate::MQMD;
 use crate::{
@@ -50,20 +55,19 @@ pub mod prop {
 #[derive(Debug, Clone, Default)]
 pub struct PropDetails<T> {
     pub value: T,
-    mqpd: MqStruct<'static, sys::MQPD>
+    mqpd: MqStruct<'static, sys::MQPD>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct PropDetails2<T: MessagePropertyType2> {
-    pub value: T::ValueType,
-    mqpd: MqStruct<'static, sys::MQPD>
+    pub value: T,
+    mqpd: MqStruct<'static, sys::MQPD>,
 }
-
 
 #[derive(Debug, Clone, Default)]
 pub struct PropOptions<T> {
     pub value: T,
-    type_str: MqStr<8>
+    type_str: MqStr<8>,
 }
 
 impl<T> PropOptions<T> {
@@ -126,7 +130,6 @@ impl<T> PropDetails<T> {
     pub fn copy_options(&self) -> MqMask<core::values::MQCOPY> {
         MqMask::from(self.mqpd.CopyOptions)
     }
-
 }
 
 impl<T: MessagePropertyType> MessagePropertyType for PropDetails<T> {
@@ -145,22 +148,26 @@ impl<T: MessagePropertyType> MessagePropertyType for PropDetails<T> {
     }
 }
 
-pub trait MessagePropertyType2 {
-    type ValueType;
+pub trait MessagePropertyType2: Sized {
     type Error: std::fmt::Debug;
 
     const MQTYPE: sys::MQLONG;
     const MQIMPO: sys::MQLONG;
 
     #[must_use]
-    fn buffer_sizing() -> (usize, Option<usize>) { (0, None) }
+    fn buffer_sizing() -> (usize, Option<usize>) {
+        (0, None)
+    }
 
-    fn create_from(buffer: &[u8], _mqimpo: &MqStruct<sys::MQIMPO>, mqpd: &MqStruct<'static, sys::MQPD>) -> Result<Self::ValueType, Self::Error>;
+    fn create_from(
+        buffer: Cow<[u8]>,
+        _mqimpo: &MqStruct<sys::MQIMPO>,
+        mqpd: &MqStruct<'static, sys::MQPD>,
+    ) -> Result<Self, Self::Error>;
 }
 
 #[allow(clippy::use_self)]
 impl MessagePropertyType2 for sys::MQLONG {
-    type ValueType = Self;
     type Error = TryFromSliceError;
     const MQTYPE: sys::MQLONG = sys::MQTYPE_INT32;
     const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE;
@@ -169,29 +176,55 @@ impl MessagePropertyType2 for sys::MQLONG {
         (size_of::<Self>(), Some(size_of::<Self>()))
     }
 
-    fn create_from(buffer: &[u8], _mqimpo: &MqStruct<sys::MQIMPO>, _mqpd: &MqStruct<'static, sys::MQPD>) -> Result<Self::ValueType, Self::Error> {
+    fn create_from(
+        buffer: Cow<[u8]>,
+        _mqimpo: &MqStruct<sys::MQIMPO>,
+        _mqpd: &MqStruct<'static, sys::MQPD>,
+    ) -> Result<Self, Self::Error> {
+        let buffer = &*buffer;
         Ok(Self::from_ne_bytes(buffer.try_into()?))
     }
 }
 
 impl MessagePropertyType2 for Vec<u8> {
-    type ValueType = Self;
     type Error = Infallible;
     const MQTYPE: sys::MQLONG = sys::MQTYPE_BYTE_STRING;
     const MQIMPO: sys::MQLONG = sys::MQIMPO_NONE;
 
-    fn create_from(buffer: &[u8], _mqimpo: &MqStruct<sys::MQIMPO>, _mqpd: &MqStruct<'static, sys::MQPD>) -> Result<Self::ValueType, Self::Error> {
-        Ok(buffer.into())
+    fn create_from(
+        buffer: Cow<[u8]>,
+        _mqimpo: &MqStruct<sys::MQIMPO>,
+        _mqpd: &MqStruct<'static, sys::MQPD>,
+    ) -> Result<Self, Self::Error> {
+        Ok(buffer.into_owned())
+    }
+}
+
+impl<const N: usize> MessagePropertyType2 for MqStr<N> {
+    type Error = MQStrError;
+
+    const MQTYPE: sys::MQLONG = sys::MQTYPE_STRING;
+    const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE;
+
+    fn create_from(
+        buffer: Cow<[u8]>,
+        _mqimpo: &MqStruct<sys::MQIMPO>,
+        _mqpd: &MqStruct<'static, sys::MQPD>,
+    ) -> Result<Self, Self::Error> {
+        MqStr::from_bytes(&buffer)
     }
 }
 
 impl<T: MessagePropertyType2> MessagePropertyType2 for PropDetails2<T> {
-    type ValueType = Self;
     type Error = T::Error;
     const MQTYPE: sys::MQLONG = T::MQTYPE;
     const MQIMPO: sys::MQLONG = T::MQIMPO;
 
-    fn create_from(buffer: &[u8], mqimpo: &MqStruct<sys::MQIMPO>, mqpd: &MqStruct<'static, sys::MQPD>) -> Result<Self::ValueType, Self::Error> {
+    fn create_from(
+        buffer: Cow<[u8]>,
+        mqimpo: &MqStruct<sys::MQIMPO>,
+        mqpd: &MqStruct<'static, sys::MQPD>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             value: T::create_from(buffer, mqimpo, mqpd)?,
             mqpd: mqpd.clone(),
@@ -199,6 +232,20 @@ impl<T: MessagePropertyType2> MessagePropertyType2 for PropDetails2<T> {
     }
 }
 
+impl MessagePropertyType2 for String {
+    type Error = FromUtf8Error;
+
+    const MQTYPE: sys::MQLONG = sys::MQTYPE_STRING;
+    const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE;
+
+    fn create_from(
+        buffer: Cow<[u8]>,
+        _mqimpo: &MqStruct<sys::MQIMPO>,
+        _mqpd: &MqStruct<'static, sys::MQPD>,
+    ) -> Result<Self, Self::Error> {
+        String::from_utf8(buffer.into_owned())
+    }
+}
 
 pub trait MessagePropertyType {
     type ValueType: ?Sized;
@@ -261,7 +308,7 @@ impl MessagePropertyType for sys::MQLONG {
     type ValueRef = Self::ValueType;
     const MQTYPE: sys::MQLONG = sys::MQTYPE_INT32;
     const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE;
-    
+
     fn value_mut(&mut self) -> &mut Self::ValueRef {
         self
     }
@@ -277,8 +324,6 @@ impl MessagePropertyType for sys::MQINT64 {
         self
     }
 }
-
-
 
 // fn inq_long<T: ?Sized, Y: ?Sized, L: Library<MQ: function::MQI>>(
 //     name: &impl EncodedString,
@@ -480,6 +525,14 @@ impl<'a> MqStruct<'a, sys::MQCHARV> {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum InqError<T> {
+    #[error(transparent)]
+    Mq(#[from] crate::Error),
+    #[error(transparent)]
+    Value(T),
+}
+
 impl<'connection, L: Library<MQ: function::MQI>> Message<'connection, L> {
     pub fn new(lib: L, connection: &'connection core::ConnectionHandle, options: MqValue<MQCMHO>) -> ResultErr<Self> {
         let mqcmho = sys::MQCMHO {
@@ -491,6 +544,49 @@ impl<'connection, L: Library<MQ: function::MQI>> Message<'connection, L> {
             .map(|handle| Self { handle, mq, connection })
     }
 
+    pub fn inq2<P: MessagePropertyType2 + ?Sized, N: EncodedString + ?Sized, T: ?Sized>(
+        &self,
+        name: &N,
+        options: MqMask<MQIMPO>,
+        returned_name: &mut T,
+    ) -> ResultCompErr<P, InqError<P::Error>> {
+        let len: i32 = size_of_val(returned_name)
+            .try_into()
+            .expect("usize could not be converted to a MQLONG");
+        let mut mqimpo = MqStruct::new(sys::MQIMPO {
+            Options: options.value() | sys::MQIMPO_CONVERT_TYPE | P::MQIMPO,
+            ReturnedName: sys::MQCHARV {
+                VSPtr: ptr::from_mut(returned_name).cast(),
+                VSLength: len,
+                VSBufSize: len,
+                ..sys::MQCHARV::default()
+            },
+            ..sys::MQIMPO::default()
+        });
+        let mut buffer: [u8; 2] = [0; 2];
+
+        let mut vt = MqValue::from(P::MQTYPE);
+        let name = MqStruct::from_encoded_str(name);
+        let mut mqpd = MqStruct::<sys::MQPD>::default();
+        let inq @ Completion(length, ..) = self.mq.mqinqmp(
+            Some(self.connection),
+            &self.handle,
+            &mut mqimpo,
+            &name,
+            &mut mqpd,
+            &mut vt,
+            Some(&mut buffer),
+        )?;
+
+        let value = P::create_from(
+            Cow::from(&buffer.as_slice()[..length.try_into().expect("MQLONG to usize")]),
+            &mqimpo,
+            &mqpd,
+        )
+        .map_err(InqError::Value)?;
+        Ok(inq.map(|_| value))
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn inq<P: MessagePropertyType + ?Sized, N: EncodedString + ?Sized, T: ?Sized>(
         &self,
@@ -499,7 +595,7 @@ impl<'connection, L: Library<MQ: function::MQI>> Message<'connection, L> {
         returned_name: &mut T,
         value: Option<&mut P>,
     ) -> ResultComp<sys::MQLONG> {
-        let len = size_of_val(returned_name)
+        let len: sys::MQLONG = size_of_val(returned_name)
             .try_into()
             .expect("usize could not be converted to a MQLONG");
         let mut mqimpo = MqStruct::new(sys::MQIMPO {
@@ -519,11 +615,27 @@ impl<'connection, L: Library<MQ: function::MQI>> Message<'connection, L> {
 
         Ok(match value {
             Some(v) => {
-                let inq = self.mq.mqinqmp(Some(self.connection), &self.handle, &mut mqimpo, &name, &mut mqpd, &mut vt, Some(v.value_mut()))?;
+                let inq = self.mq.mqinqmp(
+                    Some(self.connection),
+                    &self.handle,
+                    &mut mqimpo,
+                    &name,
+                    &mut mqpd,
+                    &mut vt,
+                    Some(v.value_mut()),
+                )?;
                 v.receive_mqpd(&mqpd);
                 inq
             }
-            None => self.mq.mqinqmp(Some(self.connection), &self.handle, &mut mqimpo, &name, &mut mqpd, &mut vt, None::<&mut P::ValueType>)?,
+            None => self.mq.mqinqmp(
+                Some(self.connection),
+                &self.handle,
+                &mut mqimpo,
+                &name,
+                &mut mqpd,
+                &mut vt,
+                None::<&mut P::ValueType>,
+            )?,
         })
     }
 

@@ -2,8 +2,7 @@ use std::error::Error;
 
 use libmqm_sys::link::LinkedMQ;
 use mqi::{
-    prop, sys, ConnectionOptions, Credentials, Message, MqMask, MqStr, MqStruct, MqValue,
-    PropDetails, QueueManager, ResultCompExt,
+    prop, sys, Completion, ConnectionOptions, Credentials, Message, MqMask, MqStr, MqStruct, MqValue, PropDetails, QueueManager, ResultCompExt
 };
 
 #[test]
@@ -32,30 +31,32 @@ fn message_handle() -> Result<(), Box<dyn Error>> {
     let mut result64: sys::MQINT64 = 0;
     let mut result_detail = PropDetails::new(result);
     
-    message
-        .inq(prop::INQUIRE_ALL, MqMask::default(), &mut name, Some(&mut result))
-        .warn_as_error()?;
-    message
-        .inq(prop::INQUIRE_ALL, MqMask::default(), &mut name, Some(&mut result64))
-        .warn_as_error()?;
-    message
-        .inq(
-            prop::INQUIRE_ALL,
-            MqMask::default(),
-            &mut name,
-            Some(&mut result_detail),
-        )
-        .warn_as_error()?;
-    message
-        .inq(prop::INQUIRE_ALL, MqMask::default(), &mut name, Some(&mut value))
-        .warn_as_error()?;
-    message
-        .inq(prop::INQUIRE_ALL, MqMask::default(), &mut name, Some(bstr))
-        .warn_as_error()?;
+    // message
+    //     .inq(prop::INQUIRE_ALL, MqMask::default(), &mut name, Some(&mut result))
+    //     .warn_as_error()?;
+    // message
+    //     .inq(prop::INQUIRE_ALL, MqMask::default(), &mut name, Some(&mut result64))
+    //     .warn_as_error()?;
+    // message
+    //     .inq(
+    //         prop::INQUIRE_ALL,
+    //         MqMask::default(),
+    //         &mut name,
+    //         Some(&mut result_detail),
+    //     )
+    //     .warn_as_error()?;
+    // message
+    //     .inq(prop::INQUIRE_ALL, MqMask::default(), &mut name, Some(&mut value))
+    //     .warn_as_error()?;
+    // message
+    //     .inq(prop::INQUIRE_ALL, MqMask::default(), &mut name, Some(bstr))
+    //     .warn_as_error()?;
+
+    let result: String = message.inq2(prop::INQUIRE_ALL, MqMask::default(), &mut name).warn_as_error()?;
 
     // let prop = message.inq_properties(prop::INQUIRE_ALL_USR).next().map(mqi::ResultCompExt::warn_as_error).transpose()?;
     // println!("{prop:?}");
-    println!("{name}, {result}, {result64}, {result_detail:?}, '{value}'");
+    println!("{name}, {result}");
 
     Ok(())
 }

@@ -136,9 +136,9 @@ pub type ResultComp<T> = Result<Completion<T>, Error>;
 pub type ResultErr<T> = Result<T, Error>;
 
 /// Extends a `ResultComp` with additional methods to handle warnings.
-pub trait ResultCompExt<T> {
+pub trait ResultCompExt<T, E> {
     /// Converts the MQ warning in the `Ok(Completion(..))` into an `Err`.
-    fn warn_as_error(self) -> ResultErr<T>;
+    fn warn_as_error(self) -> Result<T, E>;
 }
 
 /// Extends a `ResultCompErr` with additional methods to handle warnings.
@@ -174,11 +174,11 @@ impl<T, E: std::fmt::Debug> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
     }
 }
 
-impl<T> ResultCompExt<T> for ResultComp<T> {
-    fn warn_as_error(self) -> ResultErr<T> {
+impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
+    fn warn_as_error(self) -> Result<T, E> {
         match self {
             Ok(Completion(_, Some((warn_cc, verb)))) => {
-                Err(Error(CompletionCode::from(sys::MQCC_WARNING), verb, warn_cc))
+                Err(E::from(Error(CompletionCode::from(sys::MQCC_WARNING), verb, warn_cc)))
             }
             other => other.map(|Completion(value, ..)| value),
         }

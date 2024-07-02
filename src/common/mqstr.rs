@@ -54,9 +54,8 @@ impl<const N: usize> From<[sys::MQCHAR; N]> for MqStr<N> {
 }
 
 impl<const N: usize> MqStr<N> {
-    const fn str(value: &str) -> Result<Self, MQStrError> {
+    pub const fn from_bytes(value: &[u8]) -> Result<Self, MQStrError> {
         let length = value.len();
-        let value = value.as_bytes();
         if N < length {
             return Err(MQStrError::Length { length, max: N });
         }
@@ -83,7 +82,7 @@ impl<const N: usize> MqStr<N> {
     /// Use when defining `MqStr` from const or literal `&str`. Panics on invalid `MqStr`.
     #[must_use]
     pub const fn from_str(value: &str) -> Self {
-        match Self::str(value) {
+        match Self::from_bytes(value.as_bytes()) {
             Ok(result) => result,
             Err(MQStrError::Length { .. }) => panic!("Invalid length"),
         }
@@ -114,7 +113,7 @@ impl<const N: usize> FromStr for MqStr<N> {
     type Err = MQStrError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::str(s)
+        Self::from_bytes(s.as_bytes())
     }
 }
 
@@ -158,7 +157,7 @@ impl<const N: usize> TryFrom<&str> for MqStr<N> {
     type Error = MQStrError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::str(value)
+        Self::from_bytes(value.as_bytes())
     }
 }
 
