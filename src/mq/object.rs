@@ -12,7 +12,12 @@ use std::{
 use libmqm_sys::function;
 
 use crate::{
-    core::{self, values::{MQCO, MQOO, MQXA}, ConnectionHandle, Library, MQFunctions} , Conn, MqMask, MqValue, ResultCompErrExt as _
+    core::{
+        self,
+        values::{MQCO, MQOO, MQXA},
+        ConnectionHandle, Library, MQFunctions,
+    },
+    Conn, MqMask, MqValue, ResultCompErrExt as _,
 };
 use crate::{sys, MqStr, QMName, QName, StructBuilder};
 use crate::{ObjectName, ResultComp};
@@ -114,8 +119,7 @@ impl InqRes {
                     // use the `iter_mqchar` function.
                     // Refer https://www.ibm.com/docs/en/ibm-mq/9.4?topic=application-using-mqinq-in-client-aplication
                     InqResItem::Str(value) => InqResItem::Str(
-                        unsafe { from_utf8_unchecked(&*(ptr::from_ref(value) as *const [u8])) }
-                            .trim_end_matches([' ', '\0']),
+                        unsafe { from_utf8_unchecked(&*(ptr::from_ref(value) as *const [u8])) }.trim_end_matches([' ', '\0']),
                     ),
                     InqResItem::Long(value) => InqResItem::Long(value),
                 },
@@ -364,7 +368,10 @@ mod tests {
 
         let (list_iter, _) = MqMask::<MQCO>::from(sys::MQCO_DELETE | sys::MQCO_QUIESCE).masked_list();
         let list = list_iter.collect::<Vec<_>>();
-        assert_eq!(list, &[(sys::MQCO_DELETE, "MQCO_DELETE"), (sys::MQCO_QUIESCE, "MQCO_QUIESCE")]);
+        assert_eq!(
+            list,
+            &[(sys::MQCO_DELETE, "MQCO_DELETE"), (sys::MQCO_QUIESCE, "MQCO_QUIESCE")]
+        );
 
         // assert_eq!(format!("{oo:?}"), "");
     }

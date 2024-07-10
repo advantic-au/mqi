@@ -1,6 +1,6 @@
-mod mqi_verbs;
 mod handles;
 mod library;
+mod mqi_verbs;
 mod outcome;
 pub mod values;
 
@@ -9,4 +9,5 @@ pub mod mqai;
 
 pub use handles::*;
 pub use library::*;
+pub use mqi_verbs::error::*;
 pub(super) use outcome::*;

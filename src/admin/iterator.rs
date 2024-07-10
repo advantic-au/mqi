@@ -4,11 +4,11 @@ use libmqm_sys::function;
 
 use crate::core::mqai::values::MqaiSelector;
 use crate::core::Library;
-use crate::{sys, MqValue, ResultComp, ResultCompErr, ResultCompErrExt};
+use crate::{sys, MqValue, ResultComp, ResultCompErr, ResultCompErrExt, WithMQError as _};
 
 use crate::Error;
 
-use super::{Bag, BagDrop, BagItemGet, WithMQError};
+use super::{Bag, BagDrop, BagItemGet};
 
 pub struct BagItem<'bag, T, B: BagDrop, L: Library<MQ: function::MQAI>> {
     selector: MqValue<MqaiSelector>,
@@ -31,7 +31,7 @@ impl<T: BagItemGet<L>, B: BagDrop, L: Library<MQ: function::MQAI>> Iterator for 
             return None;
         };
         let result = match T::inq_bag_item(self.selector, MqValue::from(self.index), self.bag) {
-            Err(e) => match e.mqi() {
+            Err(e) => match e.mqi_error() {
                 Some(&Error(cc, _, rc))
                     if cc == sys::MQCC_FAILED && (rc == sys::MQRC_SELECTOR_NOT_PRESENT || rc == sys::MQRC_INDEX_NOT_PRESENT) =>
                 {

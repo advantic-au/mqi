@@ -1,7 +1,7 @@
-mod verbs;
 mod filter;
 mod handles;
 pub mod values;
+mod verbs;
 
-pub use handles::*;
 pub use filter::*;
+pub use handles::*;

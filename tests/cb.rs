@@ -2,8 +2,8 @@ use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
 use mqi::{
-    core::ConnectionHandle, mqstr, sys, ConnectionOptions, Credentials, MqMask, MqStr, MqStruct, MqValue, Object,
-    ObjectName, QueueManager, ResultCompExt as _, MQMD,
+    core::ConnectionHandle, mqstr, sys, ConnectionOptions, Credentials, MqMask, MqStr, MqStruct, MqValue, Object, ObjectName,
+    QueueManager, ResultCompExt as _, MQMD,
 };
 
 #[test]
@@ -26,8 +26,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
     const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
 
     fn register_cb<
-        F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>)
-            + 'static,
+        F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>) + 'static,
         M: MQMD,
     >(
         cbd: &mut MqStruct<sys::MQCBD>,
@@ -40,8 +39,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
     }
 
     unsafe extern "C" fn call_closure<
-        F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>)
-            + 'static,
+        F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>) + 'static,
         M: MQMD,
     >(
         conn: sys::MQHCONN,

@@ -2,7 +2,7 @@ use crate::prelude::*;
 use std::ops::{Deref, DerefMut};
 
 use crate::sys;
-use crate::{Completion, CompletionCode, Error, ResultComp, ResultErr};
+use crate::{Completion, CompletionCode, Error};
 
 #[derive(Default)]
 pub struct MQIOutcome<T> {
@@ -21,10 +21,7 @@ pub type MQIOutcomeVoid = MQIOutcome<()>;
 impl<T: Default> MQIOutcome<T> {
     #[must_use]
     pub fn with_verb(verb: &'static str) -> Self {
-        Self {
-            verb,
-            ..Self::default()
-        }
+        Self { verb, ..Self::default() }
     }
 }
 impl<T> MQIOutcome<T> {
@@ -53,23 +50,23 @@ impl<T> DerefMut for MQIOutcome<T> {
     }
 }
 
-impl<T> From<MQIOutcome<T>> for ResultComp<T> {
+impl<T, E: From<Error>> From<MQIOutcome<T>> for ResultCompErr<T, E> {
     fn from(outcome: MQIOutcome<T>) -> Self {
         let MQIOutcome { cc, rc, value, verb } = outcome;
         match cc.value() {
-            sys::MQCC_OK => Ok(Completion(value, None)),
-            sys::MQCC_WARNING => Ok(Completion(value, Some((rc, verb)))),
-            _ => Err(Error(cc, verb, rc)),
+            sys::MQCC_OK => Ok(Completion::new(value)),
+            sys::MQCC_WARNING => Ok(Completion::new_warning(value, (rc, verb))),
+            _ => Err(Error(cc, verb, rc).into()),
         }
     }
 }
 
-impl<T> From<MQIOutcome<T>> for ResultErr<T> {
+impl<T, E: From<Error>> From<MQIOutcome<T>> for Result<T, E> {
     fn from(outcome: MQIOutcome<T>) -> Self {
         let MQIOutcome { cc, rc, value, verb } = outcome;
         match cc.value() {
             sys::MQCC_OK => Ok(value),
-            _ => Err(Error(cc, verb, rc)),
+            _ => Err(Error(cc, verb, rc).into()),
         }
     }
 }

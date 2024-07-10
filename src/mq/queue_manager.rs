@@ -20,8 +20,8 @@ pub trait Conn {
 pub struct QueueManagerShare<'a, L: Library<MQ: function::MQI>, H> {
     handle: core::ConnectionHandle,
     mq: core::MQFunctions<L>,
-    _share: PhantomData<H>, // Send and Sync control
-    _ref: PhantomData<&'a mut ()> // Connection may refer to callback function
+    _share: PhantomData<H>,        // Send and Sync control
+    _ref: PhantomData<&'a mut ()>, // Connection may refer to callback function
 }
 
 /// Thread movable `QueueManagerShare`
@@ -110,7 +110,7 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
                         mq,
                         handle,
                         _share: PhantomData,
-                        _ref: PhantomData
+                        _ref: PhantomData,
                     },
                     cno.ConnectionId,
                     Some(
@@ -162,15 +162,17 @@ pub struct Syncpoint<'connection, 'a, L: Library<MQ: function::MQI>, H> {
 }
 
 impl<L: Library<MQ: function::MQI>, H> Syncpoint<'_, '_, L, H> {
-    pub fn commit(mut self) -> ResultComp<()> {
+    pub fn commit(self) -> ResultComp<()> {
         let result = self.mq.mqcmit(self.handle());
-        self.state = SyncpointState::Committed;
+        let mut self_mut = self;
+        self_mut.state = SyncpointState::Committed;
         result
     }
 
-    pub fn backout(mut self) -> ResultComp<()> {
+    pub fn backout(self) -> ResultComp<()> {
         let result = self.mq.mqback(self.handle());
-        self.state = SyncpointState::Backout;
+        let mut self_mut = self;
+        self_mut.state = SyncpointState::Backout;
         result
     }
 }

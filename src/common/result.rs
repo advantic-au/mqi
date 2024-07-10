@@ -1,8 +1,6 @@
 use crate::core::values::{MQCC, MQRC};
 use crate::sys;
-use crate::{
-    HasMqNames, MqValue,
-};
+use crate::{HasMqNames, MqValue};
 use std::{
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
@@ -38,16 +36,24 @@ impl ReasonCode {
         ))
     }
 }
-
 /// A value returned from an MQ API call, optionally with a warning `ReasonCode`
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct Completion<T>(pub T, pub Option<(ReasonCode, &'static str)>);
 
+impl<T> Completion<T> {
+    pub const fn new(value: T) -> Self {
+        Self(value, None)
+    }
+
+    pub const fn new_warning(value: T, warning: (ReasonCode, &'static str)) -> Self {
+        Self(value, Some(warning))
+    }
+}
+
 impl<T: std::process::Termination> std::process::Termination for Completion<T> {
     fn report(self) -> std::process::ExitCode {
-        let Self(value, ..) = self;
-        value.report()
+        self.discard_warning().report()
     }
 }
 
@@ -57,18 +63,18 @@ impl<T> Completion<T> {
         Completion(op(value), warning)
     }
 
-    /// Returns the reason code associated with the warning. Returns `None` when no warning is issued.
-    #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn warning(&self) -> Option<&(ReasonCode, &'static str)> {
-        let Self(_, warning) = self;
-        warning.as_ref()
-    }
-
     /// Discards the `MQCC_WARNING` in the Completion
     pub fn discard_warning(self) -> T {
         let Self(value, ..) = self;
         value
+    }
+
+    /// Returns the reason code associated with the warning. Returns `None` when no warning is issued.
+    #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn warning(&self) -> Option<(ReasonCode, &'static str)> {
+        let Self(_, warning) = self;
+        *warning
     }
 }
 
@@ -76,13 +82,13 @@ impl<I: Iterator> Iterator for Completion<I> {
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Self(value, ..) = self;
-        value.next()
+        let iter = &mut **self;
+        iter.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let Self(value, ..) = self;
-        value.size_hint()
+        let iter = &**self;
+        iter.size_hint()
     }
 }
 
@@ -141,6 +147,16 @@ pub trait ResultCompExt<T, E> {
     fn warn_as_error(self) -> Result<T, E>;
 }
 
+pub trait WithMQError {
+    fn mqi_error(&self) -> Option<&Error>;
+}
+
+impl WithMQError for Error {
+    fn mqi_error(&self) -> Option<&Error> {
+        Some(self)
+    }
+}
+
 /// Extends a `ResultCompErr` with additional methods to handle warnings.
 pub trait ResultCompErrExt<T, E> {
     /// Maps the the value of the MQI API Result, maintaining the `Completion` wrapper with any associated warning.
@@ -159,7 +175,6 @@ pub trait ResultCompErrExt<T, E> {
 }
 
 impl<T, E: std::fmt::Debug> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
-
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E> {
         self.map(|mq| mq.map(op))
     }
@@ -168,9 +183,9 @@ impl<T, E: std::fmt::Debug> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
     fn unwrap_completion(self) -> T {
         self.unwrap().discard_warning()
     }
-    
+
     fn discard_completion(self) -> Result<T, E> {
-        self.map(|Completion(value, _)| value)
+        self.map(Completion::discard_warning)
     }
 }
 
@@ -198,10 +213,7 @@ mod tests {
 
     #[test]
     fn reason_code_display() {
-        assert_eq!(
-            ReasonCode::from(sys::MQRC_Q_MGR_ACTIVE).to_string(),
-            "MQRC_Q_MGR_ACTIVE"
-        );
+        assert_eq!(ReasonCode::from(sys::MQRC_Q_MGR_ACTIVE).to_string(), "MQRC_Q_MGR_ACTIVE");
         assert_eq!(ReasonCode::from(sys::MQRC_NONE).to_string(), "MQRC_NONE");
         assert_eq!(ReasonCode::from(-1).to_string(), "-1");
     }
@@ -210,10 +222,7 @@ mod tests {
     fn ibm_reference_url() {
         assert_eq!(
             ReasonCode::from(sys::MQRC_Q_ALREADY_EXISTS).ibm_reference_url("en", None),
-            Some(
-                "https://www.ibm.com/docs/en/ibm-mq/latest?topic=codes-2290-08f2-rc2290-mqrc-q-already-exists"
-                    .to_owned()
-            )
+            Some("https://www.ibm.com/docs/en/ibm-mq/latest?topic=codes-2290-08f2-rc2290-mqrc-q-already-exists".to_owned())
         );
     }
 }

@@ -3,10 +3,8 @@ use std::mem::{size_of_val, MaybeUninit};
 use std::ptr;
 
 use super::values::{MQCO, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
-use super::{
-    ConnectionHandle, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle,
-};
-use crate::{sys, MqMask, MqValue, QMName, ResultComp, ResultErr, MQMD};
+use super::{ConnectionHandle, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle};
+use crate::{sys, Error, MqMask, MqValue, QMName, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::{function, MQI};
 
 #[cfg(feature = "tracing")]
@@ -14,6 +12,25 @@ use {
     super::{tracing_outcome, tracing_outcome_basic},
     tracing::instrument,
 };
+
+pub mod error {
+    use crate::{sys, Error};
+
+    #[derive(thiserror::Error, Debug)]
+    pub enum MqInqError {
+        #[error("{}, length: {}", .1, .0)]
+        Length(sys::MQLONG, Error),
+        #[error(transparent)]
+        MQ(#[from] Error),
+    }
+
+    impl From<MqInqError> for Error {
+        fn from(value: MqInqError) -> Self {
+            let (MqInqError::Length(_, error) | MqInqError::MQ(error)) = value;
+            error
+        }
+    }
+}
 
 impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     /// Connects an application program to a queue manager.
@@ -345,11 +362,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
 
     /// Creates a message handle for use with mqsetmp, mqinqmp, and mqdltmp.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqcrtmh(
-        &self,
-        connection_handle: Option<&ConnectionHandle>,
-        cmho: &sys::MQCMHO,
-    ) -> ResultErr<MessageHandle> {
+    pub fn mqcrtmh(&self, connection_handle: Option<&ConnectionHandle>, cmho: &sys::MQCMHO) -> ResultErr<MessageHandle> {
         let mut outcome = MQIOutcome::<MessageHandle>::with_verb("MQCRTMH");
         unsafe {
             self.0.MQCRTMH(
@@ -400,7 +413,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         prop_desc: &mut sys::MQPD,
         prop_type: &mut MqValue<MQTYPE>,
         value: Option<&mut T>,
-    ) -> ResultComp<sys::MQLONG> {
+    ) -> ResultCompErr<sys::MQLONG, error::MqInqError> {
         let mut outcome = MQIOutcome::with_verb("MQINQMP");
         let (out_len, out) = value.map_or((0, ptr::null_mut()), |out| {
             (
@@ -427,7 +440,17 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
-        outcome.into()
+        match outcome.rc.value() {
+            sys::MQRC_PROPERTY_VALUE_TOO_BIG => Err(error::MqInqError::Length(
+                outcome.value,
+                Error(outcome.cc, outcome.verb, outcome.rc),
+            )),
+            sys::MQRC_PROPERTY_NAME_TOO_BIG => Err(error::MqInqError::Length(
+                inq_prop_opts.ReturnedName.VSLength,
+                Error(outcome.cc, outcome.verb, outcome.rc),
+            )),
+            _ => outcome.into(),
+        }
     }
 
     /// Deletes a property from a message handle and is the inverse of the mqsetmp call.

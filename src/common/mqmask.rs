@@ -190,7 +190,6 @@ mod test {
     impl_constant_lookup!(NoZeroSource, NO_ZERO);
     const NO_ZERO: &[ConstantItem] = &[(1, "ONE")];
 
-
     #[test]
     fn mask_type() {
         let mut one = MaskOne::from(1);

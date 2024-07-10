@@ -9,7 +9,7 @@ use crate::{ApplName, ChannelName, ConnectionName, MqStr, MqStruct, QMName, Resu
 use libmqm_sys::function;
 use thiserror::Error;
 
-use super::{QueueManagerShare, HandleShare};
+use super::{HandleShare, QueueManagerShare};
 
 pub trait Secret<T: Deref = String> {
     fn expose_secret(&self) -> &T::Target;
@@ -448,10 +448,7 @@ impl<C, A> ClientDefinition<C, A> {
     }
 
     #[must_use]
-    pub fn balance_options<B: StructOptionBuilder<sys::MQBNO>>(
-        self,
-        options: Option<MqStruct<'static, sys::MQBNO>>,
-    ) -> Self {
+    pub fn balance_options<B: StructOptionBuilder<sys::MQBNO>>(self, options: Option<MqStruct<'static, sys::MQBNO>>) -> Self {
         let Self { config, tls, .. } = self;
         Self {
             config,
@@ -496,11 +493,7 @@ impl<'ptr> AppDefinedClient<'ptr, NoStruct> {
 
     /// Create a channel definition (MQCD) from the minimal channel name, connection name and optional transport type.
     #[must_use]
-    pub fn new_client(
-        channel_name: &ChannelName,
-        connection_name: &ConnectionName,
-        transport: Option<sys::MQLONG>,
-    ) -> Self {
+    pub fn new_client(channel_name: &ChannelName, connection_name: &ConnectionName, transport: Option<sys::MQLONG>) -> Self {
         let mut outcome = Self::default_client();
         let mqcd = &mut outcome.config;
         if let Some(transport) = transport {
@@ -524,12 +517,11 @@ pub struct ConnectionOptionsOwned<Csp, Sco, Cd, Bno> {
     pub sco: Option<Sco>,
     pub cd: Option<Cd>,
     pub bno: Option<Bno>,
-    _pinned: PhantomPinned
+    _pinned: PhantomPinned,
 }
 
 // The outcome of a ConnectionOptions build needs to hold the SCO and CSP in a stable memory location - use PhantomPinned + Pin
-type ConnectionOptionsBuild<Csp, Sco, Cd, Bno> =
-    MqStructSelfRef<sys::MQCNO, Pin<Box<ConnectionOptionsOwned<Csp, Sco, Cd, Bno>>>>;
+type ConnectionOptionsBuild<Csp, Sco, Cd, Bno> = MqStructSelfRef<sys::MQCNO, Pin<Box<ConnectionOptionsOwned<Csp, Sco, Cd, Bno>>>>;
 
 impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> StructType<sys::MQCNO> for ConnectionOptions<C, D> {
     type Struct<'a> = ConnectionOptionsBuild<
@@ -561,15 +553,13 @@ impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> StructBuilder<sys:
         if let Some(sco) = referee.sco.as_deref() {
             cno.attach_sco(sco);
         }
-        if let Some(cd) =  referee.cd.as_deref() {
+        if let Some(cd) = referee.cd.as_deref() {
             cno.attach_cd(cd);
         }
         if let Some(bno) = referee.bno.as_deref() {
             cno.attach_bno(bno);
         }
-        self.app_name
-            .unwrap_or(MqStr::empty())
-            .copy_into_mqchar(&mut cno.ApplName);
+        self.app_name.unwrap_or(MqStr::empty()).copy_into_mqchar(&mut cno.ApplName);
         self.method.apply_cno(&mut cno);
 
         MqStructSelfRef::new(*cno, referee)
@@ -626,10 +616,7 @@ impl<'a, C, T> ConnectionOptions<C, AppDefinedClient<'a, T>> {
 }
 
 impl<C, D: DefinitionMethod, A> ConnectionOptions<C, ClientDefinition<D, A>> {
-    pub fn tls_options<T: StructOptionBuilder<sys::MQSCO>>(
-        self,
-        options: T,
-    ) -> ConnectionOptions<C, ClientDefinition<D, T>> {
+    pub fn tls_options<T: StructOptionBuilder<sys::MQSCO>>(self, options: T) -> ConnectionOptions<C, ClientDefinition<D, T>> {
         {
             ConnectionOptions {
                 method: self.method.tls_options(options),

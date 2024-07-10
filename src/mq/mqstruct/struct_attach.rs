@@ -1,7 +1,7 @@
 use std::ptr;
 
-use crate::sys;
 use super::MqStruct;
+use crate::sys;
 
 const C_EMPTY: *mut std::ffi::c_void = c"".as_ptr().cast_mut().cast();
 
@@ -35,10 +35,7 @@ impl<'ptr> MqStruct<'ptr, sys::MQCNO> {
 
     pub fn attach_ccdt(&mut self, url: &'ptr str) {
         self.CCDTUrlPtr = mq_str_ptr(url);
-        self.CCDTUrlLength = url
-            .len()
-            .try_into()
-            .expect("CCDT url length exceeds maximum positive MQLONG");
+        self.CCDTUrlLength = url.len().try_into().expect("CCDT url length exceeds maximum positive MQLONG");
     }
 }
 
@@ -54,18 +51,12 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
 
     pub fn attach_userid(&mut self, userid: &'ptr str) {
         self.CSPUserIdPtr = mq_str_ptr(userid);
-        self.CSPUserIdLength = userid
-            .len()
-            .try_into()
-            .expect("User length exceeds maximum positive MQLONG");
+        self.CSPUserIdLength = userid.len().try_into().expect("User length exceeds maximum positive MQLONG");
     }
 
     pub fn attach_token(&mut self, token: &'ptr str) {
         self.TokenPtr = mq_str_ptr(token);
-        self.TokenLength = token
-            .len()
-            .try_into()
-            .expect("Token length exceeds maximum positive MQLONG");
+        self.TokenLength = token.len().try_into().expect("Token length exceeds maximum positive MQLONG");
     }
 
     pub fn attach_initial_key(&mut self, initial_key: &'ptr str) {

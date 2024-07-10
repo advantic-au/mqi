@@ -1,7 +1,7 @@
 #[cfg(feature = "constantgen")]
 mod constants {
-    mod list;
     pub mod generate;
+    mod list;
 }
 
 fn main() {

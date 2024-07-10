@@ -1,6 +1,6 @@
 use libmqm_sys::link::LinkedMQ;
 
-use super::{ConnectionOptions, QueueManagerShare, HandleShare};
+use super::{ConnectionOptions, HandleShare, QueueManagerShare};
 use crate::{core::values::MQCBO, sys, ConnectionId, DefinitionMethod, QMName, ResultComp, StructBuilder, StructOptionBuilder};
 
 #[cfg(feature = "mqai")]
@@ -10,7 +10,10 @@ use crate::{
 };
 
 impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
-    pub fn connect<H: HandleShare>(self, qm_name: Option<&QMName>) -> ResultComp<(QueueManagerShare<&LinkedMQ, H>, ConnectionId, Option<String>)> {
+    pub fn connect<H: HandleShare>(
+        self,
+        qm_name: Option<&QMName>,
+    ) -> ResultComp<(QueueManagerShare<&LinkedMQ, H>, ConnectionId, Option<String>)> {
         self.connect_lib(&LinkedMQ, qm_name)
     }
 }

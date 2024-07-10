@@ -136,15 +136,12 @@ pub const MQCA_APPL_ID: InqReqType = inqreq_str(sys::MQCA_APPL_ID, sys::MQ_PROCE
 pub const MQCA_BACKOUT_REQ_Q_NAME: InqReqType = inqreq_str(sys::MQCA_BACKOUT_REQ_Q_NAME, sys::MQ_Q_NAME_LENGTH);
 pub const MQCA_BASE_Q_NAME: InqReqType = inqreq_str(sys::MQCA_BASE_Q_NAME, sys::MQ_Q_NAME_LENGTH);
 pub const MQCA_CF_STRUC_NAME: InqReqType = inqreq_str(sys::MQCA_CF_STRUC_NAME, sys::MQ_CF_STRUC_NAME_LENGTH);
-pub const MQCA_CHANNEL_AUTO_DEF_EXIT: InqReqType =
-    inqreq_str(sys::MQCA_CHANNEL_AUTO_DEF_EXIT, sys::MQ_EXIT_NAME_LENGTH);
+pub const MQCA_CHANNEL_AUTO_DEF_EXIT: InqReqType = inqreq_str(sys::MQCA_CHANNEL_AUTO_DEF_EXIT, sys::MQ_EXIT_NAME_LENGTH);
 pub const MQCA_CLUS_CHL_NAME: InqReqType = inqreq_str(sys::MQCA_CLUS_CHL_NAME, sys::MQ_CHANNEL_NAME_LENGTH);
 pub const MQCA_CLUSTER_NAME: InqReqType = inqreq_str(sys::MQCA_CLUSTER_NAME, sys::MQ_CLUSTER_NAME_LENGTH);
 pub const MQCA_CLUSTER_NAMELIST: InqReqType = inqreq_str(sys::MQCA_CLUSTER_NAMELIST, sys::MQ_NAMELIST_NAME_LENGTH);
-pub const MQCA_CLUSTER_WORKLOAD_DATA: InqReqType =
-    inqreq_str(sys::MQCA_CLUSTER_WORKLOAD_DATA, sys::MQ_EXIT_DATA_LENGTH);
-pub const MQCA_CLUSTER_WORKLOAD_EXIT: InqReqType =
-    inqreq_str(sys::MQCA_CLUSTER_WORKLOAD_EXIT, sys::MQ_EXIT_NAME_LENGTH);
+pub const MQCA_CLUSTER_WORKLOAD_DATA: InqReqType = inqreq_str(sys::MQCA_CLUSTER_WORKLOAD_DATA, sys::MQ_EXIT_DATA_LENGTH);
+pub const MQCA_CLUSTER_WORKLOAD_EXIT: InqReqType = inqreq_str(sys::MQCA_CLUSTER_WORKLOAD_EXIT, sys::MQ_EXIT_NAME_LENGTH);
 pub const MQCA_COMMAND_INPUT_Q_NAME: InqReqType = inqreq_str(sys::MQCA_COMMAND_INPUT_Q_NAME, sys::MQ_Q_NAME_LENGTH);
 pub const MQCA_CREATION_DATE: InqReqType = inqreq_str(sys::MQCA_CREATION_DATE, sys::MQ_CREATION_DATE_LENGTH);
 pub const MQCA_CREATION_TIME: InqReqType = inqreq_str(sys::MQCA_CREATION_TIME, sys::MQ_CREATION_TIME_LENGTH);
@@ -156,12 +153,9 @@ pub const MQCA_ENV_DATA: InqReqType = inqreq_str(sys::MQCA_ENV_DATA, sys::MQ_PRO
 pub const MQCA_IGQ_USER_ID: InqReqType = inqreq_str(sys::MQCA_IGQ_USER_ID, sys::MQ_USER_ID_LENGTH);
 pub const MQCA_INITIAL_KEY: InqReqType = inqreq_str(sys::MQCA_INITIAL_KEY, sys::MQ_INITIAL_KEY_LENGTH);
 pub const MQCA_INITIATION_Q_NAME: InqReqType = inqreq_str(sys::MQCA_INITIATION_Q_NAME, sys::MQ_Q_NAME_LENGTH);
-pub const MQCA_INSTALLATION_DESC: InqReqType =
-    inqreq_str(sys::MQCA_INSTALLATION_DESC, sys::MQ_INSTALLATION_DESC_LENGTH);
-pub const MQCA_INSTALLATION_NAME: InqReqType =
-    inqreq_str(sys::MQCA_INSTALLATION_NAME, sys::MQ_INSTALLATION_NAME_LENGTH);
-pub const MQCA_INSTALLATION_PATH: InqReqType =
-    inqreq_str(sys::MQCA_INSTALLATION_PATH, sys::MQ_INSTALLATION_PATH_LENGTH);
+pub const MQCA_INSTALLATION_DESC: InqReqType = inqreq_str(sys::MQCA_INSTALLATION_DESC, sys::MQ_INSTALLATION_DESC_LENGTH);
+pub const MQCA_INSTALLATION_NAME: InqReqType = inqreq_str(sys::MQCA_INSTALLATION_NAME, sys::MQ_INSTALLATION_NAME_LENGTH);
+pub const MQCA_INSTALLATION_PATH: InqReqType = inqreq_str(sys::MQCA_INSTALLATION_PATH, sys::MQ_INSTALLATION_PATH_LENGTH);
 pub const MQCA_LU_GROUP_NAME: InqReqType = inqreq_str(sys::MQCA_LU_GROUP_NAME, sys::MQ_LU_NAME_LENGTH);
 pub const MQCA_LU_NAME: InqReqType = inqreq_str(sys::MQCA_LU_NAME, sys::MQ_LU_NAME_LENGTH);
 pub const MQCA_LU62_ARM_SUFFIX: InqReqType = inqreq_str(sys::MQCA_LU62_ARM_SUFFIX, sys::MQ_ARM_SUFFIX_LENGTH);
@@ -179,8 +173,7 @@ pub const MQCA_QSG_NAME: InqReqType = inqreq_str(sys::MQCA_QSG_NAME, sys::MQ_QSG
 pub const MQCA_REMOTE_Q_MGR_NAME: InqReqType = inqreq_str(sys::MQCA_REMOTE_Q_MGR_NAME, sys::MQ_Q_MGR_NAME_LENGTH);
 pub const MQCA_REMOTE_Q_NAME: InqReqType = inqreq_str(sys::MQCA_REMOTE_Q_NAME, sys::MQ_Q_NAME_LENGTH);
 pub const MQCA_REPOSITORY_NAME: InqReqType = inqreq_str(sys::MQCA_REPOSITORY_NAME, sys::MQ_CLUSTER_NAME_LENGTH);
-pub const MQCA_REPOSITORY_NAMELIST: InqReqType =
-    inqreq_str(sys::MQCA_REPOSITORY_NAMELIST, sys::MQ_NAMELIST_NAME_LENGTH);
+pub const MQCA_REPOSITORY_NAMELIST: InqReqType = inqreq_str(sys::MQCA_REPOSITORY_NAMELIST, sys::MQ_NAMELIST_NAME_LENGTH);
 pub const MQCA_SSL_KEY_REPO_PASSWORD: InqReqType =
     inqreq_str(sys::MQCA_SSL_KEY_REPO_PASSWORD, sys::MQ_SSL_ENCRYP_KEY_REPO_PWD_LEN);
 pub const MQCA_STORAGE_CLASS: InqReqType = inqreq_str(sys::MQCA_STORAGE_CLASS, sys::MQ_STORAGE_CLASS_LENGTH);

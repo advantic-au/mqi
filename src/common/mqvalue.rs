@@ -43,10 +43,8 @@ impl<T: HasConstLookup> FromStr for MqValue<T> {
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
         Ok(Self(
-            T::const_lookup()
-                .by_name(name)
-                .map_or_else(|| FromStr::from_str(name), Ok)?,
-            PhantomData
+            T::const_lookup().by_name(name).map_or_else(|| FromStr::from_str(name), Ok)?,
+            PhantomData,
         ))
     }
 }
@@ -84,11 +82,12 @@ impl<T: HasConstLookup> std::fmt::Debug for MqValue<T> {
             .mq_names()
             .map(Cow::from)
             .reduce(|acc, name| Cow::from(format!("{acc}|{name}")));
-        
+
         if let Some(name_str) = names {
-            f.debug_tuple("MqValue").field(&format_args!("{name_str} = {attribute}")).finish()
-        }
-        else {
+            f.debug_tuple("MqValue")
+                .field(&format_args!("{name_str} = {attribute}"))
+                .finish()
+        } else {
             f.debug_tuple("MqValue").field(&format_args!("{attribute}")).finish()
         }
     }
@@ -113,10 +112,7 @@ mod test {
 
     #[test]
     fn from_str() -> Result<(), Box<dyn Error>> {
-        assert_eq!(
-            MqValue::<L>::from(0).mq_names().collect::<Vec<_>>(),
-            &["ZERO", "ZERO_ALIAS"]
-        );
+        assert_eq!(MqValue::<L>::from(0).mq_names().collect::<Vec<_>>(), &["ZERO", "ZERO_ALIAS"]);
         assert_eq!(MqValue::<L>::from_str("0")?, MqValue::from(0));
         assert_eq!(MqValue::<L>::from_str("ONE")?, MqValue::from(1));
         assert!(MqValue::<L>::from_str("TWO").is_err());
@@ -127,10 +123,7 @@ mod test {
     #[test]
     fn debug() {
         assert_eq!(format!("{:?}", MqValue::<L>::from(1)), "MqValue(ONE|ONE_ALIAS = 1)");
-        assert_eq!(
-            format!("{:?}", MqValue::<L>::from(0)),
-            "MqValue(ZERO|ZERO_ALIAS = 0)"
-        );
+        assert_eq!(format!("{:?}", MqValue::<L>::from(0)), "MqValue(ZERO|ZERO_ALIAS = 0)");
     }
 
     #[test]
@@ -138,7 +131,5 @@ mod test {
         assert_eq!(format!("{}", MqValue::<L>::from(1)), "ONE");
         assert_eq!(format!("{}", MqValue::<L>::from(0)), "ZERO");
         assert_eq!(format!("{}", MqValue::<L>::from(2)), "2");
-
-
     }
 }

@@ -8,7 +8,6 @@ use std::{env, fs::File, path::Path, str};
 
 use libmqm_sys::lib as mqsys;
 
-
 pub fn name_filter(value: mqsys::MQLONG, name: &str, str_fn: list::MqCStrFn) -> bool {
     unsafe { str::from_utf8_unchecked(std::ffi::CStr::from_ptr(str_fn(value)).to_bytes()) == name }
 }

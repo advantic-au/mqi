@@ -4,10 +4,7 @@ use crate::constants::ConstLookup as _;
 use crate::constants::HasConstLookup as _;
 
 use crate::sys;
-use crate::{
-    constants::mapping,
-    impl_constant_lookup,
-};
+use crate::{constants::mapping, impl_constant_lookup};
 
 pub trait RawHandle {
     type HandleType: Copy;

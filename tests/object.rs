@@ -5,8 +5,8 @@ use std::thread;
 
 use mqi::prelude::*;
 use mqi::{
-    inq, mqstr, sys, ConnectionOptions, Credentials, InqReqItem, InqReqType, MqStr, MqStruct, Object,
-    ObjectName, QueueManager, StructBuilder,
+    inq, mqstr, sys, ConnectionOptions, Credentials, InqReqItem, InqReqType, MqStr, MqStruct, Object, ObjectName, QueueManager,
+    StructBuilder,
 };
 
 #[test]
@@ -65,10 +65,18 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("MQRC warning: {verb} {rc}");
     }
 
-    let values: HashMap<_, _> = result.iter().map(|(attr, value)| (attr, match value {
-        mqi::InqResItem::Str(value) => Cow::from(value),
-        mqi::InqResItem::Long(value) => Cow::from(value.to_string()),
-    })).collect();
+    let values: HashMap<_, _> = result
+        .iter()
+        .map(|(attr, value)| {
+            (
+                attr,
+                match value {
+                    mqi::InqResItem::Str(value) => Cow::from(value),
+                    mqi::InqResItem::Long(value) => Cow::from(value.to_string()),
+                },
+            )
+        })
+        .collect();
 
     for (attr, value) in values {
         println!("{attr}: {value}");

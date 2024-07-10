@@ -35,15 +35,37 @@ impl<const N: usize, const Y: usize> PartialEq<MqStr<Y>> for MqStr<N> {
     }
 }
 
-impl<const N: usize> PartialEq<&str> for MqStr<N> {
-    fn eq(&self, other: &&str) -> bool {
-        self.value().eq(AsRef::<[u8]>::as_ref(&other))
+impl<const N: usize> PartialEq<str> for MqStr<N> {
+    fn eq(&self, other: &str) -> bool {
+        self.value().eq(other.as_bytes())
     }
 }
 
 impl<const N: usize> From<MqStr<N>> for [sys::MQCHAR; N] {
     fn from(MqStr { data }: MqStr<N>) -> Self {
         unsafe { *addr_of!(data).cast() }
+    }
+}
+
+impl<const N: usize> Ord for MqStr<N> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let str_self = unsafe { std::str::from_utf8_unchecked(self.value()) };
+        let str_other = unsafe { std::str::from_utf8_unchecked(other.value()) };
+        str_self.cmp(str_other)
+    }
+}
+
+impl<const N: usize, const Y: usize> PartialOrd<MqStr<Y>> for MqStr<N> {
+    fn partial_cmp(&self, other: &MqStr<Y>) -> Option<std::cmp::Ordering> {
+        let str_other = unsafe { std::str::from_utf8_unchecked(other.value()) };
+        self.partial_cmp(str_other)
+    }
+}
+
+impl<const N: usize> PartialOrd<str> for MqStr<N> {
+    fn partial_cmp(&self, other: &str) -> Option<std::cmp::Ordering> {
+        let str_self = unsafe { std::str::from_utf8_unchecked(self.value()) };
+        str_self.partial_cmp(other)
     }
 }
 
@@ -95,12 +117,12 @@ impl<const N: usize> MqStr<N> {
         for _ in self.data.iter().rev().take_while(|&c| *c == b' ' || *c == 0) {
             last -= 1;
         }
-        &self.data[0..last]
+        &self.data[..last]
     }
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.data.iter().all(|&c | c == b' ' || c == 0)
+        self.data.iter().all(|&c| c == b' ' || c == 0)
     }
 
     #[must_use]
@@ -125,7 +147,7 @@ impl<const N: usize> Default for MqStr<N> {
 
 impl<const N: usize> Display for MqStr<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        unsafe { std::str::from_utf8_unchecked(&self.data) }.fmt(f) // TODO: is unsafe ok here?
+        unsafe { std::str::from_utf8_unchecked(self.value()) }.fmt(f) // TODO: is unsafe ok here?
     }
 }
 

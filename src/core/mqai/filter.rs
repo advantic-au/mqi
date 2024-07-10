@@ -16,9 +16,7 @@ impl<T> Filter<T> {
     }
 
     pub const fn operator(&self) -> MqValue<MQCFOP> {
-        let &Self {
-            operator, ..
-        } = self;
+        let &Self { operator, .. } = self;
         operator
     }
 

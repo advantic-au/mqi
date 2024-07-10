@@ -1,10 +1,17 @@
-use crate::{define_mqvalue, mapping, sys, ConstLookup};
+use crate::{define_mqvalue, mapping, sys, ConstLookup, MqValue};
 
-define_mqvalue!(MQQT, mapping::MQQT_CONST);
-define_mqvalue!(MQAT, mapping::MQAT_CONST);
-define_mqvalue!(MQCMD, mapping::MQCMD_CONST);
-define_mqvalue!(MQCFOP, mapping::MQCFOP_CONST);
-define_mqvalue!(MqaiSelector, MqaiSelectorLookup);
+define_mqvalue!(pub MQIND, mapping::MQIND_CONST);
+define_mqvalue!(pub MQQT, mapping::MQQT_CONST);
+define_mqvalue!(pub MQAT, mapping::MQAT_CONST);
+define_mqvalue!(pub MQCMD, mapping::MQCMD_CONST);
+define_mqvalue!(pub MQCFOP, mapping::MQCFOP_CONST);
+define_mqvalue!(pub MqaiSelector, MqaiSelectorLookup);
+
+impl Default for MqValue<MQIND> {
+    fn default() -> Self {
+        Self::from(sys::MQIND_NONE)
+    }
+}
 
 /*
 

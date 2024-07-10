@@ -29,7 +29,12 @@ impl<'a> TryFrom<StrCcsid<'a>> for String {
 
     fn try_from(value: StrCcsid) -> Result<Self, Self::Error> {
         if value.ccsid != NonZeroI32::new(1208) {
-            return Err(FromStringCcsidError::NonUtf8Ccsid(CcsidError { str: StringCcsid { ccsid: value.ccsid, data: value.data.into() } }));
+            return Err(FromStringCcsidError::NonUtf8Ccsid(CcsidError {
+                str: StringCcsid {
+                    ccsid: value.ccsid,
+                    data: value.data.into(),
+                },
+            }));
         }
         Self::from_utf8(value.data.into()).map_err(FromStringCcsidError::Utf8Convert)
     }
