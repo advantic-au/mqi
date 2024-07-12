@@ -1,7 +1,7 @@
-use std::num::NonZeroI32;
+use std::num::{NonZero, NonZeroI32};
 use thiserror::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct StringCcsid<T> {
     pub(crate) ccsid: Option<std::num::NonZeroI32>,
     pub(crate) data: T,
@@ -24,10 +24,10 @@ pub struct CcsidError {
     str: OwnedStrCcsid,
 }
 
-impl<'a> TryFrom<StrCcsid<'a>> for String {
+impl<T: Into<Vec<u8>>> TryFrom<StringCcsid<T>> for String {
     type Error = FromStringCcsidError;
 
-    fn try_from(value: StrCcsid) -> Result<Self, Self::Error> {
+    fn try_from(value: StringCcsid<T>) -> Result<Self, Self::Error> {
         if value.ccsid != NonZeroI32::new(1208) {
             return Err(FromStringCcsidError::NonUtf8Ccsid(CcsidError {
                 str: StringCcsid {
@@ -40,18 +40,7 @@ impl<'a> TryFrom<StrCcsid<'a>> for String {
     }
 }
 
-// impl<'a> FromStr for StringCcsid<'a> {
-//     type Err = Infallible;
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         Ok(Self {
-//             ccsid: NonZeroI32::new(1208),
-//             data: s.as_bytes().into(),
-//         })
-//     }
-// }
-
-pub trait EncodedString: std::fmt::Debug {
+pub trait EncodedString {
     fn ccsid(&self) -> Option<NonZeroI32>;
     fn data(&self) -> &[u8];
 }
@@ -66,12 +55,18 @@ impl EncodedString for str {
     }
 }
 
-impl EncodedString for StrCcsid<'_> {
+impl<T: AsRef<[u8]>> EncodedString for StringCcsid<T> {
     fn ccsid(&self) -> Option<NonZeroI32> {
         self.ccsid
     }
 
     fn data(&self) -> &[u8] {
-        self.data
+        self.data.as_ref()
+    }
+}
+
+impl<T: Default> Default for StringCcsid<T> {
+    fn default() -> Self {
+        Self { ccsid: NonZero::new(1208), data: Default::default() }
     }
 }

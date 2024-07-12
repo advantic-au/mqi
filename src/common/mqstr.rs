@@ -91,6 +91,11 @@ impl<const N: usize> MqStr<N> {
         Ok(result)
     }
 
+    #[must_use]
+    pub const fn as_bytes(&self) -> &[u8] {
+        &self.data
+    }
+
     /// Create an empty `MqStr` filled with spaces
     #[must_use]
     pub const fn empty() -> Self {
