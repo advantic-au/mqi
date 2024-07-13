@@ -3,32 +3,23 @@ use std::{borrow::Cow, cmp::min, marker::PhantomData, num::NonZero, ptr};
 
 use libmqm_sys::function;
 
-use crate::core::values::{MQCMHO, MQIMPO, MQSMPO, MQTYPE};
+use crate::core::values::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::property::{InqPropertyType, NameUsage, SetPropertyType};
-use crate::{sys, QueueManagerShare, ResultCompExt};
-use crate::{core, Completion};
+use crate::{core, sys, Completion, QueueManagerShare, ResultCompExt as _};
 
-use crate::EncodedString;
-use crate::Error;
-use crate::MqMask;
-use crate::MqStruct;
-use crate::MqValue;
-use crate::ResultCompErr;
-use crate::ResultCompErrExt;
-use crate::MQMD;
-
-use crate::{ResultComp, ResultErr};
+use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt, MQMD};
+use crate::{ResultComp, ResultCompErr, ResultErr};
 
 pub struct Message<'ch, L: core::Library<MQ: function::MQI>> {
     handle: core::MessageHandle,
     mq: core::MQFunctions<L>,
-    connection: &'ch core::ConnectionHandle,
+    connection: Option<&'ch core::ConnectionHandle>,
 }
 
 impl<L: core::Library<MQ: function::MQI>> Drop for Message<'_, L> {
     fn drop(&mut self) {
         let mqdmho = sys::MQDMHO::default();
-        let _ = self.mq.mqdltmh(Some(self.connection), &mut self.handle, &mqdmho);
+        let _ = self.mq.mqdltmh(self.connection, &mut self.handle, &mqdmho);
     }
 }
 
@@ -217,13 +208,13 @@ impl<P: InqPropertyType, N: EncodedString + ?Sized, L: core::Library<MQ: functio
 }
 
 impl<'connection, L: core::Library<MQ: function::MQI>> Message<'connection, L> {
-    pub fn new(lib: L, connection: &'connection core::ConnectionHandle, options: MqValue<MQCMHO>) -> ResultErr<Self> {
+    pub fn new(lib: L, connection: Option<&'connection core::ConnectionHandle>, options: MqValue<MQCMHO>) -> ResultErr<Self> {
         let mqcmho = sys::MQCMHO {
             Options: options.value(),
             ..sys::MQCMHO::default()
         };
         let mq = core::MQFunctions(lib);
-        mq.mqcrtmh(Some(connection), &mqcmho)
+        mq.mqcrtmh(connection, &mqcmho)
             .map(|handle| Self { handle, mq, connection })
     }
 
@@ -287,7 +278,7 @@ impl<'connection, L: core::Library<MQ: function::MQI>> Message<'connection, L> {
 
         let inq = match inqmp(
             &self.mq,
-            Some(self.connection),
+            self.connection,
             &self.handle,
             &mut mqimpo,
             &name,
@@ -320,6 +311,17 @@ impl<'connection, L: core::Library<MQ: function::MQI>> Message<'connection, L> {
             ),
             comp => comp.map(|_| None),
         })
+    }
+
+    pub fn delete_property(&self, name: &(impl EncodedString + ?Sized),
+        options: MqValue<MQDMPO>,
+    ) -> ResultComp<()> {
+        let mut mqdmpo = MqStruct::<sys::MQDMPO>::default();
+        mqdmpo.Options = options.value();
+
+        let name_mqcharv = MqStruct::from_encoded_str(name);
+
+        self.mq.mqdltmp(self.connection, &self.handle, &mqdmpo, &name_mqcharv)
     }
 
     pub fn set_property(

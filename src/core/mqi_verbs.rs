@@ -457,7 +457,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqdltmp(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: Option<&ConnectionHandle>,
         message_handle: &MessageHandle,
         delete_prop_opts: &sys::MQDMPO,
         name: &sys::MQCHARV,
@@ -465,7 +465,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQDLTMP");
         unsafe {
             self.0.MQDLTMP(
-                connection_handle.raw_handle(),
+                connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
                 ptr::from_ref(delete_prop_opts).cast_mut().cast(),
                 ptr::from_ref(name).cast_mut().cast(),
@@ -503,7 +503,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqsetmp<T: Debug + ?Sized>(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: Option<&ConnectionHandle>,
         message_handle: &MessageHandle,
         set_prop_opts: &sys::MQSMPO,
         name: &sys::MQCHARV,
@@ -514,7 +514,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQSETMP");
         unsafe {
             self.0.MQSETMP(
-                connection_handle.raw_handle(),
+                connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
                 ptr::from_ref(set_prop_opts).cast_mut().cast(),
                 ptr::from_ref(name).cast_mut().cast(),

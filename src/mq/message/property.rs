@@ -39,7 +39,7 @@ pub trait InqPropertyType: Sized {
 
 pub trait SetPropertyType {
     type Data: std::fmt::Debug + ?Sized;
-    fn apply_mqinqmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>);
+    fn apply_mqinqmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>);
 }
 
 pub trait InqNameType: Sized + Default {
@@ -94,7 +94,7 @@ pub type RawMeta<T> = Metadata<Raw<T>>;
 #[derive(Debug, Clone)]
 pub struct Raw<T>(T);
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Boolean(bool),
     Int8(i8),
@@ -135,6 +135,12 @@ impl<T> Deref for Metadata<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.value
+    }
+}
+
+impl<T> DerefMut for Metadata<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.value
     }
 }
 
@@ -706,6 +712,22 @@ impl<const N: usize> InqPropertyType for Raw<[u8; N]> {
 
     fn max_value_size() -> Option<NonZero<usize>> {
         NonZero::new(N)
+    }
+}
+
+impl<T> Deref for Raw<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        let Self(target) = self;
+        target
+    }
+}
+
+impl<T> DerefMut for Raw<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        let Self(ref mut target) = self;
+        target
     }
 }
 

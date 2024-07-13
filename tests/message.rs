@@ -13,9 +13,8 @@ fn message_handle() -> Result<(), Box<dyn Error>> {
         &ConnectionOptions::default_binding().credentials(Credentials::user("app", "app")),
     )
     .warn_as_error()?;
-    let handle = &conn.handle();
 
-    let message = Message::new(&LinkedMQ, handle, MqValue::from(sys::MQCMHO_DEFAULT_VALIDATION))?;
+    let message = Message::new(&LinkedMQ, Some(conn.handle()), MqValue::from(sys::MQCMHO_DEFAULT_VALIDATION))?;
     message
         .set_property("usr.b.x", "B", MqValue::from(sys::MQSMPO_NONE))
         .warn_as_error()?;

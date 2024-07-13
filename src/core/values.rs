@@ -1,4 +1,4 @@
-use crate::{define_mqvalue, mapping, sys, MqMask};
+use crate::{define_mqvalue, mapping, sys, MqMask, MqValue};
 
 // Close Options mask
 define_mqvalue!(pub MQOO, mapping::MQOO_CONST);
@@ -21,6 +21,12 @@ define_mqvalue!(pub MQSTAT, mapping::MQSTAT_CONST);
 define_mqvalue!(pub MQCBO, mapping::MQCBO_CONST);
 define_mqvalue!(pub MQCMHO, mapping::MQCMHO_CONST);
 define_mqvalue!(pub MQSMPO, mapping::MQSMPO_CONST);
+define_mqvalue!(pub MQDMPO, mapping::MQDMPO_CONST);
+impl Default for MqValue<MQDMPO> {
+    fn default() -> Self {
+        Self::from(sys::MQDMPO_DEL_FIRST)
+    }
+}
 define_mqvalue!(pub MQXA, mapping::MQXA_FULL_CONST);
 // Callback options (`MQCBDO_*`)
 define_mqvalue!(pub MQCBDO, mapping::MQCBDO_CONST);
