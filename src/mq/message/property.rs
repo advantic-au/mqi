@@ -1,7 +1,7 @@
 use std::cmp::min;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::{mem, ptr, slice, str};
-use std::{borrow::Cow, num::NonZero, ops::Deref};
+use std::{borrow::Cow, num::NonZero};
 
 use libmqm_sys::lib::{MQIMPO_NONE, MQTYPE_STRING};
 
@@ -90,6 +90,7 @@ pub enum Conversion<T> {
 }
 
 pub type RawMeta<T> = Metadata<Raw<T>>;
+pub type OwnedRawMeta = RawMeta<Vec<u8>>;
 
 #[derive(Debug, Clone)]
 pub struct Raw<T>(T);

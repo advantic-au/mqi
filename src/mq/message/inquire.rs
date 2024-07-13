@@ -5,7 +5,7 @@ use libmqm_sys::function;
 
 use crate::core::values::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::property::{InqPropertyType, NameUsage, SetPropertyType};
-use crate::{core, sys, Completion, QueueManagerShare, ResultCompExt as _};
+use crate::{core, sys, Completion, QueueManagerShare};
 
 use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt, MQMD};
 use crate::{ResultComp, ResultCompErr, ResultErr};
@@ -230,13 +230,6 @@ impl<'connection, L: core::Library<MQ: function::MQI>> Message<'connection, L> {
             _marker: PhantomData,
         }
     }
-
-    pub fn extend_properties(&mut self, iter: impl IntoIterator<Item = (impl EncodedString, impl SetPropertyType)>, location: MqValue<MQSMPO>) -> Result<(), Error> {
-        for (name, value) in iter {
-            self.set_property(&name, &value, location).warn_as_error()?;
-        }
-        Ok(())
-    } 
 
     pub fn property<P: InqPropertyType + ?Sized>(
         &self,

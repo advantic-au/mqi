@@ -1,12 +1,5 @@
 use std::{
-    cmp::min,
-    collections::{vec_deque::Iter, VecDeque},
-    fmt::Debug,
-    mem::size_of_val,
-    ops::{Deref, DerefMut},
-    ptr,
-    str::from_utf8_unchecked,
-    sync::Arc,
+    borrow::Cow, cmp::min, collections::{vec_deque::Iter, VecDeque}, fmt::Debug, mem::size_of_val, num::NonZero, ops::{Deref, DerefMut}, ptr, str::from_utf8_unchecked, sync::Arc
 };
 
 use libmqm_sys::function;
@@ -16,8 +9,7 @@ use crate::{
         self,
         values::{MQCO, MQOO, MQXA},
         ConnectionHandle, Library, MQFunctions,
-    },
-    Conn, MqMask, MqValue, ResultCompErrExt as _,
+    }, Conn, MqMask, MqStruct, MqValue, ResultCompErrExt as _
 };
 use crate::{sys, MqStr, QMName, QName, StructBuilder};
 use crate::{ObjectName, ResultComp};
@@ -26,14 +18,30 @@ use super::QueueManagerShare;
 
 trait Sealed {}
 #[allow(private_bounds)]
-pub trait MQMD: Sealed + Debug {}
+pub trait MQMD: Sealed {
+    fn match_by(match_options: &MatchOptions) -> Self;
+}
 impl Sealed for sys::MQMD {}
 impl Sealed for sys::MQMD2 {}
-impl Sealed for sys::MQMDE {}
 
-impl MQMD for sys::MQMD {}
-impl MQMD for sys::MQMD2 {}
-impl MQMD for sys::MQMDE {}
+macro_rules! impl_mqmd {
+    ($path:path) => {
+        impl MQMD for $path {
+            fn match_by(match_options: &MatchOptions) -> Self {
+                Self {
+                    MsgId: match_options.msg_id.unwrap_or_default(),
+                    CorrelId: match_options.correl_id.unwrap_or_default(),
+                    GroupId: match_options.group_id.unwrap_or_default(),
+                    MsgSeqNumber: match_options.seq_number.unwrap_or_default(),
+                    ..Self::default()
+                }
+            }
+        }                
+    };
+}
+
+impl_mqmd!(sys::MQMD);
+impl_mqmd!(sys::MQMD2);
 
 pub type InqReqType = (MqValue<MQXA>, InqReqItem);
 pub type InqResType<'a, T> = (MqValue<MQXA>, InqResItem<'a, T>);
@@ -166,27 +174,37 @@ pub struct MatchOptions {
     pub token: Option<MsgToken>,
 }
 
-pub struct GetMessage {
-    gmo: sys::MQGMO,
-    pub returned_length: sys::MQLONG,
-}
-
-impl GetMessage {
-    #[must_use]
-    pub const fn returned_length(&self) -> sys::MQLONG {
-        self.returned_length
-    }
+trait GetMessage: Sized {
+    fn apply_mqget(md: &mut MqStruct<impl MQMD>, gmo: &mut MqStruct<sys::MQGMO>);
+    fn create_from(data: Cow<[u8]>, md: &mut MqStruct<impl MQMD>, gmo: &mut MqStruct<sys::MQGMO>) -> ResultComp<Self>;
 
     #[must_use]
-    pub const fn message_token(&self) -> &MsgToken {
-        &self.gmo.MsgToken
-    }
-
-    #[must_use]
-    pub fn resolved_queue(&self) -> &ObjectName {
-        self.gmo.ResolvedQName.as_ref()
+    fn max_data_size() -> Option<NonZero<usize>> {
+        None
     }
 }
+
+// pub struct GetMessage {
+//     gmo: sys::MQGMO,
+//     pub returned_length: sys::MQLONG,
+// }
+
+// impl GetMessage {
+//     #[must_use]
+//     pub const fn returned_length(&self) -> sys::MQLONG {
+//         self.returned_length
+//     }
+
+//     #[must_use]
+//     pub const fn message_token(&self) -> &MsgToken {
+//         &self.gmo.MsgToken
+//     }
+
+//     #[must_use]
+//     pub fn resolved_queue(&self) -> &ObjectName {
+//         self.gmo.ResolvedQName.as_ref()
+//     }
+// }
 
 impl<C: Conn> Object<C> {
     #[must_use]
@@ -251,6 +269,47 @@ impl<C: Conn> Object<C> {
         self.connection
             .mq()
             .mqput(self.connection.handle(), self.handle(), Some(mqmd), pmo, body)
+    }
+
+    pub fn get_message2<T: GetMessage>(
+        &self,
+        mo: &MatchOptions,
+        wait: Option<sys::MQLONG>,
+    ) -> ResultComp<T> {
+        let mut md = MqStruct::new(sys::MQMD2::match_by(mo));
+        let mut gmo = MqStruct::new(sys::MQGMO {
+            Version: sys::MQGMO_VERSION_4,
+            // MsgHandle: unsafe { handle.raw_handle() },
+            MsgToken: mo.token.unwrap_or_default(),
+            ..sys::MQGMO::default()
+        });
+        gmo.MatchOptions |= mo.group_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_GROUP_ID)
+            | mo.seq_number.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_SEQ_NUMBER)
+            | mo.offset.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_OFFSET)
+            | mo.token.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_TOKEN);
+        // Set up the wait
+        if let Some(interval) = wait {
+            gmo.Options |= sys::MQGMO_WAIT;
+            gmo.WaitInterval = interval;
+        }
+
+        T::apply_mqget(&mut md, &mut gmo);
+
+        self.connection
+            .mq()
+            .mqget(self.connection.handle(), self.handle(), Some(&mut *md), &mut gmo, body)
+            .map_completion(|len| GetMessage {
+                returned_length: match gmo.ReturnedLength {
+                    sys::MQRL_UNDEFINED => min(
+                        len,
+                        size_of_val(body)
+                            .try_into()
+                            .expect("body length exceeds maximum positive MQLONG"),
+                    ),
+                    other => other,
+                },
+                gmo,
+            })
     }
 
     pub fn get_message<B>(

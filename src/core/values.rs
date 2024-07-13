@@ -21,6 +21,11 @@ define_mqvalue!(pub MQSTAT, mapping::MQSTAT_CONST);
 define_mqvalue!(pub MQCBO, mapping::MQCBO_CONST);
 define_mqvalue!(pub MQCMHO, mapping::MQCMHO_CONST);
 define_mqvalue!(pub MQSMPO, mapping::MQSMPO_CONST);
+impl Default for MqValue<MQSMPO> {
+    fn default() -> Self {
+        Self::from(sys::MQSMPO_SET_FIRST)
+    }
+}
 define_mqvalue!(pub MQDMPO, mapping::MQDMPO_CONST);
 impl Default for MqValue<MQDMPO> {
     fn default() -> Self {
