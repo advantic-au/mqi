@@ -1,5 +1,14 @@
 use std::{
-    borrow::Cow, cmp::min, collections::{vec_deque::Iter, VecDeque}, fmt::Debug, mem::size_of_val, num::NonZero, ops::{Deref, DerefMut}, ptr, str::from_utf8_unchecked, sync::Arc
+    borrow::Cow,
+    cmp::min,
+    collections::{vec_deque::Iter, VecDeque},
+    fmt::Debug,
+    mem::{size_of_val, MaybeUninit},
+    num::NonZero,
+    ops::{Deref, DerefMut},
+    ptr,
+    str::from_utf8_unchecked,
+    sync::Arc,
 };
 
 use libmqm_sys::function;
@@ -9,7 +18,8 @@ use crate::{
         self,
         values::{MQCO, MQOO, MQXA},
         ConnectionHandle, Library, MQFunctions,
-    }, Conn, MqMask, MqStruct, MqValue, ResultCompErrExt as _
+    },
+    Conn, Error, Message, MqMask, MqStruct, MqValue, ResultCompErr, ResultCompErrExt as _,
 };
 use crate::{sys, MqStr, QMName, QName, StructBuilder};
 use crate::{ObjectName, ResultComp};
@@ -18,7 +28,7 @@ use super::QueueManagerShare;
 
 trait Sealed {}
 #[allow(private_bounds)]
-pub trait MQMD: Sealed {
+pub trait MQMD: Sealed + std::fmt::Debug {
     fn match_by(match_options: &MatchOptions) -> Self;
 }
 impl Sealed for sys::MQMD {}
@@ -36,7 +46,7 @@ macro_rules! impl_mqmd {
                     ..Self::default()
                 }
             }
-        }                
+        }
     };
 }
 
@@ -175,13 +185,25 @@ pub struct MatchOptions {
 }
 
 trait GetMessage: Sized {
-    fn apply_mqget(md: &mut MqStruct<impl MQMD>, gmo: &mut MqStruct<sys::MQGMO>);
-    fn create_from(data: Cow<[u8]>, md: &mut MqStruct<impl MQMD>, gmo: &mut MqStruct<sys::MQGMO>) -> ResultComp<Self>;
+    type Error: std::fmt::Debug;
+
+    fn apply_mqget<C: Conn>(md: &mut MqStruct<impl MQMD>, gmo: &mut MqStruct<sys::MQGMO>);
+    fn create_from<C: Conn>(
+        object: &Object<C>,
+        data: Cow<[u8]>,
+        md: &MqStruct<impl MQMD>,
+        gmo: &MqStruct<sys::MQGMO>,
+    ) -> ResultCompErr<Self, Self::Error>;
 
     #[must_use]
     fn max_data_size() -> Option<NonZero<usize>> {
         None
     }
+}
+
+struct Properties<T, C: Conn> {
+    msg: Message<C>,
+    value: T,
 }
 
 // pub struct GetMessage {
@@ -275,7 +297,10 @@ impl<C: Conn> Object<C> {
         &self,
         mo: &MatchOptions,
         wait: Option<sys::MQLONG>,
-    ) -> ResultComp<T> {
+        properties: Option<&mut Message<C>>,
+    ) -> ResultCompErr<T, T::Error> {
+        let mut buffer = [const { MaybeUninit::<u8>::uninit() }; 1024];
+
         let mut md = MqStruct::new(sys::MQMD2::match_by(mo));
         let mut gmo = MqStruct::new(sys::MQGMO {
             Version: sys::MQGMO_VERSION_4,
@@ -293,25 +318,20 @@ impl<C: Conn> Object<C> {
             gmo.WaitInterval = interval;
         }
 
-        T::apply_mqget(&mut md, &mut gmo);
+        if let Some(props) = properties {
+            gmo.MsgHandle = unsafe { props.handle().raw_handle() }
+        }
 
-        self.connection
+        T::apply_mqget::<C>(&mut md, &mut gmo);
+
+        let result = self
+            .connection
             .mq()
-            .mqget(self.connection.handle(), self.handle(), Some(&mut *md), &mut gmo, body)
-            .map_completion(|len| GetMessage {
-                returned_length: match gmo.ReturnedLength {
-                    sys::MQRL_UNDEFINED => min(
-                        len,
-                        size_of_val(body)
-                            .try_into()
-                            .expect("body length exceeds maximum positive MQLONG"),
-                    ),
-                    other => other,
-                },
-                gmo,
-            })
+            .mqget(self.connection.handle(), self.handle(), Some(&mut *md), &mut gmo, &mut buffer);
+        ()
     }
 
+    /*
     pub fn get_message<B>(
         &self,
         handle: &core::MessageHandle,
@@ -358,6 +378,7 @@ impl<C: Conn> Object<C> {
                 gmo,
             })
     }
+     */
 
     pub fn close_options(&mut self, options: MqMask<MQCO>) {
         self.close_options = options;

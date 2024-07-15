@@ -4,22 +4,22 @@ use std::{borrow::Cow, cmp::min, marker::PhantomData, num::NonZero, ptr};
 use libmqm_sys::function;
 
 use crate::core::values::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
+use crate::core::MessageHandle;
 use crate::property::{InqPropertyType, NameUsage, SetPropertyType};
-use crate::{core, sys, Completion, QueueManagerShare};
+use crate::{core, sys, Completion, Conn, QueueManagerShare};
 
 use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt, MQMD};
 use crate::{ResultComp, ResultCompErr, ResultErr};
 
-pub struct Message<'ch, L: core::Library<MQ: function::MQI>> {
+pub struct Message<C: Conn> {
     handle: core::MessageHandle,
-    mq: core::MQFunctions<L>,
-    connection: Option<&'ch core::ConnectionHandle>,
+    connection: C,
 }
 
-impl<L: core::Library<MQ: function::MQI>> Drop for Message<'_, L> {
+impl<C: Conn> Drop for Message<C> {
     fn drop(&mut self) {
         let mqdmho = sys::MQDMHO::default();
-        let _ = self.mq.mqdltmh(self.connection, &mut self.handle, &mqdmho);
+        let _ = self.connection.mq().mqdltmh(Some(self.connection.handle()), &mut self.handle, &mqdmho);
     }
 }
 
@@ -182,15 +182,15 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::MQI>>(
     }
 }
 
-pub struct MsgPropIter<'connection, 'name, 'message, P, N: EncodedString + ?Sized, L: core::Library<MQ: function::MQI>> {
+pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
     name: &'name N,
-    message: &'message Message<'connection, L>,
+    message: &'message Message<C>,
     options: MqMask<MQIMPO>,
     _marker: PhantomData<P>,
 }
 
-impl<P: InqPropertyType, N: EncodedString + ?Sized, L: core::Library<MQ: function::MQI>> Iterator
-    for MsgPropIter<'_, '_, '_, P, N, L>
+impl<P: InqPropertyType, N: EncodedString + ?Sized, C: Conn> Iterator
+    for MsgPropIter<'_, '_, P, N, C>
 {
     type Item = ResultCompErr<P, P::Error>;
 
@@ -207,22 +207,26 @@ impl<P: InqPropertyType, N: EncodedString + ?Sized, L: core::Library<MQ: functio
     }
 }
 
-impl<'connection, L: core::Library<MQ: function::MQI>> Message<'connection, L> {
-    pub fn new(lib: L, connection: Option<&'connection core::ConnectionHandle>, options: MqValue<MQCMHO>) -> ResultErr<Self> {
+impl<C: Conn> Message<C> {
+
+    pub fn handle(&self) -> &MessageHandle {
+        &self.handle
+    }
+    
+    pub fn new(connection: C, options: MqValue<MQCMHO>) -> ResultErr<Self> {
         let mqcmho = sys::MQCMHO {
             Options: options.value(),
             ..sys::MQCMHO::default()
         };
-        let mq = core::MQFunctions(lib);
-        mq.mqcrtmh(connection, &mqcmho)
-            .map(|handle| Self { handle, mq, connection })
+        connection.mq().mqcrtmh(Some(connection.handle()), &mqcmho)
+            .map(|handle| Self { handle, connection })
     }
 
-    pub fn property_iter<'m, 'n, P: InqPropertyType + ?Sized, N: EncodedString + ?Sized>(
-        &'m self,
-        name: &'n N,
+    pub fn property_iter<'message, 'name, P: InqPropertyType + ?Sized, N: EncodedString + ?Sized>(
+        &'message self,
+        name: &'name N,
         options: MqMask<MQIMPO>,
-    ) -> MsgPropIter<'connection, 'n, 'm, P, N, L> {
+    ) -> MsgPropIter<'name, 'message, P, N, C> {
         MsgPropIter {
             name,
             message: self,
@@ -270,8 +274,8 @@ impl<'connection, L: core::Library<MQ: function::MQI>> Message<'connection, L> {
         let mut mqpd = MqStruct::<sys::MQPD>::default();
 
         let inq = match inqmp(
-            &self.mq,
-            self.connection,
+            self.connection.mq(),
+            Some(self.connection.handle()),
             &self.handle,
             &mut mqimpo,
             &name,
@@ -314,7 +318,7 @@ impl<'connection, L: core::Library<MQ: function::MQI>> Message<'connection, L> {
 
         let name_mqcharv = MqStruct::from_encoded_str(name);
 
-        self.mq.mqdltmp(self.connection, &self.handle, &mqdmpo, &name_mqcharv)
+        self.connection.mq().mqdltmp(Some(self.connection.handle()), &self.handle, &mqdmpo, &name_mqcharv)
     }
 
     pub fn set_property(
@@ -329,8 +333,8 @@ impl<'connection, L: core::Library<MQ: function::MQI>> Message<'connection, L> {
         let (data, value_type) = value.apply_mqinqmp(&mut mqpd, &mut mqsmpo);
 
         let name_mqcharv = MqStruct::from_encoded_str(name);
-        self.mq.mqsetmp(
-            self.connection,
+        self.connection.mq().mqsetmp(
+            Some(self.connection.handle()),
             &self.handle,
             &mqsmpo,
             &name_mqcharv,

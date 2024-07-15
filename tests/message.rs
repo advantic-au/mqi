@@ -1,9 +1,8 @@
 use std::error::Error;
 
-use libmqm_sys::link::LinkedMQ;
 use mqi::{
     property::{self, Attributes, OwnedRawMeta},
-    sys, ConnectionOptions, Credentials, Message, MqMask, MqValue, OwnedStrCcsid, QueueManager, ResultCompExt,
+    ConnectionOptions, Credentials, Message, MqMask, MqValue, OwnedStrCcsid, QueueManager, ResultCompExt,
 };
 
 #[test]
@@ -16,7 +15,7 @@ fn message_handle() -> Result<(), Box<dyn Error>> {
     )
     .warn_as_error()?;
 
-    let message = Message::new(&LinkedMQ, Some(conn.handle()), MqValue::from(sys::MQCMHO_DEFAULT_VALIDATION))?;
+    let message = Message::new(conn, MqValue::default())?;
 
     for &(name, value) in PROPS {
         message.set_property(name, value, MqValue::default()).warn_as_error()?;

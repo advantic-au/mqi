@@ -16,3 +16,14 @@ macro_rules! define_mqvalue {
 		$crate::impl_constant_lookup!($i, $source);
     };
 }
+
+#[macro_export]
+macro_rules! impl_default_mqvalue {
+    ($t:path, $source:path) => {
+        impl Default for $t {
+            fn default() -> Self {
+                Self::from($source)
+            }
+        }
+    };
+}
