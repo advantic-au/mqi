@@ -3,7 +3,7 @@ use std::{
     cmp::min,
     collections::{vec_deque::Iter, VecDeque},
     fmt::Debug,
-    mem::{size_of_val, MaybeUninit},
+    mem::{size_of_val, transmute, MaybeUninit},
     num::NonZero,
     ops::{Deref, DerefMut},
     ptr,
@@ -18,8 +18,7 @@ use crate::{
         self,
         values::{MQCO, MQOO, MQXA},
         ConnectionHandle, Library, MQFunctions,
-    },
-    Conn, Error, Message, MqMask, MqStruct, MqValue, ResultCompErr, ResultCompErrExt as _,
+    }, Completion, Conn, Error, Message, MqMask, MqStruct, MqValue, ReasonCode, ResultCompErr, ResultCompErrExt as _
 };
 use crate::{sys, MqStr, QMName, QName, StructBuilder};
 use crate::{ObjectName, ResultComp};
@@ -185,7 +184,7 @@ pub struct MatchOptions {
 }
 
 trait GetMessage: Sized {
-    type Error: std::fmt::Debug;
+    type Error: std::fmt::Debug + From<Error>;
 
     fn apply_mqget<C: Conn>(md: &mut MqStruct<impl MQMD>, gmo: &mut MqStruct<sys::MQGMO>);
     fn create_from<C: Conn>(
@@ -193,6 +192,7 @@ trait GetMessage: Sized {
         data: Cow<[u8]>,
         md: &MqStruct<impl MQMD>,
         gmo: &MqStruct<sys::MQGMO>,
+        warning: Option<(ReasonCode, &'static str)>,
     ) -> ResultCompErr<Self, Self::Error>;
 
     #[must_use]
@@ -201,11 +201,23 @@ trait GetMessage: Sized {
     }
 }
 
-struct Properties<T, C: Conn> {
-    msg: Message<C>,
-    value: T,
-}
+impl GetMessage for String {
+    type Error = Error;
 
+    fn apply_mqget<C: Conn>(md: &mut MqStruct<impl MQMD>, gmo: &mut MqStruct<sys::MQGMO>) {
+        gmo.Options |= sys::MQGMO_CONVERT;
+    }
+
+    fn create_from<C: Conn>(
+        object: &Object<C>,
+        data: Cow<[u8]>,
+        md: &MqStruct<impl MQMD>,
+        gmo: &MqStruct<sys::MQGMO>,
+        warning: Option<(ReasonCode, &'static str)>,
+    ) -> ResultCompErr<Self, Self::Error> {
+        todo!()
+    }
+}
 // pub struct GetMessage {
 //     gmo: sys::MQGMO,
 //     pub returned_length: sys::MQLONG,
@@ -324,11 +336,13 @@ impl<C: Conn> Object<C> {
 
         T::apply_mqget::<C>(&mut md, &mut gmo);
 
-        let result = self
+        let Completion(length, warning) = self
             .connection
             .mq()
-            .mqget(self.connection.handle(), self.handle(), Some(&mut *md), &mut gmo, &mut buffer);
-        ()
+            .mqget(self.connection.handle(), self.handle(), Some(&mut *md), &mut gmo, &mut buffer)?;
+
+        let buffer: &[u8] = unsafe { transmute(&buffer[..length.try_into().expect("length within positive range")]) };
+        T::create_from(self, Cow::from(buffer), &md, &gmo, warning)
     }
 
     /*
