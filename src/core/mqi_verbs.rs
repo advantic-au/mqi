@@ -209,7 +209,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
 
     /// Retrieves a message from a local queue that has been opened using the mqopen call
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
-    pub fn mqget<T>(
+    pub fn mqget<T: ?Sized>(
         &self,
         connection_handle: &ConnectionHandle,
         object_handle: &ObjectHandle,

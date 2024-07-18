@@ -67,6 +67,9 @@ impl<T: AsRef<[u8]>> EncodedString for StringCcsid<T> {
 
 impl<T: Default> Default for StringCcsid<T> {
     fn default() -> Self {
-        Self { ccsid: NonZero::new(1208), data: Default::default() }
+        Self {
+            ccsid: NonZero::new(1208),
+            data: Default::default(),
+        }
     }
 }

@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
-use mqi::prelude::*;
+use mqi::property::Attributes;
+use mqi::{prelude::*, property, Message};
 use mqi::{
     inq, mqstr, sys, ConnectionOptions, Credentials, InqReqItem, InqReqType, MqStr, MqStruct, Object, ObjectName, QueueManager,
     StructBuilder,
@@ -31,6 +32,39 @@ fn object() {
     })
     .join()
     .expect("Panic from connection thread");
+}
+
+#[test]
+fn get_message() -> Result<(), Box<dyn std::error::Error>> {
+    const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
+    let buffer = vec![0; 2 * 1024 * 1024]; //2M
+    let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
+    let (qm, ..) = QueueManager::new(None, &cb).warn_as_error()?;
+
+    let mut od = MqStruct::<sys::MQOD>::default();
+    od.ObjectName = QUEUE.into();
+    od.ObjectType = sys::MQOT_Q;
+    let object = Object::open(&qm, &od, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF))?;
+    let mut properties = Message::new(&qm, MqValue::default())?;
+    let result: Option<mqi::GetMqmd<Vec<u8>>> = object
+        .get_message(
+            // Get a vector with an MQMD
+            MqMask::default(),     // Just the default GET options
+            mqi::ANY_MESSAGE,      // No selection criteria
+            Some(2000),            // Wait 2 seconds
+            Some(&mut properties), // Populate the properties
+            buffer,                // Use a vec as buffer
+        )
+        .warn_as_error()?;
+
+    for v in properties.property_iter(property::INQUIRE_ALL, MqMask::default()) {
+        let (name, value): (String, Attributes<String>) = v.warn_as_error()?;
+        println!("{name:?}, {value:?}");
+    }
+
+    println!("{result:?}");
+
+    Ok(())
 }
 
 #[test]

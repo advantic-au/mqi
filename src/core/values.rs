@@ -9,6 +9,8 @@ define_mqvalue!(pub MQOP, mapping::MQOP_CONST);
 define_mqvalue!(pub MQSR, mapping::MQSR_CONST);
 define_mqvalue!(pub MQTYPE, mapping::MQTYPE_CONST);
 define_mqvalue!(pub MQENC, mapping::MQENC_CONST);
+define_mqvalue!(pub MQGMO, mapping::MQGMO_CONST);
+impl_default_mqvalue!(MqMask<MQGMO>, sys::MQGMO_NONE);
 define_mqvalue!(pub MQSTAT, mapping::MQSTAT_CONST);
 // Create bag options mask
 define_mqvalue!(pub MQCBO, mapping::MQCBO_CONST);
@@ -25,6 +27,5 @@ define_mqvalue!(pub MQIMPO, mapping::MQIMPO_CONST);
 impl_default_mqvalue!(MqMask<MQIMPO>, sys::MQIMPO_NONE);
 define_mqvalue!(pub MQPD, mapping::MQPD_CONST);
 define_mqvalue!(pub MQCOPY, mapping::MQCOPY_CONST);
-
 define_mqvalue!(pub MQRC, mapping::MQRC_FULL_CONST);
 define_mqvalue!(pub MQCC, mapping::MQCC_CONST);

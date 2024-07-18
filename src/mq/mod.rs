@@ -1,6 +1,7 @@
 #[cfg(feature = "link")]
 mod link;
 
+mod buffer;
 mod builder;
 mod callback;
 mod get;
@@ -22,3 +23,4 @@ pub use mqstruct::*;
 pub use object::*;
 pub use queue_manager::*;
 pub use strings::*;
+pub use buffer::*;

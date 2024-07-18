@@ -1,12 +1,11 @@
-use std::ops::{Deref, DerefMut};
-use std::{borrow::Cow, cmp::min, marker::PhantomData, num::NonZero, ptr};
+use std::{marker::PhantomData, num::NonZero, ptr};
 
 use libmqm_sys::function;
 
 use crate::core::values::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::core::MessageHandle;
 use crate::property::{InqPropertyType, NameUsage, SetPropertyType};
-use crate::{core, sys, Completion, Conn, QueueManagerShare};
+use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer, QueueManagerShare};
 
 use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt, MQMD};
 use crate::{ResultComp, ResultCompErr, ResultErr};
@@ -19,7 +18,10 @@ pub struct Message<C: Conn> {
 impl<C: Conn> Drop for Message<C> {
     fn drop(&mut self) {
         let mqdmho = sys::MQDMHO::default();
-        let _ = self.connection.mq().mqdltmh(Some(self.connection.handle()), &mut self.handle, &mqdmho);
+        let _ = self
+            .connection
+            .mq()
+            .mqdltmh(Some(self.connection.handle()), &mut self.handle, &mqdmho);
     }
 }
 
@@ -40,57 +42,6 @@ impl<'a> MqStruct<'a, sys::MQCHARV> {
     }
 }
 
-enum InqBuffer<'a, T> {
-    Slice(&'a mut [T]),
-    Owned(Vec<T>),
-}
-
-impl<'a, T> InqBuffer<'a, T> {
-    fn truncate(self, len: usize) -> Self {
-        let buf_len = self.len();
-        match self {
-            Self::Slice(s) => Self::Slice(&mut s[..min(len, buf_len)]),
-            Self::Owned(mut v) => {
-                v.truncate(len);
-                Self::Owned(v)
-            }
-        }
-    }
-}
-
-impl<'a, T> Deref for InqBuffer<'a, T> {
-    type Target = [T];
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            InqBuffer::Slice(s) => s,
-            InqBuffer::Owned(o) => o,
-        }
-    }
-}
-
-impl<'a, T> DerefMut for InqBuffer<'a, T> {
-    // Cow doesn't have DerefMut
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            InqBuffer::Slice(s) => s,
-            InqBuffer::Owned(o) => &mut *o,
-        }
-    }
-}
-
-impl<'a, T: Clone> From<InqBuffer<'a, T>> for Cow<'a, [T]>
-where
-    [T]: ToOwned,
-{
-    fn from(value: InqBuffer<'a, T>) -> Self {
-        match value {
-            InqBuffer::Slice(s) => Cow::from(&*s),
-            InqBuffer::Owned(o) => o.into(),
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn inqmp<'a, 'b, A: core::Library<MQ: function::MQI>>(
     mq: &core::MQFunctions<A>,
@@ -106,7 +57,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::MQI>>(
     max_name_size: Option<NonZero<usize>>,
 ) -> ResultCompErr<(InqBuffer<'a, u8>, Option<InqBuffer<'b, u8>>), core::MqInqError> {
     if let Some(rn) = returned_name.as_mut() {
-        let rn_ref: &mut [u8] = rn;
+        let rn_ref = rn.as_mut();
         mqimpo.ReturnedName.VSPtr = rn_ref.as_mut_ptr().cast();
         mqimpo.ReturnedName.VSBufSize = rn_ref.len().try_into().expect("length always converts to usize");
     } else {
@@ -121,7 +72,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::MQI>>(
             name,
             mqpd,
             value_type,
-            Some(&mut *value),
+            Some(value.as_mut()),
         ),
         returned_name,
     ) {
@@ -189,9 +140,7 @@ pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
     _marker: PhantomData<P>,
 }
 
-impl<P: InqPropertyType, N: EncodedString + ?Sized, C: Conn> Iterator
-    for MsgPropIter<'_, '_, P, N, C>
-{
+impl<P: InqPropertyType, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
     type Item = ResultCompErr<P, P::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -208,17 +157,18 @@ impl<P: InqPropertyType, N: EncodedString + ?Sized, C: Conn> Iterator
 }
 
 impl<C: Conn> Message<C> {
-
-    pub fn handle(&self) -> &MessageHandle {
+    pub const fn handle(&self) -> &MessageHandle {
         &self.handle
     }
-    
+
     pub fn new(connection: C, options: MqValue<MQCMHO>) -> ResultErr<Self> {
         let mqcmho = sys::MQCMHO {
             Options: options.value(),
             ..sys::MQCMHO::default()
         };
-        connection.mq().mqcrtmh(Some(connection.handle()), &mqcmho)
+        connection
+            .mq()
+            .mqcrtmh(Some(connection.handle()), &mqcmho)
             .map(|handle| Self { handle, connection })
     }
 
@@ -258,7 +208,11 @@ impl<C: Conn> Message<C> {
             Options: options.value() | P::MQIMPO_VALUE,
             ReturnedName: inq_name_buffer.as_mut().map_or_else(Default::default, |name| sys::MQCHARV {
                 VSPtr: ptr::from_mut(&mut *name).cast(),
-                VSBufSize: name.len().try_into().expect("length of buffer must always fit in an MQLONG"),
+                VSBufSize: name
+                    .as_ref()
+                    .len()
+                    .try_into()
+                    .expect("length of buffer must always fit in an MQLONG"),
                 ..sys::MQCHARV::default()
             }),
             ..sys::MQIMPO::default()
@@ -310,15 +264,15 @@ impl<C: Conn> Message<C> {
         })
     }
 
-    pub fn delete_property(&self, name: &(impl EncodedString + ?Sized),
-        options: MqValue<MQDMPO>,
-    ) -> ResultComp<()> {
+    pub fn delete_property(&self, name: &(impl EncodedString + ?Sized), options: MqValue<MQDMPO>) -> ResultComp<()> {
         let mut mqdmpo = MqStruct::<sys::MQDMPO>::default();
         mqdmpo.Options = options.value();
 
         let name_mqcharv = MqStruct::from_encoded_str(name);
 
-        self.connection.mq().mqdltmp(Some(self.connection.handle()), &self.handle, &mqdmpo, &name_mqcharv)
+        self.connection
+            .mq()
+            .mqdltmp(Some(self.connection.handle()), &self.handle, &mqdmpo, &name_mqcharv)
     }
 
     pub fn set_property(

@@ -3,11 +3,11 @@ use std::{
     cmp::min,
     collections::{vec_deque::Iter, VecDeque},
     fmt::Debug,
-    mem::{size_of_val, transmute, MaybeUninit},
     num::NonZero,
     ops::{Deref, DerefMut},
     ptr,
     str::from_utf8_unchecked,
+    string::FromUtf8Error,
     sync::Arc,
 };
 
@@ -16,14 +16,17 @@ use libmqm_sys::function;
 use crate::{
     core::{
         self,
-        values::{MQCO, MQOO, MQXA},
+        values::{MQCO, MQENC, MQGMO, MQOO, MQXA},
         ConnectionHandle, Library, MQFunctions,
-    }, Completion, Conn, Error, Message, MqMask, MqStruct, MqValue, ReasonCode, ResultCompErr, ResultCompErrExt as _
+    },
+    mqstr, Buffer, Completion, Conn, Error, Message, MqMask, MqStruct, MqValue, ReasonCode, ResultCompErr, ResultCompErrExt as _,
 };
 use crate::{sys, MqStr, QMName, QName, StructBuilder};
-use crate::{ObjectName, ResultComp};
+use crate::ResultComp;
 
 use super::QueueManagerShare;
+
+type Warning = (ReasonCode, &'static str);
 
 trait Sealed {}
 #[allow(private_bounds)]
@@ -37,13 +40,24 @@ macro_rules! impl_mqmd {
     ($path:path) => {
         impl MQMD for $path {
             fn match_by(match_options: &MatchOptions) -> Self {
-                Self {
-                    MsgId: match_options.msg_id.unwrap_or_default(),
-                    CorrelId: match_options.correl_id.unwrap_or_default(),
-                    GroupId: match_options.group_id.unwrap_or_default(),
-                    MsgSeqNumber: match_options.seq_number.unwrap_or_default(),
-                    ..Self::default()
+                let mut result = Self::default();
+
+                if let Some(msg_id) = match_options.msg_id {
+                    result.MsgId = *msg_id;
                 }
+
+                if let Some(correl_id) = match_options.correl_id {
+                    result.CorrelId = *correl_id;
+                }
+
+                if let Some(group_id) = match_options.group_id {
+                    result.GroupId = *group_id;
+                }
+
+                result.MsgSeqNumber = match_options.seq_number.unwrap_or(0);
+                result.Offset = match_options.offset.unwrap_or(0);
+
+                result
             }
         }
     };
@@ -174,71 +188,146 @@ pub type GroupId = [u8; sys::MQ_GROUP_ID_LENGTH];
 pub type MsgToken = [u8; sys::MQ_MSG_TOKEN_LENGTH];
 
 #[derive(Default)]
-pub struct MatchOptions {
-    pub msg_id: Option<MessageId>,
-    pub correl_id: Option<CorrelationId>,
-    pub group_id: Option<GroupId>,
+pub struct MatchOptions<'a> {
+    pub msg_id: Option<&'a MessageId>,
+    pub correl_id: Option<&'a CorrelationId>,
+    pub group_id: Option<&'a GroupId>,
     pub seq_number: Option<sys::MQLONG>,
     pub offset: Option<sys::MQLONG>,
-    pub token: Option<MsgToken>,
+    pub token: Option<&'a MsgToken>,
 }
 
-trait GetMessage: Sized {
+pub const ANY_MESSAGE: &MatchOptions = &MatchOptions {
+    msg_id: None,
+    correl_id: None,
+    group_id: None,
+    seq_number: None,
+    offset: None,
+    token: None,
+};
+
+pub struct MessageFormat {
+    pub ccsid: sys::MQLONG,
+    pub encoding: MqMask<MQENC>,
+    pub format: MqStr<8>,
+}
+
+pub trait GetMessage: Sized {
     type Error: std::fmt::Debug + From<Error>;
 
-    fn apply_mqget<C: Conn>(md: &mut MqStruct<impl MQMD>, gmo: &mut MqStruct<sys::MQGMO>);
     fn create_from<C: Conn>(
         object: &Object<C>,
         data: Cow<[u8]>,
-        md: &MqStruct<impl MQMD>,
+        md: &MqStruct<'static, sys::MQMD2>,
         gmo: &MqStruct<sys::MQGMO>,
-        warning: Option<(ReasonCode, &'static str)>,
-    ) -> ResultCompErr<Self, Self::Error>;
+        format: &MessageFormat,
+        warning: Option<Warning>,
+    ) -> Result<Self, Self::Error>;
 
     #[must_use]
     fn max_data_size() -> Option<NonZero<usize>> {
         None
     }
+
+    #[allow(unused_variables)]
+    fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {}
+}
+
+// TODO: define this somewhare nicer
+const MQSTR: MqStr<8> = mqstr!("MQSTR");
+
+// TODO: add MQ warnings to error messages
+#[derive(thiserror::Error, Debug)]
+pub enum GetStringError {
+    #[error("Message parsing error: {}", .0)]
+    Utf8Parse(FromUtf8Error, Option<Warning>),
+    #[error("Unexpected format or CCSID. Message format = '{}', CCSID = {}", .0, .1)]
+    UnexpectedFormat(MqStr<8>, sys::MQLONG, Option<Warning>),
+    #[error(transparent)]
+    MQ(#[from] Error),
 }
 
 impl GetMessage for String {
-    type Error = Error;
+    type Error = GetStringError;
 
-    fn apply_mqget<C: Conn>(md: &mut MqStruct<impl MQMD>, gmo: &mut MqStruct<sys::MQGMO>) {
+    fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
         gmo.Options |= sys::MQGMO_CONVERT;
+        md.CodedCharSetId = 1208;
     }
+
+    fn create_from<C: Conn>(
+        _object: &Object<C>,
+        data: Cow<[u8]>,
+        _md: &MqStruct<sys::MQMD2>,
+        _gmo: &MqStruct<sys::MQGMO>,
+        format: &MessageFormat,
+        warning: Option<Warning>,
+    ) -> Result<Self, Self::Error> {
+        if format.format != MQSTR || format.ccsid != 1208 {
+            return Err(GetStringError::UnexpectedFormat(format.format, format.ccsid, warning));
+        }
+
+        match warning {
+            Some((rc, verb)) if rc == sys::MQRC_NOT_CONVERTED => Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc).into()),
+            other_warning => Ok(Self::from_utf8(data.into_owned()).map_err(|e| GetStringError::Utf8Parse(e, other_warning))?),
+        }
+    }
+}
+
+impl<T> Deref for GetMqmd<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.body
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct GetMqmd<T> {
+    pub mqmd: MqStruct<'static, sys::MQMD2>,
+    pub body: T,
+}
+
+impl<T: GetMessage> GetMessage for GetMqmd<T> {
+    type Error = T::Error;
 
     fn create_from<C: Conn>(
         object: &Object<C>,
         data: Cow<[u8]>,
-        md: &MqStruct<impl MQMD>,
+        md: &MqStruct<'static, sys::MQMD2>,
         gmo: &MqStruct<sys::MQGMO>,
-        warning: Option<(ReasonCode, &'static str)>,
-    ) -> ResultCompErr<Self, Self::Error> {
-        todo!()
+        format: &MessageFormat,
+        warning: Option<Warning>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            mqmd: md.clone(),
+            body: T::create_from(object, data, md, gmo, format, warning)?,
+        })
+    }
+
+    fn max_data_size() -> Option<NonZero<usize>> {
+        T::max_data_size()
+    }
+
+    fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
+        T::apply_mqget(md, gmo);
     }
 }
-// pub struct GetMessage {
-//     gmo: sys::MQGMO,
-//     pub returned_length: sys::MQLONG,
-// }
 
-// impl GetMessage {
-//     #[must_use]
-//     pub const fn returned_length(&self) -> sys::MQLONG {
-//         self.returned_length
-//     }
+impl GetMessage for Vec<u8> {
+    type Error = Error;
 
-//     #[must_use]
-//     pub const fn message_token(&self) -> &MsgToken {
-//         &self.gmo.MsgToken
-//     }
-
-//     #[must_use]
-//     pub fn resolved_queue(&self) -> &ObjectName {
-//         self.gmo.ResolvedQName.as_ref()
-//     }
-// }
+    fn create_from<C: Conn>(
+        _object: &Object<C>,
+        data: Cow<[u8]>,
+        _md: &MqStruct<sys::MQMD2>,
+        _gmo: &MqStruct<sys::MQGMO>,
+        _format: &MessageFormat,
+        _warning: Option<Warning>,
+    ) -> Result<Self, Self::Error> {
+        Ok(data.into_owned())
+    }
+}
 
 impl<C: Conn> Object<C> {
     #[must_use]
@@ -305,22 +394,28 @@ impl<C: Conn> Object<C> {
             .mqput(self.connection.handle(), self.handle(), Some(mqmd), pmo, body)
     }
 
-    pub fn get_message2<T: GetMessage>(
+    pub fn get_message<'a, T: GetMessage>(
         &self,
+        gmo: MqMask<MQGMO>,
         mo: &MatchOptions,
         wait: Option<sys::MQLONG>,
         properties: Option<&mut Message<C>>,
-    ) -> ResultCompErr<T, T::Error> {
-        let mut buffer = [const { MaybeUninit::<u8>::uninit() }; 1024];
+        buffer: impl Buffer<'a>,
+    ) -> ResultCompErr<Option<T>, T::Error> {
+        let mut buffer = buffer;
 
         let mut md = MqStruct::new(sys::MQMD2::match_by(mo));
         let mut gmo = MqStruct::new(sys::MQGMO {
             Version: sys::MQGMO_VERSION_4,
-            // MsgHandle: unsafe { handle.raw_handle() },
-            MsgToken: mo.token.unwrap_or_default(),
+            Options: gmo.value(),
             ..sys::MQGMO::default()
         });
-        gmo.MatchOptions |= mo.group_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_GROUP_ID)
+        if let Some(token) = mo.token {
+            gmo.MsgToken = *token;
+        }
+        gmo.MatchOptions = mo.correl_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_CORREL_ID)
+            | mo.msg_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_ID)
+            | mo.group_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_GROUP_ID)
             | mo.seq_number.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_SEQ_NUMBER)
             | mo.offset.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_OFFSET)
             | mo.token.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_TOKEN);
@@ -334,65 +429,51 @@ impl<C: Conn> Object<C> {
             gmo.MsgHandle = unsafe { props.handle().raw_handle() }
         }
 
-        T::apply_mqget::<C>(&mut md, &mut gmo);
+        T::apply_mqget(&mut md, &mut gmo);
 
-        let Completion(length, warning) = self
+        let get_result = match self
             .connection
             .mq()
-            .mqget(self.connection.handle(), self.handle(), Some(&mut *md), &mut gmo, &mut buffer)?;
+            .mqget(
+                self.connection.handle(),
+                self.handle(),
+                Some(&mut *md),
+                &mut gmo,
+                buffer.as_mut(),
+            )
+            .map_completion(|length| match gmo.ReturnedLength {
+                sys::MQRL_UNDEFINED => min(
+                    buffer.len().try_into().expect("length of buffer must fit in positive i32"),
+                    length,
+                ),
+                returned_length => returned_length,
+            }) {
+            Err(Error(cc, _, rc)) if cc == sys::MQCC_FAILED && rc == sys::MQRC_NO_MSG_AVAILABLE => Ok(Completion::new(None)),
+            other => other.map_completion(Some),
+        }?;
 
-        let buffer: &[u8] = unsafe { transmute(&buffer[..length.try_into().expect("length within positive range")]) };
-        T::create_from(self, Cow::from(buffer), &md, &gmo, warning)
+        Ok(match get_result {
+            Completion(Some(length), warning) => {
+                buffer = buffer.truncate(length.try_into().expect("length within positive usize range"));
+                Completion(
+                    Some(T::create_from(
+                        self,
+                        buffer.into_cow(),
+                        &md,
+                        &gmo,
+                        &MessageFormat {
+                            ccsid: md.CodedCharSetId,
+                            encoding: MqMask::from(md.Encoding),
+                            format: md.Format.into(),
+                        },
+                        warning,
+                    )?),
+                    warning,
+                )
+            }
+            comp => comp.map(|_| None),
+        })
     }
-
-    /*
-    pub fn get_message<B>(
-        &self,
-        handle: &core::MessageHandle,
-        mo: &MatchOptions,
-        wait: Option<sys::MQLONG>,
-        body: &mut B,
-    ) -> ResultComp<GetMessage> {
-        let mut md = sys::MQMD2 {
-            MsgId: mo.msg_id.unwrap_or_default(),
-            CorrelId: mo.correl_id.unwrap_or_default(),
-            GroupId: mo.group_id.unwrap_or_default(),
-            MsgSeqNumber: mo.seq_number.unwrap_or_default(),
-            ..sys::MQMD2::default()
-        };
-        let mut gmo = sys::MQGMO {
-            Version: sys::MQGMO_VERSION_4,
-            MsgHandle: unsafe { handle.raw_handle() },
-            MsgToken: mo.token.unwrap_or_default(),
-            ..sys::MQGMO::default()
-        };
-        gmo.MatchOptions |= mo.group_id.map_or(0, |_| sys::MQMO_MATCH_GROUP_ID)
-            | mo.seq_number.map_or(0, |_| sys::MQMO_MATCH_MSG_SEQ_NUMBER)
-            | mo.offset.map_or(0, |_| sys::MQMO_MATCH_OFFSET)
-            | mo.token.map_or(0, |_| sys::MQMO_MATCH_MSG_TOKEN);
-        // Set up the wait
-        if let Some(interval) = wait {
-            gmo.Options |= sys::MQGMO_WAIT;
-            gmo.WaitInterval = interval;
-        }
-
-        self.connection
-            .mq()
-            .mqget(self.connection.handle(), self.handle(), Some(&mut md), &mut gmo, body)
-            .map_completion(|len| GetMessage {
-                returned_length: match gmo.ReturnedLength {
-                    sys::MQRL_UNDEFINED => min(
-                        len,
-                        size_of_val(body)
-                            .try_into()
-                            .expect("body length exceeds maximum positive MQLONG"),
-                    ),
-                    other => other,
-                },
-                gmo,
-            })
-    }
-     */
 
     pub fn close_options(&mut self, options: MqMask<MQCO>) {
         self.close_options = options;
