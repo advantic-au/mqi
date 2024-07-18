@@ -5,9 +5,9 @@ use libmqm_sys::function;
 use crate::core::values::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::core::MessageHandle;
 use crate::property::{InqPropertyType, NameUsage, SetPropertyType};
-use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer, QueueManagerShare};
+use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
 
-use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt, MQMD};
+use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt};
 use crate::{ResultComp, ResultCompErr, ResultErr};
 
 pub struct Message<C: Conn> {
@@ -296,11 +296,5 @@ impl<C: Conn> Message<C> {
             value_type,
             data,
         )
-    }
-}
-
-impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
-    pub fn put<B>(&self, mqod: &mut sys::MQOD, mqmd: Option<&mut impl MQMD>, pmo: &mut sys::MQPMO, body: &B) -> ResultComp<()> {
-        self.mq().mqput1(self.handle(), mqod, mqmd, pmo, body)
     }
 }

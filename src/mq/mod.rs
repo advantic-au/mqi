@@ -4,23 +4,20 @@ mod link;
 mod buffer;
 mod builder;
 mod callback;
-mod get;
 mod message;
+mod mqmd;
 mod mqstruct;
 mod object;
 mod queue_manager;
 mod strings;
 
-mod inq_types;
-pub mod inq {
-    pub use super::inq_types::*;
-}
+pub mod types;
 
 pub use builder::*;
-pub use get::*;
 pub use message::*;
 pub use mqstruct::*;
 pub use object::*;
 pub use queue_manager::*;
 pub use strings::*;
+pub use mqmd::*;
 pub use buffer::*;

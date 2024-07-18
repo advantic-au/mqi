@@ -1,5 +1,6 @@
-use super::{InqReqItem, InqReqType};
 use crate::{sys, MqValue};
+
+use super::inq::{InqReqItem, InqReqType};
 
 // Create a string based InqReqType
 const fn inqreq_str(mqca: sys::MQLONG, length: usize) -> InqReqType {

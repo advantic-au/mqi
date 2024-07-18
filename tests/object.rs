@@ -4,9 +4,9 @@ use std::error::Error;
 use std::thread;
 
 use mqi::property::Attributes;
-use mqi::{prelude::*, property, Message};
+use mqi::{get, prelude::*, Message};
 use mqi::{
-    inq, mqstr, sys, ConnectionOptions, Credentials, InqReqItem, InqReqType, MqStr, MqStruct, Object, ObjectName, QueueManager,
+    inq, mqstr, sys, ConnectionOptions, Credentials, MqStr, MqStruct, Object, ObjectName, QueueManager,
     StructBuilder,
 };
 
@@ -46,18 +46,18 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     od.ObjectType = sys::MQOT_Q;
     let object = Object::open(&qm, &od, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF))?;
     let mut properties = Message::new(&qm, MqValue::default())?;
-    let result: Option<mqi::GetMqmd<Vec<u8>>> = object
+    let result: Option<get::Mqmd<Vec<u8>>> = object
         .get_message(
             // Get a vector with an MQMD
             MqMask::default(),     // Just the default GET options
-            mqi::ANY_MESSAGE,      // No selection criteria
+            get::ANY_MESSAGE,      // No selection criteria
             Some(2000),            // Wait 2 seconds
             Some(&mut properties), // Populate the properties
             buffer,                // Use a vec as buffer
         )
         .warn_as_error()?;
 
-    for v in properties.property_iter(property::INQUIRE_ALL, MqMask::default()) {
+    for v in properties.property_iter("%", MqMask::default()) {
         let (name, value): (String, Attributes<String>) = v.warn_as_error()?;
         println!("{name:?}, {value:?}");
     }
@@ -69,7 +69,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
-    const INQ: &[InqReqType] = &[
+    const INQ: &[inq::InqReqType] = &[
         inq::MQCA_Q_MGR_NAME,
         inq::MQCA_ALTERATION_DATE,
         inq::MQCA_DEAD_LETTER_Q_NAME,
@@ -81,7 +81,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         (
             // Hmmm... this works. Not documented for MQINQ though.
             MqValue::from(sys::MQCA_VERSION),
-            InqReqItem::Str(sys::MQ_VERSION_LENGTH),
+            inq::InqReqItem::Str(sys::MQ_VERSION_LENGTH),
         ),
         inq::MQIA_COMMAND_LEVEL,
     ];
@@ -105,8 +105,8 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
             (
                 attr,
                 match value {
-                    mqi::InqResItem::Str(value) => Cow::from(value),
-                    mqi::InqResItem::Long(value) => Cow::from(value.to_string()),
+                    inq::InqResItem::Str(value) => Cow::from(value),
+                    inq::InqResItem::Long(value) => Cow::from(value.to_string()),
                 },
             )
         })
@@ -136,5 +136,4 @@ fn transaction() -> Result<(), Box<dyn Error>> {
     object.put(&mut *md, &mut pmo, b"Hello ").warn_as_error()?;
 
     Ok(())
-    //        sync.backout().expect("Backout failed");
 }
