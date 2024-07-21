@@ -19,7 +19,7 @@ pub struct MqStr<const N: usize> {
 #[macro_export]
 macro_rules! mqstr {
     ($val:expr) => {
-        const { MqStr::from_str($val) }
+        const { $crate::MqStr::from_str($val) }
     };
 }
 

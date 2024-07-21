@@ -4,11 +4,9 @@ use std::error::Error;
 use std::thread;
 
 use mqi::property::Attributes;
+use mqi::put::Properties;
 use mqi::{get, prelude::*, Message};
-use mqi::{
-    inq, mqstr, sys, ConnectionOptions, Credentials, MqStr, MqStruct, Object, ObjectName, QueueManager,
-    StructBuilder,
-};
+use mqi::{inq, mqstr, sys, ConnectionOptions, Credentials, MqStruct, Object, ObjectName, QueueManager, StructBuilder};
 
 #[test]
 fn object() {
@@ -19,14 +17,15 @@ fn object() {
         .expect("Could not establish connection");
 
     thread::spawn(move || {
-        let mut od = sys::MQOD::default();
-        let mut md = sys::MQMD::default();
-        let mut pmo = sys::MQPMO::default();
+        let mut od = MqStruct::<sys::MQOD>::default();
 
         QUEUE.copy_into_mqchar(&mut od.ObjectName);
         od.ObjectType = sys::MQOT_Q;
 
-        qm.put(&mut od, Some(&mut md), &mut pmo, b"Hello ")
+        let props = Message::new(&qm, MqValue::default()).expect("property creation");
+        props.set_property("my_property", "value", MqValue::default()).warn_as_error().expect("property set");
+
+        qm.put_message::<()>(&mut od, MqMask::default(), &Properties::New(Some(&props)), b"Hello".as_slice())
             .warn_as_error()
             .expect("Put failed");
     })
@@ -37,7 +36,8 @@ fn object() {
 #[test]
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
-    let buffer = vec![0; 2 * 1024 * 1024]; //2M
+    //let mut buffer = vec![0u8; 2 * 1024 * 1024]; //2M
+    // let mut buffer = [0u8; 2*1024];
     let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
     let (qm, ..) = QueueManager::new(None, &cb).warn_as_error()?;
 
@@ -46,16 +46,19 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     od.ObjectType = sys::MQOT_Q;
     let object = Object::open(&qm, &od, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF))?;
     let mut properties = Message::new(&qm, MqValue::default())?;
-    let result: Option<get::Mqmd<Vec<u8>>> = object
-        .get_message(
-            // Get a vector with an MQMD
-            MqMask::default(),     // Just the default GET options
-            get::ANY_MESSAGE,      // No selection criteria
-            Some(2000),            // Wait 2 seconds
-            Some(&mut properties), // Populate the properties
-            buffer,                // Use a vec as buffer
-        )
-        .warn_as_error()?;
+    let result: Option<get::Mqmd<String>> = {
+        let mut buffer = [0u8; 2 * 1024];
+        object
+            .get_message(
+                // Get a vector with an MQMD
+                MqMask::default(),     // Just the default GET options
+                get::ANY_MESSAGE,      // No selection criteria
+                Some(2000),            // Wait 2 seconds
+                Some(&mut properties), // Populate the properties
+                buffer.as_mut_slice(), // Use a vec as buffer
+            )
+            .warn_as_error()?
+    };
 
     for v in properties.property_iter("%", MqMask::default()) {
         let (name, value): (String, Attributes<String>) = v.warn_as_error()?;
@@ -126,14 +129,14 @@ fn transaction() -> Result<(), Box<dyn Error>> {
 
     let cb = cb.build();
     let mut od = MqStruct::<sys::MQOD>::default();
-    let mut md = MqStruct::<sys::MQMD2>::default();
-    let mut pmo = MqStruct::<sys::MQPMO>::default();
 
     QUEUE.copy_into_mqchar(&mut od.ObjectName);
     let (connection, ..) = QueueManager::new(None, &cb).warn_as_error()?;
     let object = Object::open(&connection, &od, MqMask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
 
-    object.put(&mut *md, &mut pmo, b"Hello ").warn_as_error()?;
+    object
+        .put_message::<()>(MqMask::default(), &Properties::default(), "message")
+        .warn_as_error()?;
 
     Ok(())
 }

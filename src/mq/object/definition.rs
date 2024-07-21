@@ -31,17 +31,21 @@ pub struct Object<C: Conn> {
 }
 
 impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<'_, L, H>> {
-    fn mq(&self) -> &MQFunctions<impl Library<MQ: function::MQI>> {
+    type Lib = L;
+
+    fn mq(&self) -> &MQFunctions<Self::Lib> {
         self.deref().mq()
     }
 
     fn handle(&self) -> &ConnectionHandle {
         self.deref().handle()
-    }
+    }    
 }
 
 impl<L: Library<MQ: function::MQI>, H> Conn for QueueManagerShare<'_, L, H> {
-    fn mq(&self) -> &MQFunctions<impl Library<MQ: function::MQI>> {
+    type Lib = L;
+
+    fn mq(&self) -> &MQFunctions<Self::Lib> {
         Self::mq(self)
     }
 
@@ -51,7 +55,9 @@ impl<L: Library<MQ: function::MQI>, H> Conn for QueueManagerShare<'_, L, H> {
 }
 
 impl<L: Library<MQ: function::MQI>, H> Conn for &QueueManagerShare<'_, L, H> {
-    fn mq(&self) -> &MQFunctions<impl Library<MQ: function::MQI>> {
+    type Lib = L;
+
+    fn mq(&self) -> &MQFunctions<Self::Lib> {
         QueueManagerShare::<L, H>::mq(self)
     }
 

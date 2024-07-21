@@ -1,6 +1,8 @@
-use std::{error::Error, thread};
+use std::{error::Error, sync::Arc, thread};
 
-use mqi::{mqstr, sys, ConnectionOptions, Credentials, MqStr, ObjectName, QueueManager, ResultCompExt, Tls};
+use mqi::{
+    mqstr, put::Properties, sys, ConnectionOptions, Credentials, Message, MqMask, MqStruct, MqValue, ObjectName, QueueManager, ResultCompExt, Tls
+};
 
 #[test]
 fn thread() {
@@ -10,12 +12,14 @@ fn thread() {
         .warn_as_error()
         .expect("Could not establish connection");
     thread::spawn(move || {
-        let mut od = sys::MQOD::default();
-        let mut md = sys::MQMD::default();
-        let mut pmo = sys::MQPMO::default();
+        let mut od = MqStruct::<sys::MQOD>::default();
+
+        let c = Arc::new(conn);
+        let msg = Message::new(&*c, MqValue::default()).expect("message created");
+        msg.set_property("wally", "test", MqValue::default()).warn_as_error().expect("property set");
 
         QUEUE.copy_into_mqchar(&mut od.ObjectName);
-        conn.put(&mut od, Some(&mut md), &mut pmo, b"Hello ")
+        c.put_message::<()>(&mut od, MqMask::default(), &Properties::New(Some(&msg)), b"Hello ".as_slice())
             .warn_as_error()
             .expect("Put failed");
     })
@@ -44,9 +48,7 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
 #[test]
 fn connect() -> Result<(), Box<dyn Error>> {
     const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
-    let mut od = sys::MQOD::default();
-    let mut md = sys::MQMD2::default();
-    let mut pmo = sys::MQPMO::default();
+    let mut od = MqStruct::<sys::MQOD>::default();
 
     QUEUE.copy_into_mqchar(&mut od.ObjectName);
     od.ObjectType = sys::MQOT_Q;
@@ -60,8 +62,8 @@ fn connect() -> Result<(), Box<dyn Error>> {
 
     let (conn, ..) = QueueManager::new(None, &cb).warn_as_error()?;
 
-    pmo.Options |= sys::MQPMO_SYNCPOINT;
-    conn.put(&mut od, Some(&mut md), &mut pmo, b"Hello").warn_as_error()?;
+    conn.put_message::<()>(&mut od, MqMask::from(sys::MQPMO_SYNCPOINT), &Properties::default(), "Hello")
+        .warn_as_error()?;
 
     Ok(())
 }

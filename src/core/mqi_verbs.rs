@@ -110,7 +110,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
 
     /// Puts one message on a queue, or distribution list, or to a topic
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
-    pub fn mqput1<T>(
+    pub fn mqput1<T: ?Sized>(
         &self,
         connection_handle: &ConnectionHandle,
         mqod: &mut sys::MQOD,
@@ -178,7 +178,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     /// Puts a message on a queue or distribution list, or to a topic. The queue, distribution list,
     /// or topic must already be open.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
-    pub fn mqput<T>(
+    pub fn mqput<T: ?Sized>(
         &self,
         connection_handle: &ConnectionHandle,
         object_handle: &ObjectHandle,

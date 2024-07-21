@@ -67,7 +67,8 @@ pub trait Buffer<'a>: AsMut<[u8]> {
 
 impl<'a> Buffer<'a> for &'a mut [u8] {
     fn truncate(self, size: usize) -> Self {
-        &mut self[..size]
+        let len = self.len();
+        &mut self[..cmp::min(size, len)]
     }
 
     fn into_cow(self) -> Cow<'a, [u8]> {

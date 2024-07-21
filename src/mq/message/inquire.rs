@@ -10,6 +10,7 @@ use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
 use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt};
 use crate::{ResultComp, ResultCompErr, ResultErr};
 
+#[derive(Debug)]
 pub struct Message<C: Conn> {
     handle: core::MessageHandle,
     connection: C,

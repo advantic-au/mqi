@@ -11,7 +11,8 @@ use crate::{QMName, ResultComp};
 pub type ConnectionId = [sys::MQBYTE; 24];
 
 pub trait Conn {
-    fn mq(&self) -> &MQFunctions<impl Library<MQ: function::MQI>>;
+    type Lib: Library<MQ: function::MQI>;
+    fn mq(&self) -> &MQFunctions<Self::Lib>;
     fn handle(&self) -> &core::ConnectionHandle;
 }
 
@@ -76,20 +77,6 @@ impl<L: Library<MQ: function::MQI>, H> Drop for QueueManagerShare<'_, L, H> {
         let _ = self.mq.mqdisc(&mut self.handle);
     }
 }
-
-// impl<L: Library, H> Display for ConnectionShare<L, H> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "{} ID(", self.handle)?;
-//         for byte in self.id {
-//             write!(f, "{byte:02X}")?;
-//         }
-//         write!(f, ")")?;
-//         if let Some(tag) = &self.tag {
-//             write!(f, " TAG({tag})")?;
-//         }
-//         Ok(())
-//     }
-// }
 
 impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder

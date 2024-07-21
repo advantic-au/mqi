@@ -1,12 +1,13 @@
-use std::{borrow::Cow, cmp, num::NonZero, ops::Deref, string::FromUtf8Error};
+use std::{borrow::Cow, cmp, num::NonZero, ops::Deref, str::Utf8Error};
 
 use crate::{
     common::ResultCompErrExt as _, core::values, mqstr, sys, types, Buffer, Completion, Conn, Error, Message, MqMask, MqStr,
-    MqStruct, MqValue, ReasonCode, ResultCompErr, MQMD as _,
+    MqStruct, MqValue, ResultCompErr, MQMD as _,
 };
 
 use super::Object;
 
+// TODO: Move this
 #[derive(Clone, Debug)]
 pub struct MessageFormat {
     pub ccsid: sys::MQLONG,
@@ -43,23 +44,23 @@ pub const ANY_MESSAGE: &MatchOptions = &MatchOptions {
 #[derive(thiserror::Error, Debug)]
 pub enum GetStringError {
     #[error("Message parsing error: {}", .0)]
-    Utf8Parse(FromUtf8Error, Option<Warning>),
+    Utf8Parse(Utf8Error, Option<types::Warning>),
     #[error("Unexpected format or CCSID. Message format = '{}', CCSID = {}", .0, .1)]
-    UnexpectedFormat(MqStr<8>, sys::MQLONG, Option<Warning>),
+    UnexpectedFormat(MqStr<8>, sys::MQLONG, Option<types::Warning>),
     #[error(transparent)]
     MQ(#[from] Error),
 }
 
-pub trait GetMessage: Sized {
+pub trait GetMessage<'a>: Sized {
     type Error: std::fmt::Debug + From<Error>;
 
     fn create_from<C: Conn>(
         object: &Object<C>,
-        data: Cow<[u8]>,
+        data: Cow<'a, [u8]>,
         md: &MqStruct<'static, sys::MQMD2>,
         gmo: &MqStruct<sys::MQGMO>,
         format: &MessageFormat,
-        warning: Option<Warning>,
+        warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error>;
 
     #[must_use]
@@ -71,10 +72,49 @@ pub trait GetMessage: Sized {
     fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {}
 }
 
-type Warning = (ReasonCode, &'static str);
 const MQSTR: MqStr<8> = mqstr!("MQSTR");
 
-impl GetMessage for Vec<u8> {
+impl<'a> GetMessage<'a> for Cow<'a, str> {
+    type Error = GetStringError;
+
+    fn create_from<C: Conn>(
+        _object: &Object<C>,
+        data: Cow<'a, [u8]>,
+        _md: &MqStruct<'static, sys::MQMD2>,
+        _gmo: &MqStruct<sys::MQGMO>,
+        _format: &MessageFormat,
+        warning: Option<types::Warning>,
+    ) -> Result<Self, Self::Error> {
+        match (warning, data) {
+            (Some((rc, verb)), _) if rc == sys::MQRC_NOT_CONVERTED => {
+                Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc).into())
+            }
+            (warning, Cow::Borrowed(bytes)) => Ok(Cow::Borrowed(
+                std::str::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e, warning))?,
+            )),
+            (warning, Cow::Owned(bytes)) => Ok(Cow::Owned(
+                String::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e.utf8_error(), warning))?,
+            )),
+        }
+    }
+}
+
+impl<'a> GetMessage<'a> for Cow<'a, [u8]> {
+    type Error = Error;
+
+    fn create_from<C: Conn>(
+        _object: &Object<C>,
+        data: Self,
+        _md: &MqStruct<'static, sys::MQMD2>,
+        _gmo: &MqStruct<sys::MQGMO>,
+        _format: &MessageFormat,
+        _warning: Option<types::Warning>,
+    ) -> Result<Self, Self::Error> {
+        Ok(data)
+    }
+}
+
+impl GetMessage<'_> for Vec<u8> {
     type Error = Error;
 
     fn create_from<C: Conn>(
@@ -83,13 +123,13 @@ impl GetMessage for Vec<u8> {
         _md: &MqStruct<sys::MQMD2>,
         _gmo: &MqStruct<sys::MQGMO>,
         _format: &MessageFormat,
-        _warning: Option<Warning>,
+        _warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
         Ok(data.into_owned())
     }
 }
 
-impl GetMessage for String {
+impl GetMessage<'_> for String {
     type Error = GetStringError;
 
     fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
@@ -103,7 +143,7 @@ impl GetMessage for String {
         _md: &MqStruct<sys::MQMD2>,
         _gmo: &MqStruct<sys::MQGMO>,
         format: &MessageFormat,
-        warning: Option<Warning>,
+        warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
         if format.format != MQSTR || format.ccsid != 1208 {
             return Err(GetStringError::UnexpectedFormat(format.format, format.ccsid, warning));
@@ -111,21 +151,23 @@ impl GetMessage for String {
 
         match warning {
             Some((rc, verb)) if rc == sys::MQRC_NOT_CONVERTED => Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc).into()),
-            other_warning => Ok(Self::from_utf8(data.into_owned()).map_err(|e| GetStringError::Utf8Parse(e, other_warning))?),
+            other_warning => {
+                Ok(Self::from_utf8(data.into_owned()).map_err(|e| GetStringError::Utf8Parse(e.utf8_error(), other_warning))?)
+            }
         }
     }
 }
 
-impl<T: GetMessage> GetMessage for Mqmd<T> {
+impl<'a, T: GetMessage<'a>> GetMessage<'a> for Mqmd<T> {
     type Error = T::Error;
 
     fn create_from<C: Conn>(
         object: &Object<C>,
-        data: Cow<[u8]>,
+        data: Cow<'a, [u8]>,
         md: &MqStruct<'static, sys::MQMD2>,
         gmo: &MqStruct<sys::MQGMO>,
         format: &MessageFormat,
-        warning: Option<Warning>,
+        warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             mqmd: md.clone(),
@@ -151,7 +193,7 @@ impl<T> Deref for Mqmd<T> {
 }
 
 impl<C: Conn> Object<C> {
-    pub fn get_message<'a, T: GetMessage>(
+    pub fn get_message<'a, T: GetMessage<'a>>(
         &self,
         gmo: MqMask<values::MQGMO>,
         mo: &MatchOptions,
@@ -159,7 +201,10 @@ impl<C: Conn> Object<C> {
         properties: Option<&mut Message<C>>,
         buffer: impl Buffer<'a>,
     ) -> ResultCompErr<Option<T>, T::Error> {
-        let mut buffer = buffer;
+        let mut buffer = match T::max_data_size() {
+            Some(max_len) => buffer.truncate(max_len.into()),
+            None => buffer,
+        };
 
         let mut md = MqStruct::new(sys::MQMD2::match_by(mo));
         let mut mqgmo = MqStruct::new(sys::MQGMO {
@@ -176,6 +221,7 @@ impl<C: Conn> Object<C> {
             | mo.seq_number.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_SEQ_NUMBER)
             | mo.offset.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_OFFSET)
             | mo.token.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_TOKEN);
+
         // Set up the wait
         if let Some(interval) = wait {
             mqgmo.Options |= sys::MQGMO_WAIT;

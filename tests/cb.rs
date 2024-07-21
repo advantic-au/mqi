@@ -2,7 +2,7 @@ use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
 use mqi::{
-    core::ConnectionHandle, mqstr, sys, ConnectionOptions, Credentials, MqMask, MqStr, MqStruct, MqValue, Object, ObjectName,
+    core::ConnectionHandle, mqstr, sys, ConnectionOptions, Credentials, MqMask, MqStruct, MqValue, Object, ObjectName,
     QueueManager, ResultCompExt as _, MQMD,
 };
 
