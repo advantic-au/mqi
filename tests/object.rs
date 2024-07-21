@@ -23,11 +23,19 @@ fn object() {
         od.ObjectType = sys::MQOT_Q;
 
         let props = Message::new(&qm, MqValue::default()).expect("property creation");
-        props.set_property("my_property", "value", MqValue::default()).warn_as_error().expect("property set");
-
-        qm.put_message::<()>(&mut od, MqMask::default(), &Properties::New(Some(&props)), b"Hello".as_slice())
+        props
+            .set_property("my_property", "value", MqValue::default())
             .warn_as_error()
-            .expect("Put failed");
+            .expect("property set");
+
+        qm.put_message::<()>(
+            &mut od,
+            MqMask::default(),
+            &Properties::New(Some(&props)),
+            "Hello",
+        )
+        .warn_as_error()
+        .expect("Put failed");
     })
     .join()
     .expect("Panic from connection thread");
@@ -46,19 +54,17 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     od.ObjectType = sys::MQOT_Q;
     let object = Object::open(&qm, &od, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF))?;
     let mut properties = Message::new(&qm, MqValue::default())?;
-    let result: Option<get::Mqmd<String>> = {
-        let mut buffer = [0u8; 2 * 1024];
-        object
-            .get_message(
-                // Get a vector with an MQMD
-                MqMask::default(),     // Just the default GET options
-                get::ANY_MESSAGE,      // No selection criteria
-                Some(2000),            // Wait 2 seconds
-                Some(&mut properties), // Populate the properties
-                buffer.as_mut_slice(), // Use a vec as buffer
-            )
-            .warn_as_error()?
-    };
+    let mut buffer = [0u8; 2 * 1024];
+    let result: Option<get::Mqmd<Cow<str>>> = object
+        .get_message(
+            // Get a vector with an MQMD
+            MqMask::default(),     // Just the default GET options
+            get::ANY_MESSAGE,      // No selection criteria
+            Some(2000),            // Wait 2 seconds
+            Some(&mut properties), // Populate the properties
+            buffer.as_mut_slice(), // Use the stack as buffer
+        )
+        .warn_as_error()?;
 
     for v in properties.property_iter("%", MqMask::default()) {
         let (name, value): (String, Attributes<String>) = v.warn_as_error()?;

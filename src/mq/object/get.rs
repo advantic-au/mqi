@@ -1,8 +1,7 @@
 use std::{borrow::Cow, cmp, num::NonZero, ops::Deref, str::Utf8Error};
 
 use crate::{
-    common::ResultCompErrExt as _, core::values, mqstr, sys, types, Buffer, Completion, Conn, Error, Message, MqMask, MqStr,
-    MqStruct, MqValue, ResultCompErr, MQMD as _,
+    common::ResultCompErrExt as _, core::values, mqstr, sys, types, Buffer, Completion, Conn, Error, Message, MqMask, MqStr, MqStruct, MqValue, ResultCompErr, StrCcsidCow, MQMD as _
 };
 
 use super::Object;
@@ -51,6 +50,14 @@ pub enum GetStringError {
     MQ(#[from] Error),
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum GetStringCcsidError {
+    #[error("Unexpected format. Message format = '{}'", .0)]
+    UnexpectedFormat(MqStr<8>, Option<types::Warning>),
+    #[error(transparent)]
+    MQ(#[from] Error),
+}
+
 pub trait GetMessage<'a>: Sized {
     type Error: std::fmt::Debug + From<Error>;
 
@@ -74,17 +81,48 @@ pub trait GetMessage<'a>: Sized {
 
 const MQSTR: MqStr<8> = mqstr!("MQSTR");
 
-impl<'a> GetMessage<'a> for Cow<'a, str> {
-    type Error = GetStringError;
+impl<'a> GetMessage<'a> for StrCcsidCow<'a> {
+    type Error = GetStringCcsidError;
 
     fn create_from<C: Conn>(
         _object: &Object<C>,
         data: Cow<'a, [u8]>,
         _md: &MqStruct<'static, sys::MQMD2>,
         _gmo: &MqStruct<sys::MQGMO>,
-        _format: &MessageFormat,
+        format: &MessageFormat,
         warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
+        if format.format != MQSTR {
+            return Err(GetStringCcsidError::UnexpectedFormat(format.format, warning));
+        }
+
+        Ok(Self {
+            ccsid: NonZero::new(format.ccsid),
+            data
+        })
+    }
+}
+
+impl<'a> GetMessage<'a> for Cow<'a, str> {
+    type Error = GetStringError;
+
+    fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
+        gmo.Options |= sys::MQGMO_CONVERT;
+        md.CodedCharSetId = 1208;
+    }
+
+    fn create_from<C: Conn>(
+        _object: &Object<C>,
+        data: Cow<'a, [u8]>,
+        _md: &MqStruct<'static, sys::MQMD2>,
+        _gmo: &MqStruct<sys::MQGMO>,
+        format: &MessageFormat,
+        warning: Option<types::Warning>,
+    ) -> Result<Self, Self::Error> {
+        if format.format != MQSTR || format.ccsid != 1208 {
+            return Err(GetStringError::UnexpectedFormat(format.format, format.ccsid, warning));
+        }
+
         match (warning, data) {
             (Some((rc, verb)), _) if rc == sys::MQRC_NOT_CONVERTED => {
                 Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc).into())
@@ -114,49 +152,20 @@ impl<'a> GetMessage<'a> for Cow<'a, [u8]> {
     }
 }
 
-impl GetMessage<'_> for Vec<u8> {
-    type Error = Error;
+// impl GetMessage<'_> for Vec<u8> {
+//     type Error = Error;
 
-    fn create_from<C: Conn>(
-        _object: &Object<C>,
-        data: Cow<[u8]>,
-        _md: &MqStruct<sys::MQMD2>,
-        _gmo: &MqStruct<sys::MQGMO>,
-        _format: &MessageFormat,
-        _warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
-        Ok(data.into_owned())
-    }
-}
-
-impl GetMessage<'_> for String {
-    type Error = GetStringError;
-
-    fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
-        gmo.Options |= sys::MQGMO_CONVERT;
-        md.CodedCharSetId = 1208;
-    }
-
-    fn create_from<C: Conn>(
-        _object: &Object<C>,
-        data: Cow<[u8]>,
-        _md: &MqStruct<sys::MQMD2>,
-        _gmo: &MqStruct<sys::MQGMO>,
-        format: &MessageFormat,
-        warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
-        if format.format != MQSTR || format.ccsid != 1208 {
-            return Err(GetStringError::UnexpectedFormat(format.format, format.ccsid, warning));
-        }
-
-        match warning {
-            Some((rc, verb)) if rc == sys::MQRC_NOT_CONVERTED => Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc).into()),
-            other_warning => {
-                Ok(Self::from_utf8(data.into_owned()).map_err(|e| GetStringError::Utf8Parse(e.utf8_error(), other_warning))?)
-            }
-        }
-    }
-}
+//     fn create_from<C: Conn>(
+//         _object: &Object<C>,
+//         data: Cow<[u8]>,
+//         _md: &MqStruct<sys::MQMD2>,
+//         _gmo: &MqStruct<sys::MQGMO>,
+//         _format: &MessageFormat,
+//         _warning: Option<types::Warning>,
+//     ) -> Result<Self, Self::Error> {
+//         Ok(data.into_owned())
+//     }
+// }
 
 impl<'a, T: GetMessage<'a>> GetMessage<'a> for Mqmd<T> {
     type Error = T::Error;
