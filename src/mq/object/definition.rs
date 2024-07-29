@@ -39,7 +39,7 @@ impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<'_, L, H>>
 
     fn handle(&self) -> &ConnectionHandle {
         self.deref().handle()
-    }    
+    }
 }
 
 impl<L: Library<MQ: function::MQI>, H> Conn for QueueManagerShare<'_, L, H> {

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::mem::{size_of_val, MaybeUninit};
 use std::ptr;
 
-use super::values::{MQCO, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
+use super::values::{MQCO, MQDCC, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
 use super::{ConnectionHandle, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle};
 use crate::{sys, Error, MqMask, MqValue, QMName, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::{function, MQI};
@@ -679,6 +679,42 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
                     .try_into()
                     .expect("buffer length exceeds maximum positive MQLONG"),
                 ptr::from_mut(buffer).cast(),
+                &mut outcome.value,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
+            );
+        }
+        #[cfg(feature = "tracing")]
+        tracing_outcome(&outcome);
+        outcome.into()
+    }
+
+    /// Converts characters from one character set to another
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(source, target, self)))]
+    pub fn mqxcnvc<T: ?Sized>(
+        &self,
+        connection_handle: Option<&ConnectionHandle>,
+        options: MqMask<MQDCC>,
+        source_ccsid: sys::MQLONG,
+        source: &T,
+        target_ccsid: sys::MQLONG,
+        target: &mut T,
+    ) -> ResultComp<sys::MQLONG> {
+        let mut outcome = MQIOutcome::with_verb("MQXCNVC");
+        unsafe {
+            self.0.MQXCNVC(
+                connection_handle.map_or(sys::MQHC_DEF_HCONN, |h| h.raw_handle()),
+                options.value(),
+                source_ccsid,
+                size_of_val(source)
+                    .try_into()
+                    .expect("usize length of source converts into MQLONG"),
+                ptr::from_ref(source).cast_mut().cast(),
+                target_ccsid,
+                size_of_val(target)
+                    .try_into()
+                    .expect("usize length of target converts into MQLONG"),
+                ptr::from_mut(target).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,

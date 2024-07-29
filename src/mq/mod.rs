@@ -11,6 +11,9 @@ mod object;
 mod queue_manager;
 mod strings;
 
+pub mod encoding;
+
+pub mod headers;
 pub mod types;
 
 pub use builder::*;

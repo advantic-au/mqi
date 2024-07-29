@@ -5,7 +5,7 @@ use std::{borrow::Cow, num::NonZero};
 
 use libmqm_sys::lib::{MQIMPO_NONE, MQTYPE_STRING};
 
-use crate::{sys, Error, MqMask, MqStr, MqStruct, MqValue, OwnedStrCcsid, ReasonCode, StringCcsid};
+use crate::{sys, Error, MqMask, MqStr, MqStruct, MqValue, StrCcsidOwned, ReasonCode, StringCcsid};
 use crate::core::values::{MQCOPY, MQENC, MQPD, MQTYPE};
 
 pub const INQUIRE_ALL: &str = "%";
@@ -426,7 +426,7 @@ impl<const N: usize> InqNameType for MqStr<N> {
     }
 }
 
-impl InqNameType for OwnedStrCcsid {
+impl InqNameType for StrCcsidOwned {
     type Error = Error;
     const MQIMPO_NAME: sys::MQLONG = MQIMPO_NONE;
 
@@ -819,7 +819,7 @@ impl InqPropertyType for String {
     }
 }
 
-impl InqPropertyType for OwnedStrCcsid {
+impl InqPropertyType for StrCcsidOwned {
     type Error = Error;
 
     const MQTYPE: sys::MQLONG = sys::MQTYPE_STRING;

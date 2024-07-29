@@ -2,7 +2,7 @@ use std::error::Error;
 
 use mqi::{
     property::{self, Attributes, OwnedRawMeta},
-    ConnectionOptions, Credentials, Message, MqMask, MqValue, OwnedStrCcsid, QueueManager, ResultCompExt,
+    ConnectionOptions, Credentials, Message, MqMask, MqValue, StrCcsidOwned, QueueManager, ResultCompExt,
 };
 
 #[test]
@@ -22,7 +22,7 @@ fn message_handle() -> Result<(), Box<dyn Error>> {
     }
 
     for v in message.property_iter(property::INQUIRE_ALL, MqMask::default()) {
-        let (name, value): (OwnedStrCcsid, Attributes<OwnedRawMeta>) = v.warn_as_error()?;
+        let (name, value): (StrCcsidOwned, Attributes<OwnedRawMeta>) = v.warn_as_error()?;
         println!("{name:?}, {value:?}");
     }
 

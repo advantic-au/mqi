@@ -1,23 +1,27 @@
-use std::{borrow::Cow, cmp, num::NonZero, ops::Deref, str::Utf8Error};
+use core::str;
+use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, ops::Deref, str::Utf8Error};
 
 use crate::{
-    common::ResultCompErrExt as _, core::values, mqstr, sys, types, Buffer, Completion, Conn, Error, Message, MqMask, MqStr, MqStruct, MqValue, ResultCompErr, StrCcsidCow, MQMD as _
+    common::ResultCompErrExt as _,
+    core::values,
+    headers::{fmt, TextEnc},
+    sys,
+    types::{self, Fmt, MessageFormat},
+    Buffer, Completion, Conn, Error, Message, MqMask, MqStruct, MqValue, ResultCompErr, StrCcsidCow, MQMD as _,
 };
 
 use super::Object;
 
-// TODO: Move this
-#[derive(Clone, Debug)]
-pub struct MessageFormat {
-    pub ccsid: sys::MQLONG,
-    pub encoding: MqMask<values::MQENC>,
-    pub format: MqStr<8>,
-}
-
 #[derive(Clone, Debug)]
 pub struct Mqmd<T> {
     pub mqmd: MqStruct<'static, sys::MQMD2>,
-    pub body: T,
+    pub next: T,
+}
+
+#[derive(Clone, Debug)]
+pub struct Headers<'a, T> {
+    pub headers: Cow<'a, [u8]>,
+    pub next: T
 }
 
 #[derive(Debug, Clone, Default)]
@@ -45,7 +49,7 @@ pub enum GetStringError {
     #[error("Message parsing error: {}", .0)]
     Utf8Parse(Utf8Error, Option<types::Warning>),
     #[error("Unexpected format or CCSID. Message format = '{}', CCSID = {}", .0, .1)]
-    UnexpectedFormat(MqStr<8>, sys::MQLONG, Option<types::Warning>),
+    UnexpectedFormat(TextEnc<Fmt>, sys::MQLONG, Option<types::Warning>),
     #[error(transparent)]
     MQ(#[from] Error),
 }
@@ -53,20 +57,22 @@ pub enum GetStringError {
 #[derive(thiserror::Error, Debug)]
 pub enum GetStringCcsidError {
     #[error("Unexpected format. Message format = '{}'", .0)]
-    UnexpectedFormat(MqStr<8>, Option<types::Warning>),
+    UnexpectedFormat(TextEnc<Fmt>, Option<types::Warning>),
     #[error(transparent)]
     MQ(#[from] Error),
 }
 
 pub trait GetMessage<'a>: Sized {
     type Error: std::fmt::Debug + From<Error>;
+    type Payload;
 
     fn create_from<C: Conn>(
         object: &Object<C>,
-        data: Cow<'a, [u8]>,
+        data: impl Buffer<'a>,
+        data_length: usize,
         md: &MqStruct<'static, sys::MQMD2>,
         gmo: &MqStruct<sys::MQGMO>,
-        format: &MessageFormat,
+        format: &MessageFormat<TextEnc<Fmt>>,
         warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error>;
 
@@ -77,34 +83,46 @@ pub trait GetMessage<'a>: Sized {
 
     #[allow(unused_variables)]
     fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {}
-}
 
-const MQSTR: MqStr<8> = mqstr!("MQSTR");
+    fn payload(&self) -> &Self::Payload;
+    fn into_payload(self) -> Self::Payload;
+}
 
 impl<'a> GetMessage<'a> for StrCcsidCow<'a> {
     type Error = GetStringCcsidError;
+    type Payload = Self;
 
     fn create_from<C: Conn>(
         _object: &Object<C>,
-        data: Cow<'a, [u8]>,
+        data: impl Buffer<'a>,
+        data_length: usize,
         _md: &MqStruct<'static, sys::MQMD2>,
         _gmo: &MqStruct<sys::MQGMO>,
-        format: &MessageFormat,
+        format: &MessageFormat<TextEnc<Fmt>>,
         warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
-        if format.format != MQSTR {
+        if format.format != TextEnc::Ascii(fmt::MQFMT_STRING) {
             return Err(GetStringCcsidError::UnexpectedFormat(format.format, warning));
         }
 
         Ok(Self {
             ccsid: NonZero::new(format.ccsid),
-            data
+            data: data.truncate(data_length).into_cow(),
         })
+    }
+
+    fn payload(&self) -> &Self::Payload {
+        self
+    }
+    
+    fn into_payload(self) -> Self::Payload {
+        self
     }
 }
 
 impl<'a> GetMessage<'a> for Cow<'a, str> {
     type Error = GetStringError;
+    type Payload = Self;
 
     fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
         gmo.Options |= sys::MQGMO_CONVERT;
@@ -113,17 +131,18 @@ impl<'a> GetMessage<'a> for Cow<'a, str> {
 
     fn create_from<C: Conn>(
         _object: &Object<C>,
-        data: Cow<'a, [u8]>,
+        data: impl Buffer<'a>,
+        data_length: usize,
         _md: &MqStruct<'static, sys::MQMD2>,
         _gmo: &MqStruct<sys::MQGMO>,
-        format: &MessageFormat,
+        format: &MessageFormat<TextEnc<Fmt>>,
         warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
-        if format.format != MQSTR || format.ccsid != 1208 {
+        if format.format != TextEnc::Ascii(fmt::MQFMT_STRING) || format.ccsid != 1208 {
             return Err(GetStringError::UnexpectedFormat(format.format, format.ccsid, warning));
         }
 
-        match (warning, data) {
+        match (warning, data.truncate(data_length).into_cow()) {
             (Some((rc, verb)), _) if rc == sys::MQRC_NOT_CONVERTED => {
                 Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc).into())
             }
@@ -135,52 +154,83 @@ impl<'a> GetMessage<'a> for Cow<'a, str> {
             )),
         }
     }
+
+    fn payload(&self) -> &Self::Payload {
+        self
+    }
+    
+    fn into_payload(self) -> Self::Payload {
+        self
+    }
 }
 
 impl<'a> GetMessage<'a> for Cow<'a, [u8]> {
     type Error = Error;
+    type Payload = Self;
 
     fn create_from<C: Conn>(
         _object: &Object<C>,
-        data: Self,
+        data: impl Buffer<'a>,
+        data_length: usize,
         _md: &MqStruct<'static, sys::MQMD2>,
         _gmo: &MqStruct<sys::MQGMO>,
-        _format: &MessageFormat,
+        _format: &MessageFormat<TextEnc<Fmt>>,
         _warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
-        Ok(data)
+        Ok(data.truncate(data_length).into_cow())
+    }
+
+    fn payload(&self) -> &Self::Payload {
+        self
+    }
+    
+    fn into_payload(self) -> Self::Payload {
+        self
     }
 }
 
-// impl GetMessage<'_> for Vec<u8> {
-//     type Error = Error;
-
-//     fn create_from<C: Conn>(
-//         _object: &Object<C>,
-//         data: Cow<[u8]>,
-//         _md: &MqStruct<sys::MQMD2>,
-//         _gmo: &MqStruct<sys::MQGMO>,
-//         _format: &MessageFormat,
-//         _warning: Option<types::Warning>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(data.into_owned())
-//     }
-// }
-
-impl<'a, T: GetMessage<'a>> GetMessage<'a> for Mqmd<T> {
+impl<'a, T: GetMessage<'a>> GetMessage<'a> for Headers<'a, T> {
     type Error = T::Error;
+
+    type Payload = T::Payload;
 
     fn create_from<C: Conn>(
         object: &Object<C>,
-        data: Cow<'a, [u8]>,
+        data: impl Buffer<'a>,
+        data_length: usize,
         md: &MqStruct<'static, sys::MQMD2>,
         gmo: &MqStruct<sys::MQGMO>,
-        format: &MessageFormat,
+        format: &MessageFormat<TextEnc<Fmt>>,
+        warning: Option<types::Warning>,
+    ) -> Result<Self, Self::Error> {
+        todo!()
+    }
+
+    fn payload(&self) -> &Self::Payload {
+        self.next.payload()
+    }
+
+    fn into_payload(self) -> Self::Payload {
+        self.next.into_payload()
+    }
+}
+
+impl<'a, T: GetMessage<'a>> GetMessage<'a> for Mqmd<T> {
+    type Error = T::Error;
+    type Payload = T::Payload;
+
+    fn create_from<C: Conn>(
+        object: &Object<C>,
+        data: impl Buffer<'a>,
+        data_length: usize,
+        md: &MqStruct<'static, sys::MQMD2>,
+        gmo: &MqStruct<sys::MQGMO>,
+        format: &MessageFormat<TextEnc<Fmt>>,
         warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             mqmd: md.clone(),
-            body: T::create_from(object, data, md, gmo, format, warning)?,
+            next: T::create_from(object, data, data_length, md, gmo, format, warning)?,
         })
     }
 
@@ -191,13 +241,21 @@ impl<'a, T: GetMessage<'a>> GetMessage<'a> for Mqmd<T> {
     fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
         T::apply_mqget(md, gmo);
     }
+    
+    fn payload(&self) -> &Self::Payload {
+        self.next.payload()
+    }
+    
+    fn into_payload(self) -> Self::Payload {
+        self.next.into_payload()
+    }
 }
 
 impl<T> Deref for Mqmd<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.body
+        &self.next
     }
 }
 
@@ -210,9 +268,10 @@ impl<C: Conn> Object<C> {
         properties: Option<&mut Message<C>>,
         buffer: impl Buffer<'a>,
     ) -> ResultCompErr<Option<T>, T::Error> {
-        let mut buffer = match T::max_data_size() {
-            Some(max_len) => buffer.truncate(max_len.into()),
-            None => buffer,
+        let mut buffer = buffer;
+        let write_area = match T::max_data_size() {
+            Some(max_len) => &mut buffer.as_mut()[..max_len.into()],
+            None => &mut buffer.as_mut(),
         };
 
         let mut md = MqStruct::new(sys::MQMD2::match_by(mo));
@@ -252,11 +311,14 @@ impl<C: Conn> Object<C> {
                 self.handle(),
                 Some(&mut *md),
                 &mut mqgmo,
-                buffer.as_mut(),
+                write_area,
             )
             .map_completion(|length| match mqgmo.ReturnedLength {
                 sys::MQRL_UNDEFINED => cmp::min(
-                    buffer.len().try_into().expect("length of buffer must fit in positive i32"),
+                    write_area
+                        .len()
+                        .try_into()
+                        .expect("length of buffer must fit in positive i32"),
                     length,
                 ),
                 returned_length => returned_length,
@@ -266,24 +328,22 @@ impl<C: Conn> Object<C> {
         }?;
 
         Ok(match get_result {
-            Completion(Some(length), warning) => {
-                buffer = buffer.truncate(length.try_into().expect("length within positive usize range"));
-                Completion(
-                    Some(T::create_from(
-                        self,
-                        buffer.into_cow(),
-                        &md,
-                        &mqgmo,
-                        &MessageFormat {
-                            ccsid: md.CodedCharSetId,
-                            encoding: MqMask::from(md.Encoding),
-                            format: md.Format.into(),
-                        },
-                        warning,
-                    )?),
+            Completion(Some(length), warning) => Completion(
+                Some(T::create_from(
+                    self,
+                    buffer,
+                    length.try_into().expect("length within positive usize range"),
+                    &md,
+                    &mqgmo,
+                    &MessageFormat {
+                        ccsid: md.CodedCharSetId,
+                        encoding: MqMask::from(md.Encoding),
+                        format: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(md.Format) }),
+                    },
                     warning,
-                )
-            }
+                )?),
+                warning,
+            ),
             comp => comp.map(|_| None),
         })
     }

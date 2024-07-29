@@ -1,7 +1,8 @@
 use std::{error::Error, sync::Arc, thread};
 
 use mqi::{
-    mqstr, put::Properties, sys, ConnectionOptions, Credentials, Message, MqMask, MqStruct, MqValue, ObjectName, QueueManager, ResultCompExt, Tls
+    mqstr, put::Properties, sys, ConnectionOptions, Credentials, Message, MqMask, MqStruct, MqValue, ObjectName, QueueManager,
+    ResultCompExt, Tls,
 };
 
 #[test]
@@ -16,7 +17,9 @@ fn thread() {
 
         let c = Arc::new(conn);
         let msg = Message::new(&*c, MqValue::default()).expect("message created");
-        msg.set_property("wally", "test", MqValue::default()).warn_as_error().expect("property set");
+        msg.set_property("wally", "test", MqValue::default())
+            .warn_as_error()
+            .expect("property set");
 
         QUEUE.copy_into_mqchar(&mut od.ObjectName);
         c.put_message::<()>(&mut od, MqMask::default(), &Properties::New(Some(&msg)), b"Hello ".as_slice())

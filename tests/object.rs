@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
-use mqi::property::Attributes;
+use mqi::get::GetMessage;
 use mqi::put::Properties;
 use mqi::{get, prelude::*, Message};
 use mqi::{inq, mqstr, sys, ConnectionOptions, Credentials, MqStruct, Object, ObjectName, QueueManager, StructBuilder};
@@ -28,14 +28,9 @@ fn object() {
             .warn_as_error()
             .expect("property set");
 
-        qm.put_message::<()>(
-            &mut od,
-            MqMask::default(),
-            &Properties::New(Some(&props)),
-            "Hello",
-        )
-        .warn_as_error()
-        .expect("Put failed");
+        qm.put_message::<()>(&mut od, MqMask::default(), &Properties::New(Some(&props)), "Hello")
+            .warn_as_error()
+            .expect("Put failed");
     })
     .join()
     .expect("Panic from connection thread");
@@ -55,7 +50,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let object = Object::open(&qm, &od, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF))?;
     let mut properties = Message::new(&qm, MqValue::default())?;
     let mut buffer = [0u8; 2 * 1024];
-    let result: Option<get::Mqmd<Cow<str>>> = object
+    let msg: Completion<Option<get::Mqmd<Cow<str>>>> = object
         .get_message(
             // Get a vector with an MQMD
             MqMask::default(),     // Just the default GET options
@@ -63,15 +58,16 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
             Some(2000),            // Wait 2 seconds
             Some(&mut properties), // Populate the properties
             buffer.as_mut_slice(), // Use the stack as buffer
-        )
-        .warn_as_error()?;
+        )?;
+
+    let msg = msg.discard_warning(); // We don't care about warning  s, right?
+
+    println!("{}", msg.map_or("{no message}".into(), GetMessage::into_payload));
 
     for v in properties.property_iter("%", MqMask::default()) {
-        let (name, value): (String, Attributes<String>) = v.warn_as_error()?;
-        println!("{name:?}, {value:?}");
+        let (name, value): (String, String) = v.warn_as_error()?;
+        println!("{name}: {value}");
     }
-
-    println!("{result:?}");
 
     Ok(())
 }

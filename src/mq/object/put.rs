@@ -1,12 +1,11 @@
 use std::borrow::Cow;
+use std::mem;
 
 use libmqm_sys::function;
 
-use crate::get::MessageFormat;
-use crate::types::Warning;
-use crate::{
-    mqstr, sys, Completion, Conn, Error, Message, MqMask, MqStr, MqStruct, Object, QueueManagerShare, ResultComp, ResultCompErr,
-};
+use crate::headers::{fmt, TextEnc};
+use crate::types::{Fmt, MessageFormat, Warning};
+use crate::{sys, Completion, Conn, Error, Message, MqMask, MqStruct, Object, QueueManagerShare, ResultComp, ResultCompErr};
 use crate::core::{self, values};
 
 pub trait PutMessage {
@@ -16,7 +15,7 @@ pub trait PutMessage {
     fn apply_mqput(&self, mqpmo: &mut MqStruct<sys::MQPMO>) {}
 
     fn render(&self) -> Cow<[u8]>;
-    fn format(&self) -> MessageFormat;
+    fn format(&self) -> MessageFormat<TextEnc<Fmt>>;
 }
 
 pub trait PutResult: Sized {
@@ -87,7 +86,7 @@ impl<T: PutMessage> PutMessage for Context<'_, T> {
         self.message.render()
     }
 
-    fn format(&self) -> MessageFormat {
+    fn format(&self) -> MessageFormat<TextEnc<Fmt>> {
         self.message.format()
     }
 
@@ -112,11 +111,11 @@ impl PutMessage for str {
         self.as_bytes().into()
     }
 
-    fn format(&self) -> MessageFormat {
+    fn format(&self) -> MessageFormat<TextEnc<Fmt>> {
         MessageFormat {
             ccsid: 1208,
             encoding: MqMask::from(sys::MQENC_NATIVE),
-            format: mqstr!("MQSTR"),
+            format: TextEnc::Ascii(fmt::MQFMT_STRING),
         }
     }
 }
@@ -128,11 +127,11 @@ impl PutMessage for [u8] {
         self.into()
     }
 
-    fn format(&self) -> MessageFormat {
+    fn format(&self) -> MessageFormat<TextEnc<Fmt>> {
         MessageFormat {
             ccsid: 1208,
             encoding: MqMask::from(sys::MQENC_NATIVE),
-            format: MqStr::empty(),
+            format: TextEnc::Ascii(fmt::MQFMT_NONE),
         }
     }
 }
@@ -177,7 +176,7 @@ fn put<C: Conn, T: PutResult, F: FnOnce(&mut sys::MQMD2, &mut sys::MQPMO, &[u8])
     let mut md = MqStruct::new(sys::MQMD2 {
         CodedCharSetId: ccsid,
         Encoding: encoding.value(),
-        Format: format.into(),
+        Format: unsafe { mem::transmute::<Fmt, [i8; 8]>(format.into_ascii().into()) },
         ..sys::MQMD2::default()
     });
     let mut mqpmo = MqStruct::new(sys::MQPMO {
