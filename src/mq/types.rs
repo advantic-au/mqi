@@ -1,4 +1,4 @@
-use crate::{core::values, sys, MqMask, ReasonCode};
+use crate::{core::values, headers::TextEnc, sys, MqMask, ReasonCode};
 use std::str;
 
 pub type CorrelationId = [u8; sys::MQ_CORREL_ID_LENGTH];
@@ -11,9 +11,9 @@ pub type Fmt = [u8; 8];
 
 pub type Warning = (ReasonCode, &'static str);
 
-#[derive(Clone, Debug)]
-pub struct MessageFormat<T> {
+#[derive(Clone, Copy, Debug)]
+pub struct MessageFormat {
     pub ccsid: sys::MQLONG,
     pub encoding: MqMask<values::MQENC>,
-    pub format: T,
+    pub format: TextEnc<Fmt>,
 }

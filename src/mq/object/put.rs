@@ -15,7 +15,7 @@ pub trait PutMessage {
     fn apply_mqput(&self, mqpmo: &mut MqStruct<sys::MQPMO>) {}
 
     fn render(&self) -> Cow<[u8]>;
-    fn format(&self) -> MessageFormat<TextEnc<Fmt>>;
+    fn format(&self) -> MessageFormat;
 }
 
 pub trait PutResult: Sized {
@@ -86,7 +86,7 @@ impl<T: PutMessage> PutMessage for Context<'_, T> {
         self.message.render()
     }
 
-    fn format(&self) -> MessageFormat<TextEnc<Fmt>> {
+    fn format(&self) -> MessageFormat {
         self.message.format()
     }
 
@@ -111,7 +111,7 @@ impl PutMessage for str {
         self.as_bytes().into()
     }
 
-    fn format(&self) -> MessageFormat<TextEnc<Fmt>> {
+    fn format(&self) -> MessageFormat {
         MessageFormat {
             ccsid: 1208,
             encoding: MqMask::from(sys::MQENC_NATIVE),
@@ -127,7 +127,7 @@ impl PutMessage for [u8] {
         self.into()
     }
 
-    fn format(&self) -> MessageFormat<TextEnc<Fmt>> {
+    fn format(&self) -> MessageFormat {
         MessageFormat {
             ccsid: 1208,
             encoding: MqMask::from(sys::MQENC_NATIVE),

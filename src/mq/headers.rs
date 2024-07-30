@@ -27,7 +27,7 @@ pub mod fmt {
     pub const MQFMT_STRING: Fmt = cstr_array(sys::MQFMT_STRING);
 }
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum HeaderError {
     #[error("Unexpected STRUC_ID: {:?}", .0)]
     UnexpectedStrucId(StrucId),
@@ -49,13 +49,24 @@ pub enum Header<'a> {
     Cih(EncodedHeader<'a, sys::MQCIH>, &'a [u8]),
 }
 
-pub type NextHeader<'a> = (Header<'a>, &'a [u8], MessageFormat<TextEnc<Fmt>>);
+pub type NextHeader<'a> = (Header<'a>, &'a [u8], usize, MessageFormat);
 
 #[derive(Debug, Clone, Copy)]
 pub struct EncodedHeader<'a, T> {
     pub ccsid: sys::MQLONG,
     pub encoding: MqMask<MQENC>,
     pub raw_header: &'a T,
+}
+
+impl<'a> Header<'a> {
+
+    pub fn iter(data: &'a [u8], format: MessageFormat) -> HeaderIter {
+        HeaderIter {
+            format,
+            data,
+            in_error: false,
+        }
+    }
 }
 
 impl<'a, T: ChainedHeader> EncodedHeader<'a, T> {
@@ -229,7 +240,7 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
         format: header.next_format(),
     };
 
-    Ok((T::header(header, &data[struc_len..total_len]), next_data, next_fmt))
+    Ok((T::header(header, &data[struc_len..total_len]), next_data, total_len, next_fmt))
 }
 
 #[inline]
@@ -421,7 +432,37 @@ impl ChainedHeader for sys::MQRFH {
     }
 }
 
-pub fn next_header<'a>(data: &'a [u8], next_format: &MessageFormat<TextEnc<Fmt>>) -> Result<Option<NextHeader<'a>>, HeaderError> {
+pub struct HeaderIter<'a> {
+    format: MessageFormat,
+    data: &'a [u8],
+    in_error: bool
+}
+
+type HeaderItem<'a> = Result<(Header<'a>, usize, MessageFormat), HeaderError>;
+
+impl<'a> Iterator for HeaderIter<'a> {
+    type Item = HeaderItem<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.in_error {
+            return None;
+        }
+        match next_header(self.data, &self.format).transpose()? {
+            Ok((header, data, length, format)) => {
+                self.data = data;
+                self.format = format.clone();
+                Some(Ok((header, length, format)))
+            },
+            Err(error) => {
+                self.in_error = true;
+                Some(Err(error))
+            },
+        }
+        
+    }
+}
+
+pub fn next_header<'a>(data: &'a [u8], next_format: &MessageFormat) -> Result<Option<NextHeader<'a>>, HeaderError> {
     Ok(if EncodedHeader::<sys::MQRFH2>::fmt_matches(next_format.format) {
         Some(parse_header::<sys::MQRFH2>(data, next_format.ccsid, next_format.encoding)?)
     } else if EncodedHeader::<sys::MQRFH>::fmt_matches(next_format.format) {
@@ -446,25 +487,25 @@ mod tests {
     use crate::{
         headers::{Header, HeaderError},
         sys,
-        types::{Fmt, MessageFormat},
+        types::MessageFormat,
         MqMask,
     };
 
     use super::{fmt, next_header, ChainedHeader, TextEnc};
 
-    const NEXT_DEAD: MessageFormat<TextEnc<Fmt>> = MessageFormat {
+    const NEXT_DEAD: MessageFormat = MessageFormat {
         ccsid: 1208,
         encoding: MqMask::from(sys::MQENC_NATIVE),
         format: TextEnc::Ebcdic(sys::MQDLH::FMT_EBCDIC),
     };
 
-    const NEXT_RFH2: MessageFormat<TextEnc<Fmt>> = MessageFormat {
+    const NEXT_RFH2: MessageFormat = MessageFormat {
         ccsid: 1208,
         encoding: MqMask::from(sys::MQENC_NATIVE),
         format: TextEnc::Ebcdic(sys::MQRFH2::FMT_EBCDIC),
     };
 
-    const NEXT_STRING: MessageFormat<TextEnc<Fmt>> = MessageFormat {
+    const NEXT_STRING: MessageFormat = MessageFormat {
         ccsid: 1208,
         encoding: MqMask::from(sys::MQENC_NATIVE),
         format: TextEnc::Ascii(fmt::MQFMT_STRING),

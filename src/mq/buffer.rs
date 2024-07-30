@@ -54,9 +54,10 @@ where
     }
 }
 
-pub trait Buffer<'a>: AsMut<[u8]> {
+pub trait Buffer<'a>: Sized + AsMut<[u8]> + AsRef<[u8]> {
     #[must_use]
     fn truncate(self, size: usize) -> Self;
+    fn split_at(self, at: usize) -> (Self, Self);
     fn into_cow(self) -> Cow<'a, [u8]>;
     fn len(&self) -> usize;
 
@@ -78,6 +79,10 @@ impl<'a> Buffer<'a> for &'a mut [u8] {
     fn len(&self) -> usize {
         (**self).len()
     }
+    
+    fn split_at(self, at: usize) -> (Self, Self) {
+        self.split_at_mut(at)
+    }    
 }
 
 impl<'a> Buffer<'a> for Vec<u8> {
@@ -95,6 +100,16 @@ impl<'a> Buffer<'a> for Vec<u8> {
     fn len(&self) -> usize {
         self.len()
     }
+    
+    fn split_at(self, at: usize) -> (Self, Self) {
+        if at == 0 {
+            (Vec::new(), self) // No allocation when position is 0
+        } else {
+            let mut self_mut = self;
+            let tail = self_mut.split_off(at);
+            (self_mut, tail)
+        }
+    }    
 }
 
 impl<'a> Buffer<'a> for InqBuffer<'a, u8> {
@@ -108,5 +123,18 @@ impl<'a> Buffer<'a> for InqBuffer<'a, u8> {
 
     fn len(&self) -> usize {
         self.as_ref().len()
+    }
+    
+    fn split_at(self, at: usize) -> (Self, Self) {
+        match self {
+            Self::Slice(s) => {
+                let (head, tail) = s.split_at(at);
+                (Self::Slice(head), Self::Slice(tail))
+            },
+            Self::Owned(v) => {
+                let (head, tail) = v.split_at(at);
+                (Self::Owned(head), Self::Owned(tail))
+            },
+        }
     }
 }
