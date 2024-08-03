@@ -4,15 +4,26 @@ use std::{
 };
 use thiserror::Error;
 
-#[derive(Debug, Clone, Hash)]
+use crate::sys;
+
+#[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
     pub(crate) ccsid: Option<std::num::NonZeroI32>,
+    pub(crate) le: bool,
     pub(crate) data: T,
+}
+
+impl<T> StringCcsid<T> {
+    pub const fn new(data: T, ccsid: Option<std::num::NonZeroI32>, le: bool) -> Self {
+        Self { ccsid, le, data }
+    }
 }
 
 pub type StrCcsid<'a> = StringCcsid<&'a [u8]>;
 pub type StrCcsidOwned = StringCcsid<Vec<u8>>;
 pub type StrCcsidCow<'a> = StringCcsid<Cow<'a, [u8]>>;
+
+pub const NATIVE_IS_LE: bool = (sys::MQENC_NATIVE & sys::MQENC_INTEGER_REVERSED) != 0;
 
 #[derive(Error, Debug)]
 pub enum FromStringCcsidError {
@@ -33,6 +44,7 @@ impl<'a> From<&'a str> for StrCcsid<'a> {
         Self {
             ccsid: NonZero::new(1208),
             data: value.as_bytes(),
+            le: NATIVE_IS_LE,
         }
     }
 }
@@ -45,6 +57,7 @@ impl<'a, T: Into<Cow<'a, str>>> From<T> for StrCcsidCow<'a> {
                 Cow::Borrowed(str_val) => Cow::Borrowed(str_val.as_bytes()),
                 Cow::Owned(str_val) => Cow::Owned(str_val.into()),
             },
+            le: NATIVE_IS_LE,
         }
     }
 }
@@ -54,6 +67,7 @@ impl<T: ToString> From<T> for StrCcsidOwned {
         Self {
             ccsid: NonZero::new(1208),
             data: value.to_string().into_bytes(),
+            le: NATIVE_IS_LE,
         }
     }
 }
@@ -67,6 +81,7 @@ impl<T: Into<Vec<u8>>> TryFrom<StringCcsid<T>> for String {
                 str: StringCcsid {
                     ccsid: value.ccsid,
                     data: value.data.into(),
+                    le: NATIVE_IS_LE,
                 },
             }));
         }
@@ -83,6 +98,7 @@ impl<'a, T: Into<Cow<'a, [u8]>>> TryFrom<StringCcsid<T>> for Cow<'a, str> {
                 str: StringCcsid {
                     ccsid: value.ccsid,
                     data: value.data.into().into_owned(),
+                    le: NATIVE_IS_LE,
                 },
             }));
         }
@@ -124,6 +140,7 @@ impl<T: Default> Default for StringCcsid<T> {
         Self {
             ccsid: NonZero::new(1208),
             data: Default::default(),
+            le: NATIVE_IS_LE,
         }
     }
 }
@@ -134,9 +151,12 @@ mod test {
 
     use crate::{StrCcsid, StrCcsidCow, StringCcsid};
 
+    use super::NATIVE_IS_LE;
+
     const NON_UTF8_COW: StrCcsidCow = StrCcsidCow {
         ccsid: NonZero::new(450),
         data: Cow::Borrowed(b"Hello".as_slice()),
+        le: NATIVE_IS_LE,
     };
 
     #[test]

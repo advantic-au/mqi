@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
-use mqi::get::GetMessage;
+use mqi::get::{GetConvert, GetMessage, GetWait};
 use mqi::put::Properties;
-use mqi::{get, prelude::*, Message};
+use mqi::sys::MQENC_NORMAL;
+use mqi::{get, prelude::*, Message, StrCcsidCow};
 use mqi::{inq, mqstr, sys, ConnectionOptions, Credentials, MqStruct, Object, ObjectName, QueueManager, StructBuilder};
 
 #[test]
@@ -24,7 +25,7 @@ fn object() {
 
         let props = Message::new(&qm, MqValue::default()).expect("property creation");
         props
-            .set_property("my_property", "value", MqValue::default())
+            .set_property("my_property", "valuex2", MqValue::default())
             .warn_as_error()
             .expect("property set");
 
@@ -39,34 +40,52 @@ fn object() {
 #[test]
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
-    //let mut buffer = vec![0u8; 2 * 1024 * 1024]; //2M
-    // let mut buffer = [0u8; 2*1024];
     let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
     let (qm, ..) = QueueManager::new(None, &cb).warn_as_error()?;
 
     let mut od = MqStruct::<sys::MQOD>::default();
     od.ObjectName = QUEUE.into();
-    od.ObjectType = sys::MQOT_Q;
-    let object = Object::open(&qm, &od, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF))?;
+    let object = Object::open(&qm, &od, MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF))?;
     let mut properties = Message::new(&qm, MqValue::default())?;
-    let mut buffer = [0u8; 2 * 1024];
-    let msg: Completion<Option<get::Mqmd<Cow<str>>>> = object
-        .get_message(
-            // Get a vector with an MQMD
-            MqMask::default(),     // Just the default GET options
-            get::ANY_MESSAGE,      // No selection criteria
-            Some(2000),            // Wait 2 seconds
-            Some(&mut properties), // Populate the properties
-            buffer.as_mut_slice(), // Use the stack as buffer
-        )?;
 
-    let msg = msg.discard_warning(); // We don't care about warning  s, right?
+    let buffer = vec![0; 4]; // Use and consume a vector for the buffer
+    let msg: Completion<Option<get::Headers<StrCcsidCow>>> = object.get_message(
+        (
+            MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
+            GetConvert::ConvertTo(500, MqMask::from(MQENC_NORMAL)),
+            &mut properties,
+            // CorrelationId([1; sys::MQ_CORREL_ID_LENGTH]),
+            GetWait::Wait(2000), // Wait for 2 seconds
+        ),
+        buffer,
+    )?;
 
-    println!("{}", msg.map_or("{no message}".into(), GetMessage::into_payload));
+    if let Some((rc, verb)) = msg.warning() {
+        println!("Warning: {rc} on {verb}");
+    }
+    let msg = msg.discard_warning();
 
-    for v in properties.property_iter("%", MqMask::default()) {
-        let (name, value): (String, String) = v.warn_as_error()?;
-        println!("{name}: {value}");
+    match &msg {
+        Some(msg) => {
+            for header in msg.all_headers() {
+                println!("Header: {header:?}");
+            }
+            if let Some(header_error) = msg.header_error() {
+                println!("Header parsing error: {header_error}");
+            }
+
+            if let Some(rfh2) = msg.header::<sys::MQRFH2>().next() {
+                let nv: Cow<str> = rfh2.name_value_data().try_into()?;
+                println!("RFH2 name/value data: \"{nv}\"");
+            }
+            for v in properties.property_iter("%", MqMask::default()) {
+                let (name, value): (String, String) = v.warn_as_error()?;
+                println!("Property: {name} = {value}");
+            }
+            println!("Format: \"{}\"", msg.format().format);
+            println!("Payload: \"{:?}\"", msg.payload());
+        }
+        None => println!("No message!"),
     }
 
     Ok(())

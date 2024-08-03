@@ -437,6 +437,7 @@ impl InqNameType for StrCcsidOwned {
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             ccsid: NonZero::new(mqimpo.ReturnedName.VSCCSID),
+            le: (mqimpo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
             data: name.into_owned(),
         })
     }
@@ -836,6 +837,7 @@ impl InqPropertyType for StrCcsidOwned {
         Ok(Self {
             ccsid: NonZero::new(mqimpo.ReturnedCCSID),
             data: value.into_owned(),
+            le: (mqimpo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
         })
     }
 }
