@@ -70,12 +70,17 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
 
 // Functions to attach references to MQSCO
 impl<'ptr> MqStruct<'ptr, sys::MQSCO> {
-    pub fn attach_repo_password(&mut self, password: &'ptr str) {
-        self.KeyRepoPasswordPtr = mq_str_ptr(password);
-        self.KeyRepoPasswordLength = password
-            .len()
-            .try_into()
-            .expect("Password length exceeds maximum positive MQLONG");
+    pub fn attach_repo_password(&mut self, password: Option<&'ptr str>) {
+        if let Some(ps) = password {
+            self.KeyRepoPasswordPtr = mq_str_ptr(ps);
+            self.KeyRepoPasswordLength = ps
+                .len()
+                .try_into()
+                .expect("Password length exceeds maximum positive MQLONG");        
+        } else {
+            self.KeyRepoPasswordPtr = ptr::null_mut();
+            self.KeyRepoPasswordLength = 0;
+        }
     }
 
     pub fn attach_auth_info_records(&mut self, air: &'ptr [sys::MQAIR]) {

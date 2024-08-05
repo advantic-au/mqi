@@ -2,16 +2,17 @@ use std::error::Error;
 
 use mqi::{
     property::{self, Attributes, OwnedRawMeta},
-    ConnectionOptions, Credentials, Message, MqMask, MqValue, StrCcsidOwned, QueueManager, ResultCompExt,
+    Message, MqMask, MqValue, StrCcsidOwned, QueueManager, ResultCompExt,
 };
 
 #[test]
 fn message_handle() -> Result<(), Box<dyn Error>> {
     const PROPS: &[(&str, &str)] = &[("usr.b.x", "B"), ("usr.p.x", "A"), ("usr.c", "By"), ("usr.p.y", "C")];
 
-    let (conn, ..) = QueueManager::new(
+    let conn: QueueManager<_> = QueueManager::connect(
         None,
-        &ConnectionOptions::default_binding().credentials(Credentials::user("app", "app")),
+        ()
+        // &ConnectionOptions::default_binding().credentials(Credentials::user("app", "app")),
     )
     .warn_as_error()?;
 

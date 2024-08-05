@@ -13,36 +13,33 @@ pub struct MqStruct<'ptr, T> {
     _marker: PhantomData<&'ptr mut ()>, // Lifetime reference required for pointers in the MQ structure
 }
 
-pub trait StructBuilder<T>: StructType<T> {
-    fn build(&self) -> Self::Struct<'_>;
+pub trait StructBuilder<T> {
+    type Built<'ptr>: StructType<'ptr, T> where Self: 'ptr;
+
+    fn build(&self) -> Self::Built<'_>;
 }
 
-pub trait StructOptionBuilder<T>: StructType<T> {
-    fn option_build(&self) -> Option<Self::Struct<'_>>;
+pub trait StructOptionBuilder<T> {
+    type Built<'ptr>: StructType<'ptr, T> where Self: 'ptr;
+    fn option_build(&self) -> Option<Self::Built<'_>>;
 }
 
-pub trait StructType<T> {
-    type Struct<'a>: Deref<Target = T> + DerefMut
-    where
-        Self: 'a;
+pub trait StructType<'ptr, T> {
+    fn struc_ref(&self) -> &MqStruct<'ptr, T>;
+    fn struc_mut(&mut self) -> &mut MqStruct<'ptr, T>;
 }
 
-impl<T> StructType<T> for MqStruct<'_, T> {
-    type Struct<'a> = Self where Self: 'a;
-}
+impl<'ptr, T> StructType<'ptr, T> for MqStruct<'ptr, T> {
+    fn struc_ref(&self) -> &MqStruct<'ptr, T> {
+        self
+    }
 
-impl<'ptr, T: Clone> StructBuilder<T> for MqStruct<'ptr, T> {
-    fn build(&self) -> Self::Struct<'_> {
-        self.clone()
+    fn struc_mut(&mut self) -> &mut MqStruct<'ptr, T> {
+        self
     }
 }
 
-impl<'ptr, T: Clone> StructOptionBuilder<T> for MqStruct<'ptr, T> {
-    fn option_build(&self) -> Option<Self::Struct<'_>> {
-        Some(self.build())
-    }
-}
-
+/*
 impl<T, E> StructType<T> for MqStructSelfRef<T, E> {
     type Struct<'a> = MqStruct<'a, T> where Self: 'a;
 }
@@ -58,6 +55,7 @@ impl<T: Clone, E> StructOptionBuilder<T> for MqStructSelfRef<T, E> {
         Some(self.build())
     }
 }
+    */
 
 #[derive(Debug, Clone)]
 pub struct MqStructSelfRef<R, E>(R, E);
@@ -88,6 +86,7 @@ impl<R, E> DerefMut for MqStructSelfRef<R, E> {
     }
 }
 
+/*
 #[derive(Debug, Clone, Default)]
 pub struct NoStruct;
 
@@ -100,6 +99,7 @@ impl<T> StructOptionBuilder<T> for NoStruct {
         None
     }
 }
+    */
 
 impl<T> MqStruct<'_, T> {
     pub fn new(struc: T) -> Self {
@@ -124,6 +124,7 @@ impl<T> Deref for MqStruct<'_, T> {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use crate::{NoStruct, StructOptionBuilder};
@@ -139,3 +140,5 @@ mod tests {
         assert!(a.is_none());
     }
 }
+
+*/

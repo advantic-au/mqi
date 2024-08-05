@@ -1,7 +1,7 @@
 use libmqm_sys::link::LinkedMQ;
 
-use super::{ConnectionOptions, HandleShare, QueueManagerShare};
-use crate::{core::values::MQCBO, sys, ConnectionId, DefinitionMethod, QMName, ResultComp, StructBuilder, StructOptionBuilder};
+use super::{connect_options::CnoOptions, types::QueueName, ConnectValue, HandleShare, QueueManagerShare};
+use crate::{core::values::MQCBO, ResultComp};
 
 #[cfg(feature = "mqai")]
 use crate::{
@@ -9,21 +9,22 @@ use crate::{
     MqMask,
 };
 
-impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
-    pub fn connect<H: HandleShare>(
-        self,
-        qm_name: Option<&QMName>,
-    ) -> ResultComp<(QueueManagerShare<&LinkedMQ, H>, ConnectionId, Option<String>)> {
-        self.connect_lib(&LinkedMQ, qm_name)
-    }
-}
+// impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
+//     pub fn connect<'cb, R: ConnectValue<QueueManagerShare<'cb, &'static LinkedMQ, H>>, H: HandleShare>(
+//         self,
+//         qm_name: Option<&QMName>,
+//     ) -> ResultComp<R> {
+//         self.connect_lib(&LinkedMQ, qm_name)
+//     }
+// }
 
 impl<H: HandleShare> QueueManagerShare<'_, &LinkedMQ, H> {
-    pub fn new(
-        qm_name: Option<&QMName>,
-        builder: &impl StructBuilder<sys::MQCNO>,
-    ) -> ResultComp<(Self, ConnectionId, Option<String>)> {
-        Self::new_lib(&LinkedMQ, qm_name, builder)
+    #[allow(clippy::new_ret_no_self)]
+    pub fn connect<'c, R: ConnectValue<Self>> (
+        qm_name: Option<&QueueName>,
+        options: impl CnoOptions<'c>,
+    ) -> ResultComp<R> {
+        Self::new_lib(&LinkedMQ, qm_name, options)
     }
 }
 

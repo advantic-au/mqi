@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::common::ResultCompErrExt as _;
+use crate::{common::ResultCompErrExt as _, types::QueueName, MqStruct};
 
 use libmqm_sys::function;
 
@@ -15,19 +15,39 @@ use crate::{
     },
     Conn, MqMask,
 };
-use crate::{sys, MqStr, QMName, QName, StructBuilder};
+use crate::sys;
 use crate::ResultComp;
 use crate::QueueManagerShare;
+
+pub trait OdOptions<'a> {
+    fn apply_mqopen<'ptr>(self, mqoo: &mut MqStruct<'ptr, sys::MQOD>) where 'a: 'ptr;
+}
+
+impl OdOptions<'_> for () {
+    fn apply_mqopen<'ptr>(self, _mqoo: &mut MqStruct<'ptr, sys::MQOD>) where 'static: 'ptr {}
+}
+
+impl OdOptions<'static> for &QueueName {
+    fn apply_mqopen<'ptr>(self, mqoo: &mut MqStruct<'ptr, sys::MQOD>) where 'static: 'ptr {
+        self.0.copy_into_mqchar(&mut mqoo.ObjectName);
+    }
+}
+
+pub trait CnoOptions<'a> {
+    fn apply_mqconnx<'ptr>(self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
+    where
+        'a: 'ptr;
+}
 
 #[must_use]
 pub struct Object<C: Conn> {
     handle: core::ObjectHandle,
     connection: C,
     close_options: MqMask<MQCO>,
-    name: QName,               // When a model queue is used
-    qmgr_name: Option<QMName>, // When a model queue is used
-    resolved_name: Option<QName>,
-    resolved_qmgr_name: Option<QMName>,
+    // name: QName,               // When a model queue is used
+    // qmgr_name: Option<QMName>, // When a model queue is used
+    // resolved_name: Option<QName>,
+    // resolved_qmgr_name: Option<QMName>,
 }
 
 impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<'_, L, H>> {
@@ -77,17 +97,21 @@ impl<C: Conn> Object<C> {
         &self.connection
     }
 
-    pub fn open(connection: C, mqod: &impl StructBuilder<sys::MQOD>, options: MqMask<MQOO>) -> ResultComp<Self> {
-        let mut mqod_build = mqod.build();
-        let result = connection.mq().mqopen(connection.handle(), &mut mqod_build, options);
+    pub fn open<'od>(connection: C, descriptor: impl OdOptions<'od>, options: MqMask<MQOO>) -> ResultComp<Self> {
+        let mut mqod = MqStruct::new(sys::MQOD {
+            Version: sys::MQOD_VERSION_4,
+            ..sys::MQOD::default()
+        });
+        descriptor.apply_mqopen(&mut mqod);
+        let result = connection.mq().mqopen(connection.handle(), &mut mqod, options);
         result.map_completion(|handle| Self {
             handle,
             connection,
             close_options: MqMask::from(sys::MQCO_NONE),
-            name: mqod_build.ObjectName.into(),
-            qmgr_name: Some(mqod_build.ObjectQMgrName.into()).filter(MqStr::has_value),
-            resolved_name: Some(mqod_build.ResolvedQName.into()).filter(MqStr::has_value),
-            resolved_qmgr_name: Some(mqod_build.ResolvedQMgrName.into()).filter(MqStr::has_value),
+            // name: mqod_build.ObjectName.into(),
+            // qmgr_name: Some(mqod_build.ObjectQMgrName.into()).filter(MqStr::has_value),
+            // resolved_name: Some(mqod_build.ResolvedQName.into()).filter(MqStr::has_value),
+            // resolved_qmgr_name: Some(mqod_build.ResolvedQMgrName.into()).filter(MqStr::has_value),
         })
     }
 

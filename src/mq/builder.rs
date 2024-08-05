@@ -1,76 +1,18 @@
+/*
+
 use std::marker::PhantomPinned;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::{convert::Into, fmt::Debug};
 
 use crate::core::Library;
-use crate::{sys, CipherSpec, ConnectionId, MqStructSelfRef, NoStruct, StructBuilder, StructOptionBuilder, StructType};
+use crate::{sys, CipherSpec, NoStruct, StructOptionBuilder};
 use crate::{ApplName, ChannelName, ConnectionName, MqStr, MqStruct, QMName, ResultComp};
 use libmqm_sys::function;
 use thiserror::Error;
 
-use super::{HandleShare, QueueManagerShare};
+use super::{ConnectValue, HandleShare, QueueManagerShare};
 
-pub trait Secret<T: Deref = String> {
-    fn expose_secret(&self) -> &T::Target;
-}
-
-#[derive(Clone, Default)]
-pub struct ProtectedSecret<T = String>(T);
-
-impl<T> ProtectedSecret<T> {
-    pub const fn new(secret: T) -> Self {
-        Self(secret)
-    }
-}
-
-impl<T: Deref> Secret<T> for ProtectedSecret<T> {
-    #[must_use]
-    fn expose_secret(&self) -> &T::Target {
-        let Self(secret) = self;
-        secret
-    }
-}
-
-impl Debug for ProtectedSecret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("ProtectedSecret").field(&"[redacted]").finish()
-    }
-}
-
-impl<T: Into<String>> From<T> for ProtectedSecret {
-    fn from(value: T) -> Self {
-        Self(value.into())
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct ExternalConfig<const BINDING: sys::MQLONG>;
-pub type LocalBinding = ExternalConfig<0x400 /* sys::MQCNO_LOCAL_BINDING */>;
-pub type DefaultBinding = ExternalConfig<0 /* sys::MQCNO_NONE> */>;
-
-impl<const N: sys::MQLONG> DefinitionMethod for ExternalConfig<N> {
-    type ScoBuilder = NoStruct;
-    type CdBuilder = NoStruct;
-    type BnoBuilder = NoStruct;
-
-    fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>) {
-        cno.Options &= !(sys::MQCNO_LOCAL_BINDING | sys::MQCNO_CLIENT_BINDING); // Clear the BINDING bits
-        cno.Options |= N;
-    }
-
-    fn sco(&self) -> &Self::ScoBuilder {
-        &NoStruct
-    }
-
-    fn cd(&self) -> &Self::CdBuilder {
-        &NoStruct
-    }
-
-    fn bno(&self) -> &Self::BnoBuilder {
-        &NoStruct
-    }
-}
 
 pub struct ClientDefinition<C, T> {
     config: C,
@@ -115,75 +57,9 @@ impl Ccdt {
     }
 }
 
-impl DefinitionMethod for Ccdt {
-    type ScoBuilder = NoStruct;
-    type CdBuilder = NoStruct;
-    type BnoBuilder = NoStruct;
-
-    fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>) {
-        cno.Options &= !(sys::MQCNO_LOCAL_BINDING | sys::MQCNO_CLIENT_BINDING); // Clear the BINDING bits
-        cno.Options |= sys::MQCNO_CLIENT_BINDING;
-        cno.attach_ccdt(self.url.as_str());
-    }
-
-    fn sco(&self) -> &Self::ScoBuilder {
-        &NoStruct
-    }
-
-    fn cd(&self) -> &Self::ScoBuilder {
-        &NoStruct
-    }
-
-    fn bno(&self) -> &Self::ScoBuilder {
-        &NoStruct
-    }
-}
-
-impl<S> StructType<sys::MQCSP> for CredentialsSecret<S> {
-    type Struct<'a> = MqStruct<'a, sys::MQCSP> where Self: 'a;
-}
-
-#[allow(clippy::field_reassign_with_default)]
-impl<S: Secret> StructBuilder<sys::MQCSP> for CredentialsSecret<S> {
-    fn build(&self) -> Self::Struct<'_> {
-        let mut csp = MqStruct::<sys::MQCSP>::default();
-        csp.Version = sys::MQCSP_VERSION_3;
-
-        match self {
-            Self::Default => {
-                // No authentication
-                csp.AuthenticationType = sys::MQCSP_AUTH_NONE;
-            }
-            Self::User(ref user, ref password, ..) => {
-                // UserId and Password authentication
-                let password = password.expose_secret();
-                csp.AuthenticationType = sys::MQCSP_AUTH_USER_ID_AND_PWD;
-                csp.attach_password(password);
-                csp.attach_userid(user);
-            }
-            Self::Token(ref token, ..) => {
-                // JWT authentication
-                let token = token.expose_secret();
-                csp.AuthenticationType = sys::MQCSP_AUTH_ID_TOKEN;
-                csp.attach_token(token);
-            }
-        }
-
-        // Populate the initial key
-        if let Self::User(.., Some(initial_key)) | Self::Token(.., Some(initial_key)) = &self {
-            let initial_key = initial_key.expose_secret();
-            csp.attach_initial_key(initial_key);
-        }
-
-        csp
-    }
-}
-
-impl<S: Secret> StructOptionBuilder<sys::MQCSP> for CredentialsSecret<S> {
-    fn option_build(&self) -> Option<Self::Struct<'_>> {
-        Some(self.build())
-    }
-}
+// impl<S> StructType<sys::MQCSP> for CredentialsSecret<S> {
+//     type Struct<'a> = MqStruct<'a, sys::MQCSP> where Self: 'a;
+// }
 
 /// Defines how the `MQCNO` is populated for the connection method
 pub trait DefinitionMethod {
@@ -204,167 +80,37 @@ pub trait DefinitionMethod {
     fn bno(&self) -> &Self::BnoBuilder;
 }
 
-pub type Credentials = CredentialsSecret<ProtectedSecret>;
+// impl<S> StructType<sys::MQSCO> for TlsSecret<S> {
+//     type Struct<'a> = MqStruct<'a, sys::MQSCO> where Self: 'a;
+// }
 
-/// Provides the credentials at connection time
-#[derive(Default, Debug, Clone)]
-pub enum CredentialsSecret<S> {
-    #[default]
-    Default,
-    User(String, S, Option<S>),
-    Token(S, Option<S>),
-}
+// impl<S: Secret> StructBuilder<sys::MQSCO> for TlsSecret<S> {
+//     fn build(&self) -> Self::Struct<'_> {
+//         let mut sco = MqStruct::new(self.sco);
 
-impl<S> CredentialsSecret<S> {
-    pub fn user(user: impl Into<String>, password: impl Into<S>) -> Self {
-        Self::User(user.into(), password.into(), None)
-    }
-}
+//         if let Some(pwd) = &self.key_repo_password {
+//             let secret = pwd.expose_secret();
+//             sco.attach_repo_password(secret);
+//         }
 
-#[derive(Debug, Clone)]
-#[must_use]
-pub struct TlsSecret<S> {
-    sco: sys::MQSCO,
-    key_repo_password: Option<S>,
-}
-pub enum SuiteB {
-    None,
-    Min(usize),
-}
+//         sco
+//     }
+// }
 
-impl From<SuiteB> for [sys::MQLONG; 4] {
-    fn from(value: SuiteB) -> Self {
-        const SIZED: &[(usize, sys::MQLONG)] = &[(128, sys::MQ_SUITE_B_128_BIT), (192, sys::MQ_SUITE_B_192_BIT)];
-        match value {
-            SuiteB::None => [
-                sys::MQ_SUITE_B_NONE,
-                sys::MQ_SUITE_B_NOT_AVAILABLE,
-                sys::MQ_SUITE_B_NOT_AVAILABLE,
-                sys::MQ_SUITE_B_NOT_AVAILABLE,
-            ],
-            SuiteB::Min(min_size) => {
-                let mut result = [
-                    sys::MQ_SUITE_B_NOT_AVAILABLE,
-                    sys::MQ_SUITE_B_NOT_AVAILABLE,
-                    sys::MQ_SUITE_B_NOT_AVAILABLE,
-                    sys::MQ_SUITE_B_NOT_AVAILABLE,
-                ];
-                for (i, (.., suite)) in SIZED.iter().filter(|(size, ..)| *size >= min_size).enumerate() {
-                    result[i] = *suite;
-                }
-                result
-            }
-        }
-    }
-}
+// impl<S: Secret> StructOptionBuilder<sys::MQSCO> for TlsSecret<S> {
+//     fn option_build(&self) -> Option<Self::Struct<'_>> {
+//         Some(self.build())
+//     }
+// }
 
-impl<S> StructType<sys::MQSCO> for TlsSecret<S> {
-    type Struct<'a> = MqStruct<'a, sys::MQSCO> where Self: 'a;
-}
-
-impl<S: Secret> StructBuilder<sys::MQSCO> for TlsSecret<S> {
-    fn build(&self) -> Self::Struct<'_> {
-        let mut sco = MqStruct::new(self.sco);
-
-        if let Some(pwd) = &self.key_repo_password {
-            let secret = pwd.expose_secret();
-            sco.attach_repo_password(secret);
-        }
-
-        sco
-    }
-}
-
-impl<S: Secret> StructOptionBuilder<sys::MQSCO> for TlsSecret<S> {
-    fn option_build(&self) -> Option<Self::Struct<'_>> {
-        Some(self.build())
-    }
-}
-
-impl<S> Default for TlsSecret<S> {
-    fn default() -> Self {
-        Self {
-            sco: sys::MQSCO {
-                Version: sys::MQSCO_VERSION_6,
-                ..sys::MQSCO::default()
-            },
-            key_repo_password: Option::default(),
-        }
-    }
-}
-
-pub type Tls = TlsSecret<ProtectedSecret<String>>;
-
-pub type KeyRepo = MqStr<256>;
-pub type CryptoHardware = MqStr<256>;
-pub type CertificateLabel = MqStr<64>;
-
-impl<S> TlsSecret<S> {
-    pub fn new(repo: &KeyRepo, password: Option<impl Into<S>>, label: Option<&CertificateLabel>) -> Self {
-        let mut tls = Self::default();
-        tls.key_repo(repo);
-        tls.certificate_label(label);
-        tls.key_repo_password(password.map(Into::into));
-        tls
-    }
-
-    pub fn crypto_hardware(&mut self, hardware: Option<&CryptoHardware>) -> &mut Self {
-        hardware
-            .unwrap_or(&MqStr::empty())
-            .copy_into_mqchar(&mut self.sco.CryptoHardware);
-        self
-    }
-
-    pub fn certificate_label(&mut self, label: Option<&CertificateLabel>) -> &mut Self {
-        label
-            .unwrap_or(&MqStr::empty())
-            .copy_into_mqchar(&mut self.sco.CertificateLabel);
-        self
-    }
-
-    pub fn fips_required(&mut self, is_required: bool) -> &mut Self {
-        self.sco.FipsRequired = if is_required {
-            sys::MQSSL_FIPS_YES
-        } else {
-            sys::MQSSL_FIPS_NO
-        };
-        self
-    }
-
-    pub fn suite_b_policy(&mut self, policy: impl Into<[sys::MQLONG; 4]>) -> &mut Self {
-        self.sco.EncryptionPolicySuiteB = policy.into();
-        self
-    }
-
-    pub fn cert_val_policy(&mut self, policy: sys::MQLONG) -> &mut Self {
-        self.sco.CertificateValPolicy = policy;
-        self
-    }
-
-    pub fn key_reset_count(&mut self, count: sys::MQLONG) -> &mut Self {
-        self.sco.KeyResetCount = count;
-        self
-    }
-
-    pub fn key_repo_password(&mut self, password: Option<S>) -> &mut Self {
-        self.key_repo_password = password;
-        self
-    }
-
-    pub fn key_repo(&mut self, repo: &KeyRepo) -> &mut Self {
-        repo.copy_into_mqchar(&mut self.sco.KeyRepository);
-        self
-    }
-}
-
-/// A builder for creating parameters to connect to an IBM MQ queue manager
-#[derive(Debug, Clone, Default)]
-#[must_use]
-pub struct ConnectionOptions<C, D> {
-    method: D,
-    credentials: C,
-    app_name: Option<ApplName>,
-}
+// /// A builder for creating parameters to connect to an IBM MQ queue manager
+// #[derive(Debug, Clone, Default)]
+// #[must_use]
+// pub struct ConnectionOptions<C, D> {
+//     method: D,
+//     credentials: C,
+//     app_name: Option<ApplName>,
+// }
 
 #[derive(Debug, Error)]
 pub enum MqServerSyntaxError {
@@ -406,28 +152,28 @@ pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, sys::MQLON
     }
 }
 
-impl DefinitionMethod for MqStruct<'_, sys::MQCD> {
-    type ScoBuilder = NoStruct;
-    type CdBuilder = Self;
-    type BnoBuilder = NoStruct;
+// impl DefinitionMethod for MqStruct<'_, sys::MQCD> {
+//     type ScoBuilder = NoStruct;
+//     type CdBuilder = Self;
+//     type BnoBuilder = NoStruct;
 
-    fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>) {
-        cno.Options &= !(sys::MQCNO_LOCAL_BINDING | sys::MQCNO_CLIENT_BINDING); // Clear the BINDING bits
-        cno.Options |= sys::MQCNO_CLIENT_BINDING;
-    }
+//     fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>) {
+//         cno.Options &= !(sys::MQCNO_LOCAL_BINDING | sys::MQCNO_CLIENT_BINDING); // Clear the BINDING bits
+//         cno.Options |= sys::MQCNO_CLIENT_BINDING;
+//     }
 
-    fn sco(&self) -> &Self::ScoBuilder {
-        &NoStruct
-    }
+//     fn sco(&self) -> &Self::ScoBuilder {
+//         &NoStruct
+//     }
 
-    fn cd(&self) -> &Self::CdBuilder {
-        self
-    }
+//     fn cd(&self) -> &Self::CdBuilder {
+//         self
+//     }
 
-    fn bno(&self) -> &Self::BnoBuilder {
-        &NoStruct
-    }
-}
+//     fn bno(&self) -> &Self::BnoBuilder {
+//         &NoStruct
+//     }
+// }
 
 impl<T> ClientDefinition<MqStruct<'_, sys::MQCD>, T> {
     pub fn cipher_spec(&mut self, spec: Option<&CipherSpec>) -> &mut Self {
@@ -511,6 +257,8 @@ impl<'ptr> AppDefinedClient<'ptr, NoStruct> {
     }
 }
 
+/*
+
 #[derive(Debug, Clone)]
 pub struct ConnectionOptionsOwned<Csp, Sco, Cd, Bno> {
     pub csp: Option<Csp>,
@@ -531,7 +279,9 @@ impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> StructType<sys::MQ
         <D::BnoBuilder as StructType<sys::MQBNO>>::Struct<'a>
     > where Self: 'a;
 }
+*/
 
+/*
 impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> StructBuilder<sys::MQCNO> for ConnectionOptions<C, D> {
     fn build(&self) -> Self::Struct<'_> {
         // Construct the MQCNO
@@ -565,7 +315,9 @@ impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> StructBuilder<sys:
         MqStructSelfRef::new(*cno, referee)
     }
 }
+ */
 
+/*
 impl<D> ConnectionOptions<NoStruct, D> {
     pub const fn from_definition(method: D) -> Self {
         Self {
@@ -593,7 +345,9 @@ impl ConnectionOptions<NoStruct, AppDefinedClient<'_, NoStruct>> {
         Ok(Self::from_definition(ClientDefinition::from_mqserver(mqserver)?))
     }
 }
+    */
 
+    /*
 impl<'a, C, T> ConnectionOptions<C, AppDefinedClient<'a, T>> {
     pub fn tls<Y: StructOptionBuilder<sys::MQSCO>>(
         self,
@@ -656,16 +410,16 @@ impl<C, D> ConnectionOptions<C, D> {
     }
 }
 
-impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
-    /// Execute a connection to MQ using the provided `qm_name` and the `ConnectionOptions` settings
-    pub fn connect_lib<'a, L: Library<MQ: function::MQI>, H: HandleShare>(
-        &self,
-        lib: L,
-        qm_name: Option<&QMName>,
-    ) -> ResultComp<(QueueManagerShare<'a, L, H>, ConnectionId, Option<String>)> {
-        QueueManagerShare::new_lib(lib, qm_name, self)
-    }
-}
+// impl<C: StructOptionBuilder<sys::MQCSP>, D: DefinitionMethod> ConnectionOptions<C, D> {
+//     /// Execute a connection to MQ using the provided `qm_name` and the `ConnectionOptions` settings
+//     pub fn connect_lib<'a, R: ConnectValue<QueueManagerShare<'a, L, H>>, L: Library<MQ: function::MQI>, H: HandleShare>(
+//         &self,
+//         lib: L,
+//         qm_name: Option<&QMName>,
+//     ) -> ResultComp<R> {
+//         QueueManagerShare::new_lib(lib, qm_name, self)
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -699,3 +453,6 @@ mod tests {
         assert_eq!(c.expose_secret(), "hello");
     }
 }
+
+ */
+*/

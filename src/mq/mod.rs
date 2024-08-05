@@ -11,12 +11,14 @@ mod object;
 mod queue_manager;
 mod strings;
 
+pub mod connect_options;
+
 pub mod encoding;
 
 pub mod headers;
 pub mod types;
 
-pub use builder::*;
+// pub use builder::*;
 pub use message::*;
 pub use mqstruct::*;
 pub use object::*;

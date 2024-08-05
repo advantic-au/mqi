@@ -4,7 +4,7 @@ use std::ptr;
 
 use super::values::{MQCO, MQDCC, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
 use super::{ConnectionHandle, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle};
-use crate::{sys, Error, MqMask, MqValue, QMName, ResultComp, ResultCompErr, ResultErr, MQMD};
+use crate::{sys, Error, MqMask, MqStr, MqValue, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::{function, MQI};
 
 #[cfg(feature = "tracing")]
@@ -35,7 +35,7 @@ pub mod error {
 impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     /// Connects an application program to a queue manager.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqconn(&self, qm_name: &QMName) -> ResultComp<ConnectionHandle> {
+    pub fn mqconn(&self, qm_name: &MqStr<48>) -> ResultComp<ConnectionHandle> {
         let mut outcome = MQIOutcome::<ConnectionHandle>::with_verb("MQCONN");
 
         unsafe {
@@ -53,7 +53,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
 
     /// Connects an application program to a queue manager. It provides control on the method of connection.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqconnx(&self, qm_name: &QMName, mqcno: &mut sys::MQCNO) -> ResultComp<ConnectionHandle> {
+    pub fn mqconnx(&self, qm_name: &MqStr<48>, mqcno: &mut sys::MQCNO) -> ResultComp<ConnectionHandle> {
         let mut outcome = MQIOutcome::<ConnectionHandle>::with_verb("MQCONNX");
         unsafe {
             self.0.MQCONNX(
@@ -596,7 +596,6 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
                 &mut outcome.rc.0,
             );
         }
-        #[cfg(feature = "tracking")]
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
         outcome.into()

@@ -2,8 +2,9 @@
 
 use mqi::admin::Bag;
 use mqi::core::mqai::values::MQQT;
-use mqi::{mqstr, prelude::*};
-use mqi::{sys, ConnectionOptions, Credentials, QueueManager};
+use mqi::types::ObjectName;
+use mqi::prelude::*;
+use mqi::{sys, QueueManager};
 
 #[test]
 fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
@@ -13,12 +14,12 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         .add(MqValue::from(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
         .discard_warning();
 
-    let cb = ConnectionOptions::from_mqserver("DEV.ADMIN.SVRCONN/TCP/192.168.92.15(1414)")?
-        .application_name(Some(mqstr!("rust_testing")))
-        .credentials(Credentials::user("admin", "admin"));
-    let (conn, ..) = QueueManager::new(None, &cb).warn_as_error()?;
+    // let cb = ConnectionOptions::from_mqserver("DEV.ADMIN.SVRCONN/TCP/192.168.92.15(1414)")?
+    //     .application_name(Some(mqstr!("rust_testing")))
+    //     .credentials(Credentials::user("admin", "admin"));
+    let qm: QueueManager<_> = QueueManager::connect(None, ()).warn_as_error()?;
     let execute_result = admin_bag
-        .execute(conn.handle(), MqValue::from(sys::MQCMD_INQUIRE_Q), None, None, None)
+        .execute(qm.handle(), MqValue::from(sys::MQCMD_INQUIRE_Q), None, None, None)
         .warn_as_error()?;
 
     for bag in execute_result
@@ -26,7 +27,7 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         .flatten()
     // flatten effectively ignores items that have errors
     {
-        let q = bag.inquire::<QMName>(sys::MQCA_Q_NAME)?;
+        let q = bag.inquire::<ObjectName>(sys::MQCA_Q_NAME)?;
         let depth = *bag.inquire::<sys::MQLONG>(sys::MQIA_CURRENT_Q_DEPTH)?;
         let alt_date = *bag.inquire::<MqStr<12>>(sys::MQCA_ALTERATION_DATE)?;
         let alt_time = *bag.inquire::<MqStr<12>>(sys::MQCA_ALTERATION_TIME)?;

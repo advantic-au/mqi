@@ -2,15 +2,14 @@ use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
 use mqi::{
-    core::ConnectionHandle, mqstr, sys, ConnectionOptions, Credentials, MqMask, MqStruct, MqValue, Object, ObjectName,
-    QueueManager, ResultCompExt as _, MQMD,
+    core::ConnectionHandle, mqstr, sys, types::QueueName, MqMask, MqStruct, MqValue, Object, QueueManager, ResultCompExt as _, MQMD
 };
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
-    let connection_options = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
+    // let connection_options = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
 
-    let (mut qm, ..) = QueueManager::new(None, &connection_options).warn_as_error()?;
+    let mut qm: QueueManager<_> = QueueManager::connect(None, ()).warn_as_error()?;
 
     //let cb = move |_, _: &MqStruct<sys::MQCBC>| println!("{}", "hello");
     qm.register_event_handler(
@@ -23,7 +22,7 @@ fn qm() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn callback() -> Result<(), Box<dyn Error>> {
-    const QUEUE: ObjectName = mqstr!("DEV.QUEUE.1");
+    const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
     fn register_cb<
         F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>) + 'static,
@@ -73,18 +72,18 @@ fn callback() -> Result<(), Box<dyn Error>> {
 
     // Use the default binding which is controlled through the MQI usually using environment variables
     // eg `MQSERVER = '...'``
-    let connection_options = ConnectionOptions::default_binding()
-        .application_name(Some(mqstr!("readme_example")))
-        .credentials(Credentials::user("app", "app"));
+    // let connection_options = ConnectionOptions::default_binding()
+    //     .application_name(Some(mqstr!("readme_example")))
+    //     .credentials(Credentials::user("app", "app"));
 
     // Connect to the default queue manager (None) with the provided `connection_options`
     // Treat all MQCC_WARNING as an error
-    let (qm, ..) = QueueManager::new(None, &connection_options).warn_as_error()?;
+    let qm: QueueManager<_> = QueueManager::connect(None, ()).warn_as_error()?;
 
-    let mut od = MqStruct::<sys::MQOD>::default();
+    // let mut od = MqStruct::<sys::MQOD>::default();
     let qm = Arc::new(qm);
-    od.ObjectName = QUEUE.into();
-    let object = Object::open(qm.clone(), &od, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
+    // od.ObjectName = QUEUE.into();
+    let object = Object::open(qm.clone(), QUEUE, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
 
     // let cm = Mutex::new(connection);
     let _ = thread::spawn(move || {

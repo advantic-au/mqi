@@ -33,3 +33,6 @@ define_mqvalue!(pub MQRC, mapping::MQRC_FULL_CONST);
 define_mqvalue!(pub MQCC, mapping::MQCC_CONST);
 define_mqvalue!(pub MQDCC, mapping::MQDCC_CONST);
 impl_default_mqvalue!(MqMask<MQDCC>, sys::MQDCC_NONE);
+
+define_mqvalue!(pub MQCNO, mapping::MQCNO_CONST);
+

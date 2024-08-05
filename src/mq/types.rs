@@ -1,7 +1,7 @@
 use crate::{core::values, headers::TextEnc, sys, MqMask, MqStr, ReasonCode};
 use std::str;
 
-use super::put::PutResult;
+use super::{put::PutResult, OdOptions};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CorrelationId(pub [u8; sys::MQ_CORREL_ID_LENGTH]);
@@ -70,5 +70,25 @@ impl UserIdentifier {
     #[must_use]
     pub fn new(source: [sys::MQCHAR; sys::MQ_USER_ID_LENGTH]) -> Option<Self > {
         Some(MqStr::from(source)).filter(MqStr::has_value).map(UserIdentifier)
+    }
+}
+
+pub type ObjectName = MqStr<48>;
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct QueueName(pub ObjectName);
+
+impl std::ops::Deref for QueueName {
+    type Target = MqStr<48>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> OdOptions<'a> for QueueName {
+    fn apply_mqopen<'ptr>(self, mqoo: &mut super::MqStruct<'ptr, sys::MQOD>) where 'a: 'ptr {
+        mqoo.ObjectName = self.0.into();
+        mqoo.ObjectType = sys::MQOT_Q;
     }
 }

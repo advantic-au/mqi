@@ -8,6 +8,8 @@ use crate::types::{Fmt, MessageFormat, Warning};
 use crate::{sys, Completion, Conn, Message, MqMask, MqStruct, Object, QueueManagerShare, ResultComp};
 use crate::core::{self, values};
 
+use super::OdOptions;
+
 pub trait PutMessage {
     type Data: ?Sized;
 
@@ -207,14 +209,19 @@ impl<C: Conn> Object<C> {
 }
 
 impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
-    pub fn put_message<T: PutResult>(
+    pub fn put_message<'a, T: PutResult>(
         &self,
-        mqod: &mut MqStruct<sys::MQOD>,
+        od: impl OdOptions<'a>,
         options: impl PutOptions,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<T> {
+        let mut mqod = MqStruct::new(sys::MQOD {
+            Version: sys::MQOD_VERSION_4,
+            ..sys::MQOD::default()
+        });
+        od.apply_mqopen(&mut mqod);
         put(options, message, |mqmd, mqpmo, data| {
-            self.mq().mqput1(self.handle(), mqod, Some(mqmd), mqpmo, data)
+            self.mq().mqput1(self.handle(), &mut mqod, Some(mqmd), mqpmo, data)
         })
     }
 }

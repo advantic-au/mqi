@@ -188,10 +188,8 @@ impl<const N: usize> TryFrom<&str> for MqStr<N> {
     }
 }
 
-pub type QMName = MqStr<48>;
-pub type QName = MqStr<48>;
-pub type ChannelName = MqStr<20>;
-pub type ConnectionName = MqStr<264>;
-pub type ObjectName = MqStr<48>;
-pub type ApplName = MqStr<28>;
-pub type CipherSpec = MqStr<32>;
+// pub type ObjectName = MqStr<48>;
+// pub type ChannelName = MqStr<20>;
+// pub type ConnectionName = MqStr<264>;
+// pub type ApplName = MqStr<28>;
+// pub type CipherSpec = MqStr<32>;
