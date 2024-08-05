@@ -4,8 +4,6 @@ use std::error::Error;
 use std::thread;
 
 use mqi::get::{GetConvert, GetMessage, GetWait};
-use mqi::put::Properties;
-use mqi::sys::MQENC_NORMAL;
 use mqi::{get, prelude::*, Message, StrCcsidCow};
 use mqi::{inq, mqstr, sys, ConnectionOptions, Credentials, MqStruct, Object, ObjectName, QueueManager, StructBuilder};
 
@@ -23,13 +21,13 @@ fn object() {
         QUEUE.copy_into_mqchar(&mut od.ObjectName);
         od.ObjectType = sys::MQOT_Q;
 
-        let props = Message::new(&qm, MqValue::default()).expect("property creation");
+        let mut props = Message::new(&qm, MqValue::default()).expect("property creation");
         props
             .set_property("my_property", "valuex2", MqValue::default())
             .warn_as_error()
             .expect("property set");
 
-        qm.put_message::<()>(&mut od, MqMask::default(), &Properties::New(Some(&props)), "Hello")
+        qm.put_message::<()>(&mut od, &mut props, "Hello")
             .warn_as_error()
             .expect("Put failed");
     })
@@ -48,13 +46,12 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let object = Object::open(&qm, &od, MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF))?;
     let mut properties = Message::new(&qm, MqValue::default())?;
 
-    let buffer = vec![0; 4]; // Use and consume a vector for the buffer
+    let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
     let msg: Completion<Option<get::Headers<StrCcsidCow>>> = object.get_message(
         (
-            MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
-            GetConvert::ConvertTo(500, MqMask::from(MQENC_NORMAL)),
-            &mut properties,
-            // CorrelationId([1; sys::MQ_CORREL_ID_LENGTH]),
+            // MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
+            GetConvert::ConvertTo(500, MqMask::from(sys::MQENC_NORMAL)),
+            &mut properties,     // Get some properties
             GetWait::Wait(2000), // Wait for 2 seconds
         ),
         buffer,
@@ -155,9 +152,7 @@ fn transaction() -> Result<(), Box<dyn Error>> {
     let (connection, ..) = QueueManager::new(None, &cb).warn_as_error()?;
     let object = Object::open(&connection, &od, MqMask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
 
-    object
-        .put_message::<()>(MqMask::default(), &Properties::default(), "message")
-        .warn_as_error()?;
+    object.put_message::<()>((), "message").warn_as_error()?;
 
     Ok(())
 }

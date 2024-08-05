@@ -1,8 +1,7 @@
 use std::{error::Error, sync::Arc, thread};
 
 use mqi::{
-    mqstr, put::Properties, sys, ConnectionOptions, Credentials, Message, MqMask, MqStruct, MqValue, ObjectName, QueueManager,
-    ResultCompExt, Tls,
+    mqstr, sys, ConnectionOptions, Credentials, Message, MqMask, MqStruct, MqValue, ObjectName, QueueManager, ResultCompExt, Tls,
 };
 
 #[test]
@@ -16,13 +15,13 @@ fn thread() {
         let mut od = MqStruct::<sys::MQOD>::default();
 
         let c = Arc::new(conn);
-        let msg = Message::new(&*c, MqValue::default()).expect("message created");
+        let mut msg = Message::new(&*c, MqValue::default()).expect("message created");
         msg.set_property("wally", "test", MqValue::default())
             .warn_as_error()
             .expect("property set");
 
         QUEUE.copy_into_mqchar(&mut od.ObjectName);
-        c.put_message::<()>(&mut od, MqMask::default(), &Properties::New(Some(&msg)), b"Hello ".as_slice())
+        c.put_message::<()>(&mut od, &mut msg, b"Hello ".as_slice())
             .warn_as_error()
             .expect("Put failed");
     })
@@ -65,7 +64,7 @@ fn connect() -> Result<(), Box<dyn Error>> {
 
     let (conn, ..) = QueueManager::new(None, &cb).warn_as_error()?;
 
-    conn.put_message::<()>(&mut od, MqMask::from(sys::MQPMO_SYNCPOINT), &Properties::default(), "Hello")
+    conn.put_message::<()>(&mut od, MqMask::from(sys::MQPMO_SYNCPOINT), "Hello")
         .warn_as_error()?;
 
     Ok(())

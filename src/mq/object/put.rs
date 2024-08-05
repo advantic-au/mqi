@@ -5,51 +5,120 @@ use libmqm_sys::function;
 
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat, Warning};
-use crate::{sys, Completion, Conn, Error, Message, MqMask, MqStruct, Object, QueueManagerShare, ResultComp, ResultCompErr};
+use crate::{sys, Completion, Conn, Message, MqMask, MqStruct, Object, QueueManagerShare, ResultComp};
 use crate::core::{self, values};
 
 pub trait PutMessage {
     type Data: ?Sized;
 
-    #[allow(unused_variables)]
-    fn apply_mqput(&self, mqpmo: &mut MqStruct<sys::MQPMO>) {}
-
     fn render(&self) -> Cow<[u8]>;
     fn format(&self) -> MessageFormat;
 }
 
-pub trait PutResult: Sized {
-    type Error: std::fmt::Debug + From<Error>;
-    fn create_from(warning: Option<Warning>) -> Result<Self, Self::Error>;
+pub trait PutOptions {
+    fn apply_mqput(self, md: &mut MqStruct<'static, sys::MQMD2>, mqpmo: &mut MqStruct<'static, sys::MQPMO>);
 }
 
-pub struct Context<'handle, T> {
+impl PutOptions for () {
+    fn apply_mqput(self, _md: &mut MqStruct<'static, sys::MQMD2>, _mqpmo: &mut MqStruct<'static, sys::MQPMO>) {}
+}
+
+impl<A: PutOptions> PutOptions for (A,) {
+    fn apply_mqput(self, md: &mut MqStruct<'static, sys::MQMD2>, mqpmo: &mut MqStruct<'static, sys::MQPMO>) {
+        self.0.apply_mqput(md, mqpmo);
+    }
+}
+
+impl<A: PutOptions, B: PutOptions> PutOptions for (A, B) {
+    fn apply_mqput(self, md: &mut MqStruct<'static, sys::MQMD2>, mqpmo: &mut MqStruct<'static, sys::MQPMO>) {
+        self.0.apply_mqput(md, mqpmo);
+        self.1.apply_mqput(md, mqpmo);
+    }
+}
+
+impl<A: PutOptions, B: PutOptions, C: PutOptions> PutOptions for (A, B, C) {
+    fn apply_mqput(self, md: &mut MqStruct<'static, sys::MQMD2>, mqpmo: &mut MqStruct<'static, sys::MQPMO>) {
+        self.0.apply_mqput(md, mqpmo);
+        self.1.apply_mqput(md, mqpmo);
+        self.2.apply_mqput(md, mqpmo);
+    }
+}
+
+impl<A: PutOptions, B: PutOptions, C: PutOptions, D: PutOptions> PutOptions for (A, B, C, D) {
+    fn apply_mqput(self, md: &mut MqStruct<'static, sys::MQMD2>, mqpmo: &mut MqStruct<'static, sys::MQPMO>) {
+        self.0.apply_mqput(md, mqpmo);
+        self.1.apply_mqput(md, mqpmo);
+        self.2.apply_mqput(md, mqpmo);
+        self.3.apply_mqput(md, mqpmo);
+    }
+}
+
+impl<F> PutOptions for F where F: FnOnce(&mut MqStruct<'static, sys::MQMD2>, &mut MqStruct<'static, sys::MQPMO>) {
+    #[inline]
+    fn apply_mqput(self, md: &mut MqStruct<'static, sys::MQMD2>, mqpmo: &mut MqStruct<'static, sys::MQPMO>) {
+        self(md, mqpmo);
+    }
+}
+
+impl PutOptions for MqMask<values::MQPMO> {
+    fn apply_mqput(self, _md: &mut MqStruct<'static, sys::MQMD2>, mqpmo: &mut MqStruct<'static, sys::MQPMO>) {
+        mqpmo.Options |= self.value();
+    }
+}
+
+pub trait PutResult: Sized {
+    fn create_from(md: &MqStruct<'static, sys::MQMD2>, pmo: &MqStruct<'static, sys::MQPMO>, warning: Option<Warning>) -> Self;
+}
+
+impl<A: PutResult, B: PutResult> PutResult for (A, B) {
+    fn create_from(md: &MqStruct<'static, sys::MQMD2>, pmo: &MqStruct<'static, sys::MQPMO>, warning: Option<Warning>) -> Self {
+        (A::create_from(md, pmo, warning), B::create_from(md, pmo, warning))
+    }
+}
+
+impl<A: PutResult, B: PutResult, C: PutResult> PutResult for (A, B, C) {
+    fn create_from(md: &MqStruct<'static, sys::MQMD2>, pmo: &MqStruct<'static, sys::MQPMO>, warning: Option<Warning>) -> Self {
+        (
+            A::create_from(md, pmo, warning),
+            B::create_from(md, pmo, warning),
+            C::create_from(md, pmo, warning),
+        )
+    }
+}
+
+impl<A: PutResult, B: PutResult, C: PutResult, D: PutResult> PutResult for (A, B, C, D) {
+    fn create_from(md: &MqStruct<'static, sys::MQMD2>, pmo: &MqStruct<'static, sys::MQPMO>, warning: Option<Warning>) -> Self {
+        (
+            A::create_from(md, pmo, warning),
+            B::create_from(md, pmo, warning),
+            C::create_from(md, pmo, warning),
+            D::create_from(md, pmo, warning),
+        )
+    }
+}
+
+pub struct Context<'handle> {
     context: MqMask<values::MQPMO>, // TODO: only a subset
     input_handle: Option<&'handle core::ObjectHandle>,
-    message: T,
 }
 
 #[derive(Debug)]
 pub enum Properties<'handle, C: Conn> {
-    New(Option<&'handle Message<C>>),
     Reply(&'handle Message<C>, &'handle mut Message<C>),
     Forward(&'handle Message<C>, &'handle mut Message<C>),
     Report(&'handle Message<C>, &'handle mut Message<C>),
 }
 
-impl<C: Conn> Default for Properties<'_, C> {
-    fn default() -> Self {
-        Self::New(None)
+impl<C: Conn> PutOptions for &mut Message<C> {
+    fn apply_mqput(self, _md: &mut MqStruct<'static, sys::MQMD2>, mqpmo: &mut MqStruct<'static, sys::MQPMO>) {
+        mqpmo.Action = sys::MQACTP_NEW;
+        mqpmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
     }
 }
 
-impl<'handle, C: Conn> Properties<'handle, C> {
-    fn apply_mqpmo(&self, mqpmo: &mut MqStruct<sys::MQPMO>) {
+impl<'handle, C: Conn> PutOptions for Properties<'handle, C> {
+    fn apply_mqput(self, _md: &mut MqStruct<'static, sys::MQMD2>, mqpmo: &mut MqStruct<'static, sys::MQPMO>) {
         match self {
-            Properties::New(original) => {
-                mqpmo.Action = sys::MQACTP_NEW;
-                mqpmo.OriginalMsgHandle = original.map_or(0, |m| unsafe { m.handle().raw_handle() });
-            }
             Properties::Reply(original, new) => {
                 mqpmo.Action = sys::MQACTP_REPLY;
                 mqpmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
@@ -69,38 +138,28 @@ impl<'handle, C: Conn> Properties<'handle, C> {
     }
 }
 
-impl<'handle, T> Context<'handle, T> {
-    pub const fn new(message: T, context: MqMask<values::MQPMO>, input_handle: Option<&'handle core::ObjectHandle>) -> Self {
-        Self {
-            context,
-            input_handle,
-            message,
-        }
+impl<'handle> Context<'handle> {
+    #[must_use]
+    pub const fn new(context: MqMask<values::MQPMO>, input_handle: Option<&'handle core::ObjectHandle>) -> Self {
+        Self { context, input_handle }
     }
 }
 
-impl<T: PutMessage> PutMessage for Context<'_, T> {
-    type Data = T::Data;
-
-    fn render(&self) -> Cow<[u8]> {
-        self.message.render()
-    }
-
-    fn format(&self) -> MessageFormat {
-        self.message.format()
-    }
-
-    fn apply_mqput(&self, mqpmo: &mut MqStruct<sys::MQPMO>) {
+impl PutOptions for Context<'_> {
+    fn apply_mqput(self, _md: &mut MqStruct<'static, sys::MQMD2>, mqpmo: &mut MqStruct<'static, sys::MQPMO>) {
         mqpmo.Context = self.input_handle.map_or(0, |handle| unsafe { handle.raw_handle() });
         mqpmo.Options |= self.context.value();
     }
 }
 
 impl PutResult for () {
-    type Error = Error;
+    fn create_from(_md: &MqStruct<'static, sys::MQMD2>, _pmo: &MqStruct<'static, sys::MQPMO>, _warning: Option<Warning>) -> Self {
+    }
+}
 
-    fn create_from(_warning: Option<Warning>) -> Result<Self, Self::Error> {
-        Ok(())
+impl PutResult for MqStruct<'_, sys::MQMD2> {
+    fn create_from(md: &MqStruct<'static, sys::MQMD2>, _pmo: &MqStruct<'static, sys::MQPMO>, _warning: Option<Warning>) -> Self {
+        md.clone()
     }
 }
 
@@ -137,13 +196,8 @@ impl PutMessage for [u8] {
 }
 
 impl<C: Conn> Object<C> {
-    pub fn put_message<T: PutResult>(
-        &self,
-        pmo: MqMask<values::MQPMO>,
-        properties: &Properties<C>,
-        message: &(impl PutMessage + ?Sized),
-    ) -> ResultCompErr<T, T::Error> {
-        put(pmo, properties, message, |mqmd, mqpmo, data| {
+    pub fn put_message<T: PutResult>(&self, options: impl PutOptions, message: &(impl PutMessage + ?Sized)) -> ResultComp<T> {
+        put(options, message, |mqmd, mqpmo, data| {
             let connection = self.connection();
             connection
                 .mq()
@@ -156,22 +210,20 @@ impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
     pub fn put_message<T: PutResult>(
         &self,
         mqod: &mut MqStruct<sys::MQOD>,
-        pmo: MqMask<values::MQPMO>,
-        properties: &Properties<&Self>,
+        options: impl PutOptions,
         message: &(impl PutMessage + ?Sized),
-    ) -> ResultCompErr<T, T::Error> {
-        put(pmo, properties, message, |mqmd, mqpmo, data| {
+    ) -> ResultComp<T> {
+        put(options, message, |mqmd, mqpmo, data| {
             self.mq().mqput1(self.handle(), mqod, Some(mqmd), mqpmo, data)
         })
     }
 }
 
-fn put<C: Conn, T: PutResult, F: FnOnce(&mut sys::MQMD2, &mut sys::MQPMO, &[u8]) -> ResultComp<()>>(
-    pmo: MqMask<values::MQPMO>,
-    properties: &Properties<C>,
+fn put<T: PutResult, F: FnOnce(&mut sys::MQMD2, &mut sys::MQPMO, &[u8]) -> ResultComp<()>>(
+    options: impl PutOptions,
     message: &(impl PutMessage + ?Sized),
     put: F,
-) -> ResultCompErr<T, T::Error> {
+) -> ResultComp<T> {
     let MessageFormat { ccsid, encoding, format } = message.format();
     let mut md = MqStruct::new(sys::MQMD2 {
         CodedCharSetId: ccsid,
@@ -181,13 +233,12 @@ fn put<C: Conn, T: PutResult, F: FnOnce(&mut sys::MQMD2, &mut sys::MQPMO, &[u8])
     });
     let mut mqpmo = MqStruct::new(sys::MQPMO {
         Version: sys::MQPMO_VERSION_3,
-        Options: pmo.value(),
         ..sys::MQPMO::default()
     });
-    properties.apply_mqpmo(&mut mqpmo);
-    message.apply_mqput(&mut mqpmo);
+
+    options.apply_mqput(&mut md, &mut mqpmo);
 
     let Completion((), warning) = put(&mut md, &mut mqpmo, &message.render())?;
 
-    Ok(Completion(T::create_from(warning)?, warning))
+    Ok(Completion(T::create_from(&md, &mqpmo, warning), warning))
 }
