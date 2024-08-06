@@ -3,28 +3,21 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
-use mqi::connect_options::{Binding, Credentials};
+use mqi::connect_options::Credentials;
 use mqi::get::{GetConvert, GetMessage, GetWait};
-use mqi::types::QueueName;
+use mqi::types::{QueueManagerName, QueueName};
 use mqi::{get, prelude::*, Message, StrCcsidCow};
-use mqi::{inq, mqstr, sys, MqStruct, Object, QueueManager};
+use mqi::{inq, mqstr, sys, Object, QueueManager};
 
 #[test]
 fn object() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let creds = Credentials::user("app", "app");
-    // let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
-    let qm = QueueManager::connect(None, (Binding::Local,))
+    let qm = QueueManager::connect(None, &Credentials::user("app", "app").build_csp())
         .warn_as_error()
         .expect("Could not establish connection");
 
     thread::spawn(move || {
-        // let mut od = MqStruct::<sys::MQOD>::default();
-
-        // QUEUE.copy_into_mqchar(&mut od.ObjectName);
-        // od.ObjectType = sys::MQOT_Q;
-
         let mut props = Message::new(&qm, MqValue::default()).expect("property creation");
         props
             .set_property("my_property", "valuex2", MqValue::default())
@@ -42,11 +35,8 @@ fn object() {
 #[test]
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
-    // let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
-    let qm = QueueManager::connect(None, ()).warn_as_error()?;
+    let qm = QueueManager::connect(None, &Credentials::user("app", "app").build_csp()).warn_as_error()?;
 
-    // let mut od = MqStruct::<sys::MQOD>::default();
-    // //od.ObjectName = QUEUE.into();
     let object = Object::open(&qm, QUEUE, MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF))?;
     let mut properties = Message::new(&qm, MqValue::default())?;
 
@@ -110,15 +100,8 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         ),
         inq::MQIA_COMMAND_LEVEL,
     ];
-    let Completion(qm, ..) = QueueManager::connect(
-        None,
-        (),
-        // &ConnectionOptions::default_binding().credentials(Credentials::user("app", "app")),
-    )?;
-    // let mut od = MqStruct::<sys::MQOD>::default();
-    // od.ObjectQMgrName = mqstr!("QM1").into();
-    // od.ObjectType = sys::MQOT_Q_MGR;
-    let object = Object::open(&qm, (), MqMask::from(sys::MQOO_INQUIRE))?;
+    let Completion(qm, ..) = QueueManager::connect(None, &Credentials::user("app", "app").build_csp())?;
+    let object = Object::open(&qm, QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
 
     let result = object.inq(INQ)?;
     if let Some((rc, verb)) = result.warning() {
@@ -148,14 +131,9 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn transaction() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
-    // let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
 
-    // let cb = cb.build();
-    let mut od = MqStruct::<sys::MQOD>::default();
-
-    QUEUE.copy_into_mqchar(&mut od.ObjectName);
-    let connection = QueueManager::connect(None, ()).warn_as_error()?;
-    let object = Object::open(&connection, (), MqMask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
+    let connection = QueueManager::connect(None, &Credentials::user("app", "app").build_csp()).warn_as_error()?;
+    let object = Object::open(&connection, QUEUE, MqMask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
 
     object.put_message::<()>((), "message").warn_as_error()?;
 

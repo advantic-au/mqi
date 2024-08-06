@@ -79,16 +79,33 @@ pub type ObjectName = MqStr<48>;
 pub struct QueueName(pub ObjectName);
 
 impl std::ops::Deref for QueueName {
-    type Target = MqStr<48>;
+    type Target = ObjectName;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a> OdOptions<'a> for QueueName {
-    fn apply_mqopen<'ptr>(self, mqoo: &mut super::MqStruct<'ptr, sys::MQOD>) where 'a: 'ptr {
+pub struct QueueManagerName(pub ObjectName);
+impl std::ops::Deref for QueueManagerName {
+    type Target = ObjectName;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl OdOptions<'_> for QueueName {
+    fn apply_mqopen<'ptr>(self, mqoo: &mut super::MqStruct<'ptr, sys::MQOD>) where 'static: 'ptr {
         mqoo.ObjectName = self.0.into();
         mqoo.ObjectType = sys::MQOT_Q;
     }
 }
+
+impl OdOptions<'_> for QueueManagerName {
+    fn apply_mqopen<'ptr>(self, mqoo: &mut super::MqStruct<'ptr, sys::MQOD>) where 'static: 'ptr {
+        mqoo.ObjectQMgrName = self.0.into();
+        mqoo.ObjectType = sys::MQOT_Q_MGR;
+    }
+}
+

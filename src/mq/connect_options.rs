@@ -17,37 +17,38 @@ pub struct Ccdt<'url>(pub &'url str);
 pub enum Binding {
     Default,
     Local,
-    Client
+    Client,
 }
 
 impl CnoOptions<'_> for Binding {
     fn apply_mqconnx<'ptr>(self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
-        'static: 'ptr {
-            mqcno.Options &= !(sys::MQCNO_CLIENT_BINDING|sys::MQCNO_LOCAL_BINDING);
-            mqcno.Options |= match self {
-                Self::Default => sys::MQCNO_NONE,
-                Self::Local => sys::MQCNO_LOCAL_BINDING,
-                Self::Client => sys::MQCNO_CLIENT_BINDING,
-            }
+        'static: 'ptr,
+    {
+        mqcno.Options &= !(sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING);
+        mqcno.Options |= match self {
+            Self::Default => sys::MQCNO_NONE,
+            Self::Local => sys::MQCNO_LOCAL_BINDING,
+            Self::Client => sys::MQCNO_CLIENT_BINDING,
         }
-}
-
-#[derive(Default, Debug, Clone)]
-pub enum CredentialsSecret<S> {
-    #[default]
-    Default,
-    User(String, S, Option<S>),
-    Token(S, Option<S>),
-}
-
-impl<S> CredentialsSecret<S> {
-    pub fn user(user: impl Into<String>, password: impl Into<S>) -> Self {
-        Self::User(user.into(), password.into(), None)
     }
 }
 
-pub type Credentials<S> = CredentialsSecret<ProtectedSecret<S>>;
+#[derive(Default, Debug, Clone)]
+pub enum CredentialsSecret<'cred, S> {
+    #[default]
+    Default,
+    User(&'cred str, S, Option<S>),
+    Token(S, Option<S>),
+}
+
+impl<'cred, S> CredentialsSecret<'cred, S> {
+    pub fn user(user: &'cred str, password: impl Into<S>) -> Self {
+        Self::User(user, password.into(), None)
+    }
+}
+
+pub type Credentials<'cred, S> = CredentialsSecret<'cred, ProtectedSecret<S>>;
 
 #[derive(Clone, Default)]
 pub struct ProtectedSecret<T>(T);
@@ -185,21 +186,24 @@ impl<T: Deref> Secret<T> for ProtectedSecret<T> {
     }
 }
 
-impl std::fmt::Debug for ProtectedSecret {
+impl<T> std::fmt::Debug for ProtectedSecret<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("ProtectedSecret").field(&"[redacted]").finish()
+        f.debug_tuple("ProtectedSecret").field(&format_args!("[redacted]")).finish()
     }
 }
 
-impl<T: Into<String>> From<T> for ProtectedSecret {
+impl<T> From<T> for ProtectedSecret<T> {
     fn from(value: T) -> Self {
-        Self(value.into())
+        Self(value)
     }
 }
 
 #[allow(clippy::field_reassign_with_default)]
-impl<'a, S: Secret<&'a str>> CredentialsSecret<S> {
-    pub fn build_csp(&self) -> MqStruct<sys::MQCSP> {
+impl<'cred, S> CredentialsSecret<'cred, S> {
+    pub fn build_csp<T: Deref<Target = str>>(&self) -> MqStruct<sys::MQCSP>
+    where
+        S: Secret<T>,
+    {
         let mut csp = MqStruct::<sys::MQCSP>::default();
         csp.Version = sys::MQCSP_VERSION_3;
 
@@ -208,7 +212,7 @@ impl<'a, S: Secret<&'a str>> CredentialsSecret<S> {
                 // No authentication
                 csp.AuthenticationType = sys::MQCSP_AUTH_NONE;
             }
-            Self::User(ref user, ref password, ..) => {
+            Self::User(user, password, ..) => {
                 // UserId and Password authentication
                 let password = password.expose_secret();
                 csp.AuthenticationType = sys::MQCSP_AUTH_USER_ID_AND_PWD;

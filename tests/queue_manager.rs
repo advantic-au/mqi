@@ -1,14 +1,13 @@
 use std::{error::Error, sync::Arc, thread};
 
 use mqi::{
-    mqstr, sys, types::QueueName, Message, MqMask, MqValue, QueueManager, ResultCompExt
+    connect_options::Credentials, mqstr, sys, types::QueueName, Message, MqMask, MqValue, QueueManager, ResultCompExt
 };
 
 #[test]
 fn thread() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
-    // let cb = ConnectionOptions::default_binding().credentials(Credentials::user("app", "app"));
-    let conn = QueueManager::connect(None, ())
+    let conn = QueueManager::connect(None, &Credentials::user("app", "app").build_csp())
         .warn_as_error()
         .expect("Could not establish connection");
     thread::spawn(move || {
