@@ -7,7 +7,7 @@ use crate::{
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     sys,
     types::{self, Fmt, MessageFormat},
-    Buffer, Completion, Conn, Error, Message, MqMask, MqStruct, MqValue, ResultCompErr, StrCcsidCow,
+    Buffer, Completion, Conn, Error, MqMask, MqStruct, MqValue, ResultCompErr, StrCcsidCow, MqiOption,
 };
 
 use super::Object;
@@ -104,197 +104,7 @@ pub enum GetConvert {
     ConvertTo(sys::MQLONG, MqMask<values::MQENC>),
 }
 
-pub trait GetOptions {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>);
-}
-
-impl GetOptions for MqMask<values::MQGMO> {
-    fn apply_mqget(self, _md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
-        gmo.Options |= self.value();
-    }
-}
-
-impl GetOptions for GetWait {
-    fn apply_mqget(self, _md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
-        match self {
-            Self::NoWait => gmo.Options |= sys::MQGMO_NO_WAIT,
-            Self::Wait(interval) => {
-                gmo.Options |= sys::MQGMO_WAIT;
-                gmo.WaitInterval = interval;
-            }
-        }
-    }
-}
-
-impl GetOptions for GetConvert {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        match self {
-            Self::NoConvert => {}
-            Self::Convert => gmo.Options |= sys::MQGMO_CONVERT,
-            Self::ConvertTo(ccsid, encoding) => {
-                gmo.Options |= sys::MQGMO_CONVERT;
-                md.CodedCharSetId = ccsid;
-                md.Encoding = encoding.value();
-            }
-        }
-    }
-}
-
-impl<F> GetOptions for F
-where
-    F: FnOnce(&mut MqStruct<'static, sys::MQMD2>, &mut MqStruct<'static, sys::MQGMO>),
-{
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        self(md, gmo);
-    }
-}
-
-impl<C: Conn> GetOptions for &mut Message<C> {
-    fn apply_mqget(self, _md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        gmo.Options |= sys::MQGMO_PROPERTIES_IN_HANDLE;
-        gmo.MsgHandle = unsafe { self.handle().raw_handle() }
-    }
-}
-
-impl GetOptions for MatchOptions<'_> {
-    fn apply_mqget(self, md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
-        // Set up the MQMD
-        if let Some(msg_id) = self.msg_id {
-            md.MsgId = msg_id.0;
-        }
-        if let Some(correl_id) = self.correl_id {
-            md.CorrelId = correl_id.0;
-        }
-        if let Some(group_id) = self.group_id {
-            md.GroupId = group_id.0;
-        }
-        md.MsgSeqNumber = self.seq_number.unwrap_or(0);
-        md.Offset = self.offset.unwrap_or(0);
-
-        // Set up the GMO
-        if let Some(token) = self.token {
-            gmo.MsgToken = token.0;
-        }
-        gmo.MatchOptions = self.correl_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_CORREL_ID)
-            | self.msg_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_ID)
-            | self.group_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_GROUP_ID)
-            | self.seq_number.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_SEQ_NUMBER)
-            | self.offset.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_OFFSET)
-            | self.token.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_TOKEN);
-    }
-}
-
-impl GetOptions for () {
-    fn apply_mqget(self, _md: &mut MqStruct<'static, sys::MQMD2>, _gmo: &mut MqStruct<'static, sys::MQGMO>) {}
-}
-
-impl<A: GetOptions> GetOptions for (A,) {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        self.0.apply_mqget(md, gmo);
-    }
-}
-
-impl<A: GetOptions, B: GetOptions> GetOptions for (A, B) {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        self.0.apply_mqget(md, gmo);
-        self.1.apply_mqget(md, gmo);
-    }
-}
-
-impl<A: GetOptions, B: GetOptions, C: GetOptions> GetOptions for (A, B, C) {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        self.0.apply_mqget(md, gmo);
-        self.1.apply_mqget(md, gmo);
-        self.2.apply_mqget(md, gmo);
-    }
-}
-
-impl<A: GetOptions, B: GetOptions, C: GetOptions, D: GetOptions> GetOptions for (A, B, C, D) {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        self.0.apply_mqget(md, gmo);
-        self.1.apply_mqget(md, gmo);
-        self.2.apply_mqget(md, gmo);
-        self.3.apply_mqget(md, gmo);
-    }
-}
-
-impl<A: GetOptions, B: GetOptions, C: GetOptions, D: GetOptions, E: GetOptions> GetOptions for (A, B, C, D, E) {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        self.0.apply_mqget(md, gmo);
-        self.1.apply_mqget(md, gmo);
-        self.2.apply_mqget(md, gmo);
-        self.3.apply_mqget(md, gmo);
-        self.4.apply_mqget(md, gmo);
-    }
-}
-
-impl<A: GetOptions, B: GetOptions, C: GetOptions, D: GetOptions, E: GetOptions, F: GetOptions> GetOptions for (A, B, C, D, E, F) {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        self.0.apply_mqget(md, gmo);
-        self.1.apply_mqget(md, gmo);
-        self.2.apply_mqget(md, gmo);
-        self.3.apply_mqget(md, gmo);
-        self.4.apply_mqget(md, gmo);
-        self.5.apply_mqget(md, gmo);
-    }
-}
-
-impl<A: GetOptions, B: GetOptions, C: GetOptions, D: GetOptions, E: GetOptions, F: GetOptions, G: GetOptions> GetOptions
-    for (A, B, C, D, E, F, G)
-{
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        self.0.apply_mqget(md, gmo);
-        self.1.apply_mqget(md, gmo);
-        self.2.apply_mqget(md, gmo);
-        self.3.apply_mqget(md, gmo);
-        self.4.apply_mqget(md, gmo);
-        self.5.apply_mqget(md, gmo);
-        self.6.apply_mqget(md, gmo);
-    }
-}
-
-impl<A: GetOptions, B: GetOptions, C: GetOptions, D: GetOptions, E: GetOptions, F: GetOptions, G: GetOptions, H: GetOptions>
-    GetOptions for (A, B, C, D, E, F, G, H)
-{
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        self.0.apply_mqget(md, gmo);
-        self.1.apply_mqget(md, gmo);
-        self.2.apply_mqget(md, gmo);
-        self.3.apply_mqget(md, gmo);
-        self.4.apply_mqget(md, gmo);
-        self.5.apply_mqget(md, gmo);
-        self.6.apply_mqget(md, gmo);
-        self.7.apply_mqget(md, gmo);
-    }
-}
-
-impl GetOptions for types::CorrelationId {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        md.CorrelId = self.0;
-        gmo.MatchOptions |= sys::MQMO_MATCH_CORREL_ID;
-    }
-}
-
-impl GetOptions for types::MessageId {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        md.MsgId = self.0;
-        gmo.MatchOptions |= sys::MQMO_MATCH_MSG_ID;
-    }
-}
-
-impl GetOptions for types::GroupId {
-    fn apply_mqget(self, md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        md.GroupId = self.0;
-        gmo.MatchOptions |= sys::MQMO_MATCH_GROUP_ID;
-    }
-}
-
-impl GetOptions for types::MsgToken {
-    fn apply_mqget(self, _md: &mut MqStruct<'static, sys::MQMD2>, gmo: &mut MqStruct<'static, sys::MQGMO>) {
-        gmo.MsgToken = self.0;
-        gmo.MatchOptions |= sys::MQMO_MATCH_MSG_TOKEN;
-    }
-}
+pub type GetParam = (MqStruct<'static, sys::MQMD2>, MqStruct<'static, sys::MQGMO>);
 
 pub trait GetMessage<'a>: Sized {
     type Error: std::fmt::Debug + From<Error>;
@@ -529,10 +339,10 @@ impl<T> Deref for Mqmd<T> {
 }
 
 impl<C: Conn> Object<C> {
-    pub fn get_message<'a, T: GetMessage<'a>>(
+    pub fn get_message<'b, T: GetMessage<'b>>(
         &self,
-        options: impl GetOptions,
-        buffer: impl Buffer<'a>,
+        options: &impl for<'a> MqiOption<'a, GetParam>,
+        buffer: impl Buffer<'b>,
     ) -> ResultCompErr<Option<T>, T::Error> {
         let mut buffer = buffer;
         let write_area = match T::max_data_size() {
@@ -540,15 +350,15 @@ impl<C: Conn> Object<C> {
             None => buffer.as_mut(),
         };
 
-        let mut md = MqStruct::default();
-        let mut mqgmo = MqStruct::new(sys::MQGMO {
+        let md = MqStruct::default();
+        let gmo = MqStruct::new(sys::MQGMO {
             Version: sys::MQGMO_VERSION_4,
             ..sys::MQGMO::default()
         });
+        let mut param = (md, gmo);
+        options.apply_param(&mut param);
 
-        options.apply_mqget(&mut md, &mut mqgmo);
-        T::apply_mqget(&mut md, &mut mqgmo);
-
+        let (mut md, mut gmo) = param;
         let get_result = match self
             .connection()
             .mq()
@@ -556,13 +366,13 @@ impl<C: Conn> Object<C> {
                 self.connection().handle(),
                 self.handle(),
                 Some(&mut *md),
-                &mut mqgmo,
+                &mut gmo,
                 write_area,
             )
             .map_completion(|length| {
                 (
                     length,
-                    match mqgmo.ReturnedLength {
+                    match gmo.ReturnedLength {
                         sys::MQRL_UNDEFINED => cmp::min(
                             write_area
                                 .len()
@@ -586,7 +396,7 @@ impl<C: Conn> Object<C> {
                     data_length.try_into().expect("length within positive usize range"),
                     message_length.try_into().expect("length within positive usize range"),
                     &md,
-                    &mqgmo,
+                    &gmo,
                     MessageFormat {
                         ccsid: md.CodedCharSetId,
                         encoding: MqMask::from(md.Encoding),

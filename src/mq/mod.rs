@@ -2,7 +2,6 @@
 mod link;
 
 mod buffer;
-mod builder;
 mod callback;
 mod message;
 mod mqmd;
@@ -10,6 +9,7 @@ mod mqstruct;
 mod object;
 mod queue_manager;
 mod strings;
+mod verb;
 
 pub mod connect_options;
 
@@ -26,3 +26,4 @@ pub use queue_manager::*;
 pub use strings::*;
 pub use mqmd::*;
 pub use buffer::*;
+pub use verb::*;

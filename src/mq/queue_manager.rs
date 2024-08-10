@@ -8,11 +8,12 @@ use crate::core::{self, Library, MQFunctions};
 use crate::{sys, ResultCompErrExt as _};
 use crate::ResultComp;
 
-use super::connect_options::CnoOptions;
-use super::types::QueueName;
-use super::MqStruct;
+use super::connect_options::{self, ConnectOptions};
+use super::types::QueueManagerName;
+use super::{MqStruct, MqiValue};
 
-pub type ConnectionId = [sys::MQBYTE; 24];
+pub struct ConnectionId(pub [sys::MQBYTE; 24]);
+pub struct ConnTag(pub [sys::MQBYTE; 128]);
 
 pub trait Conn {
     type Lib: Library<MQ: function::MQI>;
@@ -25,12 +26,14 @@ pub trait Conn {
 pub struct QueueManagerShare<'cb, L: Library<MQ: function::MQI>, H> {
     handle: core::ConnectionHandle,
     mq: core::MQFunctions<L>,
-    _share: PhantomData<H>,        // Send and Sync control
+    _share: PhantomData<H>,         // Send and Sync control
     _ref: PhantomData<&'cb mut ()>, // Connection may refer to callback function
 }
 
 /// Thread movable `QueueManagerShare`
 pub type QueueManager<'cb, L> = QueueManagerShare<'cb, L, ShareBlock>;
+
+pub type ConnectParam<'a> = MqStruct<'a, sys::MQCNO>;
 
 trait Sealed {}
 
@@ -82,56 +85,62 @@ impl<L: Library<MQ: function::MQI>, H> Drop for QueueManagerShare<'_, L, H> {
     }
 }
 
-pub trait ConnectValue<T> {
-    fn from_mqconnx(qm: T, cno: &MqStruct<sys::MQCNO>) -> Self;
-}
+impl<L: Library<MQ: function::MQI>, H: HandleShare> MqiValue<Self> for QueueManagerShare<'_, L, H> {
+    type Param<'a> = ConnectParam<'a>;
 
-pub trait FromCno {
-    fn from_mqcno(cno: &MqStruct<sys::MQCNO>) -> Self;
-}
-
-impl<T, A: FromCno> ConnectValue<T> for (T, A) {
-    fn from_mqconnx(qm: T, cno: &MqStruct<sys::MQCNO>) -> Self {
-        (qm, A::from_mqcno(cno))
-    }
-}
-
-impl<A: FromCno, B: FromCno> FromCno for (A, B) {
-    fn from_mqcno(cno: &MqStruct<sys::MQCNO>) -> Self {
-        (A::from_mqcno(cno), B::from_mqcno(cno))
-    }
-}
-
-impl<L: Library<MQ: function::MQI>, H> ConnectValue<Self> for QueueManagerShare<'_, L, H> {
-    fn from_mqconnx(qm: Self, _cno: &MqStruct<sys::MQCNO>) -> Self {
-        qm
+    fn from_mqi<F: FnOnce(&mut Self::Param<'_>) -> ResultComp<Self>>(
+        param: &mut Self::Param<'_>,
+        connect: F,
+    ) -> ResultComp<Self> {
+        connect(param)
     }
 }
 
 impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder
-    pub fn new_lib<'c, R: ConnectValue<Self>>(
-        lib: L,
-        qm_name: Option<&QueueName>,
-        options: impl CnoOptions<'c>,
-    ) -> ResultComp<R> {
-        let mut cno = MqStruct::new(sys::MQCNO {
-            Version: sys::MQCNO_VERSION_8,
-            ..sys::MQCNO::default()
-        });
-        cno.Options |= H::MQCNO_HANDLE_SHARE;
-        options.apply_mqconnx(&mut cno);
+    pub fn connect_lib<'c, R, O>(lib: L, qm_name: Option<&QueueManagerName>, options: &O) -> ResultComp<R>
+    where
+        R: for<'a> MqiValue<Self, Param<'a> = ConnectParam<'a>>,
+        O: ConnectOptions<'c>,
+    {
+        let mut cno = MqStruct::default();
+        let mut sco = MqStruct::default();
+        let mut cd = MqStruct::default();
+        let mut bno = MqStruct::default();
+        let mut csp = MqStruct::default();
 
-        let mq = core::MQFunctions(lib);
-        mq.mqconnx(qm_name.unwrap_or(&QueueName::default()), &mut cno)
-            .map_completion(|handle| {
-                R::from_mqconnx(Self {
-                        mq,
-                        handle,
-                        _share: PhantomData,
-                        _ref: PhantomData,
-                    }, &cno)
-            })
+        options.apply_cno(&mut cno);
+        if const { O::STRUCTS & connect_options::HAS_BNO != 0 } {
+            options.apply_bno(&mut bno);
+            cno.attach_bno(&bno);
+        }
+
+        if const { O::STRUCTS & connect_options::HAS_CD != 0 } {
+            options.apply_cd(&mut cd);
+            cno.attach_cd(&cd);
+        }
+
+        if const { O::STRUCTS & connect_options::HAS_SCO != 0 } {
+            options.apply_sco(&mut sco);
+            cno.attach_sco(&sco);
+        }
+
+        if const { O::STRUCTS & connect_options::HAS_CSP != 0 } {
+            options.apply_csp(&mut csp);
+            cno.attach_csp(&csp);
+        }
+
+        R::from_mqi(&mut cno, |param| {
+            param.Options |= H::MQCNO_HANDLE_SHARE;
+            let mq = core::MQFunctions(lib);
+            mq.mqconnx(qm_name.unwrap_or(&QueueManagerName::default()), param)
+                .map_completion(|handle| Self {
+                    mq,
+                    handle,
+                    _share: PhantomData,
+                    _ref: PhantomData,
+                })
+        })
     }
 }
 

@@ -13,7 +13,7 @@ use mqi::{inq, mqstr, sys, Object, QueueManager};
 fn object() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let qm = QueueManager::connect(None, &Credentials::user("app", "app").build_csp())
+    let qm = QueueManager::connect(None, &Credentials::user("app", "app"))
         .warn_as_error()
         .expect("Could not establish connection");
 
@@ -24,7 +24,7 @@ fn object() {
             .warn_as_error()
             .expect("property set");
 
-        qm.put_message::<()>(QUEUE, &mut props, "Hello")
+        qm.put_message::<()>(&QUEUE, &&mut props, "Hello")
             .warn_as_error()
             .expect("Put failed");
     })
@@ -35,15 +35,19 @@ fn object() {
 #[test]
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
-    let qm = QueueManager::connect(None, &Credentials::user("app", "app").build_csp()).warn_as_error()?;
+    let qm = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
 
-    let object = Object::open(&qm, QUEUE, MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF))?;
+    let object =
+        Object::open::<(Object<_>, Option<QueueName>)>(&qm, &QUEUE, MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF))?;
     let mut properties = Message::new(&qm, MqValue::default())?;
 
+    let (ob, qn) = object.discard_warning();
+    println!("{qn:?}");
+
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
-    let msg: Completion<Option<get::Headers<StrCcsidCow>>> = object.get_message(
-        (
-            // MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
+    let msg: Completion<Option<get::Headers<StrCcsidCow>>> = ob.get_message(
+        &(
+            MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
             GetConvert::ConvertTo(500, MqMask::from(sys::MQENC_NORMAL)),
             &mut properties,     // Get some properties
             GetWait::Wait(2000), // Wait for 2 seconds
@@ -100,8 +104,8 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         ),
         inq::MQIA_COMMAND_LEVEL,
     ];
-    let Completion(qm, ..) = QueueManager::connect(None, &Credentials::user("app", "app").build_csp())?;
-    let object = Object::open(&qm, QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
+    let qm = QueueManager::connect(None, &(Credentials::user("app", "app"))).discard_warning()?;
+    let object: Completion<Object<_>> = Object::open(&qm, &QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
 
     let result = object.inq(INQ)?;
     if let Some((rc, verb)) = result.warning() {
@@ -132,10 +136,10 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 fn transaction() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let connection = QueueManager::connect(None, &Credentials::user("app", "app").build_csp()).warn_as_error()?;
-    let object = Object::open(&connection, QUEUE, MqMask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
+    let connection = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
+    let object = Object::open::<Object<_>>(&connection, &QUEUE, MqMask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
 
-    object.put_message::<()>((), "message").warn_as_error()?;
+    object.put_message::<()>(&(), "message").warn_as_error()?;
 
     Ok(())
 }

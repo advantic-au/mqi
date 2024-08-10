@@ -30,6 +30,7 @@ fn event_callback<F: FnMut(&ConnectionHandle, &MqStruct<sys::MQCBC>)>(
 }
 
 impl<'a, L: Library<MQ: function::MQI>, H> QueueManagerShare<'a, L, H> {
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn register_event_handler<F: FnMut(&ConnectionHandle, &MqStruct<sys::MQCBC>) + 'a + Send>(
         &mut self,
         options: MqMask<MQCBDO>,

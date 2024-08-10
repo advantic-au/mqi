@@ -35,4 +35,4 @@ define_mqvalue!(pub MQDCC, mapping::MQDCC_CONST);
 impl_default_mqvalue!(MqMask<MQDCC>, sys::MQDCC_NONE);
 
 define_mqvalue!(pub MQCNO, mapping::MQCNO_CONST);
-
+define_mqvalue!(pub MQXPT, mapping::MQXPT_CONST);

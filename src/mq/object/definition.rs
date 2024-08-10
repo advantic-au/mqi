@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{common::ResultCompErrExt as _, types::QueueName, MqStruct};
+use crate::{MqStruct, ResultCompErrExt as _, MqiOption, MqiValue};
 
 use libmqm_sys::function;
 
@@ -19,25 +19,7 @@ use crate::sys;
 use crate::ResultComp;
 use crate::QueueManagerShare;
 
-pub trait OdOptions<'a> {
-    fn apply_mqopen<'ptr>(self, mqoo: &mut MqStruct<'ptr, sys::MQOD>) where 'a: 'ptr;
-}
-
-impl OdOptions<'_> for () {
-    fn apply_mqopen<'ptr>(self, _mqoo: &mut MqStruct<'ptr, sys::MQOD>) where 'static: 'ptr {}
-}
-
-impl OdOptions<'static> for &QueueName {
-    fn apply_mqopen<'ptr>(self, mqoo: &mut MqStruct<'ptr, sys::MQOD>) where 'static: 'ptr {
-        self.0.copy_into_mqchar(&mut mqoo.ObjectName);
-    }
-}
-
-pub trait CnoOptions<'a> {
-    fn apply_mqconnx<'ptr>(self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
-    where
-        'a: 'ptr;
-}
+pub type ObjectDescriptor<'a> = MqStruct<'a, sys::MQOD>;
 
 #[must_use]
 pub struct Object<C: Conn> {
@@ -97,21 +79,25 @@ impl<C: Conn> Object<C> {
         &self.connection
     }
 
-    pub fn open<'od>(connection: C, descriptor: impl OdOptions<'od>, options: MqMask<MQOO>) -> ResultComp<Self> {
+    pub fn open<R: for<'a> MqiValue<Self, Param<'a> = ObjectDescriptor<'a>>>(
+        connection: C,
+        descriptor: &impl for<'od> MqiOption<'od, ObjectDescriptor<'od>>,
+        options: MqMask<MQOO>,
+    ) -> ResultComp<R> {
         let mut mqod = MqStruct::new(sys::MQOD {
             Version: sys::MQOD_VERSION_4,
             ..sys::MQOD::default()
         });
-        descriptor.apply_mqopen(&mut mqod);
-        let result = connection.mq().mqopen(connection.handle(), &mut mqod, options);
-        result.map_completion(|handle| Self {
-            handle,
-            connection,
-            close_options: MqMask::from(sys::MQCO_NONE),
-            // name: mqod_build.ObjectName.into(),
-            // qmgr_name: Some(mqod_build.ObjectQMgrName.into()).filter(MqStr::has_value),
-            // resolved_name: Some(mqod_build.ResolvedQName.into()).filter(MqStr::has_value),
-            // resolved_qmgr_name: Some(mqod_build.ResolvedQMgrName.into()).filter(MqStr::has_value),
+        descriptor.apply_param(&mut mqod);
+        R::from_mqi(&mut mqod, |p| {
+            connection
+                .mq()
+                .mqopen(connection.handle(), p, options)
+                .map_completion(|handle| Self {
+                    handle,
+                    connection,
+                    close_options: MqMask::from(sys::MQCO_NONE),
+                })
         })
     }
 

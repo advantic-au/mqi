@@ -163,7 +163,7 @@ pub trait ResultCompErrExt<T, E> {
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E>;
 
     /// Discards the completion
-    fn discard_completion(self) -> Result<T, E>;
+    fn discard_warning(self) -> Result<T, E>;
 
     /// Returns the contained `Ok(Completion(..))` value, discarding any warning and consumes the `self` value.
     ///
@@ -184,7 +184,7 @@ impl<T, E: std::fmt::Debug> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
         self.unwrap().discard_warning()
     }
 
-    fn discard_completion(self) -> Result<T, E> {
+    fn discard_warning(self) -> Result<T, E> {
         self.map(Completion::discard_warning)
     }
 }

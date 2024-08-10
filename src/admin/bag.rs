@@ -85,12 +85,12 @@ impl<T: BagDrop, L: Library<MQ: function::MQAI>> std::ops::Deref for Bag<T, L> {
 }
 
 impl<L: Library<MQ: function::MQAI>> Bag<Owned, L> {
-    pub fn new_lib(lib: L, options: MqMask<MQCBO>) -> ResultComp<Self> {
+    pub fn connect_lib(lib: L, options: MqMask<MQCBO>) -> ResultComp<Self> {
         let mq = core::MQFunctions(lib);
         let bag = mq.mq_create_bag(options)?;
 
         mq.mq_set_integer(&bag, MqValue::from(sys::MQIASY_CODED_CHAR_SET_ID), MqValue::default(), 1208)
-            .discard_completion()?;
+            .discard_warning()?;
 
         Ok(bag.map(|bag| Self {
             bag,
@@ -161,7 +161,7 @@ impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
         response_q: Option<&core::ObjectHandle>,
     ) -> ResultComp<Bag<Owned, L>> {
         // There shouldn't be any warnings for creating a bag - so treat the warning as an error
-        let response_bag = Bag::new_lib(self.mq.0.clone(), MqMask::from(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
+        let response_bag = Bag::connect_lib(self.mq.0.clone(), MqMask::from(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
         self.mq
             .mq_execute(
                 handle,
@@ -194,11 +194,9 @@ mod tests {
         property.map_or_else(|| eprintln!("No CCSID!"), |ccsid| println!("CCSID is {ccsid}"));
 
         bag.add(MqValue::from(0), "abc")
-            .discard_completion()
+            .discard_warning()
             .expect("Failed to add string");
 
-        bag.delete(MqValue::from(0))
-            .discard_completion()
-            .expect("Failed to delete item");
+        bag.delete(MqValue::from(0)).discard_warning().expect("Failed to delete item");
     }
 }

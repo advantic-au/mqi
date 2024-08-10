@@ -2,14 +2,17 @@ use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
 use mqi::{
-    connect_options::Credentials, core::ConnectionHandle, mqstr, sys, types::QueueName, MqMask, MqStruct, MqValue, Object, QueueManager, ResultCompExt as _, MQMD
+    connect_options::{ApplName, Binding, Credentials},
+    core::ConnectionHandle,
+    mqstr, sys,
+    types::QueueName,
+    MqMask, MqStruct, MqValue, Object, QueueManager, ResultCompExt as _, MQMD,
 };
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
-    let mut qm: QueueManager<_> = QueueManager::connect(None, &Credentials::user("app", "app").build_csp()).warn_as_error()?;
+    let mut qm: QueueManager<_> = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
 
-    //let cb = move |_, _: &MqStruct<sys::MQCBC>| println!("{}", "hello");
     qm.register_event_handler(
         MqMask::from(sys::MQCBDO_REGISTER_CALL | sys::MQCBDO_DEREGISTER_CALL),
         move |handle, _: &MqStruct<sys::MQCBC>| println!("{handle}"),
@@ -76,10 +79,18 @@ fn callback() -> Result<(), Box<dyn Error>> {
 
     // Connect to the default queue manager (None) with the provided `connection_options`
     // Treat all MQCC_WARNING as an error
-    let qm: QueueManager<_> = QueueManager::connect(None, ()).warn_as_error()?;
+    let qm: QueueManager<_> = QueueManager::connect(
+        None,
+        &(
+            Binding::Default,
+            ApplName(mqstr!("readme_example")),
+            Credentials::user("app", "app"),
+        ),
+    )
+    .warn_as_error()?;
 
     let qm = Arc::new(qm);
-    let object = Object::open(qm.clone(), QUEUE, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
+    let object: Object<_> = Object::open(qm.clone(), &QUEUE, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
 
     let _ = thread::spawn(move || {
         println!("{:?}", object.handle());

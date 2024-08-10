@@ -1,7 +1,7 @@
 use crate::{core::values, headers::TextEnc, sys, MqMask, MqStr, ReasonCode};
-use std::str;
+use std::{cmp, str};
 
-use super::{put::PutResult, OdOptions};
+use super::connect_options::{self, ConnectOptions};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CorrelationId(pub [u8; sys::MQ_CORREL_ID_LENGTH]);
@@ -34,33 +34,12 @@ impl From<MessageId> for CorrelationId {
     }
 }
 
-impl PutResult for MessageId {
-    #[inline]
-    fn create_from(md: &super::MqStruct<'static, sys::MQMD2>, _pmo: &super::MqStruct<'static, sys::MQPMO>, _warning: Option<Warning>) -> Self {
-        Self(md.MsgId)
-    }
-}
-
-impl PutResult for Option<CorrelationId> {
-    #[inline]
-    fn create_from(md: &super::MqStruct<'static, sys::MQMD2>, _pmo: &super::MqStruct<'static, sys::MQPMO>, _warning: Option<Warning>) -> Self {
-        CorrelationId::new(md.CorrelId)
-    }
-}
-
-impl PutResult for Option<UserIdentifier> {
-    fn create_from(md: &super::MqStruct<'static, sys::MQMD2>, _pmo: &super::MqStruct<'static, sys::MQPMO>, _warning: Option<Warning>) -> Self {
-        UserIdentifier::new(md.UserIdentifier)
-    }
-}
-
 impl CorrelationId {
     #[must_use]
     pub fn new(source: [u8; sys::MQ_CORREL_ID_LENGTH]) -> Option<Self> {
         if source == sys::MQCI_NONE[..sys::MQ_CORREL_ID_LENGTH] {
             None
-        }
-        else {
+        } else {
             Some(Self(source))
         }
     }
@@ -68,44 +47,36 @@ impl CorrelationId {
 
 impl UserIdentifier {
     #[must_use]
-    pub fn new(source: [sys::MQCHAR; sys::MQ_USER_ID_LENGTH]) -> Option<Self > {
+    pub fn new(source: [sys::MQCHAR; sys::MQ_USER_ID_LENGTH]) -> Option<Self> {
         Some(MqStr::from(source)).filter(MqStr::has_value).map(UserIdentifier)
     }
 }
 
 pub type ObjectName = MqStr<48>;
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
+pub struct ConnectionName(pub MqStr<264>);
+
+#[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
+pub struct ChannelName(pub MqStr<20>);
+
+#[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
 pub struct QueueName(pub ObjectName);
 
-impl std::ops::Deref for QueueName {
-    type Target = ObjectName;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
+#[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
 pub struct QueueManagerName(pub ObjectName);
-impl std::ops::Deref for QueueManagerName {
-    type Target = ObjectName;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+#[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
+pub struct CipherSpec(pub MqStr<32>);
+
+impl ConnectOptions<'_> for CipherSpec {
+    const STRUCTS: i32 = connect_options::HAS_CD;
+
+    fn apply_cd<'ptr>(&'ptr self, cd: &mut super::MqStruct<'ptr, sys::MQCD>)
+    where
+        'static: 'ptr,
+    {
+        cd.Version = cmp::max(sys::MQCD_VERSION_7, cd.Version);
+        self.copy_into_mqchar(&mut cd.SSLCipherSpec);
     }
 }
-
-impl OdOptions<'_> for QueueName {
-    fn apply_mqopen<'ptr>(self, mqoo: &mut super::MqStruct<'ptr, sys::MQOD>) where 'static: 'ptr {
-        mqoo.ObjectName = self.0.into();
-        mqoo.ObjectType = sys::MQOT_Q;
-    }
-}
-
-impl OdOptions<'_> for QueueManagerName {
-    fn apply_mqopen<'ptr>(self, mqoo: &mut super::MqStruct<'ptr, sys::MQOD>) where 'static: 'ptr {
-        mqoo.ObjectQMgrName = self.0.into();
-        mqoo.ObjectType = sys::MQOT_Q_MGR;
-    }
-}
-
