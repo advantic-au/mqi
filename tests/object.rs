@@ -4,10 +4,10 @@ use std::error::Error;
 use std::thread;
 
 use mqi::connect_options::Credentials;
-use mqi::get::{GetConvert, GetMessage, GetWait};
-use mqi::open_options::{ResObjectString, SelectionString};
-use mqi::types::{QueueManagerName, QueueName};
-use mqi::{get, prelude::*, Message, StrCcsidCow};
+use mqi::get::{GetConvert, GetWait};
+use mqi::open_options::SelectionString;
+use mqi::types::{MessageFormat, QueueManagerName, QueueName};
+use mqi::{get, prelude::*, Message};
 use mqi::{inq, mqstr, sys, Object, QueueManager};
 
 #[test]
@@ -38,18 +38,15 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
     let qm = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
 
-    let object = Object::open::<(Object<_>, Option<ResObjectString>)>(
+    let object = Object::open::<Object<_>>(
         &qm,
         &(QUEUE, SelectionString("my_property = 'valuex2'")),
         MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
     )?;
     let mut properties = Message::new(&qm, MqValue::default())?;
 
-    let (ob, qn) = object.discard_warning();
-    println!("{qn:?}");
-
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
-    let msg: Completion<Option<get::Headers<StrCcsidCow>>> = ob.get_message(
+    let msg = object.get_message::<(MessageFormat, get::Headers)>(
         &(
             MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
             GetConvert::ConvertTo(500, MqMask::from(sys::MQENC_NORMAL)),
@@ -65,15 +62,15 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let msg = msg.discard_warning();
 
     match &msg {
-        Some(msg) => {
-            for header in msg.all_headers() {
+        Some((format, headers)) => {
+            for header in headers.all_headers() {
                 println!("Header: {header:?}");
             }
-            if let Some(header_error) = msg.header_error() {
+            if let Some(header_error) = headers.error() {
                 println!("Header parsing error: {header_error}");
             }
 
-            if let Some(rfh2) = msg.header::<sys::MQRFH2>().next() {
+            if let Some(rfh2) = headers.header::<sys::MQRFH2>().next() {
                 let nv: Cow<str> = rfh2.name_value_data().try_into()?;
                 println!("RFH2 name/value data: \"{nv}\"");
             }
@@ -81,8 +78,8 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
                 let (name, value): (String, String) = v.warn_as_error()?;
                 println!("Property: {name} = {value}");
             }
-            println!("Format: \"{}\"", msg.format().format);
-            println!("Payload: \"{:?}\"", msg.payload());
+            println!("Format: \"{}\"", format.fmt);
+            // println!("Payload: \"{msg:?}\"");
         }
         None => println!("No message!"),
     }

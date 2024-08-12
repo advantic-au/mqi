@@ -37,7 +37,7 @@ impl PutMessage for str {
         MessageFormat {
             ccsid: 1208,
             encoding: MqMask::from(sys::MQENC_NATIVE),
-            format: TextEnc::Ascii(fmt::MQFMT_STRING),
+            fmt: TextEnc::Ascii(fmt::MQFMT_STRING),
         }
     }
 }
@@ -53,7 +53,7 @@ impl PutMessage for [u8] {
         MessageFormat {
             ccsid: 1208,
             encoding: MqMask::from(sys::MQENC_NATIVE),
-            format: TextEnc::Ascii(fmt::MQFMT_NONE),
+            fmt: TextEnc::Ascii(fmt::MQFMT_NONE),
         }
     }
 }
@@ -96,7 +96,7 @@ fn put<T: for<'a> MqiAttr<PutParam<'a>>, F: FnOnce(&mut PutParam, &[u8]) -> Resu
     message: &(impl PutMessage + ?Sized),
     put: F,
 ) -> ResultComp<T> {
-    let MessageFormat { ccsid, encoding, format } = message.format();
+    let MessageFormat { ccsid, encoding, fmt: format } = message.format();
     let md = MqStruct::new(sys::MQMD2 {
         CodedCharSetId: ccsid,
         Encoding: encoding.value(),

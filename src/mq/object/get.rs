@@ -1,5 +1,5 @@
 use core::str;
-use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, ops::Deref, str::Utf8Error};
+use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
 
 use crate::{
     common::ResultCompErrExt as _,
@@ -13,22 +13,14 @@ use crate::{
 use super::Object;
 
 #[derive(Clone, Debug)]
-pub struct Mqmd<T> {
-    pub mqmd: MqStruct<'static, sys::MQMD2>,
-    pub next: T,
-}
-
-#[derive(Clone, Debug)]
-pub struct Headers<'a, T> {
+pub struct Headers<'a> {
     message_length: usize,
     init_format: MessageFormat,
-    format: MessageFormat,
     data: Cow<'a, [u8]>,
     error: Option<HeaderError>,
-    next: T,
 }
 
-impl<'a, T> Headers<'a, T> {
+impl<'a> Headers<'a> {
     pub fn all_headers(&'a self) -> impl Iterator<Item = Header<'a>> {
         Header::iter(&self.data, self.init_format).filter_map(|result| match result {
             Ok((header, ..)) => Some(header),
@@ -40,14 +32,12 @@ impl<'a, T> Headers<'a, T> {
         self.all_headers().filter_map(C::from_header)
     }
 
-    pub const fn header_error(&self) -> Option<&HeaderError> {
+    #[must_use]
+    pub const fn error(&self) -> Option<&HeaderError> {
         self.error.as_ref()
     }
 
-    pub const fn format(&self) -> MessageFormat {
-        self.format
-    }
-
+    #[must_use]
     pub const fn message_length(&self) -> usize {
         self.message_length
     }
@@ -106,19 +96,20 @@ pub enum GetConvert {
 
 pub type GetParam = (MqStruct<'static, sys::MQMD2>, MqStruct<'static, sys::MQGMO>);
 
-pub trait GetMessage<'a>: Sized {
+pub struct GetState<B> {
+    pub buffer: B,
+    pub data_length: usize,
+    pub message_length: usize,
+    pub format: MessageFormat,
+}
+
+pub trait GetConsume<'a>: Sized {
     type Error: std::fmt::Debug + From<Error>;
-    type Payload;
 
     #[allow(clippy::too_many_arguments)]
-    fn create_from<C: Conn>(
-        object: &Object<C>,
-        data: impl Buffer<'a>,
-        data_length: usize,
-        message_length: usize,
-        md: &MqStruct<'static, sys::MQMD2>,
-        gmo: &MqStruct<sys::MQGMO>,
-        format: MessageFormat,
+    fn consume_from<B: Buffer<'a>>(
+        state: GetState<B>,
+        param: &GetParam,
         warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error>;
 
@@ -126,67 +117,124 @@ pub trait GetMessage<'a>: Sized {
     fn max_data_size() -> Option<NonZero<usize>> {
         None
     }
-
-    #[allow(unused_variables)]
-    fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {}
-
-    fn payload(&self) -> &Self::Payload;
-    fn into_payload(self) -> Self::Payload;
 }
 
-impl<'a> GetMessage<'a> for StrCcsidCow<'a> {
-    type Error = GetStringCcsidError;
-    type Payload = Self;
+impl<'a, T, A> GetConsume<'a> for (T, A)
+where
+    T: GetConsume<'a>,
+    A: GetExtract<'a>,
+{
+    type Error = T::Error;
 
-    fn create_from<C: Conn>(
-        _object: &Object<C>,
-        data: impl Buffer<'a>,
-        data_length: usize,
-        _message_length: usize,
-        _md: &MqStruct<'static, sys::MQMD2>,
-        _gmo: &MqStruct<sys::MQGMO>,
-        format: MessageFormat,
+    fn consume_from<B: Buffer<'a>>(
+        state: GetState<B>,
+        param: &GetParam,
         warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
-        if format.format != TextEnc::Ascii(fmt::MQFMT_STRING) {
-            return Err(GetStringCcsidError::UnexpectedFormat(format.format, warning));
+        let (a, state) = A::extract_from(state, param, warning);
+        let t = T::consume_from(state, param, warning)?;
+        Ok((t, a))
+    }
+}
+
+impl<'a, T, A, B> GetConsume<'a> for (T, A, B)
+where
+    T: GetConsume<'a>,
+    A: GetExtract<'a>,
+    B: GetExtract<'a>,
+{
+    type Error = T::Error;
+
+    fn consume_from<C: Buffer<'a>>(
+        state: GetState<C>,
+        param: &GetParam,
+        warning: Option<types::Warning>,
+    ) -> Result<Self, Self::Error> {
+        let (b, state) = B::extract_from(state, param, warning);
+        let (a, state) = A::extract_from(state, param, warning);
+        let t = T::consume_from(state, param, warning)?;
+        Ok((t, a, b))
+    }
+}
+
+impl<'a, T, A, B, C> GetConsume<'a> for (T, A, B, C)
+where
+    T: GetConsume<'a>,
+    A: GetExtract<'a>,
+    B: GetExtract<'a>,
+    C: GetExtract<'a>,
+{
+    type Error = T::Error;
+
+    fn consume_from<X: Buffer<'a>>(
+        state: GetState<X>,
+        param: &GetParam,
+        warning: Option<types::Warning>,
+    ) -> Result<Self, Self::Error> {
+        let (c, state) = C::extract_from(state, param, warning);
+        let (b, state) = B::extract_from(state, param, warning);
+        let (a, state) = A::extract_from(state, param, warning);
+        let t = T::consume_from(state, param, warning)?;
+        Ok((t, a, b, c))
+    }
+}
+
+
+pub trait GetExtract<'a>: Sized {
+    #[allow(clippy::too_many_arguments)]
+    fn extract_from<B: Buffer<'a>>(state: GetState<B>, param: &GetParam, warning: Option<types::Warning>) -> (Self, GetState<B>);
+}
+
+impl<'a, T: GetExtract<'a>> GetConsume<'a> for T {
+    type Error = Error;
+
+    fn consume_from<B: Buffer<'a>>(
+        state: GetState<B>,
+        param: &GetParam,
+        warning: Option<types::Warning>,
+    ) -> Result<Self, Self::Error> {
+        let (t, _) = T::extract_from(state, param, warning);
+        Ok(t)
+    }
+}
+
+impl<'a> GetConsume<'a> for StrCcsidCow<'a> {
+    type Error = GetStringCcsidError;
+
+    fn consume_from<B: Buffer<'a>>(
+        state: GetState<B>,
+        _param: &GetParam,
+        warning: Option<types::Warning>,
+    ) -> Result<Self, Self::Error> {
+        if state.format.fmt != TextEnc::Ascii(fmt::MQFMT_STRING) {
+            return Err(GetStringCcsidError::UnexpectedFormat(state.format.fmt, warning));
         }
 
         Ok(Self {
-            ccsid: NonZero::new(format.ccsid),
-            data: data.truncate(data_length).into_cow(),
-            le: (format.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
+            ccsid: NonZero::new(state.format.ccsid),
+            data: state.buffer.truncate(state.data_length).into_cow(),
+            le: (state.format.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
         })
-    }
-
-    fn payload(&self) -> &Self::Payload {
-        self
-    }
-
-    fn into_payload(self) -> Self::Payload {
-        self
     }
 }
 
-impl<'a> GetMessage<'a> for Cow<'a, str> {
+impl<'a> GetConsume<'a> for Cow<'a, str> {
     type Error = GetStringError;
-    type Payload = Self;
 
-    fn create_from<C: Conn>(
-        _object: &Object<C>,
-        data: impl Buffer<'a>,
-        data_length: usize,
-        _message_length: usize,
-        _md: &MqStruct<'static, sys::MQMD2>,
-        _gmo: &MqStruct<sys::MQGMO>,
-        format: MessageFormat,
+    fn consume_from<B: Buffer<'a>>(
+        state: GetState<B>,
+        _param: &GetParam,
         warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
-        if format.format != TextEnc::Ascii(fmt::MQFMT_STRING) || format.ccsid != 1208 {
-            return Err(GetStringError::UnexpectedFormat(format.format, format.ccsid, warning));
+        if state.format.fmt != TextEnc::Ascii(fmt::MQFMT_STRING) || state.format.ccsid != 1208 {
+            return Err(GetStringError::UnexpectedFormat(
+                state.format.fmt,
+                state.format.ccsid,
+                warning,
+            ));
         }
 
-        match (warning, data.truncate(data_length).into_cow()) {
+        match (warning, state.buffer.truncate(state.data_length).into_cow()) {
             (Some((rc, verb)), _) if rc == sys::MQRC_NOT_CONVERTED => {
                 Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc).into())
             }
@@ -198,62 +246,31 @@ impl<'a> GetMessage<'a> for Cow<'a, str> {
             )),
         }
     }
-
-    fn payload(&self) -> &Self::Payload {
-        self
-    }
-
-    fn into_payload(self) -> Self::Payload {
-        self
-    }
 }
 
-impl<'a> GetMessage<'a> for Cow<'a, [u8]> {
+impl<'a> GetConsume<'a> for Cow<'a, [u8]> {
     type Error = Error;
-    type Payload = Self;
 
-    fn create_from<C: Conn>(
-        _object: &Object<C>,
-        data: impl Buffer<'a>,
-        data_length: usize,
-        _message_length: usize,
-        _md: &MqStruct<'static, sys::MQMD2>,
-        _gmo: &MqStruct<sys::MQGMO>,
-        _format: MessageFormat,
+    fn consume_from<B: Buffer<'a>>(
+        state: GetState<B>,
+        _param: &GetParam,
         _warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
-        Ok(data.truncate(data_length).into_cow())
-    }
-
-    fn payload(&self) -> &Self::Payload {
-        self
-    }
-
-    fn into_payload(self) -> Self::Payload {
-        self
+        Ok(state.buffer.truncate(state.data_length).into_cow())
     }
 }
 
-impl<'a, T: GetMessage<'a>> GetMessage<'a> for Headers<'a, T> {
-    type Error = T::Error;
-
-    type Payload = T::Payload;
-
-    fn create_from<C: Conn>(
-        object: &Object<C>,
-        buffer: impl Buffer<'a>,
-        data_length: usize,
-        message_length: usize,
-        md: &MqStruct<'static, sys::MQMD2>,
-        gmo: &MqStruct<sys::MQGMO>,
-        format: MessageFormat,
-        warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
-        let data = &buffer.as_ref()[..data_length];
+impl<'a> GetExtract<'a> for Headers<'a> {
+    fn extract_from<B: Buffer<'a>>(
+        state: GetState<B>,
+        _param: &GetParam,
+        _warning: Option<types::Warning>,
+    ) -> (Self, GetState<B>) {
+        let data = &state.buffer.as_ref()[..state.data_length];
         let mut header_length = 0;
-        let mut final_format = format;
+        let mut final_format = state.format;
         let mut error = None;
-        for result in Header::iter(data, format) {
+        for result in Header::iter(data, state.format) {
             match result {
                 Ok((.., header_size, message_format)) => {
                     header_length += header_size;
@@ -263,83 +280,43 @@ impl<'a, T: GetMessage<'a>> GetMessage<'a> for Headers<'a, T> {
             }
         }
 
-        let (headers, tail) = buffer.split_at(header_length);
+        let (headers, tail) = state.buffer.split_at(header_length);
 
-        Ok(Self {
-            init_format: format,
-            format: final_format,
-            data: headers.into_cow(),
-            error,
-            next: T::create_from(
-                object,
-                tail,
-                data_length - header_length,
-                message_length - header_length,
-                md,
-                gmo,
-                final_format,
-                warning,
-            )?,
-            message_length,
-        })
-    }
-
-    fn payload(&self) -> &Self::Payload {
-        self.next.payload()
-    }
-
-    fn into_payload(self) -> Self::Payload {
-        self.next.into_payload()
+        (
+            Self {
+                init_format: state.format,
+                data: headers.into_cow(),
+                error,
+                message_length: state.message_length,
+            },
+            GetState {
+                buffer: tail,
+                data_length: state.data_length - header_length,
+                message_length: state.message_length - header_length,
+                format: final_format,
+            },
+        )
     }
 }
 
-impl<'a, T: GetMessage<'a>> GetMessage<'a> for Mqmd<T> {
-    type Error = T::Error;
-    type Payload = T::Payload;
-
-    fn create_from<C: Conn>(
-        object: &Object<C>,
-        data: impl Buffer<'a>,
-        data_length: usize,
-        message_length: usize,
-        md: &MqStruct<'static, sys::MQMD2>,
-        gmo: &MqStruct<sys::MQGMO>,
-        format: MessageFormat,
-        warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            mqmd: md.clone(),
-            next: T::create_from(object, data, data_length, message_length, md, gmo, format, warning)?,
-        })
-    }
-
-    fn max_data_size() -> Option<NonZero<usize>> {
-        T::max_data_size()
-    }
-
-    fn apply_mqget(md: &mut MqStruct<sys::MQMD2>, gmo: &mut MqStruct<sys::MQGMO>) {
-        T::apply_mqget(md, gmo);
-    }
-
-    fn payload(&self) -> &Self::Payload {
-        self.next.payload()
-    }
-
-    fn into_payload(self) -> Self::Payload {
-        self.next.into_payload()
+impl<'a> GetExtract<'a> for MessageFormat {
+    fn extract_from<B: Buffer<'a>>(
+        state: GetState<B>,
+        _param: &GetParam,
+        _warning: Option<types::Warning>,
+    ) -> (Self, GetState<B>) {
+        (state.format, state)
     }
 }
 
-impl<T> Deref for Mqmd<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.next
+impl<'a> GetExtract<'a> for MqStruct<'static, sys::MQMD2> {
+    fn extract_from<B: Buffer<'a>>(state: GetState<B>, (md, ..): &GetParam, _warning: Option<types::Warning>) -> (Self, GetState<B>) {
+        (md.clone(), state)
     }
 }
 
 impl<C: Conn> Object<C> {
-    pub fn get_message<'b, T: GetMessage<'b>>(
+    pub fn get_message<'b, T: GetConsume<'b>>(
         &self,
         options: &impl for<'a> MqiOption<'a, GetParam>,
         buffer: impl Buffer<'b>,
@@ -350,29 +327,30 @@ impl<C: Conn> Object<C> {
             None => buffer.as_mut(),
         };
 
-        let md = MqStruct::default();
-        let gmo = MqStruct::new(sys::MQGMO {
-            Version: sys::MQGMO_VERSION_4,
-            ..sys::MQGMO::default()
-        });
-        let mut param = (md, gmo);
+        let mut param = (
+            MqStruct::default(),
+            MqStruct::new(sys::MQGMO {
+                Version: sys::MQGMO_VERSION_4,
+                ..sys::MQGMO::default()
+            }),
+        );
+
         options.apply_param(&mut param);
 
-        let (mut md, mut gmo) = param;
         let get_result = match self
             .connection()
             .mq()
             .mqget(
                 self.connection().handle(),
                 self.handle(),
-                Some(&mut *md),
-                &mut gmo,
+                Some(&mut *param.0),
+                &mut param.1,
                 write_area,
             )
             .map_completion(|length| {
                 (
                     length,
-                    match gmo.ReturnedLength {
+                    match param.1.ReturnedLength {
                         sys::MQRL_UNDEFINED => cmp::min(
                             write_area
                                 .len()
@@ -390,18 +368,18 @@ impl<C: Conn> Object<C> {
 
         Ok(match get_result {
             Completion(Some((message_length, data_length)), warning) => Completion(
-                Some(T::create_from(
-                    self,
-                    buffer,
-                    data_length.try_into().expect("length within positive usize range"),
-                    message_length.try_into().expect("length within positive usize range"),
-                    &md,
-                    &gmo,
-                    MessageFormat {
-                        ccsid: md.CodedCharSetId,
-                        encoding: MqMask::from(md.Encoding),
-                        format: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(md.Format) }),
+                Some(T::consume_from(
+                    GetState {
+                        buffer,
+                        data_length: data_length.try_into().expect("length within positive usize range"),
+                        message_length: message_length.try_into().expect("length within positive usize range"),
+                        format: MessageFormat {
+                            ccsid: param.0.CodedCharSetId,
+                            encoding: MqMask::from(param.0.Encoding),
+                            fmt: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(param.0.Format) }),
+                        },
                     },
+                    &param,
                     warning,
                 )?),
                 warning,

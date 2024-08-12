@@ -285,7 +285,7 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
     let next_fmt = MessageFormat {
         ccsid: header.next_ccsid(),
         encoding: header.next_encoding(),
-        format: header.next_format(),
+        fmt: header.next_format(),
     };
     let encoded_header = EncodedHeader::<T> {
         tail: &data[struc_len..total_len],
@@ -619,17 +619,17 @@ impl<'a> Iterator for HeaderIter<'a> {
 }
 
 fn next_header<'a>(data: &'a [u8], next_format: &MessageFormat) -> Result<Option<NextHeader<'a>>, HeaderError> {
-    Ok(if EncodedHeader::<sys::MQRFH2>::fmt_matches(next_format.format) {
+    Ok(if EncodedHeader::<sys::MQRFH2>::fmt_matches(next_format.fmt) {
         Some(parse_header::<sys::MQRFH2>(data, next_format.ccsid, next_format.encoding)?)
-    } else if EncodedHeader::<sys::MQRFH>::fmt_matches(next_format.format) {
+    } else if EncodedHeader::<sys::MQRFH>::fmt_matches(next_format.fmt) {
         Some(parse_header::<sys::MQRFH>(data, next_format.ccsid, next_format.encoding)?)
-    } else if EncodedHeader::<sys::MQIIH>::fmt_matches(next_format.format) {
+    } else if EncodedHeader::<sys::MQIIH>::fmt_matches(next_format.fmt) {
         Some(parse_header::<sys::MQIIH>(data, next_format.ccsid, next_format.encoding)?)
-    } else if EncodedHeader::<sys::MQCIH>::fmt_matches(next_format.format) {
+    } else if EncodedHeader::<sys::MQCIH>::fmt_matches(next_format.fmt) {
         Some(parse_header::<sys::MQCIH>(data, next_format.ccsid, next_format.encoding)?)
-    } else if EncodedHeader::<sys::MQDLH>::fmt_matches(next_format.format) {
+    } else if EncodedHeader::<sys::MQDLH>::fmt_matches(next_format.fmt) {
         Some(parse_header::<sys::MQDLH>(data, next_format.ccsid, next_format.encoding)?)
-    } else if EncodedHeader::<sys::MQDH>::fmt_matches(next_format.format) {
+    } else if EncodedHeader::<sys::MQDH>::fmt_matches(next_format.fmt) {
         Some(parse_header::<sys::MQDH>(data, next_format.ccsid, next_format.encoding)?)
     } else {
         None
@@ -652,19 +652,19 @@ mod tests {
     const NEXT_DEAD: MessageFormat = MessageFormat {
         ccsid: 1208,
         encoding: MqMask::from(sys::MQENC_NATIVE),
-        format: TextEnc::Ebcdic(sys::MQDLH::FMT_EBCDIC),
+        fmt: TextEnc::Ebcdic(sys::MQDLH::FMT_EBCDIC),
     };
 
     const NEXT_RFH2: MessageFormat = MessageFormat {
         ccsid: 1208,
         encoding: MqMask::from(sys::MQENC_NATIVE),
-        format: TextEnc::Ebcdic(sys::MQRFH2::FMT_EBCDIC),
+        fmt: TextEnc::Ebcdic(sys::MQRFH2::FMT_EBCDIC),
     };
 
     const NEXT_STRING: MessageFormat = MessageFormat {
         ccsid: 1208,
         encoding: MqMask::from(sys::MQENC_NATIVE),
-        format: TextEnc::Ascii(fmt::MQFMT_STRING),
+        fmt: TextEnc::Ascii(fmt::MQFMT_STRING),
     };
 
     #[test]
@@ -713,7 +713,7 @@ mod tests {
             MessageFormat {
                 ccsid: 1208,
                 encoding: MqMask::from(sys::MQENC_NATIVE),
-                format: TextEnc::Ascii(sys::MQDLH::FMT_ASCII),
+                fmt: TextEnc::Ascii(sys::MQDLH::FMT_ASCII),
             },
         );
 

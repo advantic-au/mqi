@@ -24,7 +24,7 @@ pub type Warning = (ReasonCode, &'static str);
 pub struct MessageFormat {
     pub ccsid: sys::MQLONG,
     pub encoding: MqMask<values::MQENC>,
-    pub format: TextEnc<Fmt>,
+    pub fmt: TextEnc<Fmt>,
 }
 
 impl From<MessageId> for CorrelationId {
