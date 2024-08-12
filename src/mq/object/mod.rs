@@ -8,5 +8,5 @@ mod definition;
 pub use definition::*;
 
 mod get_options;
-mod open_options;
+pub mod open_options;
 mod put_options;

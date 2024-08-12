@@ -5,6 +5,7 @@ use std::thread;
 
 use mqi::connect_options::Credentials;
 use mqi::get::{GetConvert, GetMessage, GetWait};
+use mqi::open_options::{ResObjectString, SelectionString};
 use mqi::types::{QueueManagerName, QueueName};
 use mqi::{get, prelude::*, Message, StrCcsidCow};
 use mqi::{inq, mqstr, sys, Object, QueueManager};
@@ -37,8 +38,11 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
     let qm = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
 
-    let object =
-        Object::open::<(Object<_>, Option<QueueName>)>(&qm, &QUEUE, MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF))?;
+    let object = Object::open::<(Object<_>, Option<ResObjectString>)>(
+        &qm,
+        &(QUEUE, SelectionString("my_property = 'valuex2'")),
+        MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
+    )?;
     let mut properties = Message::new(&qm, MqValue::default())?;
 
     let (ob, qn) = object.discard_warning();

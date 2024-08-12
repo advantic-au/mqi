@@ -2,21 +2,21 @@ use crate::{core::values, sys, types, Conn, Message, MqMask, MqStruct, MqiAttr, 
 
 use super::put::{Properties, PutParam};
 
-impl<'a, C: Conn> MqiOption<'a, PutParam<'a>> for &mut Message<C> {
-    fn apply_param(&self, (.., pmo): &mut PutParam<'a>) {
+impl<C: Conn> MqiOption<'_, PutParam<'_>> for &mut Message<C> {
+    fn apply_param(&self, (.., pmo): &mut PutParam<'_>) {
         pmo.Action = sys::MQACTP_NEW;
         pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
     }
 }
 
-impl<'a> MqiOption<'a, PutParam<'a>> for MqMask<values::MQPMO> {
-    fn apply_param(&self, (.., pmo): &mut PutParam<'a>) {
+impl MqiOption<'_, PutParam<'_>> for MqMask<values::MQPMO> {
+    fn apply_param(&self, (.., pmo): &mut PutParam<'_>) {
         pmo.Options |= self.value();
     }
 }
 
-impl<'a, 'handle, C: Conn> MqiOption<'a, PutParam<'a>> for Properties<'handle, C> {
-    fn apply_param(&self, (.., pmo): &mut PutParam<'a>) {
+impl<'handle, C: Conn> MqiOption<'_, PutParam<'_>> for Properties<'handle, C> {
+    fn apply_param(&self, (.., pmo): &mut PutParam<'_>) {
         match self {
             Properties::Reply(original, new) => {
                 pmo.Action = sys::MQACTP_REPLY;

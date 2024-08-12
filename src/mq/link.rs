@@ -11,7 +11,7 @@ use crate::{
 
 impl<H: HandleShare> QueueManagerShare<'_, &LinkedMQ, H> {
     #[allow(clippy::new_ret_no_self)]
-    pub fn connect<'c, R: for<'a> MqiValue<Self, Param<'a> = ConnectParam<'a>>>(
+    pub fn connect<'c, R: for<'a> MqiValue<'a, Self, Param<'a> = ConnectParam<'a>>>(
         qm_name: Option<&QueueManagerName>,
         options: &impl ConnectOptions<'c>,
     ) -> ResultComp<R> {

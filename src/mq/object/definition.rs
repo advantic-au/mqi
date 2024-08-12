@@ -26,10 +26,6 @@ pub struct Object<C: Conn> {
     handle: core::ObjectHandle,
     connection: C,
     close_options: MqMask<MQCO>,
-    // name: QName,               // When a model queue is used
-    // qmgr_name: Option<QMName>, // When a model queue is used
-    // resolved_name: Option<QName>,
-    // resolved_qmgr_name: Option<QMName>,
 }
 
 impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<'_, L, H>> {
@@ -79,7 +75,7 @@ impl<C: Conn> Object<C> {
         &self.connection
     }
 
-    pub fn open<R: for<'a> MqiValue<Self, Param<'a> = ObjectDescriptor<'a>>>(
+    pub fn open<R: for<'a> MqiValue<'a, Self, Param<'a> = ObjectDescriptor<'a>>>(
         connection: C,
         descriptor: &impl for<'od> MqiOption<'od, ObjectDescriptor<'od>>,
         options: MqMask<MQOO>,

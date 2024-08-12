@@ -1,7 +1,7 @@
-use std::{cmp, ptr};
+use std::{cmp, num::NonZero, ptr};
 
 use super::MqStruct;
-use crate::sys;
+use crate::{sys, EncodedString};
 
 const C_EMPTY: *mut std::ffi::c_void = c"".as_ptr().cast_mut().cast();
 
@@ -12,6 +12,24 @@ const fn mq_str_ptr<T>(value: &str) -> *mut T {
         C_EMPTY.cast()
     } else {
         value.as_ptr().cast_mut().cast()
+    }
+}
+
+fn set_mqcharv(mqcharv: &mut sys::MQCHARV, data: &[u8], ccsid: Option<NonZero<i32>>) {
+    mqcharv.VSPtr = ptr::from_ref(data).cast_mut().cast();
+    mqcharv.VSLength = data.len().try_into().expect("length converts to MQLONG");
+    mqcharv.VSCCSID = ccsid.map_or(0, NonZero::into);
+}
+
+impl<'ptr> MqStruct<'ptr, sys::MQOD> {
+    pub fn attach_selection_string<S: EncodedString + ?Sized>(&mut self, selection: &'ptr S) {
+        self.Version = cmp::max(sys::MQOD_VERSION_4, self.Version);
+        set_mqcharv(&mut self.SelectionString, selection.data(), selection.ccsid());
+    }
+
+    pub fn attach_object_string<S: EncodedString + ?Sized>(&mut self, object: &'ptr S) {
+        self.Version = cmp::max(sys::MQOD_VERSION_4, self.Version);
+        set_mqcharv(&mut self.ObjectString, object.data(), object.ccsid());
     }
 }
 

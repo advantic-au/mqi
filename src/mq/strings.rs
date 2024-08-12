@@ -39,6 +39,17 @@ pub struct CcsidError {
     str: StrCcsidOwned,
 }
 
+impl StrCcsidOwned {
+    #[must_use]
+    pub fn from_vec(data: Vec<u8>, ccsid: Option<NonZero<i32>>) -> Self {
+        Self {
+            ccsid,
+            le: NATIVE_IS_LE,
+            data,
+        }
+    }
+}
+
 impl<'a> From<&'a str> for StrCcsid<'a> {
     fn from(value: &'a str) -> Self {
         Self {

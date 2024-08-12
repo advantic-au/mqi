@@ -367,42 +367,6 @@ impl ConnectOptions<'_> for () {
     const STRUCTS: i32 = 0;
 }
 
-impl<'r, A: ConnectOptions<'r>> ConnectOptions<'r> for (A,) {
-    const STRUCTS: i32 = A::STRUCTS;
-
-    #[inline]
-    fn apply_cno<'ptr>(&'ptr self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
-    where
-        'r: 'ptr,
-    {
-        self.0.apply_cno(mqcno);
-    }
-
-    #[inline]
-    fn apply_sco<'ptr>(&'ptr self, sco: &mut MqStruct<'ptr, sys::MQSCO>)
-    where
-        'r: 'ptr,
-    {
-        self.0.apply_sco(sco);
-    }
-
-    #[inline]
-    fn apply_cd<'ptr>(&'ptr self, cd: &mut MqStruct<'ptr, sys::MQCD>)
-    where
-        'r: 'ptr,
-    {
-        self.0.apply_cd(cd);
-    }
-
-    #[inline]
-    fn apply_bno<'ptr>(&'ptr self, bno: &mut MqStruct<'ptr, sys::MQBNO>)
-    where
-        'r: 'ptr,
-    {
-        self.0.apply_bno(bno);
-    }
-}
-
 impl<'r, A: ConnectOptions<'r>, B: ConnectOptions<'r>> ConnectOptions<'r> for (A, B) {
     const STRUCTS: i32 = A::STRUCTS | B::STRUCTS;
 
