@@ -285,7 +285,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         connection_handle: &ConnectionHandle,
         mqsd: &mut sys::MQSD,
         object_handle: &mut ObjectHandle,
-    ) -> ResultErr<SubscriptionHandle> {
+    ) -> ResultComp<SubscriptionHandle> {
         let mut outcome = MQIOutcome::<SubscriptionHandle>::with_verb("MQSUB");
         unsafe {
             self.0.MQSUB(

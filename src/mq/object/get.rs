@@ -135,6 +135,10 @@ where
         let t = T::consume_from(state, param, warning)?;
         Ok((t, a))
     }
+
+    fn max_data_size() -> Option<NonZero<usize>> {
+        T::max_data_size()
+    }
 }
 
 impl<'a, T, A, B> GetConsume<'a> for (T, A, B)
@@ -154,6 +158,10 @@ where
         let (a, state) = A::extract_from(state, param, warning);
         let t = T::consume_from(state, param, warning)?;
         Ok((t, a, b))
+    }
+
+    fn max_data_size() -> Option<NonZero<usize>> {
+        T::max_data_size()
     }
 }
 
@@ -177,15 +185,21 @@ where
         let t = T::consume_from(state, param, warning)?;
         Ok((t, a, b, c))
     }
-}
 
+    fn max_data_size() -> Option<NonZero<usize>> {
+        T::max_data_size()
+    }
+}
 
 pub trait GetExtract<'a>: Sized {
     #[allow(clippy::too_many_arguments)]
     fn extract_from<B: Buffer<'a>>(state: GetState<B>, param: &GetParam, warning: Option<types::Warning>) -> (Self, GetState<B>);
 }
 
-impl<'a, T: GetExtract<'a>> GetConsume<'a> for T {
+impl<'a, T> GetConsume<'a> for T
+where
+    T: GetExtract<'a>,
+{
     type Error = Error;
 
     fn consume_from<B: Buffer<'a>>(
@@ -310,7 +324,11 @@ impl<'a> GetExtract<'a> for MessageFormat {
 }
 
 impl<'a> GetExtract<'a> for MqStruct<'static, sys::MQMD2> {
-    fn extract_from<B: Buffer<'a>>(state: GetState<B>, (md, ..): &GetParam, _warning: Option<types::Warning>) -> (Self, GetState<B>) {
+    fn extract_from<B: Buffer<'a>>(
+        state: GetState<B>,
+        (md, ..): &GetParam,
+        _warning: Option<types::Warning>,
+    ) -> (Self, GetState<B>) {
         (md.clone(), state)
     }
 }

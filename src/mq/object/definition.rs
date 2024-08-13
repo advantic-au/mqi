@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{MqStruct, ResultCompErrExt as _, MqiOption, MqiValue};
+use crate::{core::ObjectHandle, MqStruct, MqiOption, MqiValue, ResultCompErrExt as _};
 
 use libmqm_sys::function;
 
@@ -73,6 +73,15 @@ impl<C: Conn> Object<C> {
     #[must_use]
     pub const fn connection(&self) -> &C {
         &self.connection
+    }
+
+    #[must_use]
+    pub unsafe fn from_parts(connection: C, handle: ObjectHandle) -> Self {
+        Self {
+            handle,
+            connection,
+            close_options: MqMask::from(sys::MQCO_NONE),
+        }
     }
 
     pub fn open<R: for<'a> MqiValue<'a, Self, Param<'a> = ObjectDescriptor<'a>>>(

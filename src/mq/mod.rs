@@ -10,6 +10,7 @@ mod object;
 mod queue_manager;
 mod strings;
 mod verb;
+mod subscribe;
 
 pub mod connect_options;
 
