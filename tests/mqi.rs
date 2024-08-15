@@ -1,9 +1,8 @@
-use libmqm_sys::link::LINKED;
-use mqi::{core::MQFunctions, Error, MqMask, ResultCompExt};
+use mqi::{core::MQFunctions, Error, MqMask, ResultCompExt as _};
 
 #[test]
 fn mqxcnvc() -> Result<(), Error> {
-    let mq = MQFunctions(&LINKED);
+    let mq = MQFunctions::linked();
     let buffer: [u8; 1024] = [0; 1024];
     let mut target: [u8; 1024] = [0; 1024];
 

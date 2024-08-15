@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{core::ObjectHandle, MqStruct, MqiOption, MqiValue, ResultCompErrExt as _};
+use crate::{core::{values, ObjectHandle}, MqStruct, MqiOption, MqiValue, ResultCompErrExt as _};
 
 use libmqm_sys::function;
 
@@ -19,9 +19,10 @@ use crate::sys;
 use crate::ResultComp;
 use crate::QueueManagerShare;
 
-pub type ObjectDescriptor<'a> = MqStruct<'a, sys::MQOD>;
+pub type OpenParam<'a, T> = (MqStruct<'a, sys::MQOD>, MqMask<T>);
 
 #[must_use]
+#[derive(Debug)]
 pub struct Object<C: Conn> {
     handle: core::ObjectHandle,
     connection: C,
@@ -75,7 +76,9 @@ impl<C: Conn> Object<C> {
         &self.connection
     }
 
-    #[must_use]
+    /// # Safety
+    /// Consumers of the API must ensure that the `handle` is naturally associated with the `connection` and
+    /// the `handle` isn't used in any other `Object`
     pub unsafe fn from_parts(connection: C, handle: ObjectHandle) -> Self {
         Self {
             handle,
@@ -84,20 +87,20 @@ impl<C: Conn> Object<C> {
         }
     }
 
-    pub fn open<R: for<'a> MqiValue<'a, Self, Param<'a> = ObjectDescriptor<'a>>>(
+    pub fn open<'oo, R: for<'a> MqiValue<Self, Param<'a> = OpenParam<'a, values::MQOO>>>(
         connection: C,
-        descriptor: &impl for<'od> MqiOption<'od, ObjectDescriptor<'od>>,
+        descriptor: impl MqiOption<OpenParam<'oo, values::MQOO>>,
         options: MqMask<MQOO>,
     ) -> ResultComp<R> {
-        let mut mqod = MqStruct::new(sys::MQOD {
+        let mut oo = (MqStruct::new(sys::MQOD {
             Version: sys::MQOD_VERSION_4,
             ..sys::MQOD::default()
-        });
-        descriptor.apply_param(&mut mqod);
-        R::from_mqi(&mut mqod, |p| {
+        }), options);
+        descriptor.apply_param(&mut oo);
+        R::from_mqi(&mut oo, |(oo, options)| {
             connection
                 .mq()
-                .mqopen(connection.handle(), p, options)
+                .mqopen(connection.handle(), oo, *options)
                 .map_completion(|handle| Self {
                     handle,
                     connection,

@@ -6,14 +6,14 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 
 | Verb    | Description                         | Wrapped  | API | Comments |
 |---------|-------------------------------------|----------|----------|-|
-| MQBACK  | Back out changes                    | ✔ | Experiment | |
+| MQBACK  | Back out changes                    | ✔ |   |  |
 | MQBEGIN | Begin unit of work                  | ✔ | Experement | |
-| MQBUFMH | Convert buffer into message handle  | ✔ | | |
+| MQBUFMH | Convert buffer into message handle  | ✔ |   |  |
 | MQCB    | Manage callback                     | ✔ | Experiment | |
-| MQCLOSE | Close object                        | ✔ | ✔ | |
+| MQCLOSE | Close object                        | ✔ | ✔ |  |
 | MQCMIT  | Commit changes                      | ✔ | Experiment | |
 | MQCONN  | Connect queue manager               | ✔ | Not Used | All features in MCONNX |
-| MQCONNX | Connect queue manager (extended)    | ✔ | ✔ | |
+| MQCONNX | Connect queue manager (extended)    | ✔ | ✔ |  |
 | MQCRTMH | Create message handle               | ✔ | ✔ |  |
 | MQCTL   | Control callbacks                   | ✔ | Experiment | |
 | MQDISC  | Disconnect queue manager            | ✔ | ✔ |  |
@@ -30,5 +30,6 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 | MQSETMP | Set message property                | ✔ | ✔ |  |
 | MQSTAT  | Retrieve status information         | ✔ |   |  |
 | MQMHBUF | Convert message handle into buffer  | ✔ |   |  |
-| MQSUB   | Register subscription               | ✔ | Experiment |  |
+| MQSUB   | Register subscription               | ✔ | ✔ |  |
 | MQSUBRQ | Subscription request                | ✔ |   |  |
+| MQXCNVC | Convert characters                  | ✔ |   |  |

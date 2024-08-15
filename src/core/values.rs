@@ -1,9 +1,13 @@
 use crate::{define_mqvalue, impl_default_mqvalue, mapping, sys, MqMask, MqValue};
 
-// Close Options mask
-define_mqvalue!(pub MQOO, mapping::MQOO_CONST);
+
 // Open Options mask
+define_mqvalue!(pub MQOO, mapping::MQOO_CONST);
+
+// Close Options mask
 define_mqvalue!(pub MQCO, mapping::MQCO_CONST);
+impl_default_mqvalue!(MqMask<MQCO>, sys::MQCO_NONE);
+define_mqvalue!(pub MQSO, mapping::MQSO_CONST);
 // Callback Operation mask/value
 define_mqvalue!(pub MQOP, mapping::MQOP_CONST);
 define_mqvalue!(pub MQSR, mapping::MQSR_CONST);

@@ -4,9 +4,8 @@ use std::error::Error;
 use std::thread;
 
 use mqi::connect_options::Credentials;
-use mqi::get::{GetConvert, GetWait};
 use mqi::open_options::SelectionString;
-use mqi::types::{MessageFormat, QueueManagerName, QueueName};
+use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
 use mqi::{get, prelude::*, Message};
 use mqi::{inq, mqstr, sys, Object, QueueManager};
 
@@ -25,7 +24,7 @@ fn object() {
             .warn_as_error()
             .expect("property set");
 
-        qm.put_message::<()>(&QUEUE, &&mut props, "Hello")
+        qm.put_message::<()>(QUEUE, &mut props, "Hello")
             .warn_as_error()
             .expect("Put failed");
     })
@@ -36,22 +35,27 @@ fn object() {
 #[test]
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let sel = String::from("my_property = 'valuex2'");
     let qm = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
+
 
     let object = Object::open::<Object<_>>(
         &qm,
-        &(QUEUE, SelectionString("my_property = 'valuex2'")),
+        (
+            QUEUE,
+            SelectionString(&*sel),
+        ),
         MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
     )?;
     let mut properties = Message::new(&qm, MqValue::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
-    let msg = object.get_message::<(MessageFormat, get::Headers)>(
-        &(
+    let msg = object.get_message::<(MessageId, MessageFormat, get::Headers)>(
+        (
             MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
-            GetConvert::ConvertTo(500, MqMask::from(sys::MQENC_NORMAL)),
+            get::GetConvert::ConvertTo(500, MqMask::from(sys::MQENC_NORMAL)),
             &mut properties,     // Get some properties
-            GetWait::Wait(2000), // Wait for 2 seconds
+            get::GetWait::Wait(2000), // Wait for 2 seconds
         ),
         buffer,
     )?;
@@ -62,7 +66,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let msg = msg.discard_warning();
 
     match &msg {
-        Some((format, headers)) => {
+        Some((msgid, format, headers)) => {
             for header in headers.all_headers() {
                 println!("Header: {header:?}");
             }
@@ -79,7 +83,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Property: {name} = {value}");
             }
             println!("Format: \"{}\"", format.fmt);
-            // println!("Payload: \"{msg:?}\"");
+            println!("MessageId: \"{msgid:?}\"");
         }
         None => println!("No message!"),
     }
@@ -106,7 +110,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         inq::MQIA_COMMAND_LEVEL,
     ];
     let qm = QueueManager::connect(None, &(Credentials::user("app", "app"))).discard_warning()?;
-    let object: Completion<Object<_>> = Object::open(&qm, &QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
+    let object: Completion<Object<_>> = Object::open(&qm, QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
 
     let result = object.inq(INQ)?;
     if let Some((rc, verb)) = result.warning() {
@@ -138,9 +142,9 @@ fn transaction() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
     let connection = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
-    let object = Object::open::<Object<_>>(&connection, &QUEUE, MqMask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
+    let object = Object::open::<Object<_>>(&connection, QUEUE, MqMask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
 
-    object.put_message::<()>(&(), "message").warn_as_error()?;
+    object.put_message::<()>((), "message").warn_as_error()?;
 
     Ok(())
 }

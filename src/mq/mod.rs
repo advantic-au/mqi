@@ -9,8 +9,8 @@ mod mqstruct;
 mod object;
 mod queue_manager;
 mod strings;
-mod verb;
 mod subscribe;
+mod verb;
 
 pub mod connect_options;
 
@@ -28,3 +28,4 @@ pub use strings::*;
 pub use mqmd::*;
 pub use buffer::*;
 pub use verb::*;
+pub use subscribe::*;

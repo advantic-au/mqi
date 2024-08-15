@@ -90,7 +90,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
     .warn_as_error()?;
 
     let qm = Arc::new(qm);
-    let object: Object<_> = Object::open(qm.clone(), &QUEUE, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
+    let object: Object<_> = Object::open(qm.clone(), QUEUE, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
 
     let _ = thread::spawn(move || {
         println!("{:?}", object.handle());

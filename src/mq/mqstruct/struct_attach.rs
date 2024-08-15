@@ -33,6 +33,12 @@ impl<'ptr> MqStruct<'ptr, sys::MQOD> {
     }
 }
 
+impl<'ptr> MqStruct<'ptr, sys::MQSD> {
+    pub fn attach_object_string<S: EncodedString + ?Sized>(&mut self, object: &'ptr S) {
+        set_mqcharv(&mut self.ObjectString, object.data(), object.ccsid());
+    }
+}
+
 // Functions to attach references to MQCNO
 impl<'ptr> MqStruct<'ptr, sys::MQCNO> {
     pub fn attach_csp(&mut self, csp: &'ptr sys::MQCSP) {

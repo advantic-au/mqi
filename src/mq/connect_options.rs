@@ -546,7 +546,7 @@ impl<'data> ConnectOptions<'data> for MqStruct<'data, sys::MQCD> {
 
 impl<'b> MqiAttr<ConnectParam<'b>> for ConnectionId {
     #[inline]
-    fn apply_param<Y, F: for<'a> FnOnce(&'a mut ConnectParam<'b>) -> Y>(param: &mut ConnectParam<'b>, connect: F) -> (Self, Y) {
+    fn from_mqi<Y, F: FnOnce(&mut ConnectParam<'b>) -> Y>(param: &mut ConnectParam<'b>, connect: F) -> (Self, Y) {
         param.Version = cmp::max(sys::MQCNO_VERSION_5, param.Version);
         let connect_result = connect(param);
         (Self(param.ConnectionId), connect_result)
@@ -555,7 +555,7 @@ impl<'b> MqiAttr<ConnectParam<'b>> for ConnectionId {
 
 impl<'b> MqiAttr<ConnectParam<'b>> for ConnTag {
     #[inline]
-    fn apply_param<Y, F: for<'a> FnOnce(&'a mut ConnectParam<'b>) -> Y>(param: &mut ConnectParam<'b>, connect: F) -> (Self, Y) {
+    fn from_mqi<Y, F: FnOnce(&mut ConnectParam<'b>) -> Y>(param: &mut ConnectParam<'b>, connect: F) -> (Self, Y) {
         param.Options |= sys::MQCNO_GENERATE_CONN_TAG;
         param.Version = cmp::max(sys::MQCNO_VERSION_3, param.Version);
         let connect_result = connect(param);

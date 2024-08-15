@@ -19,10 +19,13 @@ pub struct Message<C: Conn> {
 impl<C: Conn> Drop for Message<C> {
     fn drop(&mut self) {
         let mqdmho = sys::MQDMHO::default();
-        let _ = self
-            .connection
-            .mq()
-            .mqdltmh(Some(self.connection.handle()), &mut self.handle, &mqdmho);
+
+        if self.handle.is_deleteable() {
+            let _ = self
+                .connection
+                .mq()
+                .mqdltmh(Some(self.connection.handle()), &mut self.handle, &mqdmho);
+        }
     }
 }
 
@@ -297,5 +300,11 @@ impl<C: Conn> Message<C> {
             value_type,
             data,
         )
+    }
+
+    pub fn close(self) -> ResultErr<()> {
+        let mut s = self;
+        let mqdmho = sys::MQDMHO::default();
+        s.connection.mq().mqdltmh(Some(s.connection.handle()), &mut s.handle, &mqdmho)
     }
 }

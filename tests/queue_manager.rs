@@ -24,7 +24,7 @@ fn thread() {
             .expect("property set");
 
         let msgid = c
-            .put_message::<MessageId>(&QUEUE, &(), b"Hello ".as_slice())
+            .put_message::<MessageId>(QUEUE, (), b"Hello ".as_slice())
             .warn_as_error()
             .expect("Put failed");
         println!("{msgid:?}");
@@ -74,7 +74,7 @@ fn connect() -> Result<(), Box<dyn Error>> {
     let creds = Credentials::user("app", "app");
     let conn: QueueManager<_> = QueueManager::connect(None, &(tls, def, creds)).warn_as_error()?;
 
-    conn.put_message::<()>(&QUEUE, &MqMask::from(sys::MQPMO_SYNCPOINT), "Hello")
+    conn.put_message::<()>(QUEUE, MqMask::from(sys::MQPMO_SYNCPOINT), "Hello")
         .warn_as_error()?;
 
     Ok(())

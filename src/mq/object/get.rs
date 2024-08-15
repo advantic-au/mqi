@@ -6,8 +6,8 @@ use crate::{
     core::values,
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     sys,
-    types::{self, Fmt, MessageFormat},
-    Buffer, Completion, Conn, Error, MqMask, MqStruct, MqValue, ResultCompErr, StrCcsidCow, MqiOption,
+    types::{self, Fmt, MessageFormat, MessageId},
+    Buffer, Completion, Conn, Error, MqMask, MqStruct, MqValue, MqiOption, ResultCompErr, StrCcsidCow,
 };
 
 use super::Object;
@@ -333,14 +333,24 @@ impl<'a> GetExtract<'a> for MqStruct<'static, sys::MQMD2> {
     }
 }
 
+impl<'a> GetExtract<'a> for MessageId {
+    fn extract_from<B: Buffer<'a>>(
+        state: GetState<B>,
+        (md, ..): &GetParam,
+        _warning: Option<types::Warning>,
+    ) -> (Self, GetState<B>) {
+        (Self(md.MsgId), state)
+    }
+}
+
 impl<C: Conn> Object<C> {
-    pub fn get_message<'b, T: GetConsume<'b>>(
+    pub fn get_message<'b, R: GetConsume<'b>>(
         &self,
-        options: &impl for<'a> MqiOption<'a, GetParam>,
+        options: impl MqiOption<GetParam>,
         buffer: impl Buffer<'b>,
-    ) -> ResultCompErr<Option<T>, T::Error> {
+    ) -> ResultCompErr<Option<R>, R::Error> {
         let mut buffer = buffer;
-        let write_area = match T::max_data_size() {
+        let write_area = match R::max_data_size() {
             Some(max_len) => &mut buffer.as_mut()[..max_len.into()],
             None => buffer.as_mut(),
         };
@@ -353,7 +363,7 @@ impl<C: Conn> Object<C> {
             }),
         );
 
-        options.apply_param(&mut param);
+        options.apply_param(& mut param);
 
         let get_result = match self
             .connection()
@@ -386,7 +396,7 @@ impl<C: Conn> Object<C> {
 
         Ok(match get_result {
             Completion(Some((message_length, data_length)), warning) => Completion(
-                Some(T::consume_from(
+                Some(R::consume_from(
                     GetState {
                         buffer,
                         data_length: data_length.try_into().expect("length within positive usize range"),

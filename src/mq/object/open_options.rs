@@ -7,7 +7,7 @@ use crate::{
     Conn, EncodedString, MqStr, MqValue, MqiAttr, MqiOption, MqiValue, ResultComp, StrCcsidOwned,
 };
 
-use super::{Object, ObjectDescriptor};
+use super::{Object, OpenParam};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SelectionString<T>(pub T);
@@ -21,77 +21,80 @@ pub struct AlternateUserId(pub MqStr<12>);
 #[derive(Debug, Clone)]
 pub struct ResObjectString(pub StrCcsidOwned);
 
-impl<'b, T: EncodedString + ?Sized> MqiOption<'b, ObjectDescriptor<'b>> for SelectionString<&T> {
-    fn apply_param(&'b self, param: &mut ObjectDescriptor<'b>) {
-        param.attach_selection_string(self.0);
+impl<'a, T: EncodedString + ?Sized, O> MqiOption<OpenParam<'a, O>> for SelectionString<&'a T> {
+    fn apply_param(self, (od, ..): &mut OpenParam<'a, O>) {
+        od.attach_selection_string(self.0);
     }
 }
 
-impl<'b, T: EncodedString + ?Sized> MqiOption<'b, ObjectDescriptor<'b>> for ObjectString<&T> {
-    fn apply_param(&'b self, param: &mut ObjectDescriptor<'b>) {
-        param.attach_object_string(self.0);
+impl<'a, T: EncodedString + ?Sized, O> MqiOption<OpenParam<'a, O>> for ObjectString<&'a T> {
+    fn apply_param(self, (od, ..): &mut OpenParam<'a, O>) {
+        od.attach_object_string(self.0);
     }
 }
 
-impl MqiOption<'_, ObjectDescriptor<'_>> for QueueName {
-    fn apply_param(&self, param: &mut ObjectDescriptor<'_>) {
-        param.ObjectName = self.0.into();
-        param.ObjectType = sys::MQOT_Q;
+impl<'b, O> MqiOption<OpenParam<'b, O>> for QueueName {
+    fn apply_param(self, (od, ..): &mut OpenParam<'_, O>) {
+        od.ObjectName = self.0.into();
+        od.ObjectType = sys::MQOT_Q;
     }
 }
 
-impl MqiOption<'_, ObjectDescriptor<'_>> for QueueManagerName {
-    fn apply_param(&self, param: &mut ObjectDescriptor<'_>) {
-        param.ObjectQMgrName = self.0.into();
-        param.ObjectType = sys::MQOT_Q_MGR;
+impl<'b, O> MqiOption<OpenParam<'b, O>> for QueueManagerName {
+    fn apply_param(self, (od, ..): &mut OpenParam<'_, O>) {
+        od.ObjectQMgrName = self.0.into();
+        od.ObjectType = sys::MQOT_Q_MGR;
     }
 }
 
-impl MqiOption<'_, ObjectDescriptor<'_>> for AlternateUserId {
-    fn apply_param(&self, param: &mut ObjectDescriptor<'_>) {
-        // TODO: handle the MQOO and MQPMO options
-        param.Version = cmp::max(sys::MQOD_VERSION_3, param.Version);
-        param.AlternateUserId = self.0.into();
+impl<'b> MqiOption<OpenParam<'b, values::MQOO>> for AlternateUserId {
+    fn apply_param(self, (od, oo): &mut OpenParam<'_, values::MQOO>) {
+        *oo |= sys::MQOO_ALTERNATE_USER_AUTHORITY;
+        od.Version = cmp::max(sys::MQOD_VERSION_3, od.Version);
+        od.AlternateUserId = self.0.into();
     }
 }
 
-impl<'b> MqiAttr<ObjectDescriptor<'b>> for Option<QueueName> {
-    fn apply_param<Y, F: for<'a> FnOnce(&'a mut ObjectDescriptor<'b>) -> Y>(
-        param: &mut ObjectDescriptor<'b>,
-        open: F,
-    ) -> (Self, Y) {
+impl<'b> MqiOption<OpenParam<'b, values::MQPMO>> for AlternateUserId {
+    fn apply_param(self, (od, pmo): &mut OpenParam<'_, values::MQPMO>) {
+        *pmo |= sys::MQPMO_ALTERNATE_USER_AUTHORITY;
+        od.Version = cmp::max(sys::MQOD_VERSION_3, od.Version);
+        od.AlternateUserId = self.0.into();
+    }
+}
+
+
+impl<'b, O> MqiAttr<OpenParam<'b, O>> for Option<QueueName> {
+    fn from_mqi<Y, F: FnOnce(&mut OpenParam<'b, O>) -> Y>(param: &mut OpenParam<'b, O>, open: F) -> (Self, Y) {
         let open_result = open(param);
         (
-            Some(QueueName(param.ResolvedQName.into())).filter(|queue_name| queue_name.has_value()),
+            Some(QueueName(param.0.ResolvedQName.into())).filter(|queue_name| queue_name.has_value()),
             open_result,
         )
     }
 }
 
-impl<'b> MqiAttr<ObjectDescriptor<'b>> for MqValue<values::MQOT> {
-    fn apply_param<Y, F: for<'a> FnOnce(&'a mut ObjectDescriptor<'b>) -> Y>(
-        param: &mut ObjectDescriptor<'b>,
-        open: F,
-    ) -> (Self, Y) {
-        param.Version = cmp::max(sys::MQOD_VERSION_4, param.Version);
+impl<'b, O> MqiAttr<OpenParam<'b, O>> for MqValue<values::MQOT> {
+    fn from_mqi<Y, F: for<'a> FnOnce(&'a mut OpenParam<'b, O>) -> Y>(param: &mut OpenParam<'b, O>, open: F) -> (Self, Y) {
+        param.0.Version = cmp::max(sys::MQOD_VERSION_4, param.0.Version);
         let open_result = open(param);
-        (param.ObjectType.into(), open_result)
+        (param.0.ObjectType.into(), open_result)
     }
 }
 
-impl<'b, C: Conn> MqiValue<'b, Self> for Object<C> {
-    type Param<'a> = ObjectDescriptor<'a>;
+impl<C: Conn> MqiValue<Self> for Object<C> {
+    type Param<'a> = OpenParam<'a, values::MQOO>;
 
-    fn from_mqi<F: FnOnce(&mut Self::Param<'b>) -> ResultComp<Self>>(mqod: &mut Self::Param<'b>, open: F) -> ResultComp<Self> {
+    fn from_mqi<F: FnOnce(&mut Self::Param<'_>) -> ResultComp<Self>>(mqod: &mut Self::Param<'_>, open: F) -> ResultComp<Self> {
         open(mqod)
     }
 }
 
-impl<'a> MqiAttr<ObjectDescriptor<'a>> for Option<QueueManagerName> {
-    fn apply_param<Y, F: FnOnce(&mut ObjectDescriptor<'a>) -> Y>(od: &mut ObjectDescriptor<'a>, open: F) -> (Self, Y) {
-        let open_result = open(od);
+impl<'a, O> MqiAttr<OpenParam<'a, O>> for Option<QueueManagerName> {
+    fn from_mqi<Y, F: FnOnce(&mut OpenParam<'a, O>) -> Y>(param: &mut OpenParam<'a, O>, open: F) -> (Self, Y) {
+        let open_result = open(param);
         (
-            Self::Some(QueueManagerName(od.ResolvedQMgrName.into())).filter(|queue_name| queue_name.has_value()),
+            Self::Some(QueueManagerName(param.0.ResolvedQMgrName.into())).filter(|queue_name| queue_name.has_value()),
             open_result,
         )
     }
@@ -99,8 +102,9 @@ impl<'a> MqiAttr<ObjectDescriptor<'a>> for Option<QueueManagerName> {
 
 const DEFAULT_RESOBJECTSTRING_LENGTH: sys::MQLONG = 4096;
 
-impl<'b> MqiAttr<ObjectDescriptor<'b>> for Option<ResObjectString> {
-    fn apply_param<Y, F: for<'a> FnOnce(&'a mut ObjectDescriptor<'b>) -> Y>(od: &mut ObjectDescriptor<'b>, open: F) -> (Self, Y) {
+impl<'b, O> MqiAttr<OpenParam<'b, O>> for Option<ResObjectString> {
+    fn from_mqi<Y, F: for<'a> FnOnce(&'a mut OpenParam<'b, O>) -> Y>(param: &mut OpenParam<'b, O>, open: F) -> (Self, Y) {
+        let od = &mut param.0;
         if od.ResObjectString.VSBufSize == 0 {
             od.ResObjectString.VSBufSize = DEFAULT_RESOBJECTSTRING_LENGTH;
         }
@@ -114,8 +118,9 @@ impl<'b> MqiAttr<ObjectDescriptor<'b>> for Option<ResObjectString> {
 
         od.ResObjectString.VSCCSID = 500;
 
-        let open_result = open(od);
+        let open_result = open(param);
 
+        let od = &mut param.0;
         unsafe {
             buffer.set_len(
                 od.ResObjectString

@@ -39,7 +39,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         let mut outcome = MQIOutcome::<ConnectionHandle>::with_verb("MQCONN");
 
         unsafe {
-            self.0.MQCONN(
+            self.0.lib().MQCONN(
                 qm_name.as_ref().as_ptr().cast_mut(),
                 outcome.mut_raw_handle(),
                 &mut outcome.cc.0,
@@ -56,7 +56,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqconnx(&self, qm_name: &MqStr<48>, mqcno: &mut sys::MQCNO) -> ResultComp<ConnectionHandle> {
         let mut outcome = MQIOutcome::<ConnectionHandle>::with_verb("MQCONNX");
         unsafe {
-            self.0.MQCONNX(
+            self.0.lib().MQCONNX(
                 qm_name.as_ref().as_ptr().cast_mut(),
                 ptr::from_mut(mqcno).cast(),
                 outcome.mut_raw_handle(),
@@ -75,8 +75,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqdisc(&self, connection: &mut ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQDISC");
         unsafe {
-            self.0
-                .MQDISC(connection.mut_raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
+            self.0.lib().MQDISC(connection.mut_raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -94,7 +93,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         let mut outcome = MQIOutcome::<ObjectHandle>::with_verb("MQOPEN");
 
         unsafe {
-            self.0.MQOPEN(
+            self.0.lib().MQOPEN(
                 connection_handle.raw_handle(),
                 ptr::from_mut(mqod).cast(),
                 options.0,
@@ -120,7 +119,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQPUT1");
         unsafe {
-            self.0.MQPUT1(
+            self.0.lib().MQPUT1(
                 connection_handle.raw_handle(),
                 ptr::from_mut(mqod).cast(),
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::from_mut(md).cast()),
@@ -148,7 +147,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCLOSE");
         unsafe {
-            self.0.MQCLOSE(
+            self.0.lib().MQCLOSE(
                 connection_handle.raw_handle(),
                 object_handle.mut_raw_handle(),
                 options.0,
@@ -167,8 +166,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqcmit(&self, connection_handle: &ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCMIT");
         unsafe {
-            self.0
-                .MQCMIT(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
+            self.0.lib().MQCMIT(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -189,7 +187,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQPUT");
 
         unsafe {
-            self.0.MQPUT(
+            self.0.lib().MQPUT(
                 connection_handle.raw_handle(),
                 object_handle.raw_handle(),
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::from_mut(md).cast()),
@@ -219,7 +217,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MQIOutcome::with_verb("MQGET");
         unsafe {
-            self.0.MQGET(
+            self.0.lib().MQGET(
                 connection_handle.raw_handle(),
                 object_handle.raw_handle(),
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::from_mut(md).cast()),
@@ -251,7 +249,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQINQ");
         unsafe {
-            self.0.MQINQ(
+            self.0.lib().MQINQ(
                 connection_handle.raw_handle(),
                 object_handle.raw_handle(),
                 selectors
@@ -288,7 +286,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultComp<SubscriptionHandle> {
         let mut outcome = MQIOutcome::<SubscriptionHandle>::with_verb("MQSUB");
         unsafe {
-            self.0.MQSUB(
+            self.0.lib().MQSUB(
                 connection_handle.raw_handle(),
                 ptr::from_mut(mqsd).cast(),
                 object_handle.mut_raw_handle(),
@@ -314,7 +312,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultErr<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQSUBRQ");
         unsafe {
-            self.0.MQSUBRQ(
+            self.0.lib().MQSUBRQ(
                 connection_handle.raw_handle(),
                 subscription_handle.raw_handle(),
                 action.0,
@@ -334,7 +332,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqbegin(&self, connection_handle: &ConnectionHandle, mqbo: &mut sys::MQBO) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQBEGIN");
         unsafe {
-            self.0.MQBEGIN(
+            self.0.lib().MQBEGIN(
                 connection_handle.raw_handle(),
                 ptr::from_mut(mqbo).cast(),
                 &mut outcome.cc.0,
@@ -352,8 +350,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqback(&self, connection_handle: &ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQBACK");
         unsafe {
-            self.0
-                .MQBACK(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
+            self.0.lib().MQBACK(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -365,7 +362,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqcrtmh(&self, connection_handle: Option<&ConnectionHandle>, cmho: &sys::MQCMHO) -> ResultErr<MessageHandle> {
         let mut outcome = MQIOutcome::<MessageHandle>::with_verb("MQCRTMH");
         unsafe {
-            self.0.MQCRTMH(
+            self.0.lib().MQCRTMH(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 ptr::from_ref(cmho).cast_mut().cast(),
                 outcome.mut_raw_handle(),
@@ -388,7 +385,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultErr<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQDLTMH");
         unsafe {
-            self.0.MQDLTMH(
+            self.0.lib().MQDLTMH(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.mut_raw_handle(),
                 ptr::from_ref(dmho).cast_mut().cast(),
@@ -424,7 +421,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
             )
         });
         unsafe {
-            self.0.MQINQMP(
+            self.0.lib().MQINQMP(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
                 ptr::from_mut(inq_prop_opts).cast(),
@@ -464,7 +461,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQDLTMP");
         unsafe {
-            self.0.MQDLTMP(
+            self.0.lib().MQDLTMP(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
                 ptr::from_ref(delete_prop_opts).cast_mut().cast(),
@@ -485,7 +482,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         let mut outcome = MQIOutcome::<sys::MQSTS>::with_verb("MQSTAT");
         outcome.Version = 2;
         unsafe {
-            self.0.MQSTAT(
+            self.0.lib().MQSTAT(
                 connection_handle.raw_handle(),
                 stat_type.0,
                 ptr::addr_of_mut!(outcome.value).cast(),
@@ -513,7 +510,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQSETMP");
         unsafe {
-            self.0.MQSETMP(
+            self.0.lib().MQSETMP(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
                 ptr::from_ref(set_prop_opts).cast_mut().cast(),
@@ -545,7 +542,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultErr<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQSET");
         unsafe {
-            self.0.MQSET(
+            self.0.lib().MQSET(
                 connection_handle.raw_handle(),
                 object_handle.raw_handle(),
                 selectors
@@ -585,7 +582,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultErr<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCB");
         unsafe {
-            self.0.MQCB(
+            self.0.lib().MQCB(
                 connection_handle.raw_handle(),
                 operations.0,
                 ptr::from_ref(callback_desc).cast_mut().cast(),
@@ -611,7 +608,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCTL");
         unsafe {
-            self.0.MQCTL(
+            self.0.lib().MQCTL(
                 connection_handle.raw_handle(),
                 operation.0,
                 ptr::from_ref(control_options).cast_mut().cast(),
@@ -637,7 +634,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MQIOutcome::with_verb("MQMHBUF");
         unsafe {
-            self.0.MQMHBUF(
+            self.0.lib().MQMHBUF(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
                 ptr::from_ref(mhbuf_options).cast_mut().cast(),
@@ -669,7 +666,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultErr<sys::MQLONG> {
         let mut outcome = MQIOutcome::with_verb("MQBUFMH");
         unsafe {
-            self.0.MQBUFMH(
+            self.0.lib().MQBUFMH(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
                 ptr::from_ref(bufmh_options).cast_mut().cast(),
@@ -701,7 +698,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MQIOutcome::with_verb("MQXCNVC");
         unsafe {
-            self.0.MQXCNVC(
+            self.0.lib().MQXCNVC(
                 connection_handle.map_or(sys::MQHC_DEF_HCONN, |h| h.raw_handle()),
                 options.value(),
                 source_ccsid,

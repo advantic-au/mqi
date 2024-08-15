@@ -100,6 +100,13 @@ impl Display for ConnectionHandle {
     }
 }
 
+impl MessageHandle {
+    #[must_use]
+    pub const fn is_deleteable(&self) -> bool {
+        self.0 != sys::MQHM_UNUSABLE_HMSG
+    }
+}
+
 impl ObjectHandle {
     #[must_use]
     pub const fn is_closeable(&self) -> bool {

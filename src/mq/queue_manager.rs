@@ -85,11 +85,11 @@ impl<L: Library<MQ: function::MQI>, H> Drop for QueueManagerShare<'_, L, H> {
     }
 }
 
-impl<'b, L: Library<MQ: function::MQI>, H: HandleShare> MqiValue<'b, Self> for QueueManagerShare<'_, L, H> {
+impl<L: Library<MQ: function::MQI>, H: HandleShare> MqiValue<Self> for QueueManagerShare<'_, L, H> {
     type Param<'a> = ConnectParam<'a>;
 
-    fn from_mqi<F: FnOnce(&mut Self::Param<'b>) -> ResultComp<Self>>(
-        param: &mut Self::Param<'b>,
+    fn from_mqi<F: FnOnce(&mut Self::Param<'_>) -> ResultComp<Self>>(
+        param: &mut Self::Param<'_>,
         connect: F,
     ) -> ResultComp<Self> {
         connect(param)
@@ -98,10 +98,10 @@ impl<'b, L: Library<MQ: function::MQI>, H: HandleShare> MqiValue<'b, Self> for Q
 
 impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder
-    pub fn connect_lib<'c, R, O>(lib: L, qm_name: Option<&QueueManagerName>, options: &O) -> ResultComp<R>
+    pub fn connect_lib<'co, R, O>(lib: L, qm_name: Option<&QueueManagerName>, options: &O) -> ResultComp<R>
     where
-        R: for<'b> MqiValue<'b, Self, Param<'b> = ConnectParam<'b>>,
-        O: ConnectOptions<'c>,
+        R: for<'a> MqiValue<Self, Param<'a> = ConnectParam<'a>>,
+        O: ConnectOptions<'co>,
     {
         let mut cno = MqStruct::default();
         let mut sco = MqStruct::default();

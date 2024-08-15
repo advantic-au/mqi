@@ -6,9 +6,9 @@ use libmqm_sys::function;
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat};
 use crate::{sys, Conn, Message, MqMask, MqStruct, Object, QueueManagerShare, ResultComp, ResultCompErrExt, MqiAttr, MqiOption};
-use crate::core;
+use crate::core::{self, values};
 
-use super::ObjectDescriptor;
+use super::OpenParam;
 
 pub trait PutMessage {
     type Data: ?Sized;
@@ -61,7 +61,7 @@ impl PutMessage for [u8] {
 impl<C: Conn> Object<C> {
     pub fn put_message<T: for<'a> MqiAttr<PutParam<'a>>>(
         &self,
-        options: &impl for<'a> MqiOption<'a, PutParam<'a>>,
+        options: impl for<'a> MqiOption<PutParam<'a>>,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<T> {
         put(options, message, |(md, pmo), data| {
@@ -74,29 +74,37 @@ impl<C: Conn> Object<C> {
 }
 
 impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
-    pub fn put_message<T: for<'b> MqiAttr<PutParam<'b>>>(
+    pub fn put_message<T: for<'a> MqiAttr<PutParam<'a>>>(
         &self,
-        od: &impl for<'a> MqiOption<'a, ObjectDescriptor<'a>>,
-        options: &impl for<'a> MqiOption<'a, PutParam<'a>>,
+        oo: impl for<'a> MqiOption<OpenParam<'a, values::MQPMO>>,
+        options: impl for<'a> MqiOption<PutParam<'a>>,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<T> {
-        let mut mqod = MqStruct::new(sys::MQOD {
-            Version: sys::MQOD_VERSION_4,
-            ..sys::MQOD::default()
-        });
-        od.apply_param(&mut mqod);
+        let mut mqod = (
+            MqStruct::new(sys::MQOD {
+                Version: sys::MQOD_VERSION_4,
+                ..sys::MQOD::default()
+            }),
+            MqMask::default(),
+        );
+        oo.apply_param(&mut mqod);
         put(options, message, |(md, pmo), data| {
-            self.mq().mqput1(self.handle(), &mut mqod, Some(&mut **md), pmo, data)
+            pmo.Options |= mqod.1.value();
+            self.mq().mqput1(self.handle(), &mut mqod.0, Some(&mut **md), pmo, data)
         })
     }
 }
 
 fn put<T: for<'a> MqiAttr<PutParam<'a>>, F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>>(
-    options: &impl for<'a> MqiOption<'a, PutParam<'a>>,
+    options: impl for<'a> MqiOption<PutParam<'a>>,
     message: &(impl PutMessage + ?Sized),
     put: F,
 ) -> ResultComp<T> {
-    let MessageFormat { ccsid, encoding, fmt: format } = message.format();
+    let MessageFormat {
+        ccsid,
+        encoding,
+        fmt: format,
+    } = message.format();
     let md = MqStruct::new(sys::MQMD2 {
         CodedCharSetId: ccsid,
         Encoding: encoding.value(),
@@ -112,6 +120,6 @@ fn put<T: for<'a> MqiAttr<PutParam<'a>>, F: FnOnce(&mut PutParam, &[u8]) -> Resu
 
     options.apply_param(&mut put_param);
 
-    let (attr, result) = T::apply_param(&mut put_param, |p| put(p, &message.render()));
+    let (attr, result) = T::from_mqi(&mut put_param, |p| put(p, &message.render()));
     result.map_completion(|()| attr)
 }

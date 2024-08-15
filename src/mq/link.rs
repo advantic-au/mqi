@@ -9,19 +9,19 @@ use crate::{
     MqMask,
 };
 
-impl<H: HandleShare> QueueManagerShare<'_, &LinkedMQ, H> {
+impl<H: HandleShare> QueueManagerShare<'_, LinkedMQ, H> {
     #[allow(clippy::new_ret_no_self)]
-    pub fn connect<'c, R: for<'a> MqiValue<'a, Self, Param<'a> = ConnectParam<'a>>>(
-        qm_name: Option<&QueueManagerName>,
-        options: &impl ConnectOptions<'c>,
-    ) -> ResultComp<R> {
-        Self::connect_lib(&LinkedMQ, qm_name, options)
+    pub fn connect<'c, R>(qm_name: Option<&QueueManagerName>, options: &impl ConnectOptions<'c>) -> ResultComp<R>
+    where
+        R: for<'a> MqiValue<Self, Param<'a> = ConnectParam<'a>>,
+    {
+        Self::connect_lib(LinkedMQ, qm_name, options)
     }
 }
 
 #[cfg(feature = "mqai")]
-impl Bag<Owned, &LinkedMQ> {
+impl Bag<Owned, LinkedMQ> {
     pub fn new(options: MqMask<MQCBO>) -> ResultComp<Self> {
-        Self::connect_lib(&LinkedMQ, options)
+        Self::connect_lib(LinkedMQ, options)
     }
 }

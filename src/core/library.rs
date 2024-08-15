@@ -1,5 +1,3 @@
-use libmqm_sys::MQI;
-
 #[cfg(feature = "link")]
 use libmqm_sys::link;
 
@@ -7,27 +5,30 @@ use libmqm_sys::link;
 pub struct MQFunctions<L>(pub L);
 
 /// Holds a smart pointer to a `MQFunctions`
-pub trait Library: std::ops::Deref<Target = Self::MQ> + Clone {
+pub trait Library: Clone {
     type MQ;
-}
 
-impl<T: MQI> Library for &T {
-    type MQ = T;
-}
-
-impl<T: MQI> Library for std::sync::Arc<T> {
-    type MQ = T;
-}
-
-impl<T: MQI> Library for std::rc::Rc<T> {
-    type MQ = T;
+    fn lib(&self) -> &Self::MQ;
 }
 
 #[cfg(feature = "link")]
-impl super::MQFunctions<&link::LinkedMQ> {
+impl Library for link::LinkedMQ {
+    type MQ = Self;
+    
+    #[inline]
+    #[must_use]
+    fn lib(&self) -> &Self::MQ {
+        self
+    }
+
+}
+
+#[cfg(feature = "link")]
+impl super::MQFunctions<link::LinkedMQ> {
     /// A compile-time linked `MQFunctions`
     #[must_use]
+    #[inline]
     pub const fn linked() -> Self {
-        Self(&link::LinkedMQ)
+        Self(link::LinkedMQ)
     }
 }
