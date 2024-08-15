@@ -1,6 +1,7 @@
 pub mod get;
 pub mod inq;
 pub mod put;
+pub mod set;
 
 mod inq_types;
 

@@ -539,7 +539,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         selectors: &[MqValue<MQXA>],
         int_attr: &[sys::MQLONG],
         text_attr: &[sys::MQCHAR],
-    ) -> ResultErr<()> {
+    ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQSET");
         unsafe {
             self.0.lib().MQSET(
