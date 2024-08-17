@@ -1,9 +1,8 @@
 pub mod get;
-pub mod inq;
+pub mod attribute;
 pub mod put;
-pub mod set;
 
-mod inq_types;
+mod attribute_types;
 
 mod definition;
 pub use definition::*;

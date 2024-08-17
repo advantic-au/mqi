@@ -7,7 +7,7 @@ use mqi::connect_options::Credentials;
 use mqi::open_options::SelectionString;
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
 use mqi::{get, prelude::*, Message};
-use mqi::{inq, mqstr, sys, Object, QueueManager};
+use mqi::{attribute, mqstr, sys, Object, QueueManager};
 
 #[test]
 fn object() {
@@ -38,13 +38,9 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let sel = String::from("my_property = 'valuex2'");
     let qm = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
 
-
     let object = Object::open::<Object<_>>(
         &qm,
-        (
-            QUEUE,
-            SelectionString(&*sel),
-        ),
+        (QUEUE, SelectionString(&*sel)),
         MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
     )?;
     let mut properties = Message::new(&qm, MqValue::default())?;
@@ -54,7 +50,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
         (
             MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
             get::GetConvert::ConvertTo(500, MqMask::from(sys::MQENC_NORMAL)),
-            &mut properties,     // Get some properties
+            &mut properties,          // Get some properties
             get::GetWait::Wait(2000), // Wait for 2 seconds
         ),
         buffer,
@@ -93,26 +89,26 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
-    const INQ: &[inq::InqReqType] = &[
-        inq::MQCA_Q_MGR_NAME,
-        inq::MQCA_ALTERATION_DATE,
-        inq::MQCA_DEAD_LETTER_Q_NAME,
-        inq::MQCA_ALTERATION_TIME,
-        inq::MQCA_CREATION_DATE,
-        inq::MQCA_CREATION_TIME,
-        inq::MQIA_CODED_CHAR_SET_ID,
-        inq::MQCA_DEF_XMIT_Q_NAME,
-        (
-            // Hmmm... this works. Not documented for MQINQ though.
-            MqValue::from(sys::MQCA_VERSION),
-            inq::InqReqItem::Str(sys::MQ_VERSION_LENGTH),
-        ),
-        inq::MQIA_COMMAND_LEVEL,
+    const INQ: &[attribute::AttributeType] = &[
+        attribute::MQCA_Q_MGR_NAME,
+        attribute::MQCA_ALTERATION_DATE,
+        attribute::MQCA_DEAD_LETTER_Q_NAME,
+        attribute::MQCA_ALTERATION_TIME,
+        attribute::MQCA_CREATION_DATE,
+        attribute::MQCA_CREATION_TIME,
+        attribute::MQIA_CODED_CHAR_SET_ID,
+        attribute::MQCA_DEF_XMIT_Q_NAME,
+        // (
+        //     // Hmmm... this works. Not documented for MQINQ though.
+        //     MqValue::from(sys::MQCA_VERSION),
+        //     attribute::ValueType::Str(sys::MQ_VERSION_LENGTH),
+        // ),
+        attribute::MQIA_COMMAND_LEVEL,
     ];
     let qm = QueueManager::connect(None, &(Credentials::user("app", "app"))).discard_warning()?;
-    let object: Completion<Object<_>> = Object::open(&qm, QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
+    let object = Object::open::<Object<_>>(&qm, QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
 
-    let result = object.inq(INQ)?;
+    let result = object.inq(INQ.iter())?;
     if let Some((rc, verb)) = result.warning() {
         eprintln!("MQRC warning: {verb} {rc}");
     }
@@ -123,8 +119,8 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
             (
                 attr,
                 match value {
-                    inq::InqResItem::Str(value) => Cow::from(value),
-                    inq::InqResItem::Long(value) => Cow::from(value.to_string()),
+                    attribute::InqResItem::Str(value) => Cow::from(value),
+                    attribute::InqResItem::Long(value) => Cow::from(value.to_string()),
                 },
             )
         })
