@@ -1,5 +1,6 @@
 use std::{
     fmt::Display,
+    mem::transmute,
     ptr::{addr_of, addr_of_mut},
     str::FromStr,
 };
@@ -92,8 +93,13 @@ impl<const N: usize> MqStr<N> {
     }
 
     #[must_use]
-    pub const fn as_bytes(&self) -> &[u8] {
+    pub const fn as_bytes(&self) -> &[u8; N] {
         &self.data
+    }
+
+    #[must_use]
+    pub const fn as_mqchar(&self) -> &[sys::MQCHAR; N] {
+        unsafe { transmute(&self.data) }
     }
 
     /// Create an empty `MqStr` filled with spaces

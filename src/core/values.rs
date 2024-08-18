@@ -1,6 +1,5 @@
 use crate::{define_mqvalue, impl_default_mqvalue, mapping, sys, MqMask, MqValue};
 
-
 // Open Options mask
 define_mqvalue!(pub MQOO, mapping::MQOO_CONST);
 

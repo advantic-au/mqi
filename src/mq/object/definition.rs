@@ -3,7 +3,10 @@ use std::{
     sync::Arc,
 };
 
-use crate::{core::{values, ObjectHandle}, MqStruct, MqiOption, MqiValue, ResultCompErrExt as _};
+use crate::{
+    core::{values, ObjectHandle},
+    MqStruct, MqiOption, MqiValue, ResultCompErrExt as _,
+};
 
 use libmqm_sys::function;
 
@@ -92,10 +95,13 @@ impl<C: Conn> Object<C> {
         descriptor: impl MqiOption<OpenParam<'oo, values::MQOO>>,
         options: MqMask<MQOO>,
     ) -> ResultComp<R> {
-        let mut oo = (MqStruct::new(sys::MQOD {
-            Version: sys::MQOD_VERSION_4,
-            ..sys::MQOD::default()
-        }), options);
+        let mut oo = (
+            MqStruct::new(sys::MQOD {
+                Version: sys::MQOD_VERSION_4,
+                ..sys::MQOD::default()
+            }),
+            options,
+        );
         descriptor.apply_param(&mut oo);
         R::from_mqi(&mut oo, |(oo, options)| {
             connection

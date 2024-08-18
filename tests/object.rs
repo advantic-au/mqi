@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
+use mqi::attribute::{MultiItems, TextItem};
 use mqi::connect_options::Credentials;
 use mqi::open_options::SelectionString;
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
@@ -108,6 +109,13 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
     let qm = QueueManager::connect(None, &(Credentials::user("app", "app"))).discard_warning()?;
     let object = Object::open::<Object<_>>(&qm, QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
 
+    let mut m = MultiItems::default();
+    m.push_text_item(&TextItem::new::<64>(attribute::MQCA_Q_MGR_DESC, &mqstr!("Warren test"))?);
+
+    object
+        .set(&m)
+        .warn_as_error()?;
+
     let result = object.inq(INQ.iter())?;
     if let Some((rc, verb)) = result.warning() {
         eprintln!("MQRC warning: {verb} {rc}");
@@ -119,7 +127,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
             (
                 attr,
                 match value {
-                    attribute::InqResItem::Str(value) => Cow::from(value),
+                    attribute::InqResItem::Text(value) => Cow::from(value),
                     attribute::InqResItem::Long(value) => Cow::from(value.to_string()),
                 },
             )

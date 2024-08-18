@@ -14,13 +14,12 @@ pub trait Library: Clone {
 #[cfg(feature = "link")]
 impl Library for link::LinkedMQ {
     type MQ = Self;
-    
+
     #[inline]
     #[must_use]
     fn lib(&self) -> &Self::MQ {
         self
     }
-
 }
 
 #[cfg(feature = "link")]

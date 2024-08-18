@@ -75,7 +75,9 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqdisc(&self, connection: &mut ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQDISC");
         unsafe {
-            self.0.lib().MQDISC(connection.mut_raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
+            self.0
+                .lib()
+                .MQDISC(connection.mut_raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -166,7 +168,9 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqcmit(&self, connection_handle: &ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCMIT");
         unsafe {
-            self.0.lib().MQCMIT(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
+            self.0
+                .lib()
+                .MQCMIT(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -350,7 +354,9 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqback(&self, connection_handle: &ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQBACK");
         unsafe {
-            self.0.lib().MQBACK(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
+            self.0
+                .lib()
+                .MQBACK(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);

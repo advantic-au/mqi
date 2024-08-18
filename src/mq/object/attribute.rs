@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, ptr, slice, str};
 
-use crate::{common::ResultCompErrExt as _, core::values, sys, Conn, MqValue, Object, ResultComp};
+use crate::{common::ResultCompErrExt as _, core::values, sys, Conn, MqStr, MqValue, Object, ResultComp};
 
 pub use super::attribute_types::*;
 
@@ -8,6 +8,16 @@ pub use super::attribute_types::*;
 pub struct AttributeType {
     pub(super) attribute: MqValue<values::MQXA>,
     pub(super) text_len: u32,
+}
+
+impl AttributeType {
+    pub const fn new_int(self, value: sys::MQLONG) -> Result<IntItem, AttributeError> {
+        IntItem::new(self.attribute, value)
+    }
+
+    pub const fn new_text<const N: usize>(self, value: &MqStr<N>) -> Result<TextItem, AttributeError> {
+        TextItem::new(self, value)
+    }
 }
 
 impl MqValue<values::MQXA> {
@@ -30,7 +40,7 @@ pub type InqResType<'a, T> = (MqValue<values::MQXA>, InqResItem<'a, T>);
 
 #[derive(Debug, Clone)]
 pub enum InqResItem<'a, T: ?Sized> {
-    Str(&'a T),
+    Text(&'a T),
     Long(sys::MQLONG),
 }
 
@@ -63,7 +73,7 @@ impl MultiItems {
                     // Note: some fields, such as the initial key are binary and therefore should
                     // use the `iter_mqchar` function.
                     // Refer https://www.ibm.com/docs/en/ibm-mq/9.4?topic=application-using-mqinq-in-client-aplication
-                    InqResItem::Str(value) => InqResItem::Str(
+                    InqResItem::Text(value) => InqResItem::Text(
                         unsafe { str::from_utf8_unchecked(&*(ptr::from_ref(value) as *const [u8])) }
                             .trim_end_matches([' ', '\0']),
                     ),
@@ -86,7 +96,7 @@ impl<'a> Iterator for MultiItemIter<'a> {
             let len = *self.text_len.next()?;
             let mqchar = &self.text_attr[self.text_pos..(len as usize) + self.text_pos];
             self.text_pos += len as usize;
-            Some((attribute, InqResItem::Str(mqchar)))
+            Some((attribute, InqResItem::Text(mqchar)))
         } else {
             None
         }
@@ -184,18 +194,53 @@ impl SetItems for MultiItems {
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum AttributeError {
+    #[error("{} is not an integer attribute", .0)]
+    NotIntType(MqValue<values::MQXA>),
+    #[error("{} is not a text attribute", .0)]
+    NotTextType(MqValue<values::MQXA>),
+    #[error("actual text attribute length = {}, expected length = {}", .0, .1)]
+    InvalidTextLength(usize, usize),
+}
+
 impl MultiItems {
-    pub fn add(&mut self, items: &impl SetItems) {
-        self.selectors.extend_from_slice(items.selectors());
-        self.int_attr.extend_from_slice(items.int_attr());
-        self.text_attr.extend_from_slice(items.text_attr());
+    pub fn push_text_item(&mut self, text_item: &TextItem) {
+        self.selectors.push(text_item.selector);
+        #[allow(clippy::cast_possible_truncation)]
+        self.text_len.push(text_item.value.len() as u32);
+        self.text_attr.extend_from_slice(text_item.value);
+    }
+
+    pub fn push_int_item(&mut self, int_item: &IntItem) {
+        self.selectors.push(int_item.selector);
+        self.int_attr.push(int_item.value);
     }
 }
 
 impl IntItem {
-    #[must_use]
-    pub const fn new(item: MqValue<values::MQXA>, value: sys::MQLONG) -> Self {
-        Self { selector: item, value }
+    // #[must_use]
+    pub const fn new(item: MqValue<values::MQXA>, value: sys::MQLONG) -> Result<Self, AttributeError> {
+        if item.is_int() {
+            Ok(Self { selector: item, value })
+        } else {
+            Err(AttributeError::NotIntType(item))
+        }
+    }
+}
+
+impl<'a> TextItem<'a> {
+    pub const fn new<const N: usize>(attr_type: AttributeType, value: &'a MqStr<N>) -> Result<Self, AttributeError> {
+        if !attr_type.attribute.is_text() {
+            Err(AttributeError::NotTextType(attr_type.attribute))
+        } else if N != attr_type.text_len as usize {
+            Err(AttributeError::InvalidTextLength(attr_type.text_len as usize, N))
+        } else {
+            Ok(Self {
+                selector: attr_type.attribute,
+                value: value.as_mqchar(),
+            })
+        }
     }
 }
 
@@ -230,7 +275,7 @@ impl<'a> SetItems for TextItem<'a> {
 }
 
 impl<C: Conn> Object<C> {
-    pub fn set<'a, T: 'a>(&self, items: &impl SetItems) -> ResultComp<()> {
+    pub fn set(&self, items: &impl SetItems) -> ResultComp<()> {
         let connection = self.connection();
         connection.mq().mqset(
             connection.handle(),

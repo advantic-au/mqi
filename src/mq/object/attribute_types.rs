@@ -7,7 +7,7 @@ const fn inqreq_str(mqca: sys::MQLONG, length: usize) -> AttributeType {
     AttributeType {
         attribute: MqValue::from(mqca),
         #[allow(clippy::cast_possible_truncation)]
-        text_len: length as u32
+        text_len: length as u32,
     }
 }
 
@@ -15,7 +15,7 @@ const fn inqreq_str(mqca: sys::MQLONG, length: usize) -> AttributeType {
 const fn inqreq_long(mqca: sys::MQLONG) -> AttributeType {
     AttributeType {
         attribute: MqValue::from(mqca),
-        text_len: 0
+        text_len: 0,
     }
 }
 

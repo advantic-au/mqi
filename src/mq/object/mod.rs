@@ -1,5 +1,5 @@
-pub mod get;
 pub mod attribute;
+pub mod get;
 pub mod put;
 
 mod attribute_types;

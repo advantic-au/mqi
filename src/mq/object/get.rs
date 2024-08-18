@@ -363,7 +363,7 @@ impl<C: Conn> Object<C> {
             }),
         );
 
-        options.apply_param(& mut param);
+        options.apply_param(&mut param);
 
         let get_result = match self
             .connection()

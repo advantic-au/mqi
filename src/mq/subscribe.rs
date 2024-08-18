@@ -1,4 +1,3 @@
-
 use crate::{
     core::{self, values, ObjectHandle},
     sys, MqMask, ResultComp,
@@ -18,7 +17,7 @@ pub struct Subscription<C: Conn> {
 pub struct SubscribeOption<'a, C: Conn> {
     pub sd: MqStruct<'a, sys::MQSD>,
     pub close_options: MqMask<values::MQCO>,
-    handles: (sys::MQLONG, Option<Object<C>>)
+    handles: (sys::MQLONG, Option<Object<C>>),
 }
 
 impl<C: Conn> Subscription<C> {
@@ -123,10 +122,7 @@ impl<C: Conn> MqiValue<Self> for Subscription<C> {
 // Return the optional handle of a managed subscription
 impl<'b, C: Conn> MqiAttr<SubscribeOption<'b, C>> for Option<Object<C>> {
     #[inline]
-    fn from_mqi<Y, F: FnOnce(&mut SubscribeOption<'b, C>) -> Y>(
-        param: &mut SubscribeOption<'b, C>,
-        subscribe: F,
-    ) -> (Self, Y) {
+    fn from_mqi<Y, F: FnOnce(&mut SubscribeOption<'b, C>) -> Y>(param: &mut SubscribeOption<'b, C>, subscribe: F) -> (Self, Y) {
         let result = subscribe(param);
         (param.handles.1.take(), result)
     }

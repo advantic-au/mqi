@@ -63,7 +63,6 @@ impl<'b> MqiOption<OpenParam<'b, values::MQPMO>> for AlternateUserId {
     }
 }
 
-
 impl<'b, O> MqiAttr<OpenParam<'b, O>> for Option<QueueName> {
     fn from_mqi<Y, F: FnOnce(&mut OpenParam<'b, O>) -> Y>(param: &mut OpenParam<'b, O>, open: F) -> (Self, Y) {
         let open_result = open(param);
