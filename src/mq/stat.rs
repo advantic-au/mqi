@@ -35,6 +35,8 @@ const DEFAULT_OBJECTSTRING_LENGTH: sys::MQLONG = 4096;
 
 impl<'b> MqiAttr<StatParam<'b>> for Option<ObjectString<StrCcsidOwned>> {
     fn from_mqi<Y, F: FnOnce(&mut StatParam<'b>) -> Y>(sts: &mut StatParam<'b>, stat: F) -> (Self, Y) {
+        sts.Version = cmp::max(2, sts.Version);
+
         if sts.ObjectString.VSBufSize == 0 {
             sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
         }
