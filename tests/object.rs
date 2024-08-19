@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
-use mqi::attribute::{MultiItems, TextItem};
+use mqi::attribute::{AttributeValue, InqResItem};
 use mqi::connect_options::Credentials;
 use mqi::open_options::SelectionString;
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
@@ -109,12 +109,12 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
     let qm = QueueManager::connect(None, &(Credentials::user("app", "app"))).discard_warning()?;
     let object = Object::open::<Object<_>>(&qm, QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
 
-    let mut m = MultiItems::default();
-    m.push_text_item(&TextItem::new::<64>(attribute::MQCA_Q_MGR_DESC, &mqstr!("Warren test"))?);
+    // let mut m = MultiItems::default();
+    // m.push_text_item(&TextItem::new::<64>(attribute::MQCA_Q_MGR_DESC, &mqstr!("Warren test"))?);
 
-    object
-        .set(&m)
-        .warn_as_error()?;
+    // object
+    //     .set(&m)
+    //     .warn_as_error()?;
 
     let result = object.inq(INQ.iter())?;
     if let Some((rc, verb)) = result.warning() {
@@ -123,20 +123,18 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 
     let values: HashMap<_, _> = result
         .iter()
-        .map(|(attr, value)| {
-            (
-                attr,
-                match value {
-                    attribute::InqResItem::Text(value) => Cow::from(value),
-                    attribute::InqResItem::Long(value) => Cow::from(value.to_string()),
-                },
-            )
-        })
+        .map(InqResItem::into_tuple)
         .collect();
 
     for (attr, value) in values {
-        println!("{attr}: {value}");
+        match value {
+            AttributeValue::Text(value) => println!("{attr}: {value:?}"),
+            AttributeValue::Long(value) => println!("{attr}: {value}"),
+        };
     }
+
+    let r = object.inq_item(attribute::MQCA_DEF_XMIT_Q_NAME).warn_as_error()?;
+    println!("{r:?}");
 
     Ok(())
 }

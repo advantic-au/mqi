@@ -1,6 +1,6 @@
-use std::{collections::VecDeque, ptr, slice, str};
+use std::{collections::VecDeque, iter, slice};
 
-use crate::{common::ResultCompErrExt as _, core::values, sys, Conn, MqStr, MqValue, Object, ResultComp};
+use crate::{common::ResultCompErrExt as _, core::values, sys, Conn, MqValue, Object, ResultComp};
 
 pub use super::attribute_types::*;
 
@@ -15,7 +15,7 @@ impl AttributeType {
         IntItem::new(self.attribute, value)
     }
 
-    pub const fn new_text<const N: usize>(self, value: &MqStr<N>) -> Result<TextItem, AttributeError> {
+    pub const fn new_text(self, value: &[sys::MQCHAR]) -> Result<TextItem<&[sys::MQCHAR]>, AttributeError> {
         TextItem::new(self, value)
     }
 }
@@ -36,12 +36,26 @@ impl MqValue<values::MQXA> {
     }
 }
 
-pub type InqResType<'a, T> = (MqValue<values::MQXA>, InqResItem<'a, T>);
+#[derive(Debug, Clone, Copy)]
+pub enum InqResItem<T> {
+    Text(TextItem<T>),
+    Long(IntItem),
+}
 
-#[derive(Debug, Clone)]
-pub enum InqResItem<'a, T: ?Sized> {
-    Text(&'a T),
+#[derive(Debug, Clone, Copy)]
+pub enum AttributeValue<T> {
+    Text(T),
     Long(sys::MQLONG),
+}
+
+impl<T> InqResItem<T> {
+    #[must_use]
+    pub fn into_tuple(self) -> (MqValue<values::MQXA>, AttributeValue<T>) {
+        match self {
+            Self::Text(TextItem { selector, value }) => (selector, AttributeValue::Text(value)),
+            Self::Long(IntItem { selector, value }) => (selector, AttributeValue::Long(value)),
+        }
+    }
 }
 
 struct MultiItemIter<'a> {
@@ -52,8 +66,8 @@ struct MultiItemIter<'a> {
     int_attr: slice::Iter<'a, sys::MQLONG>,
 }
 
-impl MultiItems {
-    pub fn iter_mqchar(&self) -> impl Iterator<Item = InqResType<[sys::MQCHAR]>> {
+impl MultiItem {
+    pub fn iter(&self) -> impl Iterator<Item = InqResItem<&[sys::MQCHAR]>> {
         MultiItemIter {
             text_pos: 0,
             text_attr: &self.text_attr,
@@ -63,40 +77,43 @@ impl MultiItems {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = InqResType<str>> {
-        self.iter_mqchar().map(|(attr, item)| {
-            (
-                attr,
-                match item {
-                    // SAFETY: MQ client CCSID is (1208) UTF-8. IBM MQ documentation states the MQINQ will
-                    // use the client CCSID. Interpret as utf-8 unchecked, without allocation.
-                    // Note: some fields, such as the initial key are binary and therefore should
-                    // use the `iter_mqchar` function.
-                    // Refer https://www.ibm.com/docs/en/ibm-mq/9.4?topic=application-using-mqinq-in-client-aplication
-                    InqResItem::Text(value) => InqResItem::Text(
-                        unsafe { str::from_utf8_unchecked(&*(ptr::from_ref(value) as *const [u8])) }
-                            .trim_end_matches([' ', '\0']),
-                    ),
-                    InqResItem::Long(value) => InqResItem::Long(value),
-                },
-            )
-        })
+    #[must_use]
+    pub fn into_first(self) -> Option<InqResItem<Vec<sys::MQCHAR>>> {
+        let selector = *self.selectors.first()?;
+
+        if selector.is_int() {
+            Some(InqResItem::Long(unsafe {
+                IntItem::new_unchecked(selector, *self.int_attr.first()?)
+            }))
+        } else if selector.is_text() {
+            let len = *self.text_len.first()?;
+            let mut self_mut = self;
+            self_mut.text_attr.truncate(len as usize);
+            Some(InqResItem::Text(TextItem {
+                selector,
+                value: self_mut.text_attr,
+            }))
+        } else {
+            None
+        }
     }
 }
 
 impl<'a> Iterator for MultiItemIter<'a> {
-    type Item = InqResType<'a, [sys::MQCHAR]>;
+    type Item = InqResItem<&'a [sys::MQCHAR]>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let attribute = *self.selectors.next()?;
+        let selector = *self.selectors.next()?;
         // let val = attribute.value();
-        if attribute.is_int() {
-            Some((attribute, InqResItem::Long(*self.int_attr.next()?)))
-        } else if attribute.is_text() {
+        if selector.is_int() {
+            Some(InqResItem::Long(unsafe {
+                IntItem::new_unchecked(selector, *self.int_attr.next()?)
+            }))
+        } else if selector.is_text() {
             let len = *self.text_len.next()?;
             let mqchar = &self.text_attr[self.text_pos..(len as usize) + self.text_pos];
             self.text_pos += len as usize;
-            Some((attribute, InqResItem::Text(mqchar)))
+            Some(InqResItem::Text(unsafe { TextItem::new_unchecked(selector, mqchar) }))
         } else {
             None
         }
@@ -104,7 +121,7 @@ impl<'a> Iterator for MultiItemIter<'a> {
 }
 
 impl<C: Conn> Object<C> {
-    pub fn inq<'a>(&self, selectors: impl IntoIterator<Item = &'a AttributeType>) -> ResultComp<MultiItems> {
+    pub fn inq<'a>(&self, selectors: impl IntoIterator<Item = &'a AttributeType>) -> ResultComp<MultiItem> {
         let mut text_total = 0;
         let mut int_count = 0;
         let mut text_len = Vec::new();
@@ -124,7 +141,7 @@ impl<C: Conn> Object<C> {
             }
             selectors.push(attribute);
         }
-        let mut output = MultiItems {
+        let mut output = MultiItem {
             selectors,
             int_attr: Vec::with_capacity(int_count),
             text_attr: Vec::with_capacity(text_total as usize),
@@ -149,6 +166,10 @@ impl<C: Conn> Object<C> {
                 output
             })
     }
+
+    pub fn inq_item(&self, selector: AttributeType) -> ResultComp<Option<InqResItem<Vec<sys::MQCHAR>>>> {
+        self.inq(iter::once(&selector)).map_completion(MultiItem::into_first)
+    }
 }
 
 pub trait SetItems: sealed::Sealed {
@@ -161,26 +182,28 @@ mod sealed {
     pub trait Sealed {}
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct IntItem {
     selector: MqValue<values::MQXA>,
     value: sys::MQLONG,
 }
 
-pub struct TextItem<'a> {
+#[derive(Debug, Clone, Copy)]
+pub struct TextItem<T> {
     selector: MqValue<values::MQXA>,
-    value: &'a [sys::MQCHAR],
+    value: T,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct MultiItems {
+pub struct MultiItem {
     selectors: Vec<MqValue<values::MQXA>>,
     int_attr: Vec<sys::MQLONG>,
     text_attr: Vec<sys::MQCHAR>,
     text_len: Vec<u32>,
 }
 
-impl sealed::Sealed for MultiItems {}
-impl SetItems for MultiItems {
+impl sealed::Sealed for MultiItem {}
+impl SetItems for MultiItem {
     fn selectors(&self) -> &[MqValue<values::MQXA>] {
         &self.selectors
     }
@@ -204,8 +227,8 @@ pub enum AttributeError {
     InvalidTextLength(usize, usize),
 }
 
-impl MultiItems {
-    pub fn push_text_item(&mut self, text_item: &TextItem) {
+impl MultiItem {
+    pub fn push_text_item(&mut self, text_item: &TextItem<&[sys::MQCHAR]>) {
         self.selectors.push(text_item.selector);
         #[allow(clippy::cast_possible_truncation)]
         self.text_len.push(text_item.value.len() as u32);
@@ -219,28 +242,41 @@ impl MultiItems {
 }
 
 impl IntItem {
-    // #[must_use]
-    pub const fn new(item: MqValue<values::MQXA>, value: sys::MQLONG) -> Result<Self, AttributeError> {
-        if item.is_int() {
-            Ok(Self { selector: item, value })
+    pub const fn new(selector: MqValue<values::MQXA>, value: sys::MQLONG) -> Result<Self, AttributeError> {
+        if selector.is_int() {
+            Ok(Self { selector, value })
         } else {
-            Err(AttributeError::NotIntType(item))
+            Err(AttributeError::NotIntType(selector))
         }
+    }
+
+    /// # Safety
+    /// Consumers must ensure the `selector` is within the MQIA constant range
+    #[must_use]
+    pub const unsafe fn new_unchecked(selector: MqValue<values::MQXA>, value: sys::MQLONG) -> Self {
+        Self { selector, value }
     }
 }
 
-impl<'a> TextItem<'a> {
-    pub const fn new<const N: usize>(attr_type: AttributeType, value: &'a MqStr<N>) -> Result<Self, AttributeError> {
+impl<'a> TextItem<&'a [sys::MQCHAR]> {
+    pub const fn new(attr_type: AttributeType, value: &'a [sys::MQCHAR]) -> Result<Self, AttributeError> {
         if !attr_type.attribute.is_text() {
             Err(AttributeError::NotTextType(attr_type.attribute))
-        } else if N != attr_type.text_len as usize {
-            Err(AttributeError::InvalidTextLength(attr_type.text_len as usize, N))
+        } else if value.len() != attr_type.text_len as usize {
+            Err(AttributeError::InvalidTextLength(attr_type.text_len as usize, value.len()))
         } else {
             Ok(Self {
                 selector: attr_type.attribute,
-                value: value.as_mqchar(),
+                value,
             })
         }
+    }
+
+    /// # Safety
+    /// Consumers must ensure the `selector` is within the MQCA constant range and the slice is the correct length
+    #[must_use]
+    pub const unsafe fn new_unchecked(selector: MqValue<values::MQXA>, value: &'a [sys::MQCHAR]) -> Self {
+        Self { selector, value }
     }
 }
 
@@ -259,8 +295,32 @@ impl SetItems for IntItem {
     }
 }
 
-impl sealed::Sealed for TextItem<'_> {}
-impl<'a> SetItems for TextItem<'a> {
+impl<T> sealed::Sealed for InqResItem<T> {}
+impl<T: AsRef<[sys::MQCHAR]>> SetItems for InqResItem<T> {
+    fn selectors(&self) -> &[MqValue<values::MQXA>] {
+        match self {
+            Self::Text(t) => t.selectors(),
+            Self::Long(l) => l.selectors(),
+        }
+    }
+
+    fn int_attr(&self) -> &[sys::MQLONG] {
+        match self {
+            Self::Text(t) => t.int_attr(),
+            Self::Long(l) => l.int_attr(),
+        }
+    }
+
+    fn text_attr(&self) -> &[sys::MQCHAR] {
+        match self {
+            Self::Text(t) => t.text_attr(),
+            Self::Long(l) => l.text_attr(),
+        }
+    }
+}
+
+impl<T> sealed::Sealed for TextItem<T> {}
+impl<T: AsRef<[sys::MQCHAR]>> SetItems for TextItem<T> {
     fn selectors(&self) -> &[MqValue<values::MQXA>] {
         slice::from_ref(&self.selector)
     }
@@ -270,7 +330,7 @@ impl<'a> SetItems for TextItem<'a> {
     }
 
     fn text_attr(&self) -> &[sys::MQCHAR] {
-        self.value
+        self.value.as_ref()
     }
 }
 

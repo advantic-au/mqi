@@ -114,9 +114,6 @@ impl<'b, O> MqiAttr<OpenParam<'b, O>> for Option<ResObjectString> {
                 .expect("buffer length to convert to usize"),
         );
         od.ResObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
-
-        od.ResObjectString.VSCCSID = 500;
-
         let open_result = open(param);
 
         let od = &mut param.0;

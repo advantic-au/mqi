@@ -26,7 +26,7 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 | MQOPEN  | Open object                         | ✔ | ✔ |  |
 | MQPUT   | Put message                         | ✔ | ✔ |  |
 | MQPUT1  | Put one message                     | ✔ | ✔ |  |
-| MQSET   | Set object attributes               | ✔ |   |  |
+| MQSET   | Set object attributes               | ✔ | ✔ |  |
 | MQSETMP | Set message property                | ✔ | ✔ |  |
 | MQSTAT  | Retrieve status information         | ✔ |   |  |
 | MQMHBUF | Convert message handle into buffer  | ✔ |   |  |

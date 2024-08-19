@@ -484,14 +484,13 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     /// Retrieve status information. The type of status information returned is
     /// determined by the `stat_type` value parameter
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqstat(&self, connection_handle: &ConnectionHandle, stat_type: MqValue<MQSTAT>) -> ResultErr<sys::MQSTS> {
-        let mut outcome = MQIOutcome::<sys::MQSTS>::with_verb("MQSTAT");
-        outcome.Version = 2;
+    pub fn mqstat(&self, connection_handle: &ConnectionHandle, stat_type: MqValue<MQSTAT>, sts: &mut sys::MQSTS) -> ResultComp<()> {
+        let mut outcome = MQIOutcomeVoid::with_verb("MQSTAT");
         unsafe {
             self.0.lib().MQSTAT(
                 connection_handle.raw_handle(),
                 stat_type.0,
-                ptr::addr_of_mut!(outcome.value).cast(),
+                ptr::from_mut(sts).cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
