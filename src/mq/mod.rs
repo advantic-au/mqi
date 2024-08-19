@@ -11,6 +11,8 @@ mod queue_manager;
 mod strings;
 mod subscribe;
 mod verb;
+mod stat;
+
 
 pub mod connect_options;
 
@@ -29,3 +31,4 @@ pub use mqmd::*;
 pub use buffer::*;
 pub use verb::*;
 pub use subscribe::*;
+pub use stat::*;
