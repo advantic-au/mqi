@@ -15,7 +15,7 @@ fn subscribe() -> Result<(), Box<dyn std::error::Error>> {
         &qm,
         (
             MqMask::<MQSO>::from(sys::MQSO_CREATE | sys::MQSO_NON_DURABLE),
-            // &object,
+            &object,
             ObjectString("dev/"),
         ),
     )
