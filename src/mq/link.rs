@@ -1,6 +1,6 @@
 use libmqm_sys::link::LinkedMQ;
 
-use super::{connect_options::ConnectOptions, types::QueueManagerName, ConnectParam, HandleShare, QueueManagerShare, MqiValue};
+use super::{connect_options::ConnectOption, types::QueueManagerName, HandleShare, QueueManagerShare, QueueManagerValue};
 use crate::{core::values::MQCBO, ResultComp};
 
 #[cfg(feature = "mqai")]
@@ -11,9 +11,9 @@ use crate::{
 
 impl<H: HandleShare> QueueManagerShare<'_, LinkedMQ, H> {
     #[allow(clippy::new_ret_no_self)]
-    pub fn connect<'c, R>(qm_name: Option<&QueueManagerName>, options: &impl ConnectOptions<'c>) -> ResultComp<R>
+    pub fn connect<'c, R>(qm_name: Option<&QueueManagerName>, options: &impl ConnectOption<'c>) -> ResultComp<R>
     where
-        R: for<'a> MqiValue<Self, Param<'a> = ConnectParam<'a>>,
+        R: QueueManagerValue<Self>,
     {
         Self::connect_lib(LinkedMQ, qm_name, options)
     }

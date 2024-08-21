@@ -59,12 +59,11 @@ impl PutMessage for [u8] {
 }
 
 impl<C: Conn> Object<C> {
-    pub fn put_message<T: for<'a> MqiAttr<PutParam<'a>>>(
-        &self,
-        options: impl for<'a> MqiOption<PutParam<'a>>,
-        message: &(impl PutMessage + ?Sized),
-    ) -> ResultComp<T> {
-        put(options, message, |(md, pmo), data| {
+    pub fn put_message<R>(&self, put_options: impl PutOption, message: &(impl PutMessage + ?Sized)) -> ResultComp<R>
+    where
+        R: PutAttributes,
+    {
+        put(put_options, message, |(md, pmo), data| {
             let connection = self.connection();
             connection
                 .mq()
@@ -73,13 +72,24 @@ impl<C: Conn> Object<C> {
     }
 }
 
+pub trait OpenPutOption<'a>: MqiOption<OpenParam<'a, values::MQPMO>> {}
+pub trait PutOption: for<'a> MqiOption<PutParam<'a>> {}
+pub trait PutAttributes: for<'a> MqiAttr<PutParam<'a>> {}
+
+impl<'a, T: MqiOption<OpenParam<'a, values::MQPMO>>> OpenPutOption<'a> for T {}
+impl<T: for<'a> MqiOption<PutParam<'a>>> PutOption for T {}
+impl<T: for<'a> MqiAttr<PutParam<'a>>> PutAttributes for T {}
+
 impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
-    pub fn put_message<T: for<'a> MqiAttr<PutParam<'a>>>(
+    pub fn put_message<'oo, R>(
         &self,
-        oo: impl for<'a> MqiOption<OpenParam<'a, values::MQPMO>>,
-        options: impl for<'a> MqiOption<PutParam<'a>>,
+        open_options: impl OpenPutOption<'oo>,
+        put_options: impl PutOption,
         message: &(impl PutMessage + ?Sized),
-    ) -> ResultComp<T> {
+    ) -> ResultComp<R>
+    where
+        R: PutAttributes,
+    {
         let mut mqod = (
             MqStruct::new(sys::MQOD {
                 Version: sys::MQOD_VERSION_4,
@@ -87,19 +97,19 @@ impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
             }),
             MqMask::default(),
         );
-        oo.apply_param(&mut mqod);
-        put(options, message, |(md, pmo), data| {
+        open_options.apply_param(&mut mqod);
+        put(put_options, message, |(md, pmo), data| {
             pmo.Options |= mqod.1.value();
             self.mq().mqput1(self.handle(), &mut mqod.0, Some(&mut **md), pmo, data)
         })
     }
 }
 
-fn put<T: for<'a> MqiAttr<PutParam<'a>>, F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>>(
-    options: impl for<'a> MqiOption<PutParam<'a>>,
-    message: &(impl PutMessage + ?Sized),
-    put: F,
-) -> ResultComp<T> {
+fn put<T, F>(options: impl for<'a> MqiOption<PutParam<'a>>, message: &(impl PutMessage + ?Sized), put: F) -> ResultComp<T>
+where
+    T: for<'a> MqiAttr<PutParam<'a>>,
+    F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>,
+{
     let MessageFormat {
         ccsid,
         encoding,

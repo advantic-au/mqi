@@ -68,6 +68,12 @@ impl<L: Library<MQ: function::MQI>, H> Conn for &QueueManagerShare<'_, L, H> {
     }
 }
 
+pub trait OpenOption<'oo>: MqiOption<OpenParam<'oo, values::MQOO>> {}
+pub trait OpenValue<T>: for<'a> MqiValue<T, Param<'a> = OpenParam<'a, values::MQOO>> {}
+
+impl<'oo, T: MqiOption<OpenParam<'oo, values::MQOO>>> OpenOption<'oo> for T {}
+impl<A, T: for<'a> MqiValue<A, Param<'a> = OpenParam<'a, values::MQOO>>> OpenValue<A> for T {}
+
 impl<C: Conn> Object<C> {
     #[must_use]
     pub const fn handle(&self) -> &core::ObjectHandle {
@@ -90,11 +96,10 @@ impl<C: Conn> Object<C> {
         }
     }
 
-    pub fn open<'oo, R: for<'a> MqiValue<Self, Param<'a> = OpenParam<'a, values::MQOO>>>(
-        connection: C,
-        descriptor: impl MqiOption<OpenParam<'oo, values::MQOO>>,
-        options: MqMask<MQOO>,
-    ) -> ResultComp<R> {
+    pub fn open<'oo, R>(connection: C, open_option: impl OpenOption<'oo>, options: MqMask<MQOO>) -> ResultComp<R>
+    where
+        R: OpenValue<Self>,
+    {
         let mut oo = (
             MqStruct::new(sys::MQOD {
                 Version: sys::MQOD_VERSION_4,
@@ -102,7 +107,7 @@ impl<C: Conn> Object<C> {
             }),
             options,
         );
-        descriptor.apply_param(&mut oo);
+        open_option.apply_param(&mut oo);
         R::from_mqi(&mut oo, |(oo, options)| {
             connection
                 .mq()

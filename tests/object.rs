@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
-use mqi::attribute::{AttributeValue, InqResItem};
+use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::connect_options::Credentials;
 use mqi::open_options::SelectionString;
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
@@ -47,7 +47,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let mut properties = Message::new(&qm, MqValue::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
-    let msg = object.get_message::<(MessageId, MessageFormat, get::Headers)>(
+    let msg = object.get_message::<((), MessageId, MessageFormat, get::Headers)>(
         (
             MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
             get::GetConvert::ConvertTo(500, MqMask::from(sys::MQENC_NORMAL)),
@@ -63,7 +63,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let msg = msg.discard_warning();
 
     match &msg {
-        Some((msgid, format, headers)) => {
+        Some(((), msgid, format, headers)) => {
             for header in headers.all_headers() {
                 println!("Header: {header:?}");
             }
@@ -99,32 +99,22 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         attribute::MQCA_CREATION_TIME,
         attribute::MQIA_CODED_CHAR_SET_ID,
         attribute::MQCA_DEF_XMIT_Q_NAME,
-        // (
-        //     // Hmmm... this works. Not documented for MQINQ though.
-        //     MqValue::from(sys::MQCA_VERSION),
-        //     attribute::ValueType::Str(sys::MQ_VERSION_LENGTH),
-        // ),
+        // Hmmm... this works. Not documented for MQINQ though.
+        #[allow(clippy::cast_possible_truncation)]
+        unsafe {
+            AttributeType::new(MqValue::from(sys::MQCA_VERSION), sys::MQ_VERSION_LENGTH as u32)
+        },
         attribute::MQIA_COMMAND_LEVEL,
     ];
     let qm = QueueManager::connect(None, &(Credentials::user("app", "app"))).discard_warning()?;
     let object = Object::open::<Object<_>>(&qm, QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
 
-    // let mut m = MultiItems::default();
-    // m.push_text_item(&TextItem::new::<64>(attribute::MQCA_Q_MGR_DESC, &mqstr!("Warren test"))?);
-
-    // object
-    //     .set(&m)
-    //     .warn_as_error()?;
-
-    let result = object.inq(INQ.iter())?;
+    let result = object.inq(INQ)?;
     if let Some((rc, verb)) = result.warning() {
         eprintln!("MQRC warning: {verb} {rc}");
     }
 
-    let values: HashMap<_, _> = result
-        .iter()
-        .map(InqResItem::into_tuple)
-        .collect();
+    let values: HashMap<_, _> = result.iter().map(InqResItem::into_tuple).collect();
 
     for (attr, value) in values {
         match value {

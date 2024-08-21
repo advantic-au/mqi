@@ -3,10 +3,15 @@ use std::{cmp, num, ptr};
 use libmqm_sys::MQI;
 
 use crate::{
-    core::{values, Library}, sys, CompletionCode, MqValue, ReasonCode, ResultComp
+    core::{values, Library},
+    sys, CompletionCode, MqValue, ReasonCode, ResultComp,
 };
 
-use super::{open_options::ObjectString, types::{ObjectName, QueueManagerName}, MqStruct, MqiAttr, MqiValue, QueueManagerShare, StrCcsidOwned};
+use super::{
+    open_options::ObjectString,
+    types::{ObjectName, QueueManagerName},
+    MqStruct, MqiAttr, MqiValue, QueueManagerShare, StrCcsidOwned,
+};
 
 pub type StatParam<'a> = MqStruct<'a, sys::MQSTS>;
 
@@ -92,23 +97,13 @@ impl<'b> MqiAttr<StatParam<'b>> for Option<SubName<StrCcsidOwned>> {
         if sts.SubName.VSBufSize == 0 {
             sts.SubName.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
         }
-        let mut buffer: Vec<_> = Vec::with_capacity(
-            sts.SubName
-                .VSBufSize
-                .try_into()
-                .expect("buffer length to convert to usize"),
-        );
+        let mut buffer: Vec<_> = Vec::with_capacity(sts.SubName.VSBufSize.try_into().expect("buffer length to convert to usize"));
         sts.SubName.VSPtr = ptr::from_mut(&mut *buffer).cast();
 
         let stat_result = stat(sts);
 
         unsafe {
-            buffer.set_len(
-                sts.SubName
-                    .VSLength
-                    .try_into()
-                    .expect("buffer length to convert to usize"),
-            );
+            buffer.set_len(sts.SubName.VSLength.try_into().expect("buffer length to convert to usize"));
         }
         (
             if buffer.is_empty() {

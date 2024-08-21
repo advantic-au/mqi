@@ -11,12 +11,19 @@ pub struct AttributeType {
 }
 
 impl AttributeType {
-    pub const fn new_int(self, value: sys::MQLONG) -> Result<IntItem, AttributeError> {
+    pub const fn int_item(self, value: sys::MQLONG) -> Result<IntItem, AttributeError> {
         IntItem::new(self.attribute, value)
     }
 
-    pub const fn new_text(self, value: &[sys::MQCHAR]) -> Result<TextItem<&[sys::MQCHAR]>, AttributeError> {
+    pub const fn text_item(self, value: &[sys::MQCHAR]) -> Result<TextItem<&[sys::MQCHAR]>, AttributeError> {
         TextItem::new(self, value)
+    }
+
+    /// # Safety
+    /// Consumers must ensure the `text_len` is correct for the given `attribute`
+    #[must_use]
+    pub const unsafe fn new(attribute: MqValue<values::MQXA>, text_len: u32) -> Self {
+        Self { attribute, text_len }
     }
 }
 

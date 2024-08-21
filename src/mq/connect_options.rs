@@ -3,6 +3,7 @@ use std::{any, cmp, ops::Deref};
 use crate::{core::values, sys, MqMask, MqStr, MqValue};
 
 use super::{
+    macros::{all_multi_tuples, reverse_ident},
     types::{ChannelName, CipherSpec, ConnectionName},
     ConnTag, ConnectParam, ConnectionId, MqStruct, MqiAttr,
 };
@@ -13,7 +14,7 @@ pub const HAS_CSP: i32 = 0b01000;
 pub const HAS_BNO: i32 = 0b10000;
 
 #[allow(unused_variables)]
-pub trait ConnectOptions<'a> {
+pub trait ConnectOption<'a> {
     const STRUCTS: i32;
 
     fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>)
@@ -89,10 +90,10 @@ impl<'ptr> ClientDefinition<'ptr> {
     }
 }
 
-impl<'cd> ConnectOptions<'cd> for ClientDefinition<'cd> {
+impl<'cd> ConnectOption<'cd> for ClientDefinition<'cd> {
     const STRUCTS: i32 = HAS_CD;
 
-    fn apply_cd<'ptr>(&'ptr self, cd: &mut MqStruct<'ptr, sys::MQCD>)
+    fn apply_cd<'ptr>(&self, cd: &mut MqStruct<'ptr, sys::MQCD>)
     where
         'cd: 'ptr,
     {
@@ -110,7 +111,7 @@ pub enum Binding {
     Client,
 }
 
-impl ConnectOptions<'_> for Binding {
+impl ConnectOption<'_> for Binding {
     const STRUCTS: i32 = 0;
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
@@ -253,7 +254,19 @@ impl<'pw> Tls<'pw> {
     }
 }
 
-impl<'tls> ConnectOptions<'tls> for Tls<'tls> {
+impl ConnectOption<'_> for CipherSpec {
+    const STRUCTS: i32 = HAS_CD;
+
+    fn apply_cd<'ptr>(&'ptr self, cd: &mut super::MqStruct<'ptr, sys::MQCD>)
+    where
+        'static: 'ptr,
+    {
+        cd.Version = cmp::max(sys::MQCD_VERSION_7, cd.Version);
+        self.copy_into_mqchar(&mut cd.SSLCipherSpec);
+    }
+}
+
+impl<'tls> ConnectOption<'tls> for Tls<'tls> {
     const STRUCTS: i32 = HAS_SCO | CipherSpec::STRUCTS;
     fn apply_sco<'ptr>(&self, sco: &mut MqStruct<'ptr, sys::MQSCO>)
     where
@@ -262,32 +275,11 @@ impl<'tls> ConnectOptions<'tls> for Tls<'tls> {
         self.0.clone_into(sco);
     }
 
-    fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>)
-    where
-        'tls: 'ptr,
-    {
-        CipherSpec::apply_cno(&self.1, cno);
-    }
-
-    fn apply_csp<'ptr>(&'ptr self, csp: &mut MqStruct<'ptr, sys::MQCSP>)
-    where
-        'tls: 'ptr,
-    {
-        CipherSpec::apply_csp(&self.1, csp);
-    }
-
     fn apply_cd<'ptr>(&'ptr self, cd: &mut MqStruct<'ptr, sys::MQCD>)
     where
         'tls: 'ptr,
     {
         CipherSpec::apply_cd(&self.1, cd);
-    }
-
-    fn apply_bno<'ptr>(&'ptr self, bno: &mut MqStruct<'ptr, sys::MQBNO>)
-    where
-        'tls: 'ptr,
-    {
-        CipherSpec::apply_bno(&self.1, bno);
     }
 }
 
@@ -317,7 +309,7 @@ impl<T> From<T> for ProtectedSecret<T> {
     }
 }
 
-impl<'cred, S: Secret<str>> ConnectOptions<'cred> for CredentialsSecret<'cred, S> {
+impl<'cred, S: Secret<str>> ConnectOption<'cred> for CredentialsSecret<'cred, S> {
     const STRUCTS: i32 = HAS_CSP;
 
     fn apply_csp<'ptr>(&'ptr self, csp: &mut MqStruct<'ptr, sys::MQCSP>)
@@ -352,7 +344,7 @@ impl<'cred, S: Secret<str>> ConnectOptions<'cred> for CredentialsSecret<'cred, S
     }
 }
 
-impl ConnectOptions<'_> for MqMask<values::MQCNO> {
+impl ConnectOption<'_> for MqMask<values::MQCNO> {
     const STRUCTS: i32 = 0;
 
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
@@ -363,105 +355,79 @@ impl ConnectOptions<'_> for MqMask<values::MQCNO> {
     }
 }
 
-impl ConnectOptions<'_> for () {
+impl ConnectOption<'_> for () {
     const STRUCTS: i32 = 0;
 }
 
-impl<'r, A: ConnectOptions<'r>, B: ConnectOptions<'r>> ConnectOptions<'r> for (A, B) {
-    const STRUCTS: i32 = A::STRUCTS | B::STRUCTS;
+macro_rules! impl_connectoptions {
+    ($first:ident, [$($ty:ident),*]) => {
+        // reverse_ident macro is used to ensure right to left application of options
+        #[allow(non_snake_case,unused_parens)]
+        impl<'r, $first $(, $ty)*> ConnectOption<'r> for ($first $(, $ty)*)
+        where
+            $first: ConnectOption<'r>,
+            $($ty: ConnectOption<'r>),*
+        {
+            const STRUCTS: i32 = $first::STRUCTS $(| $ty::STRUCTS)*;
 
-    #[inline]
-    fn apply_cno<'ptr>(&'ptr self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
-    where
-        'r: 'ptr,
-    {
-        self.1.apply_cno(mqcno);
-        self.0.apply_cno(mqcno);
-    }
+            #[inline]
+            fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>)
+            where
+                'r: 'ptr,
+            {
+                let reverse_ident!($first, $($ty),*) = self;
+                $first.apply_cno(cno);
+                $($ty.apply_cno(cno);)*
 
-    #[inline]
-    fn apply_sco<'ptr>(&'ptr self, sco: &mut MqStruct<'ptr, sys::MQSCO>)
-    where
-        'r: 'ptr,
-    {
-        self.1.apply_sco(sco);
-        self.0.apply_sco(sco);
-    }
+            }
 
-    #[inline]
-    fn apply_cd<'ptr>(&'ptr self, cd: &mut MqStruct<'ptr, sys::MQCD>)
-    where
-        'r: 'ptr,
-    {
-        self.1.apply_cd(cd);
-        self.0.apply_cd(cd);
-    }
+            #[inline]
+            fn apply_sco<'ptr>(&'ptr self, sco: &mut MqStruct<'ptr, sys::MQSCO>)
+            where
+                'r: 'ptr,
+            {
+                let reverse_ident!($first, $($ty),*) = self;
+                $first.apply_sco(sco);
+                $($ty.apply_sco(sco);)*
+            }
 
-    #[inline]
-    fn apply_bno<'ptr>(&'ptr self, bno: &mut MqStruct<'ptr, sys::MQBNO>)
-    where
-        'r: 'ptr,
-    {
-        self.1.apply_bno(bno);
-        self.0.apply_bno(bno);
-    }
-}
+            #[inline]
+            fn apply_cd<'ptr>(&'ptr self, cd: &mut MqStruct<'ptr, sys::MQCD>)
+            where
+                'r: 'ptr,
+            {
+                let reverse_ident!($first, $($ty),*) = self;
+                $first.apply_cd(cd);
+                $($ty.apply_cd(cd);)*
+            }
 
-impl<'r, A: ConnectOptions<'r>, B: ConnectOptions<'r>, C: ConnectOptions<'r>> ConnectOptions<'r> for (A, B, C) {
-    const STRUCTS: i32 = A::STRUCTS | B::STRUCTS | C::STRUCTS;
+            #[inline]
+            fn apply_bno<'ptr>(&'ptr self, bno: &mut MqStruct<'ptr, sys::MQBNO>)
+            where
+                'r: 'ptr,
+            {
+                let reverse_ident!($first, $($ty),*) = self;
+                $($ty.apply_bno(bno);)*
+                $first.apply_bno(bno);
 
-    #[inline]
-    fn apply_cno<'ptr>(&'ptr self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
-    where
-        'r: 'ptr,
-    {
-        self.2.apply_cno(mqcno);
-        self.1.apply_cno(mqcno);
-        self.0.apply_cno(mqcno);
-    }
+            }
 
-    #[inline]
-    fn apply_sco<'ptr>(&'ptr self, sco: &mut MqStruct<'ptr, sys::MQSCO>)
-    where
-        'r: 'ptr,
-    {
-        self.2.apply_sco(sco);
-        self.1.apply_sco(sco);
-        self.0.apply_sco(sco);
-    }
-
-    #[inline]
-    fn apply_cd<'ptr>(&'ptr self, cd: &mut MqStruct<'ptr, sys::MQCD>)
-    where
-        'r: 'ptr,
-    {
-        self.2.apply_cd(cd);
-        self.1.apply_cd(cd);
-        self.0.apply_cd(cd);
-    }
-
-    #[inline]
-    fn apply_bno<'ptr>(&'ptr self, bno: &mut MqStruct<'ptr, sys::MQBNO>)
-    where
-        'r: 'ptr,
-    {
-        self.2.apply_bno(bno);
-        self.1.apply_bno(bno);
-        self.0.apply_bno(bno);
-    }
-
-    #[inline]
-    fn apply_csp<'ptr>(&'ptr self, csp: &mut MqStruct<'ptr, sys::MQCSP>)
-    where
-        'r: 'ptr,
-    {
-        self.2.apply_csp(csp);
-        self.1.apply_csp(csp);
-        self.0.apply_csp(csp);
+            #[inline]
+            fn apply_csp<'ptr>(&'ptr self, csp: &mut MqStruct<'ptr, sys::MQCSP>)
+            where
+                'r: 'ptr,
+            {
+                let reverse_ident!($first, $($ty),*) = self;
+                $first.apply_csp(csp);
+                $($ty.apply_csp(csp);)*
+            }
+        }
     }
 }
 
-impl ConnectOptions<'static> for ApplName {
+all_multi_tuples!(impl_connectoptions);
+
+impl ConnectOption<'static> for ApplName {
     const STRUCTS: i32 = 0;
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
@@ -472,7 +438,7 @@ impl ConnectOptions<'static> for ApplName {
     }
 }
 
-impl<'url> ConnectOptions<'url> for Ccdt<'url> {
+impl<'url> ConnectOption<'url> for Ccdt<'url> {
     const STRUCTS: i32 = 0;
 
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
@@ -485,7 +451,7 @@ impl<'url> ConnectOptions<'url> for Ccdt<'url> {
     }
 }
 
-impl<'bno> ConnectOptions<'bno> for MqStruct<'bno, sys::MQBNO> {
+impl<'bno> ConnectOption<'bno> for MqStruct<'bno, sys::MQBNO> {
     const STRUCTS: i32 = HAS_BNO;
 
     fn apply_bno<'ptr>(&self, bno: &mut MqStruct<'ptr, sys::MQBNO>)
@@ -495,7 +461,7 @@ impl<'bno> ConnectOptions<'bno> for MqStruct<'bno, sys::MQBNO> {
         self.clone_into(bno);
     }
 
-    fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>)
+    fn apply_cno<'ptr>(&self, cno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
         'bno: 'ptr,
     {
@@ -503,7 +469,7 @@ impl<'bno> ConnectOptions<'bno> for MqStruct<'bno, sys::MQBNO> {
     }
 }
 
-impl<'data> ConnectOptions<'data> for MqStruct<'data, sys::MQCSP> {
+impl<'data> ConnectOption<'data> for MqStruct<'data, sys::MQCSP> {
     const STRUCTS: i32 = HAS_CSP;
 
     fn apply_csp<'ptr>(&self, csp: &mut MqStruct<'ptr, sys::MQCSP>)
@@ -514,7 +480,7 @@ impl<'data> ConnectOptions<'data> for MqStruct<'data, sys::MQCSP> {
     }
 }
 
-impl<'data> ConnectOptions<'data> for MqStruct<'data, sys::MQSCO> {
+impl<'data> ConnectOption<'data> for MqStruct<'data, sys::MQSCO> {
     const STRUCTS: i32 = HAS_SCO;
 
     fn apply_sco<'ptr>(&self, sco: &mut MqStruct<'ptr, sys::MQSCO>)
@@ -525,7 +491,7 @@ impl<'data> ConnectOptions<'data> for MqStruct<'data, sys::MQSCO> {
     }
 }
 
-impl<'data> ConnectOptions<'data> for MqStruct<'data, sys::MQCD> {
+impl<'data> ConnectOption<'data> for MqStruct<'data, sys::MQCD> {
     const STRUCTS: i32 = HAS_CD;
 
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)

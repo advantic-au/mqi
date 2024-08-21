@@ -1,7 +1,6 @@
 use crate::{core::values, headers::TextEnc, sys, MqMask, MqStr, ReasonCode};
-use std::{cmp, str};
+use std::str;
 
-use super::connect_options::{self, ConnectOptions};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CorrelationId(pub [u8; sys::MQ_CORREL_ID_LENGTH]);
@@ -68,15 +67,3 @@ pub struct QueueManagerName(pub ObjectName);
 
 #[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
 pub struct CipherSpec(pub MqStr<32>);
-
-impl ConnectOptions<'_> for CipherSpec {
-    const STRUCTS: i32 = connect_options::HAS_CD;
-
-    fn apply_cd<'ptr>(&'ptr self, cd: &mut super::MqStruct<'ptr, sys::MQCD>)
-    where
-        'static: 'ptr,
-    {
-        cd.Version = cmp::max(sys::MQCD_VERSION_7, cd.Version);
-        self.copy_into_mqchar(&mut cd.SSLCipherSpec);
-    }
-}

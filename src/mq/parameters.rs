@@ -45,6 +45,7 @@ impl<P> MqiAttr<P> for () {
     }
 }
 
+// TODO: Future me (and others) will hate me if I don't document what is happening here
 macro_rules! impl_mqivalue {
     ($first:ident, [$($ty:ident),*]) => {
         #[allow(non_snake_case,unused_parens)]
@@ -64,6 +65,7 @@ macro_rules! impl_mqivalue {
     };
 }
 
+// TODO: Future me (and others) will hate me if I don't document what is happening here
 macro_rules! impl_mqiattr {
     ($first:ident, [$($ty:ident),*]) => {
         #[allow(non_snake_case,unused_parens)]
@@ -81,6 +83,7 @@ macro_rules! impl_mqiattr {
     }
 }
 
+// TODO: Future me (and others) will hate me if I don't document what is happening here
 macro_rules! impl_mqioption {
     ($first:ident, [$($ty:ident),*]) => {
         #[allow(non_snake_case,unused_parens)]

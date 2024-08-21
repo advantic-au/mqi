@@ -1,13 +1,29 @@
+// Concept adapted from the axum crate
+// Used to implement a macro for tuples
 macro_rules! all_multi_tuples {
     ($name:ident) => {
-        $name!(T1, [T2]);
-        $name!(T1, [T2, T3]);
-        $name!(T1, [T2, T3, T4]);
-        $name!(T1, [T2, T3, T4, T5]);
-        $name!(T1, [T2, T3, T4, T5, T6]);
-        $name!(T1, [T2, T3, T4, T5, T6, T7]);
-        $name!(T1, [T2, T3, T4, T5, T6, T7, T8]);
+        $name!(M1, [M2]);
+        $name!(M1, [M2, M3]);
+        $name!(M1, [M2, M3, M4]);
+        $name!(M1, [M2, M3, M4, M5]);
+        $name!(M1, [M2, M3, M4, M5, M6]);
+        $name!(M1, [M2, M3, M4, M5, M6, M7]);
+        $name!(M1, [M2, M3, M4, M5, M6, M7, M8]);
+    };
+}
+
+// Nasty little macro to reverse a list of idents
+macro_rules! reverse_ident {
+    ([$($r:ident),*], []) => {
+        ($($r),*)
+    };
+    ($($t:ident),*) => {
+        reverse_ident!([], [$($t),*])
+    };
+    ([$($r:ident),*], [$h:ident $(, $t:ident)*]) => {
+        reverse_ident!([$h $(,$r)*], [$($t),*])
     };
 }
 
 pub(crate) use all_multi_tuples;
+pub(crate) use reverse_ident;

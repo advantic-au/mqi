@@ -38,6 +38,7 @@ impl<'handle, C: Conn> MqiOption<PutParam<'_>> for Properties<'handle, C> {
 }
 
 impl<'b> MqiAttr<PutParam<'b>> for MqStruct<'static, sys::MQMD2> {
+    #[inline]
     fn from_mqi<Y, F: FnOnce(&mut PutParam<'b>) -> Y>(param: &mut PutParam<'b>, put: F) -> (Self, Y) {
         let put_result = put(param);
         let (md, ..) = param;

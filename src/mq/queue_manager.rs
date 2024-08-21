@@ -8,7 +8,7 @@ use crate::core::{self, Library, MQFunctions};
 use crate::{sys, ResultCompErrExt as _};
 use crate::ResultComp;
 
-use super::connect_options::{self, ConnectOptions};
+use super::connect_options::{self, ConnectOption};
 use super::types::QueueManagerName;
 use super::{MqStruct, MqiValue};
 
@@ -96,12 +96,15 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> MqiValue<Self> for QueueMana
     }
 }
 
+pub trait QueueManagerValue<T>: for<'a> MqiValue<T, Param<'a> = ConnectParam<'a>> {}
+impl<T, A: for<'a> MqiValue<T, Param<'a> = ConnectParam<'a>>> QueueManagerValue<T> for A {}
+
 impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder
     pub fn connect_lib<'co, R, O>(lib: L, qm_name: Option<&QueueManagerName>, options: &O) -> ResultComp<R>
     where
-        R: for<'a> MqiValue<Self, Param<'a> = ConnectParam<'a>>,
-        O: ConnectOptions<'co>,
+        R: QueueManagerValue<Self>,
+        O: ConnectOption<'co>,
     {
         let mut cno = MqStruct::default();
         let mut sco = MqStruct::default();

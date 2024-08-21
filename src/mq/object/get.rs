@@ -5,6 +5,7 @@ use crate::{
     common::ResultCompErrExt as _,
     core::values,
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
+    macros::all_multi_tuples,
     sys,
     types::{self, Fmt, MessageFormat, MessageId},
     Buffer, Completion, Conn, Error, MqMask, MqStruct, MqValue, MqiOption, ResultCompErr, StrCcsidCow,
@@ -119,96 +120,72 @@ pub trait GetConsume<'a>: Sized {
     }
 }
 
-impl<'a, T, A> GetConsume<'a> for (T, A)
-where
-    T: GetConsume<'a>,
-    A: GetExtract<'a>,
-{
-    type Error = T::Error;
-
-    fn consume_from<B: Buffer<'a>>(
-        state: GetState<B>,
-        param: &GetParam,
-        warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
-        let (a, state) = A::extract_from(state, param, warning);
-        let t = T::consume_from(state, param, warning)?;
-        Ok((t, a))
-    }
-
-    fn max_data_size() -> Option<NonZero<usize>> {
-        T::max_data_size()
-    }
-}
-
-impl<'a, T, A, B> GetConsume<'a> for (T, A, B)
-where
-    T: GetConsume<'a>,
-    A: GetExtract<'a>,
-    B: GetExtract<'a>,
-{
-    type Error = T::Error;
-
-    fn consume_from<C: Buffer<'a>>(
-        state: GetState<C>,
-        param: &GetParam,
-        warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
-        let (b, state) = B::extract_from(state, param, warning);
-        let (a, state) = A::extract_from(state, param, warning);
-        let t = T::consume_from(state, param, warning)?;
-        Ok((t, a, b))
-    }
-
-    fn max_data_size() -> Option<NonZero<usize>> {
-        T::max_data_size()
-    }
-}
-
-impl<'a, T, A, B, C> GetConsume<'a> for (T, A, B, C)
-where
-    T: GetConsume<'a>,
-    A: GetExtract<'a>,
-    B: GetExtract<'a>,
-    C: GetExtract<'a>,
-{
-    type Error = T::Error;
-
-    fn consume_from<X: Buffer<'a>>(
-        state: GetState<X>,
-        param: &GetParam,
-        warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
-        let (c, state) = C::extract_from(state, param, warning);
-        let (b, state) = B::extract_from(state, param, warning);
-        let (a, state) = A::extract_from(state, param, warning);
-        let t = T::consume_from(state, param, warning)?;
-        Ok((t, a, b, c))
-    }
-
-    fn max_data_size() -> Option<NonZero<usize>> {
-        T::max_data_size()
-    }
-}
-
 pub trait GetExtract<'a>: Sized {
     #[allow(clippy::too_many_arguments)]
     fn extract_from<B: Buffer<'a>>(state: GetState<B>, param: &GetParam, warning: Option<types::Warning>) -> (Self, GetState<B>);
 }
 
-impl<'a, T> GetConsume<'a> for T
-where
-    T: GetExtract<'a>,
-{
+macro_rules! impl_getextract {
+    ($first:ident, [$($ty:ident),*]) => {
+        #[allow(non_snake_case,unused_parens)]
+        impl<'a, $first, $($ty),*> GetExtract<'a> for ($first, $($ty),*)
+        where
+            $first: GetExtract<'a>,
+            $($ty: GetExtract<'a>),*
+        {
+            #[inline]
+            fn extract_from<B: Buffer<'a>>(state: GetState<B>, param: &GetParam, warning: Option<types::Warning>) -> (Self, GetState<B>) {
+                let (($($ty),*), state) = <($($ty),*) as GetExtract<'a>>::extract_from(state, param, warning);
+                let ($first, state) = $first::extract_from(state, param, warning);
+                (($first, $($ty),*), state)
+            }
+        }
+    }
+}
+
+macro_rules! impl_getconsume {
+    ($first:ident, [$($ty:ident),*]) => {
+        #[allow(non_snake_case,unused_parens)]
+        impl<'a, $first, $($ty),*> GetConsume<'a> for ($first, $($ty),*)
+        where
+            $first: GetConsume<'a>,
+            $($ty: GetExtract<'a>),*
+        {
+            type Error = $first::Error;
+
+            fn consume_from<B: Buffer<'a>>(
+                state: GetState<B>,
+                param: &GetParam,
+                warning: Option<types::Warning>,
+            ) -> Result<Self, Self::Error> {
+                let (($($ty),*), state) = <($($ty),*) as GetExtract<'a>>::extract_from(state, param, warning);
+                let $first = $first::consume_from(state, param, warning)?;
+                Ok(($first, $($ty),*))
+            }
+
+            fn max_data_size() -> Option<NonZero<usize>> {
+                $first::max_data_size()
+            }
+        }
+    }
+}
+
+all_multi_tuples!(impl_getconsume);
+all_multi_tuples!(impl_getextract);
+
+impl<'a> GetConsume<'a> for () {
     type Error = Error;
 
     fn consume_from<B: Buffer<'a>>(
-        state: GetState<B>,
-        param: &GetParam,
-        warning: Option<types::Warning>,
+        _state: GetState<B>,
+        _param: &GetParam,
+        _warning: Option<types::Warning>,
     ) -> Result<Self, Self::Error> {
-        let (t, _) = T::extract_from(state, param, warning);
-        Ok(t)
+        Ok(())
+    }
+
+    fn max_data_size() -> Option<NonZero<usize>> {
+        None
     }
 }
 
@@ -343,12 +320,14 @@ impl<'a> GetExtract<'a> for MessageId {
     }
 }
 
+pub trait GetOption: MqiOption<GetParam> {}
+impl<T: MqiOption<GetParam>> GetOption for T {}
+
 impl<C: Conn> Object<C> {
-    pub fn get_message<'b, R: GetConsume<'b>>(
-        &self,
-        options: impl MqiOption<GetParam>,
-        buffer: impl Buffer<'b>,
-    ) -> ResultCompErr<Option<R>, R::Error> {
+    pub fn get_message<'b, R>(&self, options: impl GetOption, buffer: impl Buffer<'b>) -> ResultCompErr<Option<R>, R::Error>
+    where
+        R: GetConsume<'b>,
+    {
         let mut buffer = buffer;
         let write_area = match R::max_data_size() {
             Some(max_len) => &mut buffer.as_mut()[..max_len.into()],
