@@ -1,6 +1,6 @@
-use crate::{ResultComp, ResultCompErrExt};
+use crate::{Error, ResultComp, ResultCompErrExt};
 
-use super::macros::all_multi_tuples;
+use super::{macros::all_multi_tuples, types};
 
 pub trait MqiOption<P> {
     fn apply_param(self, param: &mut P);
@@ -15,6 +15,65 @@ pub trait MqiValue<T>: Sized {
 
     #[allow(unused_variables)]
     fn from_mqi<F: FnOnce(&mut Self::Param<'_>) -> ResultComp<T>>(param: &mut Self::Param<'_>, mqi: F) -> ResultComp<Self>;
+}
+
+pub trait ConsumeValue<P, S>: Sized {
+    type Error: std::fmt::Debug + From<Error>;
+
+    fn consume_from(state: S, param: &P, warning: Option<types::Warning>) -> Result<Self, Self::Error>;
+}
+
+pub trait ExtractValue<P, S>: Sized {
+    fn extract_from(state: S, param: &P, warning: Option<types::Warning>) -> (Self, S);
+}
+
+// Executes the extraction in reverse order (last to first)
+macro_rules! impl_extractvalue {
+    ($first:ident, [$($ty:ident),*]) => {
+        impl<P, S, $first, $($ty),*> ExtractValue<P, S> for ($first, $($ty),*)
+        where
+            $first: ExtractValue<P, S>,
+            $($ty: ExtractValue<P, S>),*
+        {
+            #[allow(non_snake_case, unused_parens)]
+            fn extract_from(state: S, param: &P, warning: Option<types::Warning>) -> (Self, S) {
+                let (($($ty),*), state) = <($($ty),*) as ExtractValue<P, S>>::extract_from(state, param, warning);
+                let ($first, state) = $first::extract_from(state, param, warning);
+                (($first, $($ty),*), state)
+            }
+        }
+    }
+}
+
+all_multi_tuples!(impl_extractvalue);
+
+macro_rules! impl_consumevalue {
+    ($first:ident, [$($ty:ident),*]) => {
+        impl<P, S, $first, $($ty),*> ConsumeValue<P, S> for ($first, $($ty),*)
+        where
+            $first: ConsumeValue<P, S>,
+            $($ty: ExtractValue<P, S>),*
+        {
+            type Error = $first::Error;
+
+            #[allow(non_snake_case, unused_parens)]
+            fn consume_from(state: S, param: &P, warning: Option<types::Warning>) -> Result<Self, Self::Error> {
+                let (($($ty),*), state) = <($($ty),*) as ExtractValue<P, S>>::extract_from(state, param, warning);
+                let $first = $first::consume_from(state, param, warning)?;
+                Ok(($first, $($ty),*))
+            }
+        }
+    }
+}
+
+all_multi_tuples!(impl_consumevalue);
+
+impl<P, S> ConsumeValue<P, S> for () {
+    type Error = Error;
+
+    fn consume_from(_state: S, _param: &P, _warning: Option<types::Warning>) -> Result<Self, Self::Error> {
+        Ok(())
+    }
 }
 
 impl<P, T: MqiOption<P>> MqiOption<P> for Option<T> {

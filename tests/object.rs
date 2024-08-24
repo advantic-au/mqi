@@ -47,7 +47,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let mut properties = Message::new(&qm, MqValue::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
-    let msg = object.get_message::<((), MessageId, MessageFormat, get::Headers)>(
+    let msg = object.get_message(
         (
             MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
             get::GetConvert::ConvertTo(500, MqMask::from(sys::MQENC_NORMAL)),
@@ -60,7 +60,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     if let Some((rc, verb)) = msg.warning() {
         println!("Warning: {rc} on {verb}");
     }
-    let msg = msg.discard_warning();
+    let msg: Option<((), MessageId, MessageFormat, get::Headers)> = msg.discard_warning();
 
     match &msg {
         Some(((), msgid, format, headers)) => {

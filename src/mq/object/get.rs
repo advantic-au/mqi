@@ -2,13 +2,7 @@ use core::str;
 use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
 
 use crate::{
-    common::ResultCompErrExt as _,
-    core::values,
-    headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
-    macros::all_multi_tuples,
-    sys,
-    types::{self, Fmt, MessageFormat, MessageId},
-    Buffer, Completion, Conn, Error, MqMask, MqStruct, MqValue, MqiOption, ResultCompErr, StrCcsidCow,
+    common::ResultCompErrExt as _, core::values, headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc}, macros::all_multi_tuples, sys, types::{self, Fmt, MessageFormat, MessageId}, Buffer, Completion, Conn, ConsumeValue, Error, ExtractValue, MqMask, MqStruct, MqValue, MqiOption, ResultCompErr, StrCcsidCow
 };
 
 use super::Object;
@@ -104,99 +98,40 @@ pub struct GetState<B> {
     pub format: MessageFormat,
 }
 
-pub trait GetConsume<'a>: Sized {
-    type Error: std::fmt::Debug + From<Error>;
+pub trait GetExtract<B>: ExtractValue<GetParam, GetState<B>> {}
+impl<B, T: ExtractValue<GetParam, GetState<B>>> GetExtract<B> for T {}
 
-    #[allow(clippy::too_many_arguments)]
-    fn consume_from<B: Buffer<'a>>(
-        state: GetState<B>,
-        param: &GetParam,
-        warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error>;
-
+pub trait GetConsume<B>: ConsumeValue<GetParam, GetState<B>> {
     #[must_use]
     fn max_data_size() -> Option<NonZero<usize>> {
         None
     }
 }
 
-pub trait GetExtract<'a>: Sized {
-    #[allow(clippy::too_many_arguments)]
-    fn extract_from<B: Buffer<'a>>(state: GetState<B>, param: &GetParam, warning: Option<types::Warning>) -> (Self, GetState<B>);
-}
-
-macro_rules! impl_getextract {
-    ($first:ident, [$($ty:ident),*]) => {
-        #[allow(non_snake_case,unused_parens)]
-        impl<'a, $first, $($ty),*> GetExtract<'a> for ($first, $($ty),*)
-        where
-            $first: GetExtract<'a>,
-            $($ty: GetExtract<'a>),*
-        {
-            #[inline]
-            fn extract_from<B: Buffer<'a>>(state: GetState<B>, param: &GetParam, warning: Option<types::Warning>) -> (Self, GetState<B>) {
-                let (($($ty),*), state) = <($($ty),*) as GetExtract<'a>>::extract_from(state, param, warning);
-                let ($first, state) = $first::extract_from(state, param, warning);
-                (($first, $($ty),*), state)
-            }
-        }
-    }
-}
+impl<B> GetConsume<B> for () {}
+impl<'a, B: Buffer<'a>> GetConsume<B> for StrCcsidCow<'a> {}
+impl<'a, B: Buffer<'a>> GetConsume<B> for Cow<'a, str> {}
+impl<'a, B: Buffer<'a>> GetConsume<B> for Cow<'a, [u8]> {}
 
 macro_rules! impl_getconsume {
     ($first:ident, [$($ty:ident),*]) => {
-        #[allow(non_snake_case,unused_parens)]
-        impl<'a, $first, $($ty),*> GetConsume<'a> for ($first, $($ty),*)
+        impl<B, $first, $($ty),*> GetConsume<B> for ($first, $($ty),*)
         where
-            $first: GetConsume<'a>,
-            $($ty: GetExtract<'a>),*
+            $first: GetConsume<B>,
+            $($ty: GetExtract<B>),*
         {
-            type Error = $first::Error;
-
-            fn consume_from<B: Buffer<'a>>(
-                state: GetState<B>,
-                param: &GetParam,
-                warning: Option<types::Warning>,
-            ) -> Result<Self, Self::Error> {
-                let (($($ty),*), state) = <($($ty),*) as GetExtract<'a>>::extract_from(state, param, warning);
-                let $first = $first::consume_from(state, param, warning)?;
-                Ok(($first, $($ty),*))
-            }
-
             fn max_data_size() -> Option<NonZero<usize>> {
                 $first::max_data_size()
             }
         }
-    }
+    };
 }
-
 all_multi_tuples!(impl_getconsume);
-all_multi_tuples!(impl_getextract);
 
-impl<'a> GetConsume<'a> for () {
-    type Error = Error;
-
-    fn consume_from<B: Buffer<'a>>(
-        _state: GetState<B>,
-        _param: &GetParam,
-        _warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
-        Ok(())
-    }
-
-    fn max_data_size() -> Option<NonZero<usize>> {
-        None
-    }
-}
-
-impl<'a> GetConsume<'a> for StrCcsidCow<'a> {
+impl<'a, P, B: Buffer<'a>> ConsumeValue<P, GetState<B>> for StrCcsidCow<'a> {
     type Error = GetStringCcsidError;
 
-    fn consume_from<B: Buffer<'a>>(
-        state: GetState<B>,
-        _param: &GetParam,
-        warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
+    fn consume_from(state: GetState<B>, _param: &P, warning: Option<types::Warning>) -> Result<Self, Self::Error> {
         if state.format.fmt != TextEnc::Ascii(fmt::MQFMT_STRING) {
             return Err(GetStringCcsidError::UnexpectedFormat(state.format.fmt, warning));
         }
@@ -209,14 +144,10 @@ impl<'a> GetConsume<'a> for StrCcsidCow<'a> {
     }
 }
 
-impl<'a> GetConsume<'a> for Cow<'a, str> {
+impl<'a, P, B: Buffer<'a>> ConsumeValue<P, GetState<B>> for Cow<'a, str> {
     type Error = GetStringError;
 
-    fn consume_from<B: Buffer<'a>>(
-        state: GetState<B>,
-        _param: &GetParam,
-        warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
+    fn consume_from(state: GetState<B>, _param: &P, warning: Option<types::Warning>) -> Result<Self, Self::Error> {
         if state.format.fmt != TextEnc::Ascii(fmt::MQFMT_STRING) || state.format.ccsid != 1208 {
             return Err(GetStringError::UnexpectedFormat(
                 state.format.fmt,
@@ -239,24 +170,16 @@ impl<'a> GetConsume<'a> for Cow<'a, str> {
     }
 }
 
-impl<'a> GetConsume<'a> for Cow<'a, [u8]> {
+impl<'a, P, B: Buffer<'a>> ConsumeValue<P, GetState<B>> for Cow<'a, [u8]> {
     type Error = Error;
 
-    fn consume_from<B: Buffer<'a>>(
-        state: GetState<B>,
-        _param: &GetParam,
-        _warning: Option<types::Warning>,
-    ) -> Result<Self, Self::Error> {
+    fn consume_from(state: GetState<B>, _param: &P, _warning: Option<types::Warning>) -> Result<Self, Self::Error> {
         Ok(state.buffer.truncate(state.data_length).into_cow())
     }
 }
 
-impl<'a> GetExtract<'a> for Headers<'a> {
-    fn extract_from<B: Buffer<'a>>(
-        state: GetState<B>,
-        _param: &GetParam,
-        _warning: Option<types::Warning>,
-    ) -> (Self, GetState<B>) {
+impl<'a, P, B: Buffer<'a>> ExtractValue<P, GetState<B>> for Headers<'a> {
+    fn extract_from(state: GetState<B>, _param: &P, _warning: Option<types::Warning>) -> (Self, GetState<B>) {
         let data = &state.buffer.as_ref()[..state.data_length];
         let mut header_length = 0;
         let mut final_format = state.format;
@@ -290,32 +213,20 @@ impl<'a> GetExtract<'a> for Headers<'a> {
     }
 }
 
-impl<'a> GetExtract<'a> for MessageFormat {
-    fn extract_from<B: Buffer<'a>>(
-        state: GetState<B>,
-        _param: &GetParam,
-        _warning: Option<types::Warning>,
-    ) -> (Self, GetState<B>) {
+impl<P, B> ExtractValue<P, GetState<B>> for MessageFormat {
+    fn extract_from(state: GetState<B>, _param: &P, _warning: Option<types::Warning>) -> (Self, GetState<B>) {
         (state.format, state)
     }
 }
 
-impl<'a> GetExtract<'a> for MqStruct<'static, sys::MQMD2> {
-    fn extract_from<B: Buffer<'a>>(
-        state: GetState<B>,
-        (md, ..): &GetParam,
-        _warning: Option<types::Warning>,
-    ) -> (Self, GetState<B>) {
+impl<S> ExtractValue<GetParam, S> for MqStruct<'static, sys::MQMD2> {
+    fn extract_from(state: S, (md, ..): &GetParam, _warning: Option<types::Warning>) -> (Self, S) {
         (md.clone(), state)
     }
 }
 
-impl<'a> GetExtract<'a> for MessageId {
-    fn extract_from<B: Buffer<'a>>(
-        state: GetState<B>,
-        (md, ..): &GetParam,
-        _warning: Option<types::Warning>,
-    ) -> (Self, GetState<B>) {
+impl<S> ExtractValue<GetParam, S> for MessageId {
+    fn extract_from(state: S, (md, ..): &GetParam, _warning: Option<types::Warning>) -> (Self, S) {
         (Self(md.MsgId), state)
     }
 }
@@ -324,9 +235,10 @@ pub trait GetOption: MqiOption<GetParam> {}
 impl<T: MqiOption<GetParam>> GetOption for T {}
 
 impl<C: Conn> Object<C> {
-    pub fn get_message<'b, R>(&self, options: impl GetOption, buffer: impl Buffer<'b>) -> ResultCompErr<Option<R>, R::Error>
+    pub fn get_message<'b, R, B>(&self, options: impl GetOption, buffer: B) -> ResultCompErr<Option<R>, R::Error>
     where
-        R: GetConsume<'b>,
+        R: GetConsume<B>,
+        B: Buffer<'b>,
     {
         let mut buffer = buffer;
         let write_area = match R::max_data_size() {

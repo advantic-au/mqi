@@ -4,7 +4,7 @@ use libmqm_sys::function;
 
 use crate::core::values::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::core::MessageHandle;
-use crate::property::{InqPropertyType, NameUsage, SetPropertyType};
+use crate::property::{PropertyConsume, NameUsage, SetPropertyType};
 use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
 
 use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt};
@@ -144,7 +144,7 @@ pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
     _marker: PhantomData<P>,
 }
 
-impl<P: InqPropertyType, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
+impl<P: PropertyConsume, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
     type Item = ResultCompErr<P, P::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -176,11 +176,15 @@ impl<C: Conn> Message<C> {
             .map(|handle| Self { handle, connection })
     }
 
-    pub fn property_iter<'message, 'name, P: InqPropertyType + ?Sized, N: EncodedString + ?Sized>(
+    pub fn property_iter<'message, 'name, P, N>(
         &'message self,
         name: &'name N,
         options: MqMask<MQIMPO>,
-    ) -> MsgPropIter<'name, 'message, P, N, C> {
+    ) -> MsgPropIter<'name, 'message, P, N, C>
+    where
+        P: PropertyConsume + ?Sized,
+        N: EncodedString + ?Sized,
+    {
         MsgPropIter {
             name,
             message: self,
@@ -189,11 +193,10 @@ impl<C: Conn> Message<C> {
         }
     }
 
-    pub fn property<P: InqPropertyType + ?Sized>(
-        &self,
-        name: &(impl EncodedString + ?Sized),
-        options: MqMask<MQIMPO>,
-    ) -> ResultCompErr<Option<P>, P::Error> {
+    pub fn property<P>(&self, name: &(impl EncodedString + ?Sized), options: MqMask<MQIMPO>) -> ResultCompErr<Option<P>, P::Error>
+    where
+        P: PropertyConsume + ?Sized,
+    {
         const DEFAULT_BUF_SIZE: usize = 1024;
         let mut val_return_buffer = [0; DEFAULT_BUF_SIZE]; // Returned value buffer
         let mut name_return_buffer = [0; DEFAULT_BUF_SIZE]; // Returned name buffer

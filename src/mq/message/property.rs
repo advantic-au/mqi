@@ -11,7 +11,7 @@ use crate::core::values::{MQCOPY, MQENC, MQPD, MQTYPE};
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
 
-pub trait InqPropertyType: Sized {
+pub trait PropertyConsume: Sized {
     type Error: From<Error>;
 
     const MQTYPE: sys::MQLONG;
@@ -35,6 +35,19 @@ pub trait InqPropertyType: Sized {
         mqpd: &MqStruct<'static, sys::MQPD>,
         warning: Option<(ReasonCode, &'static str)>,
     ) -> Result<Self, Self::Error>;
+}
+
+
+
+pub trait PropertyExtract {
+    fn extract_from(
+        value: &[u8],
+        name: Option<&[u8]>,
+        value_type: MqValue<MQTYPE>,
+        mqimpo: &MqStruct<sys::MQIMPO>,
+        mqpd: &MqStruct<'static, sys::MQPD>,
+        warning: Option<(ReasonCode, &'static str)>,
+    ) -> Self;
 }
 
 pub trait SetPropertyType {
@@ -65,12 +78,11 @@ pub struct Attributes<T> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Metadata<T> {
-    pub value: T,
-    length: usize,
-    ccsid: sys::MQLONG,
-    encoding: MqMask<MQENC>,
-    value_type: MqValue<MQTYPE>,
+pub struct Metadata {
+    pub length: usize,
+    pub ccsid: sys::MQLONG,
+    pub encoding: MqMask<MQENC>,
+    pub value_type: MqValue<MQTYPE>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -89,8 +101,8 @@ pub enum Conversion<T> {
     Raw(Vec<u8>, MqMask<MQENC>, sys::MQLONG),
 }
 
-pub type RawMeta<T> = Metadata<Raw<T>>;
-pub type OwnedRawMeta = RawMeta<Vec<u8>>;
+// pub type RawMeta<T> = Metadata<Raw<T>>;
+// pub type OwnedRawMeta = RawMeta<Vec<u8>>;
 
 #[derive(Debug, Clone)]
 pub struct Raw<T>(T);
@@ -109,7 +121,7 @@ pub enum Value {
     Null,
 }
 
-impl<T> Metadata<T> {
+impl Metadata {
     pub const fn len(&self) -> usize {
         self.length
     }
@@ -131,54 +143,25 @@ impl<T> Metadata<T> {
     }
 }
 
-impl<T> Deref for Metadata<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
-}
-
-impl<T> DerefMut for Metadata<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.value
-    }
-}
-
-impl<T: InqPropertyType> InqPropertyType for Metadata<T> {
-    type Error = T::Error;
-
-    const MQTYPE: sys::MQLONG = T::MQTYPE;
-    const MQIMPO_VALUE: sys::MQLONG = T::MQIMPO_VALUE;
-
-    fn create_from(
-        value: Cow<[u8]>,
-        name: Option<Cow<[u8]>>,
+impl PropertyExtract for Metadata {
+    fn extract_from(
+        value: &[u8],
+        _name: Option<&[u8]>,
         value_type: MqValue<MQTYPE>,
         mqimpo: &MqStruct<sys::MQIMPO>,
-        mqpd: &MqStruct<'static, sys::MQPD>,
-        warning: Option<(ReasonCode, &'static str)>,
-    ) -> Result<Self, Self::Error> {
-        let length = value.len();
-        Ok(Self {
-            value: T::create_from(value, name, value_type, mqimpo, mqpd, warning)?,
-            length,
+        _mqpd: &MqStruct<'static, sys::MQPD>,
+        _warning: Option<(ReasonCode, &'static str)>,
+    ) -> Self {
+        Self {
+            length: value.len(),
             ccsid: mqimpo.ReturnedCCSID,
             encoding: MqMask::from(mqimpo.ReturnedEncoding),
             value_type,
-        })
-    }
-
-    fn name_usage() -> NameUsage {
-        T::name_usage()
-    }
-
-    fn max_value_size() -> Option<NonZero<usize>> {
-        T::max_value_size()
+        }
     }
 }
 
-impl<T: InqPropertyType> Deref for Attributes<T> {
+impl<T: PropertyConsume> Deref for Attributes<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -186,13 +169,13 @@ impl<T: InqPropertyType> Deref for Attributes<T> {
     }
 }
 
-impl<T: InqPropertyType> DerefMut for Attributes<T> {
+impl<T: PropertyConsume> DerefMut for Attributes<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.value
     }
 }
 
-impl<T: InqPropertyType> Attributes<T> {
+impl<T: PropertyConsume> Attributes<T> {
     pub fn new(value: T) -> Self {
         Self {
             value,
@@ -350,7 +333,7 @@ impl From<NameUsage> for Option<NonZero<usize>> {
 }
 
 // TODO, perhaps this can be nicer with the Error types
-impl<N: InqNameType, T: InqPropertyType> InqPropertyType for (N, T)
+impl<N: InqNameType, T: PropertyConsume> PropertyConsume for (N, T)
 where
     T::Error: Into<Error>,
     N::Error: Into<Error>,
@@ -443,7 +426,7 @@ impl InqNameType for StrCcsidOwned {
     }
 }
 
-impl InqPropertyType for Value {
+impl PropertyConsume for Value {
     type Error = Error;
     const MQTYPE: sys::MQLONG = sys::MQTYPE_AS_SET;
     const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_NONE;
@@ -458,7 +441,7 @@ impl InqPropertyType for Value {
     ) -> Result<Self, Self::Error> {
         Ok(match value_type.value() {
             sys::MQTYPE_BOOLEAN => Self::Boolean(bool::create_from(value, name, value_type, mqimpo, mqpd, warning)?),
-            sys::MQTYPE_STRING => Self::String(<String as InqPropertyType>::create_from(
+            sys::MQTYPE_STRING => Self::String(<String as PropertyConsume>::create_from(
                 value, name, value_type, mqimpo, mqpd, warning,
             )?),
             sys::MQTYPE_BYTE_STRING => Self::ByteString(Vec::create_from(value, name, value_type, mqimpo, mqpd, warning)?),
@@ -476,7 +459,7 @@ impl InqPropertyType for Value {
 
 macro_rules! impl_primitive_inqproptype {
     ($type:ty, $mqtype:path) => {
-        impl InqPropertyType for $type {
+        impl PropertyConsume for $type {
             type Error = Error;
             const MQTYPE: sys::MQLONG = $mqtype;
             const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
@@ -509,7 +492,7 @@ impl_primitive_inqproptype!(i16, sys::MQTYPE_INT16);
 impl_primitive_inqproptype!(sys::MQLONG, sys::MQTYPE_INT32);
 impl_primitive_inqproptype!(sys::MQINT64, sys::MQTYPE_INT64);
 
-impl InqPropertyType for bool {
+impl PropertyConsume for bool {
     type Error = Error;
     const MQTYPE: sys::MQLONG = sys::MQTYPE_BOOLEAN;
     const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_TYPE;
@@ -530,10 +513,10 @@ impl InqPropertyType for bool {
     }
 }
 
-impl InqPropertyType for MqValue<sys::MQLONG> {
-    type Error = <sys::MQLONG as InqPropertyType>::Error;
-    const MQTYPE: sys::MQLONG = <sys::MQLONG as InqPropertyType>::MQTYPE;
-    const MQIMPO_VALUE: sys::MQLONG = <sys::MQLONG as InqPropertyType>::MQIMPO_VALUE;
+impl PropertyConsume for MqValue<sys::MQLONG> {
+    type Error = <sys::MQLONG as PropertyConsume>::Error;
+    const MQTYPE: sys::MQLONG = <sys::MQLONG as PropertyConsume>::MQTYPE;
+    const MQIMPO_VALUE: sys::MQLONG = <sys::MQLONG as PropertyConsume>::MQIMPO_VALUE;
 
     fn create_from(
         value: Cow<[u8]>,
@@ -553,10 +536,10 @@ impl InqPropertyType for MqValue<sys::MQLONG> {
     }
 }
 
-impl InqPropertyType for MqMask<sys::MQLONG> {
-    type Error = <sys::MQLONG as InqPropertyType>::Error;
-    const MQTYPE: sys::MQLONG = <sys::MQLONG as InqPropertyType>::MQTYPE;
-    const MQIMPO_VALUE: sys::MQLONG = <sys::MQLONG as InqPropertyType>::MQIMPO_VALUE;
+impl PropertyConsume for MqMask<sys::MQLONG> {
+    type Error = <sys::MQLONG as PropertyConsume>::Error;
+    const MQTYPE: sys::MQLONG = <sys::MQLONG as PropertyConsume>::MQTYPE;
+    const MQIMPO_VALUE: sys::MQLONG = <sys::MQLONG as PropertyConsume>::MQIMPO_VALUE;
 
     fn create_from(
         value: Cow<[u8]>,
@@ -576,7 +559,7 @@ impl InqPropertyType for MqMask<sys::MQLONG> {
     }
 }
 
-impl InqPropertyType for Vec<u8> {
+impl PropertyConsume for Vec<u8> {
     type Error = Error;
     const MQTYPE: sys::MQLONG = sys::MQTYPE_BYTE_STRING;
     const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_TYPE;
@@ -593,7 +576,7 @@ impl InqPropertyType for Vec<u8> {
     }
 }
 
-impl<const N: usize> InqPropertyType for [u8; N] {
+impl<const N: usize> PropertyConsume for [u8; N] {
     type Error = Error;
     const MQTYPE: sys::MQLONG = sys::MQTYPE_BYTE_STRING;
     const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_TYPE;
@@ -616,7 +599,7 @@ impl<const N: usize> InqPropertyType for [u8; N] {
     }
 }
 
-impl<const N: usize> InqPropertyType for MqStr<N> {
+impl<const N: usize> PropertyConsume for MqStr<N> {
     type Error = Error;
 
     const MQTYPE: sys::MQLONG = sys::MQTYPE_STRING;
@@ -638,7 +621,7 @@ impl<const N: usize> InqPropertyType for MqStr<N> {
     }
 }
 
-impl<T: InqPropertyType> InqPropertyType for Attributes<T> {
+impl<T: PropertyConsume> PropertyConsume for Attributes<T> {
     type Error = T::Error;
     const MQTYPE: sys::MQLONG = T::MQTYPE;
     const MQIMPO_VALUE: sys::MQLONG = T::MQIMPO_VALUE;
@@ -667,17 +650,17 @@ impl<T: InqPropertyType> InqPropertyType for Attributes<T> {
     }
 }
 
-impl<T: AsRef<[u8]>> SetPropertyType for RawMeta<T> {
-    type Data = [u8];
+// impl<T: AsRef<[u8]>> SetPropertyType for RawMeta<T> {
+//     type Data = [u8];
 
-    fn apply_mqinqmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
-        smpo.ValueCCSID = self.ccsid;
-        smpo.ValueEncoding = self.encoding.value();
-        (&self.0.as_ref()[..self.length], self.value_type)
-    }
-}
+//     fn apply_mqinqmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
+//         smpo.ValueCCSID = self.ccsid;
+//         smpo.ValueEncoding = self.encoding.value();
+//         (&self.0.as_ref()[..self.length], self.value_type)
+//     }
+// }
 
-impl InqPropertyType for Raw<Vec<u8>> {
+impl PropertyConsume for Raw<Vec<u8>> {
     type Error = Error;
     const MQTYPE: sys::MQLONG = sys::MQTYPE_AS_SET;
     const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_NONE;
@@ -694,7 +677,7 @@ impl InqPropertyType for Raw<Vec<u8>> {
     }
 }
 
-impl<const N: usize> InqPropertyType for Raw<[u8; N]> {
+impl<const N: usize> PropertyConsume for Raw<[u8; N]> {
     type Error = Error;
     const MQTYPE: sys::MQLONG = sys::MQTYPE_AS_SET;
     const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_NONE;
@@ -739,7 +722,7 @@ impl<T: Default> Default for Conversion<T> {
     }
 }
 
-impl<T: InqPropertyType> InqPropertyType for Conversion<T> {
+impl<T: PropertyConsume> PropertyConsume for Conversion<T> {
     type Error = T::Error;
     const MQTYPE: sys::MQLONG = T::MQTYPE;
     const MQIMPO_VALUE: sys::MQLONG = T::MQIMPO_VALUE;
@@ -795,7 +778,7 @@ impl<T: InqNameType> InqNameType for Conversion<T> {
     }
 }
 
-impl InqPropertyType for String {
+impl PropertyConsume for String {
     type Error = Error;
 
     const MQTYPE: sys::MQLONG = sys::MQTYPE_STRING;
@@ -820,7 +803,7 @@ impl InqPropertyType for String {
     }
 }
 
-impl InqPropertyType for StrCcsidOwned {
+impl PropertyConsume for StrCcsidOwned {
     type Error = Error;
 
     const MQTYPE: sys::MQLONG = sys::MQTYPE_STRING;
