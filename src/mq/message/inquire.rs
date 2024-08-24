@@ -215,7 +215,7 @@ impl<C: Conn> Message<C> {
         let mut param = PropertyParam {
             value_type: MqValue::from(P::MQTYPE),
             impo: MqStruct::new(sys::MQIMPO {
-                Options: options.value() | P::MQIMPO_VALUE,
+                Options: options.value() | P::MQIMPO,
                 ReturnedName: inq_name_buffer.as_mut().map_or_else(Default::default, |name| sys::MQCHARV {
                     VSPtr: ptr::from_mut(&mut *name).cast(),
                     VSBufSize: name
@@ -264,7 +264,7 @@ impl<C: Conn> Message<C> {
                     name: name.map(Into::into),
                     value: value.into(),
                 };
-                let d = P::consume_from(x, &param, warning)?;
+                let d = P::consume_from(x, &param, warning).map_err(Into::into)?;
                 Completion(
                             Some(d),
                             warning,

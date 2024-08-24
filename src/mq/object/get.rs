@@ -179,7 +179,7 @@ impl<'a, P, B: Buffer<'a>> ConsumeValue<P, GetState<B>> for Cow<'a, [u8]> {
 }
 
 impl<'a, P, B: Buffer<'a>> ExtractValue<P, GetState<B>> for Headers<'a> {
-    fn extract_from(state: GetState<B>, _param: &P, _warning: Option<types::Warning>) -> (Self, GetState<B>) {
+    fn extract_from(state: GetState<B>, _param: &P, _warning: Option<types::Warning>) -> Result<(Self, GetState<B>), Error> {
         let data = &state.buffer.as_ref()[..state.data_length];
         let mut header_length = 0;
         let mut final_format = state.format;
@@ -196,7 +196,7 @@ impl<'a, P, B: Buffer<'a>> ExtractValue<P, GetState<B>> for Headers<'a> {
 
         let (headers, tail) = state.buffer.split_at(header_length);
 
-        (
+        Ok((
             Self {
                 init_format: state.format,
                 data: headers.into_cow(),
@@ -209,25 +209,25 @@ impl<'a, P, B: Buffer<'a>> ExtractValue<P, GetState<B>> for Headers<'a> {
                 message_length: state.message_length - header_length,
                 format: final_format,
             },
-        )
+        ))
     }
 }
 
 impl<P, B> ExtractValue<P, GetState<B>> for MessageFormat {
-    fn extract_from(state: GetState<B>, _param: &P, _warning: Option<types::Warning>) -> (Self, GetState<B>) {
-        (state.format, state)
+    fn extract_from(state: GetState<B>, _param: &P, _warning: Option<types::Warning>) -> Result<(Self, GetState<B>), Error> {
+        Ok((state.format, state))
     }
 }
 
 impl<S> ExtractValue<GetParam, S> for MqStruct<'static, sys::MQMD2> {
-    fn extract_from(state: S, (md, ..): &GetParam, _warning: Option<types::Warning>) -> (Self, S) {
-        (md.clone(), state)
+    fn extract_from(state: S, (md, ..): &GetParam, _warning: Option<types::Warning>) -> Result<(Self, S), Error> {
+        Ok((md.clone(), state))
     }
 }
 
 impl<S> ExtractValue<GetParam, S> for MessageId {
-    fn extract_from(state: S, (md, ..): &GetParam, _warning: Option<types::Warning>) -> (Self, S) {
-        (Self(md.MsgId), state)
+    fn extract_from(state: S, (md, ..): &GetParam, _warning: Option<types::Warning>) -> Result<(Self, S), Error> {
+        Ok((Self(md.MsgId), state))
     }
 }
 

@@ -24,7 +24,7 @@ pub trait ConsumeValue<P, S>: Sized {
 }
 
 pub trait ExtractValue<P, S>: Sized {
-    fn extract_from(state: S, param: &P, warning: Option<types::Warning>) -> (Self, S);
+    fn extract_from(state: S, param: &P, warning: Option<types::Warning>) -> Result<(Self, S), Error>;
 }
 
 // Executes the extraction in reverse order (last to first)
@@ -36,10 +36,10 @@ macro_rules! impl_extractvalue {
             $($ty: ExtractValue<P, S>),*
         {
             #[allow(non_snake_case, unused_parens)]
-            fn extract_from(state: S, param: &P, warning: Option<types::Warning>) -> (Self, S) {
-                let (($($ty),*), state) = <($($ty),*) as ExtractValue<P, S>>::extract_from(state, param, warning);
-                let ($first, state) = $first::extract_from(state, param, warning);
-                (($first, $($ty),*), state)
+            fn extract_from(state: S, param: &P, warning: Option<types::Warning>) -> Result<(Self, S), Error> {
+                let (($($ty),*), state) = <($($ty),*) as ExtractValue<P, S>>::extract_from(state, param, warning)?;
+                let ($first, state) = $first::extract_from(state, param, warning)?;
+                Ok((($first, $($ty),*), state))
             }
         }
     }
@@ -58,7 +58,7 @@ macro_rules! impl_consumevalue {
 
             #[allow(non_snake_case, unused_parens)]
             fn consume_from(state: S, param: &P, warning: Option<types::Warning>) -> Result<Self, Self::Error> {
-                let (($($ty),*), state) = <($($ty),*) as ExtractValue<P, S>>::extract_from(state, param, warning);
+                let (($($ty),*), state) = <($($ty),*) as ExtractValue<P, S>>::extract_from(state, param, warning)?;
                 let $first = $first::consume_from(state, param, warning)?;
                 Ok(($first, $($ty),*))
             }

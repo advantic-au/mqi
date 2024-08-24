@@ -1,5 +1,6 @@
+use core::str;
 use std::ops::Deref as _;
-use std::{mem, ptr, slice, str};
+use std::{mem, ptr, slice};
 use std::{borrow::Cow, num::NonZero};
 
 use libmqm_sys::lib::MQTYPE_STRING;
@@ -21,9 +22,9 @@ pub struct PropertyParam<'p> {
     pub mqpd: MqStruct<'static, sys::MQPD>,
 }
 
-pub trait PropertyConsume: for<'p, 's> ConsumeValue<PropertyParam<'p>, PropertyState<'s>, Error: 'static> {
+pub trait PropertyConsume: for<'p, 's> ConsumeValue<PropertyParam<'p>, PropertyState<'s>, Error: Into<Error>> {
     const MQTYPE: sys::MQLONG;
-    const MQIMPO_VALUE: sys::MQLONG;
+    const MQIMPO: sys::MQLONG;
 
     #[must_use]
     fn name_usage() -> NameUsage {
@@ -34,29 +35,11 @@ pub trait PropertyConsume: for<'p, 's> ConsumeValue<PropertyParam<'p>, PropertyS
     fn max_value_size() -> Option<NonZero<usize>> {
         None
     }
-
-    // fn create_from(
-    //     value: Cow<[u8]>,
-    //     name: Option<Cow<[u8]>>,
-    //     value_type: MqValue<MQTYPE>,
-    //     mqimpo: &MqStruct<sys::MQIMPO>,
-    //     mqpd: &MqStruct<'static, sys::MQPD>,
-    //     warning: Option<(ReasonCode, &'static str)>,
-    // ) -> Result<Self, Self::Error>;
 }
 
-pub trait PropertyExtract: for<'p, 's> ExtractValue<PropertyParam<'p>, PropertyState<'s>> + 'static {}
-
-// pub trait PropertyExtract {
-//     fn extract_from(
-//         value: &[u8],
-//         name: Option<&[u8]>,
-//         value_type: MqValue<MQTYPE>,
-//         mqimpo: &MqStruct<sys::MQIMPO>,
-//         mqpd: &MqStruct<'static, sys::MQPD>,
-//         warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Self;
-// }
+pub trait PropertyExtract: for<'p, 's> ExtractValue<PropertyParam<'p>, PropertyState<'s>> {
+    const MQIMPO: sys::MQLONG;
+}
 
 pub trait SetPropertyType {
     type Data: std::fmt::Debug + ?Sized;
@@ -161,8 +144,8 @@ impl<'p, 'a> ExtractValue<PropertyParam<'p>, PropertyState<'a>> for Metadata {
         state: PropertyState<'a>,
         param: &PropertyParam<'p>,
         _warning: Option<crate::types::Warning>,
-    ) -> (Self, PropertyState<'a>) {
-        (
+    ) -> Result<(Self, PropertyState<'a>), Error> {
+        Ok((
             Self {
                 length: state.value.len(),
                 ccsid: param.impo.ReturnedCCSID,
@@ -170,7 +153,7 @@ impl<'p, 'a> ExtractValue<PropertyParam<'p>, PropertyState<'a>> for Metadata {
                 value_type: param.value_type,
             },
             state,
-        )
+        ))
     }
 }
 
@@ -331,6 +314,49 @@ impl From<NameUsage> for Option<NonZero<usize>> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, derive_more::Deref, derive_more::DerefMut)]
+pub struct Name<T>(pub T);
+
+impl PropertyExtract for Name<String> {
+    const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE;
+}
+
+impl<'s, P> ExtractValue<P, PropertyState<'s>> for Name<String> {
+    fn extract_from(
+        state: PropertyState<'s>,
+        _param: &P,
+        warning: Option<types::Warning>,
+    ) -> Result<(Self, PropertyState<'s>), Error> {
+        match warning {
+            Some((rc, verb)) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc)),
+            _ => {
+                // SAFETY: The bytes coming from the MQI library should be correct as there
+                // is no conversion error
+                // The unwrap will succeed as the Option is always some if this code is executed
+                let name = state.name.as_ref().expect("Option is always Some here");
+                Ok((Self(unsafe { str::from_utf8_unchecked(name).to_string() }), state))
+            }
+        }
+    }
+}
+
+impl<const N: usize> PropertyExtract for Name<MqStr<N>> {
+    // TODO: max size of name
+    const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE;
+}
+
+impl<'s, P, const N: usize> ExtractValue<P, PropertyState<'s>> for Name<MqStr<N>> {
+    fn extract_from(state: PropertyState<'s>, _param: &P, warning: Option<types::Warning>) -> Result<(Self, PropertyState<'s>), Error> {
+        match warning {
+            Some((rc, verb)) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc)),
+            _ => {
+                let name = state.name.as_ref().expect("Option is always Some here");
+                Ok((Self(MqStr::from_bytes(name).expect("buffer size always equals required length")), state))
+            }
+        }
+    }
+}
+
 // TODO, perhaps this can be nicer with the Error types
 // impl<N: InqNameType, T: PropertyConsume> PropertyConsume for (N, T)
 // where
@@ -370,64 +396,24 @@ impl From<NameUsage> for Option<NonZero<usize>> {
 //     }
 // }
 
-// impl InqNameType for String {
-//     type Error = Error;
-//     const MQIMPO_NAME: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE;
+impl PropertyExtract for Name<StrCcsidOwned> {
+    const MQIMPO: sys::MQLONG = sys::MQIMPO_NONE;
+}
 
-//     fn create_from(
-//         name: Cow<[u8]>,
-//         _mqimpo: &MqStruct<sys::MQIMPO>,
-//         warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         match warning {
-//             Some((rc, verb)) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc)),
-//             // SAFETY: The bytes coming from the MQI library should be correct as there
-//             // is no conversion error
-//             _ => Ok(unsafe { str::from_utf8_unchecked(&name).to_string() }),
-//         }
-//     }
-// }
-
-// impl<const N: usize> InqNameType for MqStr<N> {
-//     type Error = Error;
-//     const MQIMPO_NAME: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE;
-
-//     fn max_size() -> Option<NonZero<usize>> {
-//         N.try_into().ok()
-//     }
-
-//     fn create_from(
-//         name: Cow<[u8]>,
-//         _mqimpo: &MqStruct<sys::MQIMPO>,
-//         warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         match warning {
-//             Some((rc, verb)) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc)),
-//             _ => Ok(Self::from_bytes(&name).expect("buffer size always equals required length")),
-//         }
-//     }
-// }
-
-// impl InqNameType for StrCcsidOwned {
-//     type Error = Error;
-//     const MQIMPO_NAME: sys::MQLONG = MQIMPO_NONE;
-
-//     fn create_from(
-//         name: Cow<[u8]>,
-//         mqimpo: &MqStruct<sys::MQIMPO>,
-//         _warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             ccsid: NonZero::new(mqimpo.ReturnedName.VSCCSID),
-//             le: (mqimpo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
-//             data: name.into_owned(),
-//         })
-//     }
-// }
+impl<'p, 's> ExtractValue<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwned> {
+    fn extract_from(state: PropertyState<'s>, param: &PropertyParam<'p>, warning: Option<types::Warning>) -> Result<(Self, PropertyState<'s>), Error> {
+        let name = state.name.as_ref().expect("Option is always Some here");
+        Ok((Self(StrCcsidOwned {
+            ccsid: NonZero::new(param.impo.ReturnedName.VSCCSID),
+            le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
+            data: name.clone().into_owned(),
+        }), state))
+    }
+}
 
 impl PropertyConsume for Value {
     const MQTYPE: sys::MQLONG = sys::MQTYPE_AS_SET;
-    const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_NONE;
+    const MQIMPO: sys::MQLONG = sys::MQIMPO_NONE;
 }
 
 impl<'p, 's> ConsumeValue<PropertyParam<'p>, PropertyState<'s>> for Value {
@@ -458,7 +444,7 @@ macro_rules! impl_primitive_propertyconsume {
     ($type:ty, $mqtype:path) => {
         impl PropertyConsume for $type {
             const MQTYPE: sys::MQLONG = $mqtype;
-            const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
+            const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
         }
 
         impl<'s, P> ConsumeValue<P, PropertyState<'s>> for $type {
@@ -493,7 +479,7 @@ impl_primitive_propertyconsume!(sys::MQINT64, sys::MQTYPE_INT64);
 
 impl PropertyConsume for bool {
     const MQTYPE: sys::MQLONG = sys::MQTYPE_BOOLEAN;
-    const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_TYPE;
+    const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_TYPE;
 
     fn max_value_size() -> Option<NonZero<usize>> {
         NonZero::new(mem::size_of::<Self>())
@@ -510,7 +496,7 @@ impl<'s, P> ConsumeValue<P, PropertyState<'s>> for bool {
 
 impl PropertyConsume for MqValue<sys::MQLONG> {
     const MQTYPE: sys::MQLONG = <sys::MQLONG as PropertyConsume>::MQTYPE;
-    const MQIMPO_VALUE: sys::MQLONG = <sys::MQLONG as PropertyConsume>::MQIMPO_VALUE;
+    const MQIMPO: sys::MQLONG = <sys::MQLONG as PropertyConsume>::MQIMPO;
 
     fn max_value_size() -> Option<NonZero<usize>> {
         sys::MQLONG::max_value_size()
@@ -527,7 +513,7 @@ impl<P> ConsumeValue<P, PropertyState<'_>> for MqValue<sys::MQLONG> {
 
 impl PropertyConsume for MqMask<sys::MQLONG> {
     const MQTYPE: sys::MQLONG = <sys::MQLONG as PropertyConsume>::MQTYPE;
-    const MQIMPO_VALUE: sys::MQLONG = <sys::MQLONG as PropertyConsume>::MQIMPO_VALUE;
+    const MQIMPO: sys::MQLONG = <sys::MQLONG as PropertyConsume>::MQIMPO;
 
     fn max_value_size() -> Option<NonZero<usize>> {
         sys::MQLONG::max_value_size()
@@ -544,7 +530,7 @@ impl<P> ConsumeValue<P, PropertyState<'_>> for MqMask<sys::MQLONG> {
 
 impl PropertyConsume for Vec<u8> {
     const MQTYPE: sys::MQLONG = sys::MQTYPE_BYTE_STRING;
-    const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_TYPE;
+    const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_TYPE;
 }
 
 impl<P> ConsumeValue<P, PropertyState<'_>> for Vec<u8> {
@@ -759,7 +745,7 @@ impl<P> ConsumeValue<P, PropertyState<'_>> for Vec<u8> {
 
 impl PropertyConsume for String {
     const MQTYPE: sys::MQLONG = sys::MQTYPE_STRING;
-    const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
+    const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
 }
 
 impl<'s, P> ConsumeValue<P, PropertyState<'s>> for String {
@@ -779,7 +765,7 @@ impl<'s, P> ConsumeValue<P, PropertyState<'s>> for String {
 
 impl PropertyConsume for StrCcsidOwned {
     const MQTYPE: sys::MQLONG = sys::MQTYPE_STRING;
-    const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_TYPE;
+    const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_TYPE;
 }
 
 impl<'p, 's> ConsumeValue<PropertyParam<'p>, PropertyState<'s>> for StrCcsidOwned {
