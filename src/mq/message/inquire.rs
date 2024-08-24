@@ -4,7 +4,7 @@ use libmqm_sys::function;
 
 use crate::core::values::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::core::MessageHandle;
-use crate::property::{PropertyConsume, NameUsage, SetPropertyType};
+use crate::property::{NameUsage, PropertyConsume, PropertyParam, PropertyState, SetPropertyType};
 use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
 
 use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt};
@@ -145,7 +145,7 @@ pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
 }
 
 impl<P: PropertyConsume, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
-    type Item = ResultCompErr<P, P::Error>;
+    type Item = ResultCompErr<P, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let result = match self.message.property::<P>(self.name, self.options) {
@@ -193,7 +193,7 @@ impl<C: Conn> Message<C> {
         }
     }
 
-    pub fn property<P>(&self, name: &(impl EncodedString + ?Sized), options: MqMask<MQIMPO>) -> ResultCompErr<Option<P>, P::Error>
+    pub fn property<P>(&self, name: &(impl EncodedString + ?Sized), options: MqMask<MQIMPO>) -> ResultCompErr<Option<P>, Error>
     where
         P: PropertyConsume + ?Sized,
     {
@@ -211,37 +211,40 @@ impl<C: Conn> Message<C> {
                 })
             }
         };
-        let mut mqimpo = MqStruct::new(sys::MQIMPO {
-            Options: options.value() | P::MQIMPO_VALUE,
-            ReturnedName: inq_name_buffer.as_mut().map_or_else(Default::default, |name| sys::MQCHARV {
-                VSPtr: ptr::from_mut(&mut *name).cast(),
-                VSBufSize: name
-                    .as_ref()
-                    .len()
-                    .try_into()
-                    .expect("length of buffer must always fit in an MQLONG"),
-                ..sys::MQCHARV::default()
+
+        let mut param = PropertyParam {
+            value_type: MqValue::from(P::MQTYPE),
+            impo: MqStruct::new(sys::MQIMPO {
+                Options: options.value() | P::MQIMPO_VALUE,
+                ReturnedName: inq_name_buffer.as_mut().map_or_else(Default::default, |name| sys::MQCHARV {
+                    VSPtr: ptr::from_mut(&mut *name).cast(),
+                    VSBufSize: name
+                        .as_ref()
+                        .len()
+                        .try_into()
+                        .expect("length of buffer must always fit in an MQLONG"),
+                    ..sys::MQCHARV::default()
+                }),
+                ..sys::MQIMPO::default()
             }),
-            ..sys::MQIMPO::default()
-        });
+            mqpd: MqStruct::<sys::MQPD>::default(),
+        };
 
         let mut inq_value_buffer = InqBuffer::Slice(val_return_buffer.as_mut_slice());
         inq_value_buffer = match P::max_value_size() {
             Some(max_size) => inq_value_buffer.truncate(max_size.into()),
             None => inq_value_buffer,
         };
-        let mut vt = MqValue::from(P::MQTYPE);
         let name = MqStruct::from_encoded_str(name);
-        let mut mqpd = MqStruct::<sys::MQPD>::default();
 
         let inq = match inqmp(
             self.connection.mq(),
             Some(self.connection.handle()),
             &self.handle,
-            &mut mqimpo,
+            &mut param.impo,
             &name,
-            &mut mqpd,
-            &mut vt,
+            &mut param.mqpd,
+            &mut param.value_type,
             inq_value_buffer,
             P::max_value_size(),
             inq_name_buffer,
@@ -256,17 +259,17 @@ impl<C: Conn> Message<C> {
         }?;
 
         Ok(match inq {
-            Completion(Some((value, name)), warning) => Completion(
-                Some(P::create_from(
-                    value.into(),
-                    name.map(Into::into),
-                    vt,
-                    &mqimpo,
-                    &mqpd,
-                    warning,
-                )?),
-                warning,
-            ),
+            Completion(Some((value, name)), warning) => {
+                let x = PropertyState {
+                    name: name.map(Into::into),
+                    value: value.into(),
+                };
+                let d = P::consume_from(x, &param, warning)?;
+                Completion(
+                            Some(d),
+                            warning,
+                        )
+            },
             comp => comp.map(|_| None),
         })
     }

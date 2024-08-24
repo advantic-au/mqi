@@ -18,7 +18,7 @@ pub trait MqiValue<T>: Sized {
 }
 
 pub trait ConsumeValue<P, S>: Sized {
-    type Error: std::fmt::Debug + From<Error>;
+    type Error: From<Error>;
 
     fn consume_from(state: S, param: &P, warning: Option<types::Warning>) -> Result<Self, Self::Error>;
 }

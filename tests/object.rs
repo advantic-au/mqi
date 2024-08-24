@@ -76,8 +76,8 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
                 println!("RFH2 name/value data: \"{nv}\"");
             }
             for v in properties.property_iter("%", MqMask::default()) {
-                let (name, value): (String, String) = v.warn_as_error()?;
-                println!("Property: {name} = {value}");
+                let value: String = v.warn_as_error()?;
+                println!("Property: {value}");
             }
             println!("Format: \"{}\"", format.fmt);
             println!("MessageId: \"{msgid:?}\"");
