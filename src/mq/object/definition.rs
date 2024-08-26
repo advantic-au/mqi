@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     core::{values, ObjectHandle},
-    MqStruct, MqiOption, MqiValue, ResultCompErrExt as _,
+    ConsumeValue2, MqStruct, MqiOption, ResultCompErr, ResultCompErrExt as _,
 };
 
 use libmqm_sys::function;
@@ -22,7 +22,8 @@ use crate::sys;
 use crate::ResultComp;
 use crate::QueueManagerShare;
 
-pub type OpenParam<'a, T> = (MqStruct<'a, sys::MQOD>, MqMask<T>);
+pub type OpenParamOption<'a, T> = (MqStruct<'a, sys::MQOD>, MqMask<T>);
+pub type OpenParam<'a> = OpenParamOption<'a, values::MQOO>;
 
 #[must_use]
 #[derive(Debug)]
@@ -68,11 +69,11 @@ impl<L: Library<MQ: function::MQI>, H> Conn for &QueueManagerShare<'_, L, H> {
     }
 }
 
-pub trait OpenOption<'oo>: MqiOption<OpenParam<'oo, values::MQOO>> {}
-pub trait OpenValue<T>: for<'a> MqiValue<T, Param<'a> = OpenParam<'a, values::MQOO>> {}
+pub trait OpenOption<'oo>: MqiOption<OpenParam<'oo>> {}
+pub trait OpenValue<T>: for<'oo> ConsumeValue2<OpenParam<'oo>, T> {}
 
-impl<'oo, T: MqiOption<OpenParam<'oo, values::MQOO>>> OpenOption<'oo> for T {}
-impl<A, T: for<'a> MqiValue<A, Param<'a> = OpenParam<'a, values::MQOO>>> OpenValue<A> for T {}
+impl<'oo, T: MqiOption<OpenParam<'oo>>> OpenOption<'oo> for T {}
+// impl<A, T: for<'a> MqiValue<A, Param<'a> = OpenParam<'a, values::MQOO>>> OpenValue<A> for T {}
 
 impl<C: Conn> Object<C> {
     #[must_use]
@@ -96,7 +97,11 @@ impl<C: Conn> Object<C> {
         }
     }
 
-    pub fn open<'oo, R>(connection: C, open_option: impl OpenOption<'oo>, options: MqMask<MQOO>) -> ResultComp<R>
+    pub fn open<'oo, R>(
+        connection: C,
+        open_option: impl OpenOption<'oo>,
+        options: MqMask<MQOO>,
+    ) -> ResultCompErr<R, <R as ConsumeValue2<OpenParam<'oo>, Self>>::Error>
     where
         R: OpenValue<Self>,
     {
@@ -108,7 +113,7 @@ impl<C: Conn> Object<C> {
             options,
         );
         open_option.apply_param(&mut oo);
-        R::from_mqi(&mut oo, |(oo, options)| {
+        R::consume(&mut oo, |(oo, options)| {
             connection
                 .mq()
                 .mqopen(connection.handle(), oo, *options)

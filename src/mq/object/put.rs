@@ -8,7 +8,7 @@ use crate::types::{Fmt, MessageFormat};
 use crate::{sys, Conn, Message, MqMask, MqStruct, Object, QueueManagerShare, ResultComp, ResultCompErrExt, MqiAttr, MqiOption};
 use crate::core::{self, values};
 
-use super::OpenParam;
+use super::OpenParamOption;
 
 pub trait PutMessage {
     type Data: ?Sized;
@@ -72,11 +72,11 @@ impl<C: Conn> Object<C> {
     }
 }
 
-pub trait OpenPutOption<'a>: MqiOption<OpenParam<'a, values::MQPMO>> {}
+pub trait OpenPutOption<'a>: MqiOption<OpenParamOption<'a, values::MQPMO>> {}
 pub trait PutOption: for<'a> MqiOption<PutParam<'a>> {}
 pub trait PutAttributes: for<'a> MqiAttr<PutParam<'a>> {}
 
-impl<'a, T: MqiOption<OpenParam<'a, values::MQPMO>>> OpenPutOption<'a> for T {}
+impl<'a, T: MqiOption<OpenParamOption<'a, values::MQPMO>>> OpenPutOption<'a> for T {}
 impl<T: for<'a> MqiOption<PutParam<'a>>> PutOption for T {}
 impl<T: for<'a> MqiAttr<PutParam<'a>>> PutAttributes for T {}
 

@@ -1,9 +1,9 @@
 use crate::{
     core::{self, values, ObjectHandle},
-    sys, MqMask, ResultComp,
+    sys, Error, MqMask, ResultComp, ResultCompErr,
 };
 
-use super::{open_options::ObjectString, Conn, EncodedString, MqStruct, MqiAttr, MqiOption, MqiValue, Object};
+use super::{open_options::ObjectString, Conn, ConsumeValue2, EncodedString, MqStruct, MqiAttr, MqiOption, Object};
 use crate::ResultCompErrExt as _;
 
 #[derive(Debug)]
@@ -41,16 +41,19 @@ impl<C: Conn> Drop for Subscription<C> {
     }
 }
 
-pub trait SubscribeValue<T, C: Conn>: for<'a> MqiValue<T, Param<'a> = SubscribeParam<'a, C>> {}
+pub trait SubscribeValue<C: Conn>: for<'a> ConsumeValue2<SubscribeParam<'a, C>, Subscription<C>> {}
 pub trait SubscribeOption<'so, C: Conn>: MqiOption<SubscribeParam<'so, C>> {}
 
-impl<T, C: Conn, A: for<'a> MqiValue<T, Param<'a> = SubscribeParam<'a, C>>> SubscribeValue<T, C> for A {}
+// impl<T, C: Conn, A: for<'a> MqiValue<T, Param<'a> = SubscribeParam<'a, C>>> SubscribeValue<T, C> for A {}
 impl<'so, C: Conn, A: MqiOption<SubscribeParam<'so, C>>> SubscribeOption<'so, C> for A {}
 
 impl<C: Conn + Clone> Subscription<C> {
-    pub fn subscribe<'so, R>(connection: C, subscribe_option: impl SubscribeOption<'so, C>) -> ResultComp<R>
+    pub fn subscribe<'so, R>(
+        connection: C,
+        subscribe_option: impl SubscribeOption<'so, C>,
+    ) -> ResultCompErr<R, <R as ConsumeValue2<SubscribeParam<'so, C>, Subscription<C>>>::Error>
     where
-        R: SubscribeValue<Self, C>,
+        R: SubscribeValue<C>,
     {
         let mut so = SubscribeParam {
             close_options: MqMask::default(),
@@ -60,7 +63,7 @@ impl<C: Conn + Clone> Subscription<C> {
 
         subscribe_option.apply_param(&mut so);
 
-        R::from_mqi(&mut so, |param| {
+        R::consume(&mut so, |param| {
             let mut obj_handle = ObjectHandle::from(param.handles.0);
             connection
                 .mq()
@@ -112,15 +115,13 @@ impl<C: Conn> MqiOption<SubscribeParam<'_, C>> for MqMask<values::MQSO> {
     }
 }
 
-//  `Subscription` is the primary value for a subscribe action
-impl<C: Conn> MqiValue<Self> for Subscription<C> {
-    type Param<'a> = SubscribeParam<'a, C>;
+impl<C: Conn, P> ConsumeValue2<P, Self> for Subscription<C> {
+    type Error = Error;
 
-    #[inline]
-    fn from_mqi<F: FnOnce(&mut Self::Param<'_>) -> ResultComp<Self>>(
-        param: &mut Self::Param<'_>,
-        subscribe: F,
-    ) -> ResultComp<Self> {
+    fn consume<F>(param: &mut P, subscribe: F) -> ResultComp<Self>
+    where
+        F: FnOnce(&mut P) -> ResultComp<Self>,
+    {
         subscribe(param)
     }
 }

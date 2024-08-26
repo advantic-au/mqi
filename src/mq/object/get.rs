@@ -8,8 +8,8 @@ use crate::{
     macros::all_multi_tuples,
     sys,
     types::{self, Fmt, MessageFormat, MessageId},
-    Buffer, Completion, Conn, ConsumeValue2, Error, ExtractValue2, MqMask, MqStruct, MqValue, MqiOption,
-    ResultComp, ResultCompErr, StrCcsidCow,
+    Buffer, Completion, Conn, ConsumeValue2, Error, ExtractValue2, MqMask, MqStruct, MqValue, MqiOption, ResultComp,
+    ResultCompErr, StrCcsidCow,
 };
 
 use super::Object;
@@ -242,16 +242,20 @@ impl<'a, P, B: Buffer<'a>> ExtractValue2<P, GetState<B>> for Headers<'a> {
 }
 
 impl<P, B> ExtractValue2<P, GetState<B>> for MessageFormat {
-    fn extract<F: FnOnce(&mut P) -> ResultComp<GetState<B>>>(param: &mut P, get: F) -> ResultComp<(Self, GetState<B>)> {
+    fn extract<F>(param: &mut P, get: F) -> ResultComp<(Self, GetState<B>)>
+    where
+        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+    {
         get(param).map_completion(|state| (state.format, state))
     }
 }
 
 impl<S> ExtractValue2<GetParam, S> for MqStruct<'static, sys::MQMD2> {
-    fn extract<F: FnOnce(&mut GetParam) -> ResultComp<S>>(param: &mut GetParam, get: F) -> ResultComp<(Self, S)> {
-        let state = get(param)?;
-        let (md, ..) = param;
-        Ok(state.map(|state| (md.clone(), state)))
+    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, S)>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<S>,
+    {
+        get(param).map_completion(|state| (param.0.clone(), state))
     }
 }
 

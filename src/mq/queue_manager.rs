@@ -5,12 +5,12 @@ use std::ops::Deref;
 use libmqm_sys::function;
 
 use crate::core::{self, Library, MQFunctions};
-use crate::{sys, ResultCompErrExt as _};
+use crate::{sys, Error, ResultCompErrExt as _};
 use crate::ResultComp;
 
 use super::connect_options::{self, ConnectOption};
 use super::types::QueueManagerName;
-use super::{MqStruct, MqiValue};
+use super::{ConsumeValue2, MqStruct};
 
 pub struct ConnectionId(pub [sys::MQBYTE; 24]);
 pub struct ConnTag(pub [sys::MQBYTE; 128]);
@@ -85,19 +85,31 @@ impl<L: Library<MQ: function::MQI>, H> Drop for QueueManagerShare<'_, L, H> {
     }
 }
 
-impl<L: Library<MQ: function::MQI>, H: HandleShare> MqiValue<Self> for QueueManagerShare<'_, L, H> {
-    type Param<'a> = ConnectParam<'a>;
+// impl<L: Library<MQ: function::MQI>, H: HandleShare> MqiValue<Self> for QueueManagerShare<'_, L, H> {
+//     type Param<'a> = ConnectParam<'a>;
 
-    fn from_mqi<F: FnOnce(&mut Self::Param<'_>) -> ResultComp<Self>>(
-        param: &mut Self::Param<'_>,
-        connect: F,
-    ) -> ResultComp<Self> {
+//     fn from_mqi<F: FnOnce(&mut Self::Param<'_>) -> ResultComp<Self>>(
+//         param: &mut Self::Param<'_>,
+//         connect: F,
+//     ) -> ResultComp<Self> {
+//         connect(param)
+//     }
+// }
+
+impl<L: Library<MQ: function::MQI>, H: HandleShare, P> ConsumeValue2<P, Self> for QueueManagerShare<'_, L, H> {
+    type Error = Error;
+
+    fn consume<F>(param: &mut P, connect: F) -> ResultComp<Self>
+    where
+        F: FnOnce(&mut P) -> ResultComp<Self> {
         connect(param)
     }
 }
 
-pub trait QueueManagerValue<T>: for<'a> MqiValue<T, Param<'a> = ConnectParam<'a>> {}
-impl<T, A: for<'a> MqiValue<T, Param<'a> = ConnectParam<'a>>> QueueManagerValue<T> for A {}
+
+pub trait QueueManagerValue<S>: for<'a> ConsumeValue2<ConnectParam<'a>, S, Error = Error> {}
+
+// impl<T, A: for<'a> MqiValue<T, Param<'a> = ConnectParam<'a>>> QueueManagerValue<T> for A {}
 
 impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder
@@ -131,9 +143,9 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
         if const { O::STRUCTS & connect_options::HAS_CSP != 0 } {
             options.apply_csp(&mut csp);
             cno.attach_csp(&csp);
-        }
+        }    
 
-        R::from_mqi(&mut cno, |param| {
+        R::consume(&mut cno, |param| {
             param.Options |= H::MQCNO_HANDLE_SHARE;
             let mq = core::MQFunctions(lib);
             mq.mqconnx(qm_name.unwrap_or(&QueueManagerName::default()), param)
