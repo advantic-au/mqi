@@ -346,12 +346,19 @@ impl<const N: usize> PropertyExtract for Name<MqStr<N>> {
 }
 
 impl<'s, P, const N: usize> ExtractValue<P, PropertyState<'s>> for Name<MqStr<N>> {
-    fn extract_from(state: PropertyState<'s>, _param: &P, warning: Option<types::Warning>) -> Result<(Self, PropertyState<'s>), Error> {
+    fn extract_from(
+        state: PropertyState<'s>,
+        _param: &P,
+        warning: Option<types::Warning>,
+    ) -> Result<(Self, PropertyState<'s>), Error> {
         match warning {
             Some((rc, verb)) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc)),
             _ => {
                 let name = state.name.as_ref().expect("Option is always Some here");
-                Ok((Self(MqStr::from_bytes(name).expect("buffer size always equals required length")), state))
+                Ok((
+                    Self(MqStr::from_bytes(name).expect("buffer size always equals required length")),
+                    state,
+                ))
             }
         }
     }
@@ -401,13 +408,20 @@ impl PropertyExtract for Name<StrCcsidOwned> {
 }
 
 impl<'p, 's> ExtractValue<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwned> {
-    fn extract_from(state: PropertyState<'s>, param: &PropertyParam<'p>, warning: Option<types::Warning>) -> Result<(Self, PropertyState<'s>), Error> {
+    fn extract_from(
+        state: PropertyState<'s>,
+        param: &PropertyParam<'p>,
+        warning: Option<types::Warning>,
+    ) -> Result<(Self, PropertyState<'s>), Error> {
         let name = state.name.as_ref().expect("Option is always Some here");
-        Ok((Self(StrCcsidOwned {
-            ccsid: NonZero::new(param.impo.ReturnedName.VSCCSID),
-            le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
-            data: name.clone().into_owned(),
-        }), state))
+        Ok((
+            Self(StrCcsidOwned {
+                ccsid: NonZero::new(param.impo.ReturnedName.VSCCSID),
+                le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
+                data: name.clone().into_owned(),
+            }),
+            state,
+        ))
     }
 }
 

@@ -2,7 +2,14 @@ use core::str;
 use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
 
 use crate::{
-    common::ResultCompErrExt as _, core::values, headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc}, macros::all_multi_tuples, sys, types::{self, Fmt, MessageFormat, MessageId}, Buffer, Completion, Conn, ConsumeValue, Error, ExtractValue, MqMask, MqStruct, MqValue, MqiOption, ResultCompErr, StrCcsidCow
+    common::ResultCompErrExt as _,
+    core::values,
+    headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
+    macros::all_multi_tuples,
+    sys,
+    types::{self, Fmt, MessageFormat, MessageId},
+    Buffer, Completion, Conn, ConsumeValue2, Error, ExtractValue2, MqMask, MqStruct, MqValue, MqiOption,
+    ResultComp, ResultCompErr, StrCcsidCow,
 };
 
 use super::Object;
@@ -98,10 +105,10 @@ pub struct GetState<B> {
     pub format: MessageFormat,
 }
 
-pub trait GetExtract<B>: ExtractValue<GetParam, GetState<B>> {}
-impl<B, T: ExtractValue<GetParam, GetState<B>>> GetExtract<B> for T {}
+pub trait GetExtract<B>: ExtractValue2<GetParam, GetState<B>> {}
+impl<B, T: ExtractValue2<GetParam, GetState<B>>> GetExtract<B> for T {}
 
-pub trait GetConsume<B>: ConsumeValue<GetParam, GetState<B>> {
+pub trait GetConsume<B>: ConsumeValue2<GetParam, GetState<B>> {
     #[must_use]
     fn max_data_size() -> Option<NonZero<usize>> {
         None
@@ -128,58 +135,78 @@ macro_rules! impl_getconsume {
 }
 all_multi_tuples!(impl_getconsume);
 
-impl<'a, P, B: Buffer<'a>> ConsumeValue<P, GetState<B>> for StrCcsidCow<'a> {
+impl<'a, P, B: Buffer<'a>> ConsumeValue2<P, GetState<B>> for StrCcsidCow<'a> {
     type Error = GetStringCcsidError;
 
-    fn consume_from(state: GetState<B>, _param: &P, warning: Option<types::Warning>) -> Result<Self, Self::Error> {
+    fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+    {
+        let state = get(param)?;
         if state.format.fmt != TextEnc::Ascii(fmt::MQFMT_STRING) {
-            return Err(GetStringCcsidError::UnexpectedFormat(state.format.fmt, warning));
+            return Err(GetStringCcsidError::UnexpectedFormat(state.format.fmt, state.warning()));
         }
 
-        Ok(Self {
+        Ok(state.map(|state| Self {
             ccsid: NonZero::new(state.format.ccsid),
             data: state.buffer.truncate(state.data_length).into_cow(),
             le: (state.format.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
-        })
+        }))
     }
 }
 
-impl<'a, P, B: Buffer<'a>> ConsumeValue<P, GetState<B>> for Cow<'a, str> {
+impl<'buffer, P, B> ConsumeValue2<P, GetState<B>> for Cow<'buffer, str>
+where
+    B: Buffer<'buffer>,
+{
     type Error = GetStringError;
 
-    fn consume_from(state: GetState<B>, _param: &P, warning: Option<types::Warning>) -> Result<Self, Self::Error> {
-        if state.format.fmt != TextEnc::Ascii(fmt::MQFMT_STRING) || state.format.ccsid != 1208 {
+    fn consume<F: FnOnce(&mut P) -> ResultComp<GetState<B>>>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error> {
+        // TODO: set 1208 in MQMD?
+        let get_result = get(param)?;
+
+        if get_result.format.fmt != TextEnc::Ascii(fmt::MQFMT_STRING) || get_result.format.ccsid != 1208 {
             return Err(GetStringError::UnexpectedFormat(
-                state.format.fmt,
-                state.format.ccsid,
-                warning,
+                get_result.format.fmt,
+                get_result.format.ccsid,
+                get_result.warning(),
             ));
         }
 
-        match (warning, state.buffer.truncate(state.data_length).into_cow()) {
-            (Some((rc, verb)), _) if rc == sys::MQRC_NOT_CONVERTED => {
+        match get_result.map(|state| state.buffer.truncate(state.data_length).into_cow()) {
+            Completion(_, Some((rc, verb))) if rc == sys::MQRC_NOT_CONVERTED => {
                 Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc).into())
             }
-            (warning, Cow::Borrowed(bytes)) => Ok(Cow::Borrowed(
-                std::str::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e, warning))?,
+            Completion(Cow::Borrowed(bytes), warning) => Ok(Completion(
+                Cow::Borrowed(std::str::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e, warning))?),
+                warning,
             )),
-            (warning, Cow::Owned(bytes)) => Ok(Cow::Owned(
-                String::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e.utf8_error(), warning))?,
+            Completion(Cow::Owned(bytes), warning) => Ok(Completion(
+                Cow::Owned(String::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e.utf8_error(), warning))?),
+                warning,
             )),
         }
     }
 }
 
-impl<'a, P, B: Buffer<'a>> ConsumeValue<P, GetState<B>> for Cow<'a, [u8]> {
+impl<'a, P, B: Buffer<'a>> ConsumeValue2<P, GetState<B>> for Cow<'a, [u8]> {
     type Error = Error;
 
-    fn consume_from(state: GetState<B>, _param: &P, _warning: Option<types::Warning>) -> Result<Self, Self::Error> {
-        Ok(state.buffer.truncate(state.data_length).into_cow())
+    fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+    {
+        get(param).map_completion(|state| state.buffer.truncate(state.data_length).into_cow())
     }
 }
 
-impl<'a, P, B: Buffer<'a>> ExtractValue<P, GetState<B>> for Headers<'a> {
-    fn extract_from(state: GetState<B>, _param: &P, _warning: Option<types::Warning>) -> Result<(Self, GetState<B>), Error> {
+impl<'a, P, B: Buffer<'a>> ExtractValue2<P, GetState<B>> for Headers<'a> {
+    fn extract<F>(param: &mut P, get: F) -> ResultComp<(Self, GetState<B>)>
+    where
+        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+    {
+        let state = get(param)?;
+
         let data = &state.buffer.as_ref()[..state.data_length];
         let mut header_length = 0;
         let mut final_format = state.format;
@@ -194,40 +221,46 @@ impl<'a, P, B: Buffer<'a>> ExtractValue<P, GetState<B>> for Headers<'a> {
             }
         }
 
-        let (headers, tail) = state.buffer.split_at(header_length);
-
-        Ok((
-            Self {
-                init_format: state.format,
-                data: headers.into_cow(),
-                error,
-                message_length: state.message_length,
-            },
-            GetState {
-                buffer: tail,
-                data_length: state.data_length - header_length,
-                message_length: state.message_length - header_length,
-                format: final_format,
-            },
-        ))
+        Ok(state.map(|state| {
+            let (headers, tail) = state.buffer.split_at(header_length);
+            (
+                Self {
+                    init_format: state.format,
+                    data: headers.into_cow(),
+                    error,
+                    message_length: state.message_length,
+                },
+                GetState {
+                    buffer: tail,
+                    data_length: state.data_length - header_length,
+                    message_length: state.message_length - header_length,
+                    format: final_format,
+                },
+            )
+        }))
     }
 }
 
-impl<P, B> ExtractValue<P, GetState<B>> for MessageFormat {
-    fn extract_from(state: GetState<B>, _param: &P, _warning: Option<types::Warning>) -> Result<(Self, GetState<B>), Error> {
-        Ok((state.format, state))
+impl<P, B> ExtractValue2<P, GetState<B>> for MessageFormat {
+    fn extract<F: FnOnce(&mut P) -> ResultComp<GetState<B>>>(param: &mut P, get: F) -> ResultComp<(Self, GetState<B>)> {
+        get(param).map_completion(|state| (state.format, state))
     }
 }
 
-impl<S> ExtractValue<GetParam, S> for MqStruct<'static, sys::MQMD2> {
-    fn extract_from(state: S, (md, ..): &GetParam, _warning: Option<types::Warning>) -> Result<(Self, S), Error> {
-        Ok((md.clone(), state))
+impl<S> ExtractValue2<GetParam, S> for MqStruct<'static, sys::MQMD2> {
+    fn extract<F: FnOnce(&mut GetParam) -> ResultComp<S>>(param: &mut GetParam, get: F) -> ResultComp<(Self, S)> {
+        let state = get(param)?;
+        let (md, ..) = param;
+        Ok(state.map(|state| (md.clone(), state)))
     }
 }
 
-impl<S> ExtractValue<GetParam, S> for MessageId {
-    fn extract_from(state: S, (md, ..): &GetParam, _warning: Option<types::Warning>) -> Result<(Self, S), Error> {
-        Ok((Self(md.MsgId), state))
+impl<S> ExtractValue2<GetParam, S> for MessageId {
+    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, S)>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<S>,
+    {
+        get(param).map_completion(|state| (Self(param.0.MsgId), state))
     }
 }
 
@@ -240,12 +273,6 @@ impl<C: Conn> Object<C> {
         R: GetConsume<B>,
         B: Buffer<'b>,
     {
-        let mut buffer = buffer;
-        let write_area = match R::max_data_size() {
-            Some(max_len) => &mut buffer.as_mut()[..max_len.into()],
-            None => buffer.as_mut(),
-        };
-
         let mut param = (
             MqStruct::default(),
             MqStruct::new(sys::MQGMO {
@@ -253,57 +280,57 @@ impl<C: Conn> Object<C> {
                 ..sys::MQGMO::default()
             }),
         );
+        let mut no_msg_available = false;
 
         options.apply_param(&mut param);
 
-        let get_result = match self
-            .connection()
-            .mq()
-            .mqget(
-                self.connection().handle(),
-                self.handle(),
-                Some(&mut *param.0),
-                &mut param.1,
-                write_area,
-            )
-            .map_completion(|length| {
-                (
-                    length,
-                    match param.1.ReturnedLength {
-                        sys::MQRL_UNDEFINED => cmp::min(
-                            write_area
-                                .len()
-                                .try_into()
-                                .expect("length of buffer must fit in positive i32"),
-                            length,
-                        ),
-                        returned_length => returned_length,
-                    },
-                )
-            }) {
-            Err(Error(cc, _, rc)) if cc == sys::MQCC_FAILED && rc == sys::MQRC_NO_MSG_AVAILABLE => Ok(Completion::new(None)),
-            other => other.map_completion(Some),
-        }?;
+        let result = R::consume(&mut param, |(md, gmo)| {
+            let mut buffer = buffer;
+            let write_area = match R::max_data_size() {
+                Some(max_len) => &mut buffer.as_mut()[..max_len.into()],
+                None => buffer.as_mut(),
+            };
 
-        Ok(match get_result {
-            Completion(Some((message_length, data_length)), warning) => Completion(
-                Some(R::consume_from(
-                    GetState {
-                        buffer,
-                        data_length: data_length.try_into().expect("length within positive usize range"),
-                        message_length: message_length.try_into().expect("length within positive usize range"),
-                        format: MessageFormat {
-                            ccsid: param.0.CodedCharSetId,
-                            encoding: MqMask::from(param.0.Encoding),
-                            fmt: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(param.0.Format) }),
+            let mqi_get = self
+                .connection()
+                .mq()
+                .mqget(self.connection().handle(), self.handle(), Some(&mut **md), gmo, write_area)
+                .map_completion(|length| {
+                    (
+                        length,
+                        match gmo.ReturnedLength {
+                            sys::MQRL_UNDEFINED => cmp::min(
+                                write_area
+                                    .len()
+                                    .try_into()
+                                    .expect("length of buffer must fit in positive i32"),
+                                length,
+                            ),
+                            returned_length => returned_length,
                         },
+                    )
+                })
+                .map_completion(|(message_length, data_length)| GetState {
+                    buffer,
+                    data_length: data_length.try_into().expect("length within positive usize range"),
+                    message_length: message_length.try_into().expect("length within positive usize range"),
+                    format: MessageFormat {
+                        ccsid: md.CodedCharSetId,
+                        encoding: MqMask::from(md.Encoding),
+                        fmt: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(md.Format) }),
                     },
-                    &param,
-                    warning,
-                )?),
-                warning,
-            ),
-            comp => comp.map(|_| None),
-        })
+                });
+            no_msg_available = mqi_get
+                .as_ref()
+                .is_err_and(|&Error(cc, _, rc)| cc == sys::MQCC_FAILED && rc == sys::MQRC_NO_MSG_AVAILABLE);
+
+            mqi_get
+        });
+
+        if no_msg_available {
+            Ok(Completion::new(None))
+        } else {
+            result.map_completion(Some)
+        }
     }
 }

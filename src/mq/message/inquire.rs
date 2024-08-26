@@ -265,11 +265,8 @@ impl<C: Conn> Message<C> {
                     value: value.into(),
                 };
                 let d = P::consume_from(x, &param, warning).map_err(Into::into)?;
-                Completion(
-                            Some(d),
-                            warning,
-                        )
-            },
+                Completion(Some(d), warning)
+            }
             comp => comp.map(|_| None),
         })
     }

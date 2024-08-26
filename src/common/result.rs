@@ -174,7 +174,10 @@ pub trait ResultCompErrExt<T, E> {
     fn unwrap_completion(self) -> T;
 }
 
-impl<T, E: std::fmt::Debug> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
+impl<T, E> ResultCompErrExt<T, E> for ResultCompErr<T, E>
+where
+    E: std::fmt::Debug, // for unwrap_completion
+{
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E> {
         self.map(|mq| mq.map(op))
     }

@@ -1,7 +1,6 @@
 use crate::{core::values, headers::TextEnc, sys, MqMask, MqStr, ReasonCode};
 use std::str;
 
-
 #[derive(Debug, Clone, Copy)]
 pub struct CorrelationId(pub [u8; sys::MQ_CORREL_ID_LENGTH]);
 #[derive(Debug, Clone, Copy)]
