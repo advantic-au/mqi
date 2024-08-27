@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     core::{values, ObjectHandle},
-    ConsumeValue2, MqStruct, MqiOption, ResultCompErr, ResultCompErrExt as _,
+    ConsumeValue2, Error, MqStruct, MqiOption, ResultCompErr, ResultCompErrExt as _,
 };
 
 use libmqm_sys::function;

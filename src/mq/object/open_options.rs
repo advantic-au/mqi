@@ -1,10 +1,14 @@
 use std::{cmp, num, ptr};
 
 use crate::{
-    core::values, sys, types::{QueueManagerName, QueueName}, Conn, ConsumeValue2, EncodedString, Error, MqStr, MqValue, MqiAttr, MqiOption, ResultComp, StrCcsidOwned
+    core::values,
+    sys,
+    types::{QueueManagerName, QueueName},
+    Conn, ConsumeValue2, EncodedString, Error, ExtractValue2, MqStr, MqValue, MqiOption, ResultComp, ResultCompErrExt,
+    StrCcsidOwned,
 };
 
-use super::{Object, OpenParamOption};
+use super::{Object, OpenParam, OpenParamOption, OpenValue};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SelectionString<T>(pub T);
@@ -60,21 +64,27 @@ impl<'b> MqiOption<OpenParamOption<'b, values::MQPMO>> for AlternateUserId {
     }
 }
 
-impl<'b, O> MqiAttr<OpenParamOption<'b, O>> for Option<QueueName> {
-    fn from_mqi<Y, F: FnOnce(&mut OpenParamOption<'b, O>) -> Y>(param: &mut OpenParamOption<'b, O>, open: F) -> (Self, Y) {
-        let open_result = open(param);
-        (
-            Some(QueueName(param.0.ResolvedQName.into())).filter(|queue_name| queue_name.has_value()),
-            open_result,
-        )
+impl<'b, O, S> ExtractValue2<OpenParamOption<'b, O>, S> for Option<QueueName> {
+    fn extract<F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
+    where
+        F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
+    {
+        open(param).map_completion(|state| {
+            (
+                Some(QueueName(param.0.ResolvedQName.into())).filter(|queue_name| queue_name.has_value()),
+                state,
+            )
+        })
     }
 }
 
-impl<'b, O> MqiAttr<OpenParamOption<'b, O>> for MqValue<values::MQOT> {
-    fn from_mqi<Y, F: for<'a> FnOnce(&'a mut OpenParamOption<'b, O>) -> Y>(param: &mut OpenParamOption<'b, O>, open: F) -> (Self, Y) {
+impl<'b, O, S> ExtractValue2<OpenParamOption<'b, O>, S> for MqValue<values::MQOT> {
+    fn extract<F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
+    where
+        F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
+    {
         param.0.Version = cmp::max(sys::MQOD_VERSION_4, param.0.Version);
-        let open_result = open(param);
-        (param.0.ObjectType.into(), open_result)
+        open(param).map_completion(|state| (param.0.ObjectType.into(), state))
     }
 }
 
@@ -86,30 +96,41 @@ impl<'b, O> MqiAttr<OpenParamOption<'b, O>> for MqValue<values::MQOT> {
 //     }
 // }
 
+// Blanket implementation of OpenValue
+impl<T, S> OpenValue<S> for T where for<'oo> Self: ConsumeValue2<OpenParam<'oo>, S> {}
+
 impl<C: Conn, P> ConsumeValue2<P, Self> for Object<C> {
     type Error = Error;
-    
+
     fn consume<F>(param: &mut P, open: F) -> crate::ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut P) -> ResultComp<Self> {
+        F: FnOnce(&mut P) -> ResultComp<Self>,
+    {
         open(param)
     }
 }
 
-impl<'a, O> MqiAttr<OpenParamOption<'a, O>> for Option<QueueManagerName> {
-    fn from_mqi<Y, F: FnOnce(&mut OpenParamOption<'a, O>) -> Y>(param: &mut OpenParamOption<'a, O>, open: F) -> (Self, Y) {
-        let open_result = open(param);
-        (
-            Self::Some(QueueManagerName(param.0.ResolvedQMgrName.into())).filter(|queue_name| queue_name.has_value()),
-            open_result,
-        )
+impl<'a, O, S> ExtractValue2<OpenParamOption<'a, O>, S> for Option<QueueManagerName> {
+    fn extract<F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
+    where
+        F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
+    {
+        open(param).map_completion(|state| {
+            (
+                Self::Some(QueueManagerName(param.0.ResolvedQMgrName.into())).filter(|queue_name| queue_name.has_value()),
+                state,
+            )
+        })
     }
 }
 
 const DEFAULT_RESOBJECTSTRING_LENGTH: sys::MQLONG = 4096;
 
-impl<'b, O> MqiAttr<OpenParamOption<'b, O>> for Option<ResObjectString> {
-    fn from_mqi<Y, F: for<'a> FnOnce(&'a mut OpenParamOption<'b, O>) -> Y>(param: &mut OpenParamOption<'b, O>, open: F) -> (Self, Y) {
+impl<'a, O, S> ExtractValue2<OpenParamOption<'a, O>, S> for Option<ResObjectString> {
+    fn extract<F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
+    where
+        F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
+    {
         let od = &mut param.0;
         if od.ResObjectString.VSBufSize == 0 {
             od.ResObjectString.VSBufSize = DEFAULT_RESOBJECTSTRING_LENGTH;
@@ -121,27 +142,28 @@ impl<'b, O> MqiAttr<OpenParamOption<'b, O>> for Option<ResObjectString> {
                 .expect("buffer length to convert to usize"),
         );
         od.ResObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
-        let open_result = open(param);
 
-        let od = &mut param.0;
-        unsafe {
-            buffer.set_len(
-                od.ResObjectString
-                    .VSLength
-                    .try_into()
-                    .expect("buffer length to convert to usize"),
-            );
-        }
-        (
-            if buffer.is_empty() {
-                None
-            } else {
-                Some(ResObjectString(StrCcsidOwned::from_vec(
-                    buffer,
-                    num::NonZero::new(od.ResObjectString.VSCCSID),
-                )))
-            },
-            open_result,
-        )
+        open(param).map_completion(|state| {
+            let od = &mut param.0;
+            unsafe {
+                buffer.set_len(
+                    od.ResObjectString
+                        .VSLength
+                        .try_into()
+                        .expect("buffer length to convert to usize"),
+                );
+            }
+            (
+                if buffer.is_empty() {
+                    None
+                } else {
+                    Some(ResObjectString(StrCcsidOwned::from_vec(
+                        buffer,
+                        num::NonZero::new(od.ResObjectString.VSCCSID),
+                    )))
+                },
+                state,
+            )
+        })
     }
 }

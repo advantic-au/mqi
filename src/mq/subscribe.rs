@@ -3,7 +3,7 @@ use crate::{
     sys, Error, MqMask, ResultComp, ResultCompErr,
 };
 
-use super::{open_options::ObjectString, Conn, ConsumeValue2, EncodedString, MqStruct, MqiAttr, MqiOption, Object};
+use super::{open_options::ObjectString, Conn, ConsumeValue2, EncodedString, ExtractValue2, MqStruct, MqiOption, Object};
 use crate::ResultCompErrExt as _;
 
 #[derive(Debug)]
@@ -44,14 +44,16 @@ impl<C: Conn> Drop for Subscription<C> {
 pub trait SubscribeValue<C: Conn>: for<'a> ConsumeValue2<SubscribeParam<'a, C>, Subscription<C>> {}
 pub trait SubscribeOption<'so, C: Conn>: MqiOption<SubscribeParam<'so, C>> {}
 
-// impl<T, C: Conn, A: for<'a> MqiValue<T, Param<'a> = SubscribeParam<'a, C>>> SubscribeValue<T, C> for A {}
+// Blanket implementation for SubscribeValue<C>
+impl<T, C: Conn> SubscribeValue<C> for T where for<'so> Self: ConsumeValue2<SubscribeParam<'so, C>, Subscription<C>> {}
+
 impl<'so, C: Conn, A: MqiOption<SubscribeParam<'so, C>>> SubscribeOption<'so, C> for A {}
 
 impl<C: Conn + Clone> Subscription<C> {
     pub fn subscribe<'so, R>(
         connection: C,
         subscribe_option: impl SubscribeOption<'so, C>,
-    ) -> ResultCompErr<R, <R as ConsumeValue2<SubscribeParam<'so, C>, Subscription<C>>>::Error>
+    ) -> ResultCompErr<R, <R as ConsumeValue2<SubscribeParam<'so, C>, Self>>::Error>
     where
         R: SubscribeValue<C>,
     {
@@ -127,10 +129,12 @@ impl<C: Conn, P> ConsumeValue2<P, Self> for Subscription<C> {
 }
 
 // Return the optional handle of a managed subscription
-impl<'b, C: Conn> MqiAttr<SubscribeParam<'b, C>> for Option<Object<C>> {
+impl<'b, C: Conn, S> ExtractValue2<SubscribeParam<'b, C>, S> for Option<Object<C>> {
     #[inline]
-    fn from_mqi<Y, F: FnOnce(&mut SubscribeParam<'b, C>) -> Y>(param: &mut SubscribeParam<'b, C>, subscribe: F) -> (Self, Y) {
-        let result = subscribe(param);
-        (param.handles.1.take(), result)
+    fn extract<F>(param: &mut SubscribeParam<'b, C>, subscribe: F) -> ResultComp<(Self, S)>
+    where
+        F: FnOnce(&mut SubscribeParam<'b, C>) -> ResultComp<S>,
+    {
+        subscribe(param).map_completion(|state| (param.handles.1.take(), state))
     }
 }

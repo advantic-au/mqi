@@ -5,7 +5,10 @@ use std::{borrow::Cow, num::NonZero};
 
 use libmqm_sys::lib::MQTYPE_STRING;
 
-use crate::{sys, types, ConsumeValue, Error, ExtractValue, MqMask, MqStr, MqStruct, MqValue, ReasonCode, StrCcsidOwned, StringCcsid};
+use crate::{
+    sys, types, Completion, ConsumeValue2, Error, ExtractValue2, MqMask, MqStr, MqStruct, MqValue, ReasonCode, ResultComp,
+    ResultCompErrExt, StrCcsidOwned, StringCcsid,
+};
 use crate::core::values::{MQENC, MQTYPE};
 
 pub const INQUIRE_ALL: &str = "%";
@@ -22,7 +25,7 @@ pub struct PropertyParam<'p> {
     pub mqpd: MqStruct<'static, sys::MQPD>,
 }
 
-pub trait PropertyConsume: for<'p, 's> ConsumeValue<PropertyParam<'p>, PropertyState<'s>, Error: Into<Error>> {
+pub trait PropertyConsume: for<'p, 's> ConsumeValue2<PropertyParam<'p>, PropertyState<'s>, Error: Into<Error>> {
     const MQTYPE: sys::MQLONG;
     const MQIMPO: sys::MQLONG;
 
@@ -37,8 +40,8 @@ pub trait PropertyConsume: for<'p, 's> ConsumeValue<PropertyParam<'p>, PropertyS
     }
 }
 
-pub trait PropertyExtract: for<'p, 's> ExtractValue<PropertyParam<'p>, PropertyState<'s>> {
-    const MQIMPO: sys::MQLONG;
+pub trait PropertyExtract: for<'p, 's> ExtractValue2<PropertyParam<'p>, PropertyState<'s>> {
+    // const MQIMPO: sys::MQLONG;
 }
 
 pub trait SetPropertyType {
@@ -139,21 +142,22 @@ impl Metadata {
     }
 }
 
-impl<'p, 'a> ExtractValue<PropertyParam<'p>, PropertyState<'a>> for Metadata {
-    fn extract_from(
-        state: PropertyState<'a>,
-        param: &PropertyParam<'p>,
-        _warning: Option<crate::types::Warning>,
-    ) -> Result<(Self, PropertyState<'a>), Error> {
-        Ok((
-            Self {
-                length: state.value.len(),
-                ccsid: param.impo.ReturnedCCSID,
-                encoding: MqMask::from(param.impo.ReturnedEncoding),
-                value_type: param.value_type,
-            },
-            state,
-        ))
+impl<'p, 'a> ExtractValue2<PropertyParam<'p>, PropertyState<'a>> for Metadata {
+    fn extract<F>(param: &mut PropertyParam<'p>, inqmp: F) -> ResultComp<(Self, PropertyState<'a>)>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'a>>,
+    {
+        inqmp(param).map_completion(|state| {
+            (
+                Self {
+                    length: state.value.len(),
+                    ccsid: param.impo.ReturnedCCSID,
+                    encoding: MqMask::from(param.impo.ReturnedEncoding),
+                    value_type: param.value_type,
+                },
+                state,
+            )
+        })
     }
 }
 
@@ -317,49 +321,44 @@ impl From<NameUsage> for Option<NonZero<usize>> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, derive_more::Deref, derive_more::DerefMut)]
 pub struct Name<T>(pub T);
 
-impl PropertyExtract for Name<String> {
-    const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE;
-}
-
-impl<'s, P> ExtractValue<P, PropertyState<'s>> for Name<String> {
-    fn extract_from(
-        state: PropertyState<'s>,
-        _param: &P,
-        warning: Option<types::Warning>,
-    ) -> Result<(Self, PropertyState<'s>), Error> {
-        match warning {
-            Some((rc, verb)) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc)),
-            _ => {
+impl<'p, 's> ExtractValue2<PropertyParam<'p>, PropertyState<'s>> for Name<String> {
+    fn extract<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+    {
+        param.impo.Options |= sys::MQIMPO_CONVERT_VALUE;
+        match mqinqmp(param)? {
+            Completion(_, Some((rc, verb))) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => {
+                Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc))
+            }
+            other => Ok(other.map(|state| {
                 // SAFETY: The bytes coming from the MQI library should be correct as there
                 // is no conversion error
                 // The unwrap will succeed as the Option is always some if this code is executed
                 let name = state.name.as_ref().expect("Option is always Some here");
-                Ok((Self(unsafe { str::from_utf8_unchecked(name).to_string() }), state))
-            }
+                (Self(unsafe { str::from_utf8_unchecked(name).to_string() }), state)
+            })),
         }
     }
 }
 
-impl<const N: usize> PropertyExtract for Name<MqStr<N>> {
-    // TODO: max size of name
-    const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE;
-}
-
-impl<'s, P, const N: usize> ExtractValue<P, PropertyState<'s>> for Name<MqStr<N>> {
-    fn extract_from(
-        state: PropertyState<'s>,
-        _param: &P,
-        warning: Option<types::Warning>,
-    ) -> Result<(Self, PropertyState<'s>), Error> {
-        match warning {
-            Some((rc, verb)) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc)),
-            _ => {
+impl<'p, 's, const N: usize> ExtractValue2<PropertyParam<'p>, PropertyState<'s>> for Name<MqStr<N>> {
+    fn extract<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+    {
+        param.impo.Options |= sys::MQIMPO_CONVERT_VALUE;
+        match mqinqmp(param)? {
+            Completion(_, Some((rc, verb))) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => {
+                Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc))
+            }
+            other => Ok(other.map(|state| {
                 let name = state.name.as_ref().expect("Option is always Some here");
-                Ok((
+                (
                     Self(MqStr::from_bytes(name).expect("buffer size always equals required length")),
                     state,
-                ))
-            }
+                )
+            })),
         }
     }
 }
@@ -403,25 +402,22 @@ impl<'s, P, const N: usize> ExtractValue<P, PropertyState<'s>> for Name<MqStr<N>
 //     }
 // }
 
-impl PropertyExtract for Name<StrCcsidOwned> {
-    const MQIMPO: sys::MQLONG = sys::MQIMPO_NONE;
-}
-
-impl<'p, 's> ExtractValue<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwned> {
-    fn extract_from(
-        state: PropertyState<'s>,
-        param: &PropertyParam<'p>,
-        warning: Option<types::Warning>,
-    ) -> Result<(Self, PropertyState<'s>), Error> {
-        let name = state.name.as_ref().expect("Option is always Some here");
-        Ok((
-            Self(StrCcsidOwned {
-                ccsid: NonZero::new(param.impo.ReturnedName.VSCCSID),
-                le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
-                data: name.clone().into_owned(),
-            }),
-            state,
-        ))
+impl<'p, 's> ExtractValue2<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwned> {
+    fn extract<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+    {
+        mqinqmp(param).map_completion(|state| {
+            let name = state.name.as_ref().expect("Option is always Some");
+            (
+                Self(StrCcsidOwned {
+                    ccsid: NonZero::new(param.impo.ReturnedName.VSCCSID),
+                    le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
+                    data: name.clone().into_owned(),
+                }),
+                state,
+            )
+        })
     }
 }
 
@@ -430,29 +426,68 @@ impl PropertyConsume for Value {
     const MQIMPO: sys::MQLONG = sys::MQIMPO_NONE;
 }
 
-impl<'p, 's> ConsumeValue<PropertyParam<'p>, PropertyState<'s>> for Value {
+impl<'p, 's> ConsumeValue2<PropertyParam<'p>, PropertyState<'s>> for Value {
     type Error = Error;
 
-    fn consume_from(
-        state: PropertyState<'s>,
-        param: &PropertyParam<'p>,
-        warning: Option<crate::types::Warning>,
-    ) -> Result<Self, Self::Error> {
-        Ok(match param.value_type.value() {
-            sys::MQTYPE_BOOLEAN => Self::Boolean(bool::consume_from(state, param, warning)?),
-            sys::MQTYPE_STRING => Self::String(String::consume_from(state, param, warning)?),
-            sys::MQTYPE_BYTE_STRING => Self::ByteString(Vec::consume_from(state, param, warning)?),
-            sys::MQTYPE_INT8 => Self::Int8(i8::consume_from(state, param, warning)?),
-            sys::MQTYPE_INT16 => Self::Int16(i16::consume_from(state, param, warning)?),
-            sys::MQTYPE_INT32 => Self::Int32(i32::consume_from(state, param, warning)?),
-            sys::MQTYPE_INT64 => Self::Int64(i64::consume_from(state, param, warning)?),
-            sys::MQTYPE_FLOAT32 => Self::Float32(f32::consume_from(state, param, warning)?),
-            sys::MQTYPE_FLOAT64 => Self::Float64(f64::consume_from(state, param, warning)?),
+    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+    {
+        match param.value_type.value() {
+            sys::MQTYPE_BOOLEAN => bool::consume(param, mqinqmp).map_completion(Self::Boolean),
+            sys::MQTYPE_STRING => String::consume(param, mqinqmp).map_completion(Self::String),
+            sys::MQTYPE_BYTE_STRING => Vec::consume(param, mqinqmp).map_completion(Self::ByteString),
+            sys::MQTYPE_INT8 => i8::consume(param, mqinqmp).map_completion(Self::Int8),
+            sys::MQTYPE_INT16 => i16::consume(param, mqinqmp).map_completion(Self::Int16),
+            sys::MQTYPE_INT32 => i32::consume(param, mqinqmp).map_completion(Self::Int32),
+            sys::MQTYPE_INT64 => i64::consume(param, mqinqmp).map_completion(Self::Int64),
+            sys::MQTYPE_FLOAT32 => f32::consume(param, mqinqmp).map_completion(Self::Float32),
+            sys::MQTYPE_FLOAT64 => f64::consume(param, mqinqmp).map_completion(Self::Float64),
             sys::MQTYPE_NULL => Self::Null,
             _ => unreachable!(),
-        })
+        }
     }
+
+    // fn consume_from(
+    //     state: PropertyState<'s>,
+    //     param: &PropertyParam<'p>,
+    //     warning: Option<crate::types::Warning>,
+    // ) -> Result<Self, Self::Error> {
+    //     Ok(match param.value_type.value() {
+    //         sys::MQTYPE_BOOLEAN => Self::Boolean(bool::consume_from(state, param, warning)?),
+    //         sys::MQTYPE_STRING => Self::String(String::consume_from(state, param, warning)?),
+    //         sys::MQTYPE_BYTE_STRING => Self::ByteString(Vec::consume_from(state, param, warning)?),
+    //         sys::MQTYPE_INT8 => Self::Int8(i8::consume_from(state, param, warning)?),
+    //         sys::MQTYPE_INT16 => Self::Int16(i16::consume_from(state, param, warning)?),
+    //         sys::MQTYPE_INT32 => Self::Int32(i32::consume_from(state, param, warning)?),
+    //         sys::MQTYPE_INT64 => Self::Int64(i64::consume_from(state, param, warning)?),
+    //         sys::MQTYPE_FLOAT32 => Self::Float32(f32::consume_from(state, param, warning)?),
+    //         sys::MQTYPE_FLOAT64 => Self::Float64(f64::consume_from(state, param, warning)?),
+    //         sys::MQTYPE_NULL => Self::Null,
+    //         _ => unreachable!(),
+    //     })
+    // }
 }
+
+// impl<'s, P> ConsumeValue2<P, PropertyState<'s>> for i32 {
+//     type Error = Error;
+
+//     fn consume<F>(param: &mut P, mqinqmp: F) -> ResultComp<Self>
+//     where
+//         F: FnOnce(&mut P) -> ResultComp<PropertyState<'s>>,
+//     {
+//         match mqinqmp(param)? {
+//             Completion(_, Some((rc, verb))) if rc == sys::MQRC_PROP_VALUE_NOT_CONVERTED => {
+//                 Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc))
+//             }
+//             other => Ok(other.map(|state| {
+//                 Self::from_ne_bytes(*state.value)
+//                     .try_into()
+//                     .expect("buffer size always exceeds required length")
+//             })),
+//         }
+//     }
+// }
 
 macro_rules! impl_primitive_propertyconsume {
     ($type:ty, $mqtype:path) => {
@@ -461,23 +496,22 @@ macro_rules! impl_primitive_propertyconsume {
             const MQIMPO: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
         }
 
-        impl<'s, P> ConsumeValue<P, PropertyState<'s>> for $type {
+        impl<'s, P> ConsumeValue2<P, PropertyState<'s>> for $type {
             type Error = Error;
 
-            fn consume_from(
-                state: PropertyState<'s>,
-                _param: &P,
-                warning: Option<crate::types::Warning>,
-            ) -> Result<Self, Self::Error> {
-                match warning {
-                    Some((rc, verb)) if rc == sys::MQRC_PROP_VALUE_NOT_CONVERTED => {
+            fn consume<F>(param: &mut P, mqinqmp: F) -> ResultComp<Self>
+            where
+                F: FnOnce(&mut P) -> ResultComp<PropertyState<'s>>,
+            {
+                match mqinqmp(param)? {
+                    Completion(_, Some((rc, verb))) if rc == sys::MQRC_PROP_VALUE_NOT_CONVERTED => {
                         Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc))
                     }
-                    _ => Ok(Self::from_ne_bytes(
-                        (*state.value)
+                    other => Ok(other.map(|state| {
+                        Self::from_ne_bytes(*state.value)
                             .try_into()
-                            .expect("buffer size always exceeds required length"),
-                    )),
+                            .expect("buffer size always exceeds required length")
+                    })),
                 }
             }
         }
@@ -500,11 +534,14 @@ impl PropertyConsume for bool {
     }
 }
 
-impl<'s, P> ConsumeValue<P, PropertyState<'s>> for bool {
+impl<'s, P> ConsumeValue2<P, PropertyState<'s>> for bool {
     type Error = Error;
 
-    fn consume_from(state: PropertyState<'s>, _param: &P, _warning: Option<crate::types::Warning>) -> Result<Self, Self::Error> {
-        Ok(state.value[8] != 0)
+    fn consume<F>(param: &mut P, mqinqmp: F) -> ResultComp<Self>
+    where
+        F: FnOnce(&mut P) -> ResultComp<PropertyState<'s>>,
+    {
+        mqinqmp(param).map_completion(|state| state.value[8] != 0)
     }
 }
 

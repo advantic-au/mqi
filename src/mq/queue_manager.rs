@@ -101,15 +101,15 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare, P> ConsumeValue2<P, Self> fo
 
     fn consume<F>(param: &mut P, connect: F) -> ResultComp<Self>
     where
-        F: FnOnce(&mut P) -> ResultComp<Self> {
+        F: FnOnce(&mut P) -> ResultComp<Self>,
+    {
         connect(param)
     }
 }
 
-
 pub trait QueueManagerValue<S>: for<'a> ConsumeValue2<ConnectParam<'a>, S, Error = Error> {}
 
-// impl<T, A: for<'a> MqiValue<T, Param<'a> = ConnectParam<'a>>> QueueManagerValue<T> for A {}
+impl<S, T> QueueManagerValue<S> for T where T: for<'a> ConsumeValue2<ConnectParam<'a>, S, Error = Error> {}
 
 impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder
@@ -143,7 +143,7 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
         if const { O::STRUCTS & connect_options::HAS_CSP != 0 } {
             options.apply_csp(&mut csp);
             cno.attach_csp(&csp);
-        }    
+        }
 
         R::consume(&mut cno, |param| {
             param.Options |= H::MQCNO_HANDLE_SHARE;
