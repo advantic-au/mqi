@@ -8,8 +8,8 @@ use crate::{
     macros::all_multi_tuples,
     sys,
     types::{self, Fmt, MessageFormat, MessageId},
-    Buffer, Completion, Conn, ConsumeValue2, Error, ExtractValue2, MqMask, MqStruct, MqValue, MqiOption, ResultComp,
-    ResultCompErr, StrCcsidCow,
+    Buffer, Completion, Conn, MqiValue, Error, MqiAttr, MqMask, MqStruct, MqValue, MqiOption, ResultComp, ResultCompErr,
+    StrCcsidCow,
 };
 
 use super::Object;
@@ -105,10 +105,10 @@ pub struct GetState<B> {
     pub format: MessageFormat,
 }
 
-pub trait GetExtract<B>: ExtractValue2<GetParam, GetState<B>> {}
-impl<B, T: ExtractValue2<GetParam, GetState<B>>> GetExtract<B> for T {}
+pub trait GetExtract<B>: MqiAttr<GetParam, GetState<B>> {}
+impl<B, T: MqiAttr<GetParam, GetState<B>>> GetExtract<B> for T {}
 
-pub trait GetConsume<B>: ConsumeValue2<GetParam, GetState<B>> {
+pub trait GetConsume<B>: MqiValue<GetParam, GetState<B>> {
     #[must_use]
     fn max_data_size() -> Option<NonZero<usize>> {
         None
@@ -135,7 +135,7 @@ macro_rules! impl_getconsume {
 }
 all_multi_tuples!(impl_getconsume);
 
-impl<'a, P, B: Buffer<'a>> ConsumeValue2<P, GetState<B>> for StrCcsidCow<'a> {
+impl<'a, P, B: Buffer<'a>> MqiValue<P, GetState<B>> for StrCcsidCow<'a> {
     type Error = GetStringCcsidError;
 
     fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
@@ -155,7 +155,7 @@ impl<'a, P, B: Buffer<'a>> ConsumeValue2<P, GetState<B>> for StrCcsidCow<'a> {
     }
 }
 
-impl<'buffer, P, B> ConsumeValue2<P, GetState<B>> for Cow<'buffer, str>
+impl<'buffer, P, B> MqiValue<P, GetState<B>> for Cow<'buffer, str>
 where
     B: Buffer<'buffer>,
 {
@@ -189,7 +189,7 @@ where
     }
 }
 
-impl<'a, P, B: Buffer<'a>> ConsumeValue2<P, GetState<B>> for Cow<'a, [u8]> {
+impl<'a, P, B: Buffer<'a>> MqiValue<P, GetState<B>> for Cow<'a, [u8]> {
     type Error = Error;
 
     fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
@@ -200,7 +200,7 @@ impl<'a, P, B: Buffer<'a>> ConsumeValue2<P, GetState<B>> for Cow<'a, [u8]> {
     }
 }
 
-impl<'a, P, B: Buffer<'a>> ExtractValue2<P, GetState<B>> for Headers<'a> {
+impl<'a, P, B: Buffer<'a>> MqiAttr<P, GetState<B>> for Headers<'a> {
     fn extract<F>(param: &mut P, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
@@ -241,7 +241,7 @@ impl<'a, P, B: Buffer<'a>> ExtractValue2<P, GetState<B>> for Headers<'a> {
     }
 }
 
-impl<P, B> ExtractValue2<P, GetState<B>> for MessageFormat {
+impl<P, B> MqiAttr<P, GetState<B>> for MessageFormat {
     fn extract<F>(param: &mut P, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
@@ -250,7 +250,7 @@ impl<P, B> ExtractValue2<P, GetState<B>> for MessageFormat {
     }
 }
 
-impl<S> ExtractValue2<GetParam, S> for MqStruct<'static, sys::MQMD2> {
+impl<S> MqiAttr<GetParam, S> for MqStruct<'static, sys::MQMD2> {
     fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<S>,
@@ -259,7 +259,7 @@ impl<S> ExtractValue2<GetParam, S> for MqStruct<'static, sys::MQMD2> {
     }
 }
 
-impl<S> ExtractValue2<GetParam, S> for MessageId {
+impl<S> MqiAttr<GetParam, S> for MessageId {
     fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<S>,

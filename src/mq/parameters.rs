@@ -1,18 +1,12 @@
 use crate::{Error, ResultComp, ResultCompErr, ResultCompErrExt};
 
-use super::{macros::all_multi_tuples, types};
+use super::macros::all_multi_tuples;
 
 pub trait MqiOption<P> {
     fn apply_param(self, param: &mut P);
 }
 
-// pub trait ConsumeValue<P, S>: Sized {
-//     type Error: From<Error>;
-
-//     fn consume_from(state: S, param: &P, warning: Option<types::Warning>) -> Result<Self, Self::Error>;
-// }
-
-pub trait ConsumeValue2<P, S>: Sized {
+pub trait MqiValue<P, S>: Sized {
     type Error: From<Error> + std::fmt::Debug;
 
     fn consume<F>(param: &mut P, mqi: F) -> ResultCompErr<Self, Self::Error>
@@ -20,18 +14,18 @@ pub trait ConsumeValue2<P, S>: Sized {
         F: FnOnce(&mut P) -> ResultComp<S>;
 }
 
-pub trait ExtractValue2<P, S>: Sized {
+pub trait MqiAttr<P, S>: Sized {
     fn extract<F>(param: &mut P, mqi: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut P) -> ResultComp<S>;
 }
 
-macro_rules! impl_consumevalue2 {
+macro_rules! impl_mqivalue_tuple {
     ($first:ident, [$($ty:ident),*]) => {
-        impl<P, S, $first, $($ty),*> ConsumeValue2<P, S> for ($first, $($ty),*)
+        impl<P, S, $first, $($ty),*> MqiValue<P, S> for ($first, $($ty),*)
         where
-            $first: ConsumeValue2<P, S>,
-            $($ty: ExtractValue2<P, S>),*
+            $first: MqiValue<P, S>,
+            $($ty: MqiAttr<P, S>),*
         {
             type Error = $first::Error;
 
@@ -43,7 +37,7 @@ macro_rules! impl_consumevalue2 {
             {
                 let mut rest_outer = None;
                 $first::consume(param, |param| {
-                    <($($ty),*) as ExtractValue2<P, S>>::extract(param, mqi).map_completion(|(rest, state)| {
+                    <($($ty),*) as MqiAttr<P, S>>::extract(param, mqi).map_completion(|(rest, state)| {
                         rest_outer = Some(rest);
                         state
                     })
@@ -57,12 +51,12 @@ macro_rules! impl_consumevalue2 {
     }
 }
 
-macro_rules! impl_extractvalue2 {
+macro_rules! impl_mqiattr_tuple {
     ($first:ident, [$($ty:ident),*]) => {
-        impl<P, S, $first, $($ty),*> ExtractValue2<P, S> for ($first, $($ty),*)
+        impl<P, S, $first, $($ty),*> MqiAttr<P, S> for ($first, $($ty),*)
         where
-            $first: ExtractValue2<P, S>,
-            $($ty: ExtractValue2<P, S>),*
+            $first: MqiAttr<P, S>,
+            $($ty: MqiAttr<P, S>),*
         {
             #[allow(unused_parens, non_snake_case)]
             #[inline]
@@ -72,7 +66,7 @@ macro_rules! impl_extractvalue2 {
             {
                 let mut rest_outer = None;
                 $first::extract(param, |param| {
-                    <($($ty),*) as ExtractValue2<P, S>>::extract(param, mqi).map_completion(|(rest, state)| {
+                    <($($ty),*) as MqiAttr<P, S>>::extract(param, mqi).map_completion(|(rest, state)| {
                         rest_outer = Some(rest);
                         state
                     })
@@ -86,10 +80,10 @@ macro_rules! impl_extractvalue2 {
     }
 }
 
-all_multi_tuples!(impl_extractvalue2);
-all_multi_tuples!(impl_consumevalue2);
+all_multi_tuples!(impl_mqiattr_tuple);
+all_multi_tuples!(impl_mqivalue_tuple);
 
-impl<P, S> ConsumeValue2<P, S> for () {
+impl<P, S> MqiValue<P, S> for () {
     type Error = Error;
 
     fn consume<F>(param: &mut P, mqi: F) -> ResultCompErr<Self, Self::Error>
@@ -100,7 +94,7 @@ impl<P, S> ConsumeValue2<P, S> for () {
     }
 }
 
-impl<P, S> ExtractValue2<P, S> for () {
+impl<P, S> MqiAttr<P, S> for () {
     fn extract<F>(param: &mut P, mqi: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut P) -> ResultComp<S>,
@@ -131,7 +125,7 @@ impl<P> MqiOption<P> for () {
 }
 
 // TODO: Future me (and others) will hate me if I don't document what is happening here
-macro_rules! impl_mqioption {
+macro_rules! impl_mqioption_tuple {
     ($first:ident, [$($ty:ident),*]) => {
         #[allow(non_snake_case,unused_parens)]
         impl<P, $first, $($ty, )*> MqiOption<P> for ($first, $($ty, )*)
@@ -149,4 +143,4 @@ macro_rules! impl_mqioption {
     }
 }
 
-all_multi_tuples!(impl_mqioption);
+all_multi_tuples!(impl_mqioption_tuple);

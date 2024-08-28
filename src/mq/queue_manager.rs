@@ -10,7 +10,7 @@ use crate::ResultComp;
 
 use super::connect_options::{self, ConnectOption};
 use super::types::QueueManagerName;
-use super::{ConsumeValue2, MqStruct};
+use super::{MqiValue, MqStruct};
 
 pub struct ConnectionId(pub [sys::MQBYTE; 24]);
 pub struct ConnTag(pub [sys::MQBYTE; 128]);
@@ -96,7 +96,7 @@ impl<L: Library<MQ: function::MQI>, H> Drop for QueueManagerShare<'_, L, H> {
 //     }
 // }
 
-impl<L: Library<MQ: function::MQI>, H: HandleShare, P> ConsumeValue2<P, Self> for QueueManagerShare<'_, L, H> {
+impl<L: Library<MQ: function::MQI>, H: HandleShare, P> MqiValue<P, Self> for QueueManagerShare<'_, L, H> {
     type Error = Error;
 
     fn consume<F>(param: &mut P, connect: F) -> ResultComp<Self>
@@ -107,9 +107,9 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare, P> ConsumeValue2<P, Self> fo
     }
 }
 
-pub trait QueueManagerValue<S>: for<'a> ConsumeValue2<ConnectParam<'a>, S, Error = Error> {}
+pub trait QueueManagerValue<S>: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
 
-impl<S, T> QueueManagerValue<S> for T where T: for<'a> ConsumeValue2<ConnectParam<'a>, S, Error = Error> {}
+impl<S, T> QueueManagerValue<S> for T where T: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
 
 impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder

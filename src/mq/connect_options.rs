@@ -5,7 +5,7 @@ use crate::{core::values, sys, MqMask, MqStr, MqValue, ResultCompErrExt};
 use super::{
     macros::{all_multi_tuples, reverse_ident},
     types::{ChannelName, CipherSpec, ConnectionName},
-    ConnTag, ConnectParam, ConnectionId, ExtractValue2, MqStruct,
+    ConnTag, ConnectParam, ConnectionId, MqiAttr, MqStruct,
 };
 
 pub const HAS_SCO: i32 = 0b00010;
@@ -510,7 +510,7 @@ impl<'data> ConnectOption<'data> for MqStruct<'data, sys::MQCD> {
     }
 }
 
-impl<'b, S> ExtractValue2<ConnectParam<'b>, S> for ConnectionId {
+impl<'b, S> MqiAttr<ConnectParam<'b>, S> for ConnectionId {
     #[inline]
     fn extract<F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
     where
@@ -521,7 +521,7 @@ impl<'b, S> ExtractValue2<ConnectParam<'b>, S> for ConnectionId {
     }
 }
 
-impl<'b, S> ExtractValue2<ConnectParam<'b>, S> for ConnTag {
+impl<'b, S> MqiAttr<ConnectParam<'b>, S> for ConnTag {
     #[inline]
     fn extract<F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
     where

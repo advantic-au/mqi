@@ -5,7 +5,7 @@ use libmqm_sys::function;
 
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat};
-use crate::{sys, Conn, ExtractValue2, Message, MqMask, MqStruct, MqiOption, Object, QueueManagerShare, ResultComp, ResultCompErrExt};
+use crate::{sys, Conn, MqiAttr, Message, MqMask, MqStruct, MqiOption, Object, QueueManagerShare, ResultComp, ResultCompErrExt};
 use crate::core::{self, values};
 
 use super::OpenParamOption;
@@ -74,11 +74,11 @@ impl<C: Conn> Object<C> {
 
 pub trait OpenPutOption<'a>: MqiOption<OpenParamOption<'a, values::MQPMO>> {}
 pub trait PutOption: for<'a> MqiOption<PutParam<'a>> {}
-pub trait PutAttributes: for<'a> ExtractValue2<PutParam<'a>, ()> {}
+pub trait PutAttributes: for<'a> MqiAttr<PutParam<'a>, ()> {}
 
 impl<'a, T: MqiOption<OpenParamOption<'a, values::MQPMO>>> OpenPutOption<'a> for T {}
 impl<T: for<'a> MqiOption<PutParam<'a>>> PutOption for T {}
-impl<T> PutAttributes for T where T: for<'a> ExtractValue2<PutParam<'a>, ()> {}
+impl<T> PutAttributes for T where T: for<'a> MqiAttr<PutParam<'a>, ()> {}
 
 impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
     pub fn put_message<'oo, R>(
@@ -107,7 +107,7 @@ impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
 
 fn put<T, F>(options: impl for<'a> MqiOption<PutParam<'a>>, message: &(impl PutMessage + ?Sized), put: F) -> ResultComp<T>
 where
-    T: for<'a> ExtractValue2<PutParam<'a>, ()>,
+    T: for<'a> MqiAttr<PutParam<'a>, ()>,
     F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>,
 {
     let MessageFormat {

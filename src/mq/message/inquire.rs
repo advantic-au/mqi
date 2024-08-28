@@ -201,33 +201,14 @@ impl<C: Conn> Message<C> {
         let mut val_return_buffer = [0; DEFAULT_BUF_SIZE]; // Returned value buffer
         let mut name_return_buffer = [0; DEFAULT_BUF_SIZE]; // Returned name buffer
 
-        let mut inq_name_buffer = match P::name_usage() {
-            NameUsage::Ignored => None,
-            used => {
-                let buf = InqBuffer::Slice(name_return_buffer.as_mut_slice());
-                Some(match used {
-                    NameUsage::MaxLength(length) => buf.truncate(length.into()),
-                    _ => buf,
-                })
-            }
-        };
+        let mut property_not_available = false;
 
         let mut param = PropertyParam {
-            value_type: MqValue::from(P::MQTYPE),
             impo: MqStruct::new(sys::MQIMPO {
-                Options: options.value() | P::MQIMPO,
-                ReturnedName: inq_name_buffer.as_mut().map_or_else(Default::default, |name| sys::MQCHARV {
-                    VSPtr: ptr::from_mut(&mut *name).cast(),
-                    VSBufSize: name
-                        .as_ref()
-                        .len()
-                        .try_into()
-                        .expect("length of buffer must always fit in an MQLONG"),
-                    ..sys::MQCHARV::default()
-                }),
+                Options: options.value(),
                 ..sys::MQIMPO::default()
             }),
-            mqpd: MqStruct::<sys::MQPD>::default(),
+            ..PropertyParam::default()
         };
 
         let mut inq_value_buffer = InqBuffer::Slice(val_return_buffer.as_mut_slice());
@@ -237,38 +218,58 @@ impl<C: Conn> Message<C> {
         };
         let name = MqStruct::from_encoded_str(name);
 
-        let inq = match inqmp(
-            self.connection.mq(),
-            Some(self.connection.handle()),
-            &self.handle,
-            &mut param.impo,
-            &name,
-            &mut param.mqpd,
-            &mut param.value_type,
-            inq_value_buffer,
-            P::max_value_size(),
-            inq_name_buffer,
-            P::name_usage().into()
-        )
-        .map_err(Into::<Error>::into) // Convert the error into an ordinary MQ error
-        {
-            Err(Error(cc, _, rc)) if cc == sys::MQCC_FAILED && rc == sys::MQRC_PROPERTY_NOT_AVAILABLE => {
-                Ok(Completion::new(None)) // Convert property not available to a result of Option::None
-            }
-            other => other.map_completion(Some),
-        }?;
+        let result = P::consume(&mut param, |param| {
+            let mut inq_name_buffer = match param.name_usage {
+                NameUsage::Ignored => None,
+                used => {
+                    let buf = InqBuffer::Slice(name_return_buffer.as_mut_slice());
+                    Some(match used {
+                        NameUsage::MaxLength(length) => buf.truncate(length.into()),
+                        _ => buf,
+                    })
+                }
+            };
+            param.impo.ReturnedName = inq_name_buffer.as_mut().map_or_else(Default::default, |name| sys::MQCHARV {
+                VSPtr: ptr::from_mut(&mut *name).cast(),
+                VSBufSize: name
+                    .as_ref()
+                    .len()
+                    .try_into()
+                    .expect("length of buffer must always fit in an MQLONG"),
+                ..sys::MQCHARV::default()
+            });
 
-        Ok(match inq {
-            Completion(Some((value, name)), warning) => {
-                let x = PropertyState {
-                    name: name.map(Into::into),
-                    value: value.into(),
-                };
-                let d = P::consume_from(x, &param, warning).map_err(Into::into)?;
-                Completion(Some(d), warning)
-            }
-            comp => comp.map(|_| None),
-        })
+            let mqi_inqmp = inqmp(
+                self.connection.mq(),
+                Some(self.connection.handle()),
+                &self.handle,
+                &mut param.impo,
+                &name,
+                &mut param.mqpd,
+                &mut param.value_type,
+                inq_value_buffer,
+                P::max_value_size(),
+                inq_name_buffer,
+                param.name_usage.into(),
+            )
+            .map_err(Into::into) // Convert the error into an ordinary MQ error
+            .map_completion(|(value, name)| PropertyState {
+                name: name.map(Into::into),
+                value: value.into(),
+            });
+
+            property_not_available = mqi_inqmp
+                .as_ref()
+                .is_err_and(|&Error(cc, _, rc)| cc == sys::MQCC_FAILED && rc == sys::MQRC_PROPERTY_NOT_AVAILABLE);
+
+            mqi_inqmp
+        });
+
+        if property_not_available {
+            Ok(Completion::new(None))
+        } else {
+            result.map_completion(Some).map_err(Into::into)
+        }
     }
 
     pub fn delete_property(&self, name: &(impl EncodedString + ?Sized), options: MqValue<MQDMPO>) -> ResultComp<()> {
@@ -291,7 +292,7 @@ impl<C: Conn> Message<C> {
         let mut mqpd = MqStruct::<sys::MQPD>::default();
         let mut mqsmpo = MqStruct::<sys::MQSMPO>::default();
         mqsmpo.Options = location.value();
-        let (data, value_type) = value.apply_mqinqmp(&mut mqpd, &mut mqsmpo);
+        let (data, value_type) = value.apply_mqsetmp(&mut mqpd, &mut mqsmpo);
 
         let name_mqcharv = MqStruct::from_encoded_str(name);
         self.connection.mq().mqsetmp(

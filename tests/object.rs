@@ -6,6 +6,7 @@ use std::thread;
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::connect_options::Credentials;
 use mqi::open_options::SelectionString;
+use mqi::property::{Attributes, Metadata, Name};
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
 use mqi::{get, prelude::*, Message};
 use mqi::{attribute, mqstr, sys, Object, QueueManager};
@@ -76,8 +77,8 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
                 println!("RFH2 name/value data: \"{nv}\"");
             }
             for v in properties.property_iter("%", MqMask::default()) {
-                let value: String = v.warn_as_error()?;
-                println!("Property: {value}");
+                let (value, Name(name), attr, meta): (String, Name<String>, Attributes, Metadata) = v.warn_as_error()?;
+                println!("Property: {name} = {value}, {attr:?}, {meta:?}");
             }
             println!("Format: \"{}\"", format.fmt);
             println!("MessageId: \"{msgid:?}\"");

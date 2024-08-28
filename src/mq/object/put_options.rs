@@ -1,4 +1,4 @@
-use crate::{core::values, sys, types, Conn, ExtractValue2, Message, MqMask, MqStruct, MqiOption, ResultCompErrExt};
+use crate::{core::values, sys, types, Conn, Message, MqMask, MqStruct, MqiAttr, MqiOption, ResultComp, ResultCompErrExt};
 
 use super::put::{Properties, PutParam};
 
@@ -37,11 +37,11 @@ impl<'handle, C: Conn> MqiOption<PutParam<'_>> for Properties<'handle, C> {
     }
 }
 
-impl<'b, S> ExtractValue2<PutParam<'b>, S> for MqStruct<'static, sys::MQMD2> {
+impl<'b, S> MqiAttr<PutParam<'b>, S> for MqStruct<'static, sys::MQMD2> {
     #[inline]
-    fn extract<F>(param: &mut PutParam<'b>, put: F) -> crate::ResultComp<(Self, S)>
+    fn extract<F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut PutParam<'b>) -> crate::ResultComp<S>,
+        F: FnOnce(&mut PutParam<'b>) -> ResultComp<S>,
     {
         put(param).map_completion(|state| {
             let (md, ..) = param;
@@ -50,11 +50,11 @@ impl<'b, S> ExtractValue2<PutParam<'b>, S> for MqStruct<'static, sys::MQMD2> {
     }
 }
 
-impl<'b, S> ExtractValue2<PutParam<'b>, S> for types::MessageId {
+impl<'b, S> MqiAttr<PutParam<'b>, S> for types::MessageId {
     #[inline]
-    fn extract<F>(param: &mut PutParam<'b>, put: F) -> crate::ResultComp<(Self, S)>
+    fn extract<F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut PutParam<'b>) -> crate::ResultComp<S>,
+        F: FnOnce(&mut PutParam<'b>) -> ResultComp<S>,
     {
         put(param).map_completion(|state| {
             let (md, ..) = param;
@@ -63,11 +63,11 @@ impl<'b, S> ExtractValue2<PutParam<'b>, S> for types::MessageId {
     }
 }
 
-impl<'b, S> ExtractValue2<PutParam<'b>, S> for types::CorrelationId {
+impl<'b, S> MqiAttr<PutParam<'b>, S> for types::CorrelationId {
     #[inline]
-    fn extract<F>(param: &mut PutParam<'b>, put: F) -> crate::ResultComp<(Self, S)>
+    fn extract<F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut PutParam<'b>) -> crate::ResultComp<S>,
+        F: FnOnce(&mut PutParam<'b>) -> ResultComp<S>,
     {
         put(param).map_completion(|state| {
             let (md, ..) = param;
@@ -76,11 +76,11 @@ impl<'b, S> ExtractValue2<PutParam<'b>, S> for types::CorrelationId {
     }
 }
 
-impl<'b, S> ExtractValue2<PutParam<'b>, S> for Option<types::UserIdentifier> {
+impl<'b, S> MqiAttr<PutParam<'b>, S> for Option<types::UserIdentifier> {
     #[inline]
-    fn extract<F>(param: &mut PutParam<'b>, put: F) -> crate::ResultComp<(Self, S)>
+    fn extract<F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut PutParam<'b>) -> crate::ResultComp<S>,
+        F: FnOnce(&mut PutParam<'b>) -> ResultComp<S>,
     {
         put(param).map_completion(|state| {
             let (md, ..) = param;

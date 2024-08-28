@@ -3,7 +3,7 @@ use crate::{
     sys, Error, MqMask, ResultComp, ResultCompErr,
 };
 
-use super::{open_options::ObjectString, Conn, ConsumeValue2, EncodedString, ExtractValue2, MqStruct, MqiOption, Object};
+use super::{open_options::ObjectString, Conn, MqiValue, EncodedString, MqiAttr, MqStruct, MqiOption, Object};
 use crate::ResultCompErrExt as _;
 
 #[derive(Debug)]
@@ -41,11 +41,11 @@ impl<C: Conn> Drop for Subscription<C> {
     }
 }
 
-pub trait SubscribeValue<C: Conn>: for<'a> ConsumeValue2<SubscribeParam<'a, C>, Subscription<C>> {}
+pub trait SubscribeValue<C: Conn>: for<'a> MqiValue<SubscribeParam<'a, C>, Subscription<C>> {}
 pub trait SubscribeOption<'so, C: Conn>: MqiOption<SubscribeParam<'so, C>> {}
 
 // Blanket implementation for SubscribeValue<C>
-impl<T, C: Conn> SubscribeValue<C> for T where for<'so> Self: ConsumeValue2<SubscribeParam<'so, C>, Subscription<C>> {}
+impl<T, C: Conn> SubscribeValue<C> for T where for<'so> Self: MqiValue<SubscribeParam<'so, C>, Subscription<C>> {}
 
 impl<'so, C: Conn, A: MqiOption<SubscribeParam<'so, C>>> SubscribeOption<'so, C> for A {}
 
@@ -53,7 +53,7 @@ impl<C: Conn + Clone> Subscription<C> {
     pub fn subscribe<'so, R>(
         connection: C,
         subscribe_option: impl SubscribeOption<'so, C>,
-    ) -> ResultCompErr<R, <R as ConsumeValue2<SubscribeParam<'so, C>, Self>>::Error>
+    ) -> ResultCompErr<R, <R as MqiValue<SubscribeParam<'so, C>, Self>>::Error>
     where
         R: SubscribeValue<C>,
     {
@@ -117,7 +117,7 @@ impl<C: Conn> MqiOption<SubscribeParam<'_, C>> for MqMask<values::MQSO> {
     }
 }
 
-impl<C: Conn, P> ConsumeValue2<P, Self> for Subscription<C> {
+impl<C: Conn, P> MqiValue<P, Self> for Subscription<C> {
     type Error = Error;
 
     fn consume<F>(param: &mut P, subscribe: F) -> ResultComp<Self>
@@ -129,7 +129,7 @@ impl<C: Conn, P> ConsumeValue2<P, Self> for Subscription<C> {
 }
 
 // Return the optional handle of a managed subscription
-impl<'b, C: Conn, S> ExtractValue2<SubscribeParam<'b, C>, S> for Option<Object<C>> {
+impl<'b, C: Conn, S> MqiAttr<SubscribeParam<'b, C>, S> for Option<Object<C>> {
     #[inline]
     fn extract<F>(param: &mut SubscribeParam<'b, C>, subscribe: F) -> ResultComp<(Self, S)>
     where

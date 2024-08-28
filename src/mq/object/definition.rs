@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     core::{values, ObjectHandle},
-    ConsumeValue2, Error, MqStruct, MqiOption, ResultCompErr, ResultCompErrExt as _,
+    MqiValue, MqStruct, MqiOption, ResultCompErr, ResultCompErrExt as _,
 };
 
 use libmqm_sys::function;
@@ -70,7 +70,7 @@ impl<L: Library<MQ: function::MQI>, H> Conn for &QueueManagerShare<'_, L, H> {
 }
 
 pub trait OpenOption<'oo>: MqiOption<OpenParam<'oo>> {}
-pub trait OpenValue<T>: for<'oo> ConsumeValue2<OpenParam<'oo>, T> {}
+pub trait OpenValue<T>: for<'oo> MqiValue<OpenParam<'oo>, T> {}
 
 impl<'oo, T: MqiOption<OpenParam<'oo>>> OpenOption<'oo> for T {}
 // impl<A, T: for<'a> MqiValue<A, Param<'a> = OpenParam<'a, values::MQOO>>> OpenValue<A> for T {}
@@ -101,7 +101,7 @@ impl<C: Conn> Object<C> {
         connection: C,
         open_option: impl OpenOption<'oo>,
         options: MqMask<MQOO>,
-    ) -> ResultCompErr<R, <R as ConsumeValue2<OpenParam<'oo>, Self>>::Error>
+    ) -> ResultCompErr<R, <R as MqiValue<OpenParam<'oo>, Self>>::Error>
     where
         R: OpenValue<Self>,
     {

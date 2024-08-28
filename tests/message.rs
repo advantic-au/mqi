@@ -19,7 +19,7 @@ fn message_handle() -> Result<(), Box<dyn Error>> {
     }
 
     for v in message.property_iter(property::INQUIRE_ALL, MqMask::default()) {
-        let value: StrCcsidOwned = v.warn_as_error()?;
+        let value: (StrCcsidOwned, property::Name<String>, Attributes) = v.warn_as_error()?;
         println!("{value:?}");
     }
 

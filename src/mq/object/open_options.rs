@@ -4,8 +4,7 @@ use crate::{
     core::values,
     sys,
     types::{QueueManagerName, QueueName},
-    Conn, ConsumeValue2, EncodedString, Error, ExtractValue2, MqStr, MqValue, MqiOption, ResultComp, ResultCompErrExt,
-    StrCcsidOwned,
+    Conn, MqiValue, EncodedString, Error, MqiAttr, MqStr, MqValue, MqiOption, ResultComp, ResultCompErrExt, StrCcsidOwned,
 };
 
 use super::{Object, OpenParam, OpenParamOption, OpenValue};
@@ -64,7 +63,7 @@ impl<'b> MqiOption<OpenParamOption<'b, values::MQPMO>> for AlternateUserId {
     }
 }
 
-impl<'b, O, S> ExtractValue2<OpenParamOption<'b, O>, S> for Option<QueueName> {
+impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for Option<QueueName> {
     fn extract<F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
@@ -78,7 +77,7 @@ impl<'b, O, S> ExtractValue2<OpenParamOption<'b, O>, S> for Option<QueueName> {
     }
 }
 
-impl<'b, O, S> ExtractValue2<OpenParamOption<'b, O>, S> for MqValue<values::MQOT> {
+impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for MqValue<values::MQOT> {
     fn extract<F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
@@ -88,18 +87,10 @@ impl<'b, O, S> ExtractValue2<OpenParamOption<'b, O>, S> for MqValue<values::MQOT
     }
 }
 
-// impl<C: Conn> MqiValue<Self> for Object<C> {
-//     type Param<'a> = OpenParam<'a, values::MQOO>;
-
-//     fn from_mqi<F: FnOnce(&mut Self::Param<'_>) -> ResultComp<Self>>(mqod: &mut Self::Param<'_>, open: F) -> ResultComp<Self> {
-//         open(mqod)
-//     }
-// }
-
 // Blanket implementation of OpenValue
-impl<T, S> OpenValue<S> for T where for<'oo> Self: ConsumeValue2<OpenParam<'oo>, S> {}
+impl<T, S> OpenValue<S> for T where for<'oo> Self: MqiValue<OpenParam<'oo>, S> {}
 
-impl<C: Conn, P> ConsumeValue2<P, Self> for Object<C> {
+impl<C: Conn, P> MqiValue<P, Self> for Object<C> {
     type Error = Error;
 
     fn consume<F>(param: &mut P, open: F) -> crate::ResultCompErr<Self, Self::Error>
@@ -110,7 +101,7 @@ impl<C: Conn, P> ConsumeValue2<P, Self> for Object<C> {
     }
 }
 
-impl<'a, O, S> ExtractValue2<OpenParamOption<'a, O>, S> for Option<QueueManagerName> {
+impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<QueueManagerName> {
     fn extract<F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
@@ -126,7 +117,7 @@ impl<'a, O, S> ExtractValue2<OpenParamOption<'a, O>, S> for Option<QueueManagerN
 
 const DEFAULT_RESOBJECTSTRING_LENGTH: sys::MQLONG = 4096;
 
-impl<'a, O, S> ExtractValue2<OpenParamOption<'a, O>, S> for Option<ResObjectString> {
+impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<ResObjectString> {
     fn extract<F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
