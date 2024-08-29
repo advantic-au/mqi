@@ -1,12 +1,15 @@
+pub mod macros;
 mod mqmask;
 mod mqstr;
 mod mqvalue;
+mod parameters;
 mod result;
 
 pub use mqmask::*;
 pub use mqstr::*;
 pub use mqvalue::*;
 pub use result::*;
+pub(super) use parameters::*;
 
 #[macro_export]
 macro_rules! define_mqvalue {

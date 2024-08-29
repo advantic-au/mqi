@@ -5,12 +5,12 @@ use std::ops::Deref;
 use libmqm_sys::function;
 
 use crate::core::{self, Library, MQFunctions};
-use crate::{sys, Error, ResultCompErrExt as _};
+use crate::{sys, Error, MqiValue, ResultCompErrExt as _};
 use crate::ResultComp;
 
 use super::connect_options::{self, ConnectOption};
 use super::types::QueueManagerName;
-use super::{MqiValue, MqStruct};
+use super::MqStruct;
 
 pub struct ConnectionId(pub [sys::MQBYTE; 24]);
 pub struct ConnTag(pub [sys::MQBYTE; 128]);
@@ -107,15 +107,15 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare, P> MqiValue<P, Self> for Que
     }
 }
 
-pub trait QueueManagerValue<S>: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
+pub trait ConnectValue<S>: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
 
-impl<S, T> QueueManagerValue<S> for T where T: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
+impl<S, T> ConnectValue<S> for T where T: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
 
 impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder
     pub fn connect_lib<'co, R, O>(lib: L, qm_name: Option<&QueueManagerName>, options: &O) -> ResultComp<R>
     where
-        R: QueueManagerValue<Self>,
+        R: ConnectValue<Self>,
         O: ConnectOption<'co>,
     {
         let mut cno = MqStruct::default();

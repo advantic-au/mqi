@@ -1,6 +1,8 @@
 use crate::{core::values, headers::TextEnc, sys, MqMask, MqStr, ReasonCode};
 use std::str;
 
+use super::headers::fmt::MQFMT_NONE;
+
 #[derive(Debug, Clone, Copy)]
 pub struct CorrelationId(pub [u8; sys::MQ_CORREL_ID_LENGTH]);
 #[derive(Debug, Clone, Copy)]
@@ -24,6 +26,12 @@ pub struct MessageFormat {
     pub encoding: MqMask<values::MQENC>,
     pub fmt: TextEnc<Fmt>,
 }
+
+pub const FORMAT_NONE: MessageFormat = MessageFormat {
+    ccsid: 1208,
+    encoding: MqMask::from(sys::MQENC_NATIVE),
+    fmt: TextEnc::Ascii(MQFMT_NONE),
+};
 
 impl From<MessageId> for CorrelationId {
     #[inline]

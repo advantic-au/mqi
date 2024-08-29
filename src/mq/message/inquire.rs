@@ -4,7 +4,7 @@ use libmqm_sys::function;
 
 use crate::core::values::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::core::MessageHandle;
-use crate::property::{NameUsage, PropertyConsume, PropertyParam, PropertyState, SetPropertyType};
+use crate::property::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetPropertyType};
 use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
 
 use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt};
@@ -144,7 +144,7 @@ pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
     _marker: PhantomData<P>,
 }
 
-impl<P: PropertyConsume, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
+impl<P: PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
     type Item = ResultCompErr<P, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -182,7 +182,7 @@ impl<C: Conn> Message<C> {
         options: MqMask<MQIMPO>,
     ) -> MsgPropIter<'name, 'message, P, N, C>
     where
-        P: PropertyConsume + ?Sized,
+        P: PropertyValue + ?Sized,
         N: EncodedString + ?Sized,
     {
         MsgPropIter {
@@ -195,7 +195,7 @@ impl<C: Conn> Message<C> {
 
     pub fn property<P>(&self, name: &(impl EncodedString + ?Sized), options: MqMask<MQIMPO>) -> ResultCompErr<Option<P>, Error>
     where
-        P: PropertyConsume + ?Sized,
+        P: PropertyValue + ?Sized,
     {
         const DEFAULT_BUF_SIZE: usize = 1024;
         let mut val_return_buffer = [0; DEFAULT_BUF_SIZE]; // Returned value buffer
@@ -219,7 +219,7 @@ impl<C: Conn> Message<C> {
         let name = MqStruct::from_encoded_str(name);
 
         let result = P::consume(&mut param, |param| {
-            let mut inq_name_buffer = match param.name_usage {
+            let mut inq_name_buffer = match param.name_required {
                 NameUsage::Ignored => None,
                 used => {
                     let buf = InqBuffer::Slice(name_return_buffer.as_mut_slice());
@@ -250,7 +250,7 @@ impl<C: Conn> Message<C> {
                 inq_value_buffer,
                 P::max_value_size(),
                 inq_name_buffer,
-                param.name_usage.into(),
+                param.name_required.into(),
             )
             .map_err(Into::into) // Convert the error into an ordinary MQ error
             .map_completion(|(value, name)| PropertyState {

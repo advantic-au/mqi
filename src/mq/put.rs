@@ -5,7 +5,7 @@ use libmqm_sys::function;
 
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat};
-use crate::{sys, Conn, MqiAttr, Message, MqMask, MqStruct, MqiOption, Object, QueueManagerShare, ResultComp, ResultCompErrExt};
+use crate::{sys, Conn, Message, MqMask, MqStruct, Object, QueueManagerShare, ResultComp, MqiAttr, MqiOption, ResultCompErrExt};
 use crate::core::{self, values};
 
 use super::OpenParamOption;
@@ -42,26 +42,22 @@ impl PutMessage for str {
     }
 }
 
-impl PutMessage for [u8] {
+impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
     type Data = Self;
 
     fn render(&self) -> Cow<[u8]> {
-        self.into()
+        Cow::Borrowed(self.0.as_ref())
     }
 
     fn format(&self) -> MessageFormat {
-        MessageFormat {
-            ccsid: 1208,
-            encoding: MqMask::from(sys::MQENC_NATIVE),
-            fmt: TextEnc::Ascii(fmt::MQFMT_NONE),
-        }
+        self.1
     }
 }
 
 impl<C: Conn> Object<C> {
     pub fn put_message<R>(&self, put_options: impl PutOption, message: &(impl PutMessage + ?Sized)) -> ResultComp<R>
     where
-        R: PutAttributes,
+        R: PutAttr,
     {
         put(put_options, message, |(md, pmo), data| {
             let connection = self.connection();
@@ -74,11 +70,11 @@ impl<C: Conn> Object<C> {
 
 pub trait OpenPutOption<'a>: MqiOption<OpenParamOption<'a, values::MQPMO>> {}
 pub trait PutOption: for<'a> MqiOption<PutParam<'a>> {}
-pub trait PutAttributes: for<'a> MqiAttr<PutParam<'a>, ()> {}
+pub trait PutAttr: for<'a> MqiAttr<PutParam<'a>, ()> {}
 
 impl<'a, T: MqiOption<OpenParamOption<'a, values::MQPMO>>> OpenPutOption<'a> for T {}
 impl<T: for<'a> MqiOption<PutParam<'a>>> PutOption for T {}
-impl<T> PutAttributes for T where T: for<'a> MqiAttr<PutParam<'a>, ()> {}
+impl<T> PutAttr for T where T: for<'a> MqiAttr<PutParam<'a>, ()> {}
 
 impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
     pub fn put_message<'oo, R>(
@@ -88,7 +84,7 @@ impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<R>
     where
-        R: PutAttributes,
+        R: PutAttr,
     {
         let mut mqod = (
             MqStruct::new(sys::MQOD {

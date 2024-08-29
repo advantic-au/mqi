@@ -5,9 +5,10 @@ use std::{borrow::Cow, num::NonZero};
 
 use libmqm_sys::lib::MQTYPE_STRING;
 
+// use crate::core::macros::all_multi_tuples;
 use crate::macros::all_multi_tuples;
 use crate::{
-    sys, Completion, MqiValue, Error, MqiAttr, MqMask, MqStr, MqStruct, MqValue, ResultComp, ResultCompErrExt, StrCcsidOwned,
+    sys, Completion, Error, MqMask, MqStr, MqStruct, MqValue, MqiAttr, MqiValue, ResultComp, ResultCompErrExt, StrCcsidOwned,
     StringCcsid,
 };
 use crate::core::values::{self, MQENC, MQTYPE};
@@ -25,10 +26,10 @@ pub struct PropertyParam<'p> {
     pub value_type: MqValue<MQTYPE>,
     pub impo: MqStruct<'p, sys::MQIMPO>,
     pub mqpd: MqStruct<'static, sys::MQPD>,
-    pub name_usage: NameUsage,
+    pub name_required: NameUsage,
 }
 
-pub trait PropertyConsume: for<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>, Error: Into<Error>> {
+pub trait PropertyValue: for<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>, Error: Into<Error>> {
     #[must_use]
     fn max_value_size() -> Option<NonZero<usize>> {
         None
@@ -40,11 +41,11 @@ pub trait SetPropertyType {
     fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>);
 }
 
-macro_rules! impl_propertyconsume_tuple {
+macro_rules! impl_propertyvalue_tuple {
     ($first:ident, [$($ty:ident),*]) => {
-        impl<$first, $($ty),*> PropertyConsume for ($first, $($ty),*)
+        impl<$first, $($ty),*> PropertyValue for ($first, $($ty),*)
             where
-                $first: PropertyConsume,
+                $first: PropertyValue,
                 ($first, $($ty),*): for<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>, Error: Into<Error>>
         {
             fn max_value_size() -> Option<NonZero<usize>> {
@@ -54,7 +55,7 @@ macro_rules! impl_propertyconsume_tuple {
     };
 }
 
-all_multi_tuples!(impl_propertyconsume_tuple);
+all_multi_tuples!(impl_propertyvalue_tuple);
 
 #[derive(Debug, Clone, Default)]
 pub struct Attributes {
@@ -329,7 +330,7 @@ impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<String> {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.name_usage = NameUsage::Any;
+        param.name_required = NameUsage::Any;
         param.impo.Options |= sys::MQIMPO_CONVERT_VALUE;
         match mqinqmp(param)? {
             Completion(_, Some((rc, verb))) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => {
@@ -351,7 +352,7 @@ impl<'p, 's, const N: usize> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for N
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.name_usage = NameUsage::MaxLength(unsafe { NonZero::new_unchecked(N) });
+        param.name_required = NameUsage::MaxLength(unsafe { NonZero::new_unchecked(N) });
         param.impo.Options |= sys::MQIMPO_CONVERT_VALUE;
         match mqinqmp(param)? {
             Completion(_, Some((rc, verb))) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => {
@@ -412,7 +413,7 @@ impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwne
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.name_usage = NameUsage::Any;
+        param.name_required = NameUsage::Any;
         mqinqmp(param).map_completion(|state| {
             let name = state.name.as_ref().expect("Option is always Some");
             (
@@ -427,7 +428,7 @@ impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwne
     }
 }
 
-impl PropertyConsume for Value {}
+impl PropertyValue for Value {}
 
 impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Value {
     type Error = Error;
@@ -458,10 +459,10 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Value {
     }
 }
 
-macro_rules! impl_primitive_propertyconsume {
+macro_rules! impl_primitive_propertyvalue {
     ($type:ty, $mqtype:path) => {
         impl_as_primitive!($type);
-        impl PropertyConsume for $type {}
+        impl PropertyValue for $type {}
         impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for $type {
             type Error = Error;
 
@@ -495,14 +496,14 @@ trait AsPrimitive {
     fn as_primitive(buffer: &[u8]) -> Self;
 }
 
-impl_primitive_propertyconsume!(f32, sys::MQTYPE_FLOAT32);
-impl_primitive_propertyconsume!(f64, sys::MQTYPE_FLOAT64);
-impl_primitive_propertyconsume!(i8, sys::MQTYPE_INT8);
-impl_primitive_propertyconsume!(i16, sys::MQTYPE_INT16);
-impl_primitive_propertyconsume!(sys::MQLONG, sys::MQTYPE_INT32);
-impl_primitive_propertyconsume!(sys::MQINT64, sys::MQTYPE_INT64);
+impl_primitive_propertyvalue!(f32, sys::MQTYPE_FLOAT32);
+impl_primitive_propertyvalue!(f64, sys::MQTYPE_FLOAT64);
+impl_primitive_propertyvalue!(i8, sys::MQTYPE_INT8);
+impl_primitive_propertyvalue!(i16, sys::MQTYPE_INT16);
+impl_primitive_propertyvalue!(sys::MQLONG, sys::MQTYPE_INT32);
+impl_primitive_propertyvalue!(sys::MQINT64, sys::MQTYPE_INT64);
 
-impl PropertyConsume for bool {
+impl PropertyValue for bool {
     fn max_value_size() -> Option<NonZero<usize>> {
         NonZero::new(mem::size_of::<Self>())
     }
@@ -521,7 +522,7 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for bool {
     }
 }
 
-impl PropertyConsume for MqValue<sys::MQLONG> {
+impl PropertyValue for MqValue<sys::MQLONG> {
     fn max_value_size() -> Option<NonZero<usize>> {
         sys::MQLONG::max_value_size()
     }
@@ -538,7 +539,7 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for MqValue<sys::MQL
     }
 }
 
-impl PropertyConsume for MqMask<sys::MQLONG> {
+impl PropertyValue for MqMask<sys::MQLONG> {
     fn max_value_size() -> Option<NonZero<usize>> {
         sys::MQLONG::max_value_size()
     }
@@ -770,7 +771,7 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Vec<u8> {
 //     }
 // }
 
-impl PropertyConsume for String {}
+impl PropertyValue for String {}
 
 impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for String {
     type Error = Error;
@@ -792,7 +793,7 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for String {
     }
 }
 
-impl PropertyConsume for StrCcsidOwned {}
+impl PropertyValue for StrCcsidOwned {}
 impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for StrCcsidOwned {
     type Error = Error;
 

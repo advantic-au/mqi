@@ -8,7 +8,7 @@ use mqi::connect_options::Credentials;
 use mqi::open_options::SelectionString;
 use mqi::property::{Attributes, Metadata, Name};
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
-use mqi::{get, prelude::*, Message};
+use mqi::{get, Message, MqMask, MqValue, ResultCompErrExt as _, ResultCompExt as _};
 use mqi::{attribute, mqstr, sys, Object, QueueManager};
 
 #[test]
@@ -61,10 +61,10 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     if let Some((rc, verb)) = msg.warning() {
         println!("Warning: {rc} on {verb}");
     }
-    let msg: Option<((), MessageId, MessageFormat, get::Headers)> = msg.discard_warning();
+    let msg: Option<(Cow<[u8]>, MessageId, MessageFormat, get::Headers)> = msg.discard_warning();
 
     match &msg {
-        Some(((), msgid, format, headers)) => {
+        Some((_msg, msgid, format, headers)) => {
             for header in headers.all_headers() {
                 println!("Header: {header:?}");
             }
@@ -108,8 +108,14 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         attribute::MQIA_COMMAND_LEVEL,
     ];
     let qm = QueueManager::connect(None, &(Credentials::user("app", "app"))).discard_warning()?;
-    let object = Object::open::<Object<_>>(&qm, QueueManagerName(mqstr!("QM1")), MqMask::from(sys::MQOO_INQUIRE))?;
+    let (object, qm) = Object::open::<(Object<_>, Option<QueueManagerName>)>(
+        &qm,
+        QueueManagerName(mqstr!("QM1")),
+        MqMask::from(sys::MQOO_INQUIRE),
+    )
+    .warn_as_error()?;
 
+    println!("{qm:?}");
     let result = object.inq(INQ)?;
     if let Some((rc, verb)) = result.warning() {
         eprintln!("MQRC warning: {verb} {rc}");

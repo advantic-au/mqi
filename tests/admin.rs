@@ -2,9 +2,9 @@
 
 use mqi::admin::Bag;
 use mqi::connect_options::{ApplName, ClientDefinition, Credentials};
-use mqi::core::mqai::values::MQQT;
+use mqi::core::mqai::values;
 use mqi::types::ObjectName;
-use mqi::{mqstr, prelude::*};
+use mqi::{mqstr, MqMask, MqStr, MqValue, ResultCompExt as _};
 use mqi::{sys, QueueManager};
 
 #[test]
@@ -38,7 +38,7 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         let alt_date = *bag.inquire::<MqStr<12>>(sys::MQCA_ALTERATION_DATE)?;
         let alt_time = *bag.inquire::<MqStr<12>>(sys::MQCA_ALTERATION_TIME)?;
         let ccsid = *bag.inquire::<sys::MQLONG>(sys::MQIA_CODED_CHAR_SET_ID)?;
-        let q_type = *bag.inquire::<MqValue<MQQT>>(sys::MQIA_Q_TYPE)?;
+        let q_type = *bag.inquire::<MqValue<values::MQQT>>(sys::MQIA_Q_TYPE)?;
         let q_pageset = *bag.inquire::<sys::MQLONG>(sys::MQIA_PAGESET_ID)?;
         let q_desc = *bag.inquire::<MqStr<64>>(sys::MQCA_Q_DESC)?;
         println!("Queue Name: {}", q.unwrap_or_default());

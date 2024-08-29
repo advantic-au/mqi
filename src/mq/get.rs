@@ -3,13 +3,13 @@ use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
 
 use crate::{
     common::ResultCompErrExt as _,
+    macros::all_multi_tuples,
     core::values,
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
-    macros::all_multi_tuples,
     sys,
     types::{self, Fmt, MessageFormat, MessageId},
-    Buffer, Completion, Conn, MqiValue, Error, MqiAttr, MqMask, MqStruct, MqValue, MqiOption, ResultComp, ResultCompErr,
-    StrCcsidCow,
+    Buffer, Completion, Conn, Error, MqMask, MqStruct, MqValue, ResultComp, ResultCompErr, StrCcsidCow, MqiAttr, MqiOption,
+    MqiValue,
 };
 
 use super::Object;
@@ -96,7 +96,10 @@ pub enum GetConvert {
     ConvertTo(sys::MQLONG, MqMask<values::MQENC>),
 }
 
-pub type GetParam = (MqStruct<'static, sys::MQMD2>, MqStruct<'static, sys::MQGMO>);
+pub struct GetParam {
+    pub md: MqStruct<'static, sys::MQMD2>,
+    pub gmo: MqStruct<'static, sys::MQGMO>,
+}
 
 pub struct GetState<B> {
     pub buffer: B,
@@ -105,27 +108,28 @@ pub struct GetState<B> {
     pub format: MessageFormat,
 }
 
-pub trait GetExtract<B>: MqiAttr<GetParam, GetState<B>> {}
-impl<B, T: MqiAttr<GetParam, GetState<B>>> GetExtract<B> for T {}
+pub trait GetAttr<B>: MqiAttr<GetParam, GetState<B>> {}
+impl<B, T: MqiAttr<GetParam, GetState<B>>> GetAttr<B> for T {}
 
-pub trait GetConsume<B>: MqiValue<GetParam, GetState<B>> {
+pub trait GetValue<B>: MqiValue<GetParam, GetState<B>> {
     #[must_use]
     fn max_data_size() -> Option<NonZero<usize>> {
         None
     }
 }
 
-impl<B> GetConsume<B> for () {}
-impl<'a, B: Buffer<'a>> GetConsume<B> for StrCcsidCow<'a> {}
-impl<'a, B: Buffer<'a>> GetConsume<B> for Cow<'a, str> {}
-impl<'a, B: Buffer<'a>> GetConsume<B> for Cow<'a, [u8]> {}
+impl<B> GetValue<B> for () {}
+impl<'a, B: Buffer<'a>> GetValue<B> for StrCcsidCow<'a> {}
+impl<'a, B: Buffer<'a>> GetValue<B> for Cow<'a, str> {}
+impl<'a, B: Buffer<'a>> GetValue<B> for Cow<'a, [u8]> {}
+impl<'a, B: Buffer<'a>> GetValue<B> for Vec<u8> {}
 
-macro_rules! impl_getconsume {
+macro_rules! impl_getvalue {
     ($first:ident, [$($ty:ident),*]) => {
-        impl<B, $first, $($ty),*> GetConsume<B> for ($first, $($ty),*)
+        impl<B, $first, $($ty),*> GetValue<B> for ($first, $($ty),*)
         where
-            $first: GetConsume<B>,
-            $($ty: GetExtract<B>),*
+            $first: GetValue<B>,
+            ($first, $($ty),*): MqiValue<GetParam, GetState<B>>
         {
             fn max_data_size() -> Option<NonZero<usize>> {
                 $first::max_data_size()
@@ -133,7 +137,8 @@ macro_rules! impl_getconsume {
         }
     };
 }
-all_multi_tuples!(impl_getconsume);
+
+all_multi_tuples!(impl_getvalue);
 
 impl<'a, P, B: Buffer<'a>> MqiValue<P, GetState<B>> for StrCcsidCow<'a> {
     type Error = GetStringCcsidError;
@@ -189,7 +194,7 @@ where
     }
 }
 
-impl<'a, P, B: Buffer<'a>> MqiValue<P, GetState<B>> for Cow<'a, [u8]> {
+impl<'buffer, P, B: Buffer<'buffer>> MqiValue<P, GetState<B>> for Cow<'buffer, [u8]> {
     type Error = Error;
 
     fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
@@ -197,6 +202,17 @@ impl<'a, P, B: Buffer<'a>> MqiValue<P, GetState<B>> for Cow<'a, [u8]> {
         F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
     {
         get(param).map_completion(|state| state.buffer.truncate(state.data_length).into_cow())
+    }
+}
+
+impl<'buffer, P, B: Buffer<'buffer>> MqiValue<P, GetState<B>> for Vec<u8> {
+    type Error = Error;
+
+    fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+    {
+        get(param).map_completion(|state| state.buffer.truncate(state.data_length).into_cow().into_owned())
     }
 }
 
@@ -255,7 +271,7 @@ impl<S> MqiAttr<GetParam, S> for MqStruct<'static, sys::MQMD2> {
     where
         F: FnOnce(&mut GetParam) -> ResultComp<S>,
     {
-        get(param).map_completion(|state| (param.0.clone(), state))
+        get(param).map_completion(|state| (param.md.clone(), state))
     }
 }
 
@@ -264,7 +280,7 @@ impl<S> MqiAttr<GetParam, S> for MessageId {
     where
         F: FnOnce(&mut GetParam) -> ResultComp<S>,
     {
-        get(param).map_completion(|state| (Self(param.0.MsgId), state))
+        get(param).map_completion(|state| (Self(param.md.MsgId), state))
     }
 }
 
@@ -274,21 +290,21 @@ impl<T: MqiOption<GetParam>> GetOption for T {}
 impl<C: Conn> Object<C> {
     pub fn get_message<'b, R, B>(&self, options: impl GetOption, buffer: B) -> ResultCompErr<Option<R>, R::Error>
     where
-        R: GetConsume<B>,
+        R: GetValue<B>,
         B: Buffer<'b>,
     {
-        let mut param = (
-            MqStruct::default(),
-            MqStruct::new(sys::MQGMO {
+        let mut param = GetParam {
+            md: MqStruct::default(),
+            gmo: MqStruct::new(sys::MQGMO {
                 Version: sys::MQGMO_VERSION_4,
                 ..sys::MQGMO::default()
             }),
-        );
+        };
         let mut no_msg_available = false;
 
         options.apply_param(&mut param);
 
-        let result = R::consume(&mut param, |(md, gmo)| {
+        let result = R::consume(&mut param, |param| {
             let mut buffer = buffer;
             let write_area = match R::max_data_size() {
                 Some(max_len) => &mut buffer.as_mut()[..max_len.into()],
@@ -298,11 +314,17 @@ impl<C: Conn> Object<C> {
             let mqi_get = self
                 .connection()
                 .mq()
-                .mqget(self.connection().handle(), self.handle(), Some(&mut **md), gmo, write_area)
+                .mqget(
+                    self.connection().handle(),
+                    self.handle(),
+                    Some(&mut *param.md),
+                    &mut param.gmo,
+                    write_area,
+                )
                 .map_completion(|length| {
                     (
                         length,
-                        match gmo.ReturnedLength {
+                        match param.gmo.ReturnedLength {
                             sys::MQRL_UNDEFINED => cmp::min(
                                 write_area
                                     .len()
@@ -319,9 +341,9 @@ impl<C: Conn> Object<C> {
                     data_length: data_length.try_into().expect("length within positive usize range"),
                     message_length: message_length.try_into().expect("length within positive usize range"),
                     format: MessageFormat {
-                        ccsid: md.CodedCharSetId,
-                        encoding: MqMask::from(md.Encoding),
-                        fmt: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(md.Format) }),
+                        ccsid: param.md.CodedCharSetId,
+                        encoding: MqMask::from(param.md.Encoding),
+                        fmt: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(param.md.Format) }),
                     },
                 });
             no_msg_available = mqi_get

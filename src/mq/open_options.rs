@@ -4,7 +4,7 @@ use crate::{
     core::values,
     sys,
     types::{QueueManagerName, QueueName},
-    Conn, MqiValue, EncodedString, Error, MqiAttr, MqStr, MqValue, MqiOption, ResultComp, ResultCompErrExt, StrCcsidOwned,
+    Conn, EncodedString, Error, MqStr, MqValue, ResultComp, ResultCompErrExt, StrCcsidOwned, MqiAttr, MqiOption, MqiValue,
 };
 
 use super::{Object, OpenParam, OpenParamOption, OpenValue};

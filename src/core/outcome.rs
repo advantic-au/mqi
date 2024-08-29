@@ -1,7 +1,6 @@
-use crate::prelude::*;
 use std::ops::{Deref, DerefMut};
 
-use crate::sys;
+use crate::{sys, ReasonCode, ResultCompErr};
 use crate::{Completion, CompletionCode, Error};
 
 #[derive(Default)]
@@ -74,6 +73,8 @@ impl<T, E: From<Error>> From<MQIOutcome<T>> for Result<T, E> {
 /// Traces the MQI outcome
 #[cfg(feature = "tracing")]
 pub fn tracing_outcome<T: std::fmt::Debug>(outcome: &MQIOutcome<T>) {
+    use crate::HasMqNames as _;
+
     let MQIOutcome { verb, cc, rc, value } = outcome;
     match cc.value() {
         sys::MQCC_OK => tracing::event!(
@@ -108,6 +109,8 @@ pub fn tracing_outcome<T: std::fmt::Debug>(outcome: &MQIOutcome<T>) {
 /// Traces the MQI outcome without the value
 #[cfg(feature = "tracing")]
 pub fn tracing_outcome_basic<T>(outcome: &MQIOutcome<T>) {
+    use crate::HasMqNames as _;
+
     let MQIOutcome { verb, cc, rc, .. } = outcome;
     match cc.value() {
         sys::MQCC_OK => tracing::event!(

@@ -1,11 +1,14 @@
 use std::{any, cmp, ops::Deref};
 
-use crate::{core::values, sys, MqMask, MqStr, MqValue, ResultCompErrExt};
+use crate::{
+    macros::{all_multi_tuples, reverse_ident},
+    core::values,
+    sys, MqMask, MqStr, MqValue, ResultCompErrExt, MqiAttr,
+};
 
 use super::{
-    macros::{all_multi_tuples, reverse_ident},
     types::{ChannelName, CipherSpec, ConnectionName},
-    ConnTag, ConnectParam, ConnectionId, MqiAttr, MqStruct,
+    ConnTag, ConnectParam, ConnectionId, MqStruct,
 };
 
 pub const HAS_SCO: i32 = 0b00010;
@@ -376,8 +379,8 @@ macro_rules! impl_connectoptions {
                 'r: 'ptr,
             {
                 let reverse_ident!($first, $($ty),*) = self;
-                $first.apply_cno(cno);
-                $($ty.apply_cno(cno);)*
+                $first.apply_cno(cno); // last is first now
+                $($ty.apply_cno(cno);)* // first is last now
 
             }
 

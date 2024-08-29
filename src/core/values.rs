@@ -13,6 +13,7 @@ define_mqvalue!(pub MQSR, mapping::MQSR_CONST);
 define_mqvalue!(pub MQTYPE, mapping::MQTYPE_CONST);
 impl_default_mqvalue!(MqValue<MQTYPE>, sys::MQTYPE_AS_SET);
 define_mqvalue!(pub MQENC, mapping::MQENC_CONST);
+impl_default_mqvalue!(MqMask<MQENC>, sys::MQENC_NATIVE);
 define_mqvalue!(pub MQGMO, mapping::MQGMO_CONST);
 impl_default_mqvalue!(MqMask<MQGMO>, sys::MQGMO_NONE);
 define_mqvalue!(pub MQPMO, mapping::MQGMO_CONST);

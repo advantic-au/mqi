@@ -3,7 +3,7 @@ use std::{error::Error, sync::Arc, thread};
 use mqi::{
     connect_options::{ApplName, Binding, ClientDefinition, Credentials, Tls},
     mqstr, sys,
-    types::{ChannelName, CipherSpec, ConnectionName, MessageId, QueueName},
+    types::{ChannelName, CipherSpec, ConnectionName, MessageId, QueueName, FORMAT_NONE},
     Message, MqMask, MqValue, QueueManager, ResultCompErrExt, ResultCompExt,
 };
 
@@ -24,7 +24,7 @@ fn thread() {
             .expect("property set");
 
         let msgid = c
-            .put_message::<MessageId>(QUEUE, (), b"Hello ".as_slice())
+            .put_message::<MessageId>(QUEUE, (), &(b"Hello", FORMAT_NONE))
             .warn_as_error()
             .expect("Put failed");
         println!("{msgid:?}");

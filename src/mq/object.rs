@@ -5,17 +5,13 @@ use std::{
 
 use crate::{
     core::{values, ObjectHandle},
-    MqiValue, MqStruct, MqiOption, ResultCompErr, ResultCompErrExt as _,
+    MqStruct, MqiOption, MqiValue,
 };
 
 use libmqm_sys::function;
 
 use crate::{
-    core::{
-        self,
-        values::{MQCO, MQOO},
-        ConnectionHandle, Library, MQFunctions,
-    },
+    core::{self, values::MQCO, ConnectionHandle, Library, MQFunctions},
     Conn, MqMask,
 };
 use crate::sys;
@@ -28,9 +24,9 @@ pub type OpenParam<'a> = OpenParamOption<'a, values::MQOO>;
 #[must_use]
 #[derive(Debug)]
 pub struct Object<C: Conn> {
-    handle: core::ObjectHandle,
-    connection: C,
-    close_options: MqMask<MQCO>,
+    pub(super) handle: core::ObjectHandle,
+    pub(super) connection: C,
+    pub(super) close_options: MqMask<MQCO>,
 }
 
 impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<'_, L, H>> {
@@ -73,7 +69,6 @@ pub trait OpenOption<'oo>: MqiOption<OpenParam<'oo>> {}
 pub trait OpenValue<T>: for<'oo> MqiValue<OpenParam<'oo>, T> {}
 
 impl<'oo, T: MqiOption<OpenParam<'oo>>> OpenOption<'oo> for T {}
-// impl<A, T: for<'a> MqiValue<A, Param<'a> = OpenParam<'a, values::MQOO>>> OpenValue<A> for T {}
 
 impl<C: Conn> Object<C> {
     #[must_use]
@@ -95,34 +90,6 @@ impl<C: Conn> Object<C> {
             connection,
             close_options: MqMask::from(sys::MQCO_NONE),
         }
-    }
-
-    pub fn open<'oo, R>(
-        connection: C,
-        open_option: impl OpenOption<'oo>,
-        options: MqMask<MQOO>,
-    ) -> ResultCompErr<R, <R as MqiValue<OpenParam<'oo>, Self>>::Error>
-    where
-        R: OpenValue<Self>,
-    {
-        let mut oo = (
-            MqStruct::new(sys::MQOD {
-                Version: sys::MQOD_VERSION_4,
-                ..sys::MQOD::default()
-            }),
-            options,
-        );
-        open_option.apply_param(&mut oo);
-        R::consume(&mut oo, |(oo, options)| {
-            connection
-                .mq()
-                .mqopen(connection.handle(), oo, *options)
-                .map_completion(|handle| Self {
-                    handle,
-                    connection,
-                    close_options: MqMask::from(sys::MQCO_NONE),
-                })
-        })
     }
 
     pub fn close_options(&mut self, options: MqMask<MQCO>) {
