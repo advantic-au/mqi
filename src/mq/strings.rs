@@ -1,10 +1,12 @@
 use std::{
     borrow::Cow,
     num::{NonZero, NonZeroI32},
+    ptr,
 };
-use thiserror::Error;
 
 use crate::sys;
+
+use super::MqStruct;
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
@@ -25,16 +27,14 @@ pub type StrCcsidCow<'a> = StringCcsid<Cow<'a, [u8]>>;
 
 pub const NATIVE_IS_LE: bool = (sys::MQENC_NATIVE & sys::MQENC_INTEGER_REVERSED) != 0;
 
-#[derive(Error, Debug)]
+#[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
 pub enum FromStringCcsidError {
-    #[error(transparent)]
-    NonUtf8Ccsid(#[from] CcsidError),
-    #[error("UTF-8 conversion")]
-    Utf8Convert(#[from] std::str::Utf8Error),
+    NonUtf8Ccsid(CcsidError),
+    Utf8Convert(std::str::Utf8Error),
 }
 
-#[derive(Error, Debug)]
-#[error("{} is not a UTF-8 CCSID", .str.ccsid.map_or(0, NonZeroI32::get))]
+#[derive(derive_more::Error, derive_more::Display, Debug)]
+#[display("{} is not a UTF-8 CCSID", str.ccsid.map_or(0, NonZeroI32::get))]
 pub struct CcsidError {
     str: StrCcsidOwned,
 }
@@ -143,6 +143,23 @@ impl<T: AsRef<[u8]>> EncodedString for StringCcsid<T> {
 
     fn data(&self) -> &[u8] {
         self.data.as_ref()
+    }
+}
+
+impl<'a> MqStruct<'a, sys::MQCHARV> {
+    pub fn from_encoded_str(value: &'a (impl EncodedString + ?Sized)) -> Self {
+        let data = value.data();
+        let len = data
+            .len()
+            .try_into()
+            .expect("string length exceeds maximum positive MQLONG for MQCHARV");
+        MqStruct::new(sys::MQCHARV {
+            VSPtr: ptr::from_ref(data).cast_mut().cast(),
+            VSLength: len,
+            VSBufSize: len,
+            VSCCSID: value.ccsid().map_or(0, NonZero::into),
+            ..sys::MQCHARV::default()
+        })
     }
 }
 

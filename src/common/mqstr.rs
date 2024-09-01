@@ -6,7 +6,6 @@ use std::{
 };
 
 use crate::sys;
-use thiserror::Error;
 
 /// Fixed width string with trailing white space/nulls commonly
 /// used with IBM MQ API's
@@ -180,9 +179,9 @@ impl<const N: usize> AsMut<[sys::MQCHAR; N]> for MqStr<N> {
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(derive_more::Error, derive_more::Display, Debug)]
 pub enum MQStrError {
-    #[error("String of length {length} exceeds maximum length {max}")]
+    #[display("String of length {length} exceeds maximum length {max}")]
     Length { length: usize, max: usize },
 }
 
@@ -193,9 +192,3 @@ impl<const N: usize> TryFrom<&str> for MqStr<N> {
         Self::from_bytes(value.as_bytes())
     }
 }
-
-// pub type ObjectName = MqStr<48>;
-// pub type ChannelName = MqStr<20>;
-// pub type ConnectionName = MqStr<264>;
-// pub type ApplName = MqStr<28>;
-// pub type CipherSpec = MqStr<32>;

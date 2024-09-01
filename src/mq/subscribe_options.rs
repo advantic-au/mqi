@@ -1,7 +1,4 @@
-use crate::{
-    core::values,
-    Error, MqMask, MqiAttr, MqiOption, MqiValue, ResultComp, ResultCompErr,
-};
+use crate::{core::values, Error, MqMask, MqiAttr, MqiOption, MqiValue, ResultComp, ResultCompErr};
 
 use super::{open_options::ObjectString, Conn, EncodedString, Object, SubscribeParam, SubscribeState, Subscription};
 use crate::ResultCompErrExt as _;
@@ -16,7 +13,7 @@ impl<'so, T: EncodedString + ?Sized> MqiOption<SubscribeParam<'so>> for ObjectSt
 impl<C: Conn> MqiOption<SubscribeParam<'_>> for &Object<C> {
     #[inline]
     fn apply_param(self, param: &mut SubscribeParam<'_>) {
-        param.provided_object = unsafe { self.raw_handle() };
+        param.provided_object = unsafe { self.handle.raw_handle() };
     }
 }
 

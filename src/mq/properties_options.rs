@@ -3,6 +3,8 @@ use std::ops::Deref as _;
 use std::{mem, ptr, slice};
 use std::{borrow::Cow, num::NonZero};
 
+use crate::macros::reverse_ident;
+
 use libmqm_sys::lib::MQTYPE_STRING;
 
 // use crate::core::macros::all_multi_tuples;
@@ -16,6 +18,7 @@ use crate::core::values::{self, MQENC, MQTYPE};
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
 
+#[derive(Debug, Clone)]
 pub struct PropertyState<'s> {
     pub name: Option<Cow<'s, [u8]>>,
     pub value: Cow<'s, [u8]>,
@@ -36,10 +39,41 @@ pub trait PropertyValue: for<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'
     }
 }
 
-pub trait SetPropertyType {
+pub trait SetProperty {
     type Data: std::fmt::Debug + ?Sized;
     fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>);
 }
+
+pub trait SetPropertyAttr {
+    fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>);
+}
+
+macro_rules! impl_setproperty_tuple {
+    ($first:ident, [$($ty:ident),*]) => {
+        impl<$first, $($ty),*> SetProperty for ($first, $($ty),*)
+        where
+            $first: SetProperty,
+            $($ty: SetPropertyAttr),*
+        {
+            type Data = $first::Data;
+
+            #[allow(non_snake_case,unused_parens)]
+            fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
+                let reverse_ident!($first, $($ty),*) = self;
+                $first.apply_mqsetmp(pd, smpo);
+                $($ty.apply_mqsetmp(pd, smpo));*
+            }
+        }
+    };
+}
+
+impl SetPropertyAttr for Attributes {
+    fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, _smpo: &mut MqStruct<sys::MQSMPO>) {
+        self.mqpd.clone_into(pd);
+    }
+}
+
+all_multi_tuples!(impl_setproperty_tuple);
 
 macro_rules! impl_propertyvalue_tuple {
     ($first:ident, [$($ty:ident),*]) => {
@@ -78,20 +112,22 @@ pub enum NameUsage {
     #[default]
     Ignored,
     MaxLength(NonZero<usize>),
-    Any,
+    AnyLength,
 }
 
-#[derive(Debug, Clone)]
-pub enum Conversion<T> {
-    Value(T),
-    Raw(Vec<u8>, MqMask<MQENC>, sys::MQLONG),
+#[derive(Debug, Clone, derive_more::Deref, derive_more::DerefMut, derive_more::Constructor)]
+pub struct Raw<T> {
+    #[deref]
+    #[deref_mut]
+    data: T,
+    metadata: Metadata,
 }
 
-// pub type RawMeta<T> = Metadata<Raw<T>>;
-// pub type OwnedRawMeta = RawMeta<Vec<u8>>;
-
-#[derive(Debug, Clone)]
-pub struct Raw<T>(T);
+impl<T> Raw<T> {
+    pub const fn metadata(&self) -> &Metadata {
+        &self.metadata
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -108,6 +144,16 @@ pub enum Value {
 }
 
 impl Metadata {
+    #[must_use]
+    pub fn new(length: usize, impo: &MqStruct<'_, sys::MQIMPO>, value_type: MqValue<values::MQTYPE>) -> Self {
+        Self {
+            length,
+            ccsid: impo.ReturnedCCSID,
+            encoding: MqMask::from(impo.ReturnedEncoding),
+            value_type,
+        }
+    }
+
     #[must_use]
     pub const fn len(&self) -> usize {
         self.length
@@ -139,17 +185,7 @@ impl<'p, 'a> MqiAttr<PropertyParam<'p>, PropertyState<'a>> for Metadata {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'a>>,
     {
-        inqmp(param).map_completion(|state| {
-            (
-                Self {
-                    length: state.value.len(),
-                    ccsid: param.impo.ReturnedCCSID,
-                    encoding: MqMask::from(param.impo.ReturnedEncoding),
-                    value_type: param.value_type,
-                },
-                state,
-            )
-        })
+        inqmp(param).map_completion(|state| (Self::new(state.value.len(), &param.impo, param.value_type), state))
     }
 }
 
@@ -200,7 +236,7 @@ impl Attributes {
 
 macro_rules! impl_primitive_setproptype {
     ($type:ty, $mqtype:path) => {
-        impl SetPropertyType for $type {
+        impl SetProperty for $type {
             type Data = Self;
             fn apply_mqsetmp(
                 &self,
@@ -223,7 +259,7 @@ impl_primitive_setproptype!(f32, sys::MQTYPE_FLOAT32);
 impl_primitive_setproptype!(f64, sys::MQTYPE_FLOAT64);
 impl_primitive_setproptype!(Null, sys::MQTYPE_NULL);
 
-impl SetPropertyType for str {
+impl SetProperty for str {
     type Data = Self;
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
         smpo.ValueCCSID = 1208;
@@ -231,14 +267,14 @@ impl SetPropertyType for str {
     }
 }
 
-impl SetPropertyType for String {
-    type Data = <str as SetPropertyType>::Data;
+impl SetProperty for String {
+    type Data = <str as SetProperty>::Data;
     fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
         self.deref().apply_mqsetmp(pd, smpo)
     }
 }
 
-impl<T: AsRef<[u8]>> SetPropertyType for StringCcsid<T> {
+impl<T: AsRef<[u8]>> SetProperty for StringCcsid<T> {
     type Data = [u8];
 
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
@@ -247,14 +283,14 @@ impl<T: AsRef<[u8]>> SetPropertyType for StringCcsid<T> {
     }
 }
 
-impl SetPropertyType for Vec<u8> {
-    type Data = <[u8] as SetPropertyType>::Data;
+impl SetProperty for Vec<u8> {
+    type Data = <[u8] as SetProperty>::Data;
     fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
         self.deref().apply_mqsetmp(pd, smpo)
     }
 }
 
-impl<const N: usize> SetPropertyType for MqStr<N> {
+impl<const N: usize> SetProperty for MqStr<N> {
     type Data = [u8];
 
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
@@ -263,29 +299,20 @@ impl<const N: usize> SetPropertyType for MqStr<N> {
     }
 }
 
-// impl<T: SetPropertyType> SetPropertyType for Attributes {
-//     type Data = T::Data;
-
-//     fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
-//         self.mqpd.clone_into(pd);
-//         self.value.apply_mqsetmp(pd, smpo)
-//     }
-// }
-
-impl SetPropertyType for [u8] {
+impl SetProperty for [u8] {
     type Data = Self;
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, _smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
         (self, MqValue::from(sys::MQTYPE_BYTE_STRING))
     }
 }
 
-impl SetPropertyType for Value {
+impl SetProperty for Value {
     type Data = [u8];
 
     fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
         #[inline]
         /// Ensure the data is of type `[u8]`
-        fn set_as_u8<'a, T: SetPropertyType + ?Sized>(
+        fn set_as_u8<'a, T: SetProperty + ?Sized>(
             value: &'a T,
             pd: &mut MqStruct<sys::MQPD>,
             smpo: &mut MqStruct<sys::MQSMPO>,
@@ -330,7 +357,7 @@ impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<String> {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.name_required = NameUsage::Any;
+        param.name_required = NameUsage::AnyLength;
         param.impo.Options |= sys::MQIMPO_CONVERT_VALUE;
         match mqinqmp(param)? {
             Completion(_, Some((rc, verb))) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => {
@@ -369,51 +396,12 @@ impl<'p, 's, const N: usize> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for N
     }
 }
 
-// TODO, perhaps this can be nicer with the Error types
-// impl<N: InqNameType, T: PropertyConsume> PropertyConsume for (N, T)
-// where
-//     T::Error: Into<Error>,
-//     N::Error: Into<Error>,
-// {
-//     type Error = Error;
-//     const MQTYPE: sys::MQLONG = T::MQTYPE;
-//     const MQIMPO_VALUE: sys::MQLONG = T::MQIMPO_VALUE | N::MQIMPO_NAME;
-
-//     fn name_usage() -> NameUsage {
-//         match (N::max_size(), T::name_usage()) {
-//             (None, NameUsage::Any | NameUsage::Ignored) => NameUsage::Any,
-//             (None, usage @ NameUsage::MaxLength(_)) => usage,
-//             (Some(size), NameUsage::Any | NameUsage::Ignored) => NameUsage::MaxLength(size),
-//             (Some(size), NameUsage::MaxLength(length)) => NameUsage::MaxLength(min(size, length)),
-//         }
-//     }
-
-//     fn create_from(
-//         value: Cow<[u8]>,
-//         name: Option<Cow<[u8]>>,
-//         value_type: MqValue<MQTYPE>,
-//         mqimpo: &MqStruct<sys::MQIMPO>,
-//         mqpd: &MqStruct<'static, sys::MQPD>,
-//         warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         // Note: Create the value before the name. When name and value conversion fail, value is reporting in preference over name.
-//         let value = T::create_from(value, name.clone(), value_type, mqimpo, mqpd, warning).map_err(Into::into)?;
-//         Ok((
-//             match name {
-//                 Some(name) => N::create_from(name, mqimpo, warning).map_err(Into::into)?,
-//                 None => N::default(),
-//             },
-//             value,
-//         ))
-//     }
-// }
-
 impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwned> {
     fn extract<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.name_required = NameUsage::Any;
+        param.name_required = NameUsage::AnyLength;
         mqinqmp(param).map_completion(|state| {
             let name = state.name.as_ref().expect("Option is always Some");
             (
@@ -569,207 +557,99 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Vec<u8> {
     }
 }
 
-// impl<const N: usize> PropertyConsume for [u8; N] {
-//     type Error = Error;
-//     const MQTYPE: sys::MQLONG = sys::MQTYPE_BYTE_STRING;
-//     const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_TYPE;
+impl<const N: usize> PropertyValue for [u8; N] {
+    fn max_value_size() -> Option<NonZero<usize>> {
+        NonZero::new(N)
+    }
+}
 
-//     fn create_from(
-//         value: Cow<[u8]>,
-//         _name: Option<Cow<[u8]>>,
-//         _value_type: MqValue<MQTYPE>,
-//         _mqimpo: &MqStruct<sys::MQIMPO>,
-//         _mqpd: &MqStruct<'static, sys::MQPD>,
-//         _warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         let mut result: [u8; N] = [0; N];
-//         result.copy_from_slice(&value);
-//         Ok(result)
-//     }
+impl<'p, 's, const N: usize> MqiValue<PropertyParam<'p>, PropertyState<'s>> for [u8; N] {
+    type Error = Error;
 
-//     fn max_value_size() -> Option<NonZero<usize>> {
-//         NonZero::new(N)
-//     }
-// }
+    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+    {
+        param.value_type = MqValue::from(sys::MQTYPE_BYTE_STRING);
+        param.impo.Options |= sys::MQIMPO_CONVERT_TYPE;
+        mqinqmp(param).map_completion(|state| {
+            let mut result: [u8; N] = [0; N];
+            result.copy_from_slice(&state.value);
+            result
+        })
+    }
+}
 
-// impl<const N: usize> PropertyConsume for MqStr<N> {
-//     type Error = Error;
+impl<const N: usize> PropertyValue for MqStr<N> {
+    fn max_value_size() -> Option<NonZero<usize>> {
+        NonZero::new(N)
+    }
+}
 
-//     const MQTYPE: sys::MQLONG = sys::MQTYPE_STRING;
-//     const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
+impl<'p, 's, const N: usize> MqiValue<PropertyParam<'p>, PropertyState<'s>> for MqStr<N> {
+    type Error = Error;
 
-//     fn create_from(
-//         value: Cow<[u8]>,
-//         _name: Option<Cow<[u8]>>,
-//         _value_type: MqValue<MQTYPE>,
-//         _mqimpo: &MqStruct<sys::MQIMPO>,
-//         _mqpd: &MqStruct<'static, sys::MQPD>,
-//         _warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(Self::from_bytes(&value).expect("buffer size always equals required length"))
-//     }
+    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+    {
+        param.value_type = MqValue::from(sys::MQTYPE_BYTE_STRING);
+        param.impo.Options |= sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
+        mqinqmp(param).map_completion(|state| Self::from_bytes(&state.value).expect("buffer size always equals required length"))
+    }
+}
 
-//     fn max_value_size() -> Option<NonZero<usize>> {
-//         NonZero::new(N)
-//     }
-// }
+impl<T: AsRef<[u8]>> SetProperty for Raw<T> {
+    type Data = [u8];
 
-// impl<T: PropertyConsume> PropertyConsume for Attributes<T> {
-//     type Error = T::Error;
-//     const MQTYPE: sys::MQLONG = T::MQTYPE;
-//     const MQIMPO_VALUE: sys::MQLONG = T::MQIMPO_VALUE;
+    fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
+        smpo.ValueCCSID = self.metadata.ccsid;
+        smpo.ValueEncoding = self.metadata.encoding.value();
+        (&self.data.as_ref()[..self.metadata.length], self.metadata.value_type)
+    }
+}
 
-//     fn create_from(
-//         value: Cow<[u8]>,
-//         name: Option<Cow<[u8]>>,
-//         value_type: MqValue<MQTYPE>,
-//         mqimpo: &MqStruct<sys::MQIMPO>,
-//         mqpd: &MqStruct<'static, sys::MQPD>,
-//         warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         // let length = value.len();
-//         Ok(Self {
-//             value: T::create_from(value, name, value_type, mqimpo, mqpd, warning)?,
-//             mqpd: mqpd.clone(),
-//         })
-//     }
+impl PropertyValue for Raw<Vec<u8>> {}
 
-//     fn name_usage() -> NameUsage {
-//         T::name_usage()
-//     }
+impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Raw<Vec<u8>> {
+    type Error = Error;
 
-//     fn max_value_size() -> Option<NonZero<usize>> {
-//         T::max_value_size()
-//     }
-// }
+    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+    {
+        param.value_type = MqValue::from(sys::MQTYPE_AS_SET);
+        param.impo.Options |= sys::MQIMPO_NONE;
+        mqinqmp(param).map_completion(|state| {
+            let len = state.value.len();
+            Self::new(state.value.into_owned(), Metadata::new(len, &param.impo, param.value_type))
+        })
+    }
+}
 
-// impl<T: AsRef<[u8]>> SetPropertyType for RawMeta<T> {
-//     type Data = [u8];
+impl<const N: usize> PropertyValue for Raw<[u8; N]> {
+    fn max_value_size() -> Option<NonZero<usize>> {
+        NonZero::new(N)
+    }
+}
 
-//     fn apply_mqinqmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MqValue<MQTYPE>) {
-//         smpo.ValueCCSID = self.ccsid;
-//         smpo.ValueEncoding = self.encoding.value();
-//         (&self.0.as_ref()[..self.length], self.value_type)
-//     }
-// }
+impl<'p, 's, const N: usize> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Raw<[u8; N]> {
+    type Error = Error;
 
-// impl PropertyConsume for Raw<Vec<u8>> {
-//     type Error = Error;
-//     const MQTYPE: sys::MQLONG = sys::MQTYPE_AS_SET;
-//     const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_NONE;
-
-//     fn create_from(
-//         value: Cow<[u8]>,
-//         _name: Option<Cow<[u8]>>,
-//         _value_type: MqValue<MQTYPE>,
-//         _mqimpo: &MqStruct<sys::MQIMPO>,
-//         _mqpd: &MqStruct<'static, sys::MQPD>,
-//         _warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(Self(value.into_owned()))
-//     }
-// }
-
-// impl<const N: usize> PropertyConsume for Raw<[u8; N]> {
-//     type Error = Error;
-//     const MQTYPE: sys::MQLONG = sys::MQTYPE_AS_SET;
-//     const MQIMPO_VALUE: sys::MQLONG = sys::MQIMPO_NONE;
-
-//     fn create_from(
-//         value: Cow<[u8]>,
-//         _name: Option<Cow<[u8]>>,
-//         _value_type: MqValue<MQTYPE>,
-//         _mqimpo: &MqStruct<sys::MQIMPO>,
-//         _mqpd: &MqStruct<'static, sys::MQPD>,
-//         _warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         let mut result: [u8; N] = [0; N];
-//         result[..value.len()].copy_from_slice(&value);
-//         Ok(Self(result))
-//     }
-
-//     fn max_value_size() -> Option<NonZero<usize>> {
-//         NonZero::new(N)
-//     }
-// }
-
-// impl<T> Deref for Raw<T> {
-//     type Target = T;
-
-//     fn deref(&self) -> &Self::Target {
-//         let Self(target) = self;
-//         target
-//     }
-// }
-
-// impl<T> DerefMut for Raw<T> {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         let Self(ref mut target) = self;
-//         target
-//     }
-// }
-
-// impl<T: Default> Default for Conversion<T> {
-//     fn default() -> Self {
-//         Self::Value(T::default())
-//     }
-// }
-
-// impl<T: PropertyConsume> PropertyConsume for Conversion<T> {
-//     type Error = T::Error;
-//     const MQTYPE: sys::MQLONG = T::MQTYPE;
-//     const MQIMPO_VALUE: sys::MQLONG = T::MQIMPO_VALUE;
-
-//     fn create_from(
-//         value: Cow<[u8]>,
-//         name: Option<Cow<[u8]>>,
-//         value_type: MqValue<MQTYPE>,
-//         mqimpo: &MqStruct<sys::MQIMPO>,
-//         mqpd: &MqStruct<'static, sys::MQPD>,
-//         warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(match warning {
-//             Some((rc, ..)) if rc == sys::MQRC_PROP_VALUE_NOT_CONVERTED => {
-//                 Self::Raw(value.into_owned(), mqimpo.ReturnedEncoding.into(), mqimpo.ReturnedCCSID)
-//             }
-//             _ => Self::Value(T::create_from(value, name, value_type, mqimpo, mqpd, warning)?),
-//         })
-//     }
-
-//     fn name_usage() -> NameUsage {
-//         T::name_usage()
-//     }
-
-//     fn max_value_size() -> Option<NonZero<usize>> {
-//         T::max_value_size()
-//     }
-// }
-
-// impl<T: InqNameType> InqNameType for Conversion<T> {
-//     type Error = T::Error;
-//     const MQIMPO_NAME: sys::MQLONG = T::MQIMPO_NAME;
-
-//     fn create_from(
-//         name: Cow<[u8]>,
-//         mqimpo: &MqStruct<sys::MQIMPO>,
-//         warning: Option<(ReasonCode, &'static str)>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(match warning {
-//             Some((rc, ..)) if rc == sys::MQRC_PROP_NAME_NOT_CONVERTED => {
-//                 Self::Raw(
-//                     name.into_owned(),
-//                     MqMask::from(0), /* Encoding not relevant */
-//                     mqimpo.ReturnedName.VSCCSID,
-//                 )
-//             }
-//             _ => Self::Value(T::create_from(name, mqimpo, warning)?),
-//         })
-//     }
-
-//     fn max_size() -> Option<NonZero<usize>> {
-//         T::max_size()
-//     }
-// }
+    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+    {
+        param.value_type = MqValue::from(sys::MQTYPE_AS_SET);
+        param.impo.Options |= sys::MQIMPO_NONE;
+        mqinqmp(param).map_completion(|state| {
+            let mut data: [u8; N] = [0; N];
+            data[..state.value.len()].copy_from_slice(&state.value);
+            let len = data.len();
+            Self::new(data, Metadata::new(len, &param.impo, param.value_type))
+        })
+    }
+}
 
 impl PropertyValue for String {}
 

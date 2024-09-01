@@ -1,22 +1,16 @@
-use std::{
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
 
 use crate::{
     core::{values, ObjectHandle},
     MqStruct, MqiOption, MqiValue,
 };
 
-use libmqm_sys::function;
 
 use crate::{
-    core::{self, values::MQCO, ConnectionHandle, Library, MQFunctions},
+    core::{self, values::MQCO},
     Conn, MqMask,
 };
 use crate::sys;
 use crate::ResultComp;
-use crate::QueueManagerShare;
 
 pub type OpenParamOption<'a, T> = (MqStruct<'a, sys::MQOD>, MqMask<T>);
 pub type OpenParam<'a> = OpenParamOption<'a, values::MQOO>;
@@ -27,42 +21,6 @@ pub struct Object<C: Conn> {
     pub(super) handle: core::ObjectHandle,
     pub(super) connection: C,
     pub(super) close_options: MqMask<MQCO>,
-}
-
-impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<'_, L, H>> {
-    type Lib = L;
-
-    fn mq(&self) -> &MQFunctions<Self::Lib> {
-        self.deref().mq()
-    }
-
-    fn handle(&self) -> &ConnectionHandle {
-        self.deref().handle()
-    }
-}
-
-impl<L: Library<MQ: function::MQI>, H> Conn for QueueManagerShare<'_, L, H> {
-    type Lib = L;
-
-    fn mq(&self) -> &MQFunctions<Self::Lib> {
-        Self::mq(self)
-    }
-
-    fn handle(&self) -> &ConnectionHandle {
-        Self::handle(self)
-    }
-}
-
-impl<L: Library<MQ: function::MQI>, H> Conn for &QueueManagerShare<'_, L, H> {
-    type Lib = L;
-
-    fn mq(&self) -> &MQFunctions<Self::Lib> {
-        QueueManagerShare::<L, H>::mq(self)
-    }
-
-    fn handle(&self) -> &ConnectionHandle {
-        QueueManagerShare::<L, H>::handle(self)
-    }
 }
 
 pub trait OpenOption<'oo>: MqiOption<OpenParam<'oo>> {}
@@ -104,24 +62,10 @@ impl<C: Conn> Object<C> {
     }
 }
 
-impl<C: Conn> Deref for Object<C> {
-    type Target = core::ObjectHandle;
-
-    fn deref(&self) -> &Self::Target {
-        &self.handle
-    }
-}
-
-impl<C: Conn> DerefMut for Object<C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.handle
-    }
-}
-
 impl<C: Conn> Drop for Object<C> {
     fn drop(&mut self) {
         // TODO: handle close failure
-        if self.is_closeable() {
+        if self.handle.is_closeable() {
             let _ = self
                 .connection
                 .mq()

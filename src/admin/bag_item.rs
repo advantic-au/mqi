@@ -1,6 +1,5 @@
 use libmqm_sys::function;
 use std::{fmt::Debug, num::NonZeroI32};
-use thiserror::Error;
 
 use crate::core::mqai;
 use crate::core::mqai::values::{MqaiSelector, MQIND};
@@ -12,12 +11,12 @@ use crate::{
 
 use super::{Bag, BagDrop};
 
-#[derive(Error, Debug)]
+#[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
 pub enum PutStringCcsidError {
-    #[error("Provided CCSID = {}, bag CCSID = {}", .0.map_or(0, NonZeroI32::get), .1.map_or(0, NonZeroI32::get))]
+    #[display("Provided CCSID = {}, bag CCSID = {}", _0.map_or(0, NonZeroI32::get), _1.map_or(0, NonZeroI32::get))]
     CcsidMismatch(Option<NonZeroI32>, Option<NonZeroI32>),
-    #[error(transparent)]
-    Mqi(#[from] Error),
+    #[from]
+    Mqi(Error),
 }
 
 pub trait BagItemPut<L: Library<MQ: function::MQAI>> {

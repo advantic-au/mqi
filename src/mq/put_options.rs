@@ -1,8 +1,8 @@
-use crate::{core::values, sys, types, Conn, Message, MqMask, MqStruct, ResultComp, ResultCompErrExt, MqiAttr, MqiOption};
+use crate::{core::values, sys, types, Conn, Properties, MqMask, MqStruct, ResultComp, ResultCompErrExt, MqiAttr, MqiOption};
 
-use super::put::{Properties, PutParam};
+use super::put::{PropertyAction, PutParam};
 
-impl<C: Conn> MqiOption<PutParam<'_>> for &mut Message<C> {
+impl<C: Conn> MqiOption<PutParam<'_>> for &mut Properties<C> {
     fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
         pmo.Action = sys::MQACTP_NEW;
         pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
@@ -15,20 +15,20 @@ impl MqiOption<PutParam<'_>> for MqMask<values::MQPMO> {
     }
 }
 
-impl<'handle, C: Conn> MqiOption<PutParam<'_>> for Properties<'handle, C> {
+impl<'handle, C: Conn> MqiOption<PutParam<'_>> for PropertyAction<'handle, C> {
     fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
         match self {
-            Properties::Reply(original, new) => {
+            PropertyAction::Reply(original, new) => {
                 pmo.Action = sys::MQACTP_REPLY;
                 pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
                 pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };
             }
-            Properties::Forward(original, new) => {
+            PropertyAction::Forward(original, new) => {
                 pmo.Action = sys::MQACTP_FORWARD;
                 pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
                 pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };
             }
-            Properties::Report(original, new) => {
+            PropertyAction::Report(original, new) => {
                 pmo.Action = sys::MQACTP_REPORT;
                 pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
                 pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };

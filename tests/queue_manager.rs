@@ -4,7 +4,7 @@ use mqi::{
     connect_options::{ApplName, Binding, ClientDefinition, Credentials, Tls},
     mqstr, sys,
     types::{ChannelName, CipherSpec, ConnectionName, MessageId, QueueName, FORMAT_NONE},
-    Message, MqMask, MqValue, QueueManager, ResultCompErrExt, ResultCompExt,
+    Properties, MqMask, MqValue, QueueManager, ResultCompErrExt, ResultCompExt,
 };
 
 #[test]
@@ -18,7 +18,7 @@ fn thread() {
     println!("{:?}", tag.0);
     thread::spawn(move || {
         let c = Arc::new(qm);
-        let msg = Message::new(&*c, MqValue::default()).expect("message created");
+        let msg = Properties::new(&*c, MqValue::default()).expect("message created");
         msg.set_property("wally", "test", MqValue::default())
             .warn_as_error()
             .expect("property set");

@@ -5,7 +5,7 @@ use libmqm_sys::function;
 
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat};
-use crate::{sys, Conn, Message, MqMask, MqStruct, Object, QueueManagerShare, ResultComp, MqiAttr, MqiOption, ResultCompErrExt};
+use crate::{sys, Conn, Properties, MqMask, MqStruct, Object, QueueManagerShare, ResultComp, MqiAttr, MqiOption, ResultCompErrExt};
 use crate::core::{self, values};
 
 use super::OpenParamOption;
@@ -20,10 +20,10 @@ pub trait PutMessage {
 pub type PutParam<'a> = (MqStruct<'static, sys::MQMD2>, MqStruct<'a, sys::MQPMO>);
 
 #[derive(Debug)]
-pub enum Properties<'handle, C: Conn> {
-    Reply(&'handle Message<C>, &'handle mut Message<C>),
-    Forward(&'handle Message<C>, &'handle mut Message<C>),
-    Report(&'handle Message<C>, &'handle mut Message<C>),
+pub enum PropertyAction<'handle, C: Conn> {
+    Reply(&'handle Properties<C>, &'handle mut Properties<C>),
+    Forward(&'handle Properties<C>, &'handle mut Properties<C>),
+    Report(&'handle Properties<C>, &'handle mut Properties<C>),
 }
 
 impl PutMessage for str {

@@ -6,9 +6,9 @@ use std::thread;
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::connect_options::Credentials;
 use mqi::open_options::SelectionString;
-use mqi::property::{Attributes, Metadata, Name};
+use mqi::properties_options::{Attributes, Metadata, Name};
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
-use mqi::{get, Message, MqMask, MqValue, ResultCompErrExt as _, ResultCompExt as _};
+use mqi::{get, Properties, MqMask, MqValue, ResultCompErrExt as _, ResultCompExt as _};
 use mqi::{attribute, mqstr, sys, Object, QueueManager};
 
 #[test]
@@ -20,7 +20,7 @@ fn object() {
         .expect("Could not establish connection");
 
     thread::spawn(move || {
-        let mut props = Message::new(&qm, MqValue::default()).expect("property creation");
+        let mut props = Properties::new(&qm, MqValue::default()).expect("property creation");
         props
             .set_property("my_property", "valuex2", MqValue::default())
             .warn_as_error()
@@ -45,7 +45,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
         (QUEUE, SelectionString(&*sel)),
         MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
     )?;
-    let mut properties = Message::new(&qm, MqValue::default())?;
+    let mut properties = Properties::new(&qm, MqValue::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
     let msg = object.get_message(

@@ -37,15 +37,28 @@ pub mod fmt {
     pub const MQFMT_STRING: Fmt = cstr_array(sys::MQFMT_STRING);
 }
 
-#[derive(thiserror::Error, Debug, Clone)]
+#[derive(derive_more::Error, derive_more::Display, Debug, Clone)]
 pub enum HeaderError {
-    #[error("Unexpected STRUC_ID: {:?} or version", .0)]
+    #[display("Unexpected STRUC_ID: {:?} or version", _0)]
+    #[error(ignore)]
     UnexpectedStruc(StrucId),
-    #[error("Length of remaining data was insufficient for expected header: {} exceeds data remaining ({})", .0, .1)]
+    #[display(
+        "Length of remaining data was insufficient for expected header: {} exceeds data remaining ({})",
+        _0,
+        _1
+    )]
+    #[error(ignore)]
     DataTruncated(usize, usize),
-    #[error("Length provided by header is malformed: {}", .0)]
+    #[display("Length provided by header is malformed: {}", _0)]
+    #[error(ignore)]
     MalformedLength(sys::MQLONG),
-    #[error("Length provided by header is not within the data offset: {} not within offset {}..{}", .0, .1, .2)]
+    #[display(
+        "Length provided by header is not within the data offset: {} not within offset {}..{}",
+        _0,
+        _1,
+        _2
+    )]
+    #[error(ignore)]
     StrucLengthOffsetMismatch(usize, usize, usize),
 }
 

@@ -9,12 +9,12 @@ pub use mqmask::*;
 pub use mqstr::*;
 pub use mqvalue::*;
 pub use result::*;
-pub(super) use parameters::*;
+pub use parameters::*;
 
 #[macro_export]
 macro_rules! define_mqvalue {
     ($vis:vis $i:ident, $source:path) => {
-        #[derive(Copy, Clone)]
+        #[derive(Copy, Clone, Debug)]
 		$vis struct $i;
 		$crate::impl_constant_lookup!($i, $source);
     };

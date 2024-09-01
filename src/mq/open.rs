@@ -19,10 +19,10 @@ impl<C: Conn> Object<C> {
             options,
         );
         open_option.apply_param(&mut oo);
-        R::consume(&mut oo, |(oo, options)| {
+        R::consume(&mut oo, |(od, options)| {
             connection
                 .mq()
-                .mqopen(connection.handle(), oo, *options)
+                .mqopen(connection.handle(), od, *options)
                 .map_completion(|handle| Self {
                     handle,
                     connection,

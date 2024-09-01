@@ -16,12 +16,13 @@ use {
 pub mod error {
     use crate::{sys, Error};
 
-    #[derive(thiserror::Error, Debug)]
+    #[derive(Debug, derive_more::From, derive_more::Error, derive_more::Display)]
     pub enum MqInqError {
-        #[error("{}, length: {}", .1, .0)]
+        #[display("{}, length: {}", _1, _0)]
         Length(sys::MQLONG, Error),
-        #[error(transparent)]
-        MQ(#[from] Error),
+        #[from]
+        #[display("{_0}")]
+        MQ(Error),
     }
 
     impl From<MqInqError> for Error {

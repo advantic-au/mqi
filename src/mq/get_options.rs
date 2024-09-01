@@ -1,4 +1,4 @@
-use crate::{core::values, sys, types, Conn, Message, MqMask, MqiOption};
+use crate::{core::values, sys, types, Conn, Properties, MqMask, MqiOption};
 
 use super::get::{GetConvert, GetParam, GetWait, MatchOptions};
 
@@ -34,7 +34,7 @@ impl MqiOption<GetParam> for GetConvert {
     }
 }
 
-impl<C: Conn> MqiOption<GetParam> for &mut Message<C> {
+impl<C: Conn> MqiOption<GetParam> for &mut Properties<C> {
     fn apply_param(self, param: &mut GetParam) {
         param.gmo.Options |= sys::MQGMO_PROPERTIES_IN_HANDLE;
         param.gmo.MsgHandle = unsafe { self.handle().raw_handle() }

@@ -65,22 +65,22 @@ pub const ANY_MESSAGE: MatchOptions = MatchOptions {
 };
 
 // TODO: add MQ warnings to error messages
-#[derive(thiserror::Error, Debug)]
+#[derive(derive_more::Error, derive_more::From, derive_more::Display, Debug)]
 pub enum GetStringError {
-    #[error("Message parsing error: {}", .0)]
+    #[display("Message parsing error: {_0}")]
     Utf8Parse(Utf8Error, Option<types::Warning>),
-    #[error("Unexpected format or CCSID. Message format = '{}', CCSID = {}", .0, .1)]
+    #[display("Unexpected format or CCSID. Message format = '{_0}', CCSID = {_1}")]
     UnexpectedFormat(TextEnc<Fmt>, sys::MQLONG, Option<types::Warning>),
-    #[error(transparent)]
-    MQ(#[from] Error),
+    #[from]
+    MQ(Error),
 }
 
-#[derive(thiserror::Error, Debug)]
+#[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
 pub enum GetStringCcsidError {
-    #[error("Unexpected format. Message format = '{}'", .0)]
+    #[display("Unexpected format. Message format = '{_0}'")]
     UnexpectedFormat(TextEnc<Fmt>, Option<types::Warning>),
-    #[error(transparent)]
-    MQ(#[from] Error),
+    #[from]
+    MQ(Error),
 }
 
 #[derive(Default)]

@@ -4,19 +4,19 @@ use libmqm_sys::function;
 
 use crate::core::values::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::core::MessageHandle;
-use crate::property::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetPropertyType};
+use crate::properties_options::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetProperty};
 use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
 
 use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt};
 use crate::{ResultComp, ResultCompErr, ResultErr};
 
 #[derive(Debug)]
-pub struct Message<C: Conn> {
+pub struct Properties<C: Conn> {
     handle: core::MessageHandle,
     connection: C,
 }
 
-impl<C: Conn> Drop for Message<C> {
+impl<C: Conn> Drop for Properties<C> {
     fn drop(&mut self) {
         let mqdmho = sys::MQDMHO::default();
 
@@ -26,23 +26,6 @@ impl<C: Conn> Drop for Message<C> {
                 .mq()
                 .mqdltmh(Some(self.connection.handle()), &mut self.handle, &mqdmho);
         }
-    }
-}
-
-impl<'a> MqStruct<'a, sys::MQCHARV> {
-    pub fn from_encoded_str(value: &'a (impl EncodedString + ?Sized)) -> Self {
-        let data = value.data();
-        let len = data
-            .len()
-            .try_into()
-            .expect("string length exceeds maximum positive MQLONG for MQCHARV");
-        MqStruct::new(sys::MQCHARV {
-            VSPtr: ptr::from_ref(data).cast_mut().cast(),
-            VSLength: len,
-            VSBufSize: len,
-            VSCCSID: value.ccsid().map_or(0, NonZero::into),
-            ..sys::MQCHARV::default()
-        })
     }
 }
 
@@ -139,7 +122,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::MQI>>(
 
 pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
     name: &'name N,
-    message: &'message Message<C>,
+    message: &'message Properties<C>,
     options: MqMask<MQIMPO>,
     _marker: PhantomData<P>,
 }
@@ -160,7 +143,7 @@ impl<P: PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropI
     }
 }
 
-impl<C: Conn> Message<C> {
+impl<C: Conn> Properties<C> {
     pub const fn handle(&self) -> &MessageHandle {
         &self.handle
     }
@@ -286,7 +269,7 @@ impl<C: Conn> Message<C> {
     pub fn set_property(
         &self,
         name: &(impl EncodedString + ?Sized),
-        value: &(impl SetPropertyType + ?Sized),
+        value: &(impl SetProperty + ?Sized),
         location: MqValue<MQSMPO>,
     ) -> ResultComp<()> {
         let mut mqpd = MqStruct::<sys::MQPD>::default();

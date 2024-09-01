@@ -3,7 +3,7 @@ mod callback;
 mod connect;
 #[cfg(feature = "link")]
 mod link;
-mod message;
+mod properties;
 mod mqmd;
 mod mqstruct;
 mod object;
@@ -12,12 +12,10 @@ mod stat;
 mod strings;
 mod subscribe;
 
-pub mod connect_options;
 pub mod encoding;
 pub mod headers;
 pub mod types;
 
-pub use message::*;
 pub use mqstruct::*;
 pub use object::*;
 pub use connect::*;
@@ -26,6 +24,7 @@ pub use mqmd::*;
 pub use buffer::*;
 pub use subscribe::*;
 pub use stat::*;
+pub use properties::*;
 
 pub mod attribute;
 pub mod get;
@@ -33,7 +32,9 @@ pub mod put;
 
 mod attribute_types;
 
+pub mod connect_options;
 pub mod get_options;
 pub mod open_options;
 pub mod put_options;
 pub mod subscribe_options;
+pub mod properties_options;

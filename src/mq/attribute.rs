@@ -224,13 +224,15 @@ impl SetItems for MultiItem {
     }
 }
 
-#[derive(thiserror::Error, Debug)]
+#[derive(derive_more::Display, derive_more::Error, Debug)]
 pub enum AttributeError {
-    #[error("{} is not an integer attribute", .0)]
+    #[error(ignore)]
+    #[display("{_0} is not an integer attribute")]
     NotIntType(MqValue<values::MQXA>),
-    #[error("{} is not a text attribute", .0)]
+    #[error(ignore)]
+    #[display("{_0} is not a text attribute")]
     NotTextType(MqValue<values::MQXA>),
-    #[error("actual text attribute length = {}, expected length = {}", .0, .1)]
+    #[display("actual text attribute length = {_0}, expected length = {_1}")]
     InvalidTextLength(usize, usize),
 }
 

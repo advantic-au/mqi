@@ -566,14 +566,17 @@ pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, MqValue<va
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, derive_more::Error, derive_more::Display)]
 pub enum MqServerSyntaxError {
-    #[error("Invalid Format")]
+    #[display("Invalid Format")]
     InvalidFormat,
-    #[error("Channel \"{}\" invalid format", .0)]
+    #[display("Channel \"{_0}\" invalid format")]
+    #[error(ignore)]
     ChannelFormat(String),
-    #[error("Connection Name \"{}\" invalid format", .0)]
+    #[display("Connection Name \"{_0}\" invalid format")]
+    #[error(ignore)]
     ConnectionNameFormat(String),
-    #[error("Transport \"{}\" not recognized", .0)]
+    #[display("Transport \"{_0}\" not recognized")]
+    #[error(ignore)]
     UnrecognizedTransport(String),
 }

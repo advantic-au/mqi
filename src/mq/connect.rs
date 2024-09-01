@@ -1,10 +1,11 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::sync::Arc;
 
 use libmqm_sys::function;
 
-use crate::core::{self, Library, MQFunctions};
+use crate::core::{self, ConnectionHandle, Library, MQFunctions};
 use crate::{sys, Error, MqiValue, ResultCompErrExt as _};
 use crate::ResultComp;
 
@@ -84,17 +85,6 @@ impl<L: Library<MQ: function::MQI>, H> Drop for QueueManagerShare<'_, L, H> {
         let _ = self.mq.mqdisc(&mut self.handle);
     }
 }
-
-// impl<L: Library<MQ: function::MQI>, H: HandleShare> MqiValue<Self> for QueueManagerShare<'_, L, H> {
-//     type Param<'a> = ConnectParam<'a>;
-
-//     fn from_mqi<F: FnOnce(&mut Self::Param<'_>) -> ResultComp<Self>>(
-//         param: &mut Self::Param<'_>,
-//         connect: F,
-//     ) -> ResultComp<Self> {
-//         connect(param)
-//     }
-// }
 
 impl<L: Library<MQ: function::MQI>, H: HandleShare, P> MqiValue<P, Self> for QueueManagerShare<'_, L, H> {
     type Error = Error;
@@ -180,6 +170,42 @@ impl<'cb, L: Library<MQ: function::MQI>, H> QueueManagerShare<'cb, L, H> {
             connection: self,
             state: SyncpointState::Open,
         }
+    }
+}
+
+impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<'_, L, H>> {
+    type Lib = L;
+
+    fn mq(&self) -> &MQFunctions<Self::Lib> {
+        self.deref().mq()
+    }
+
+    fn handle(&self) -> &ConnectionHandle {
+        self.deref().handle()
+    }
+}
+
+impl<L: Library<MQ: function::MQI>, H> Conn for QueueManagerShare<'_, L, H> {
+    type Lib = L;
+
+    fn mq(&self) -> &MQFunctions<Self::Lib> {
+        Self::mq(self)
+    }
+
+    fn handle(&self) -> &ConnectionHandle {
+        Self::handle(self)
+    }
+}
+
+impl<L: Library<MQ: function::MQI>, H> Conn for &QueueManagerShare<'_, L, H> {
+    type Lib = L;
+
+    fn mq(&self) -> &MQFunctions<Self::Lib> {
+        QueueManagerShare::<L, H>::mq(self)
+    }
+
+    fn handle(&self) -> &ConnectionHandle {
+        QueueManagerShare::<L, H>::handle(self)
     }
 }
 

@@ -1,9 +1,7 @@
-use std::ops::{Deref, DerefMut};
-
 use crate::{sys, ReasonCode, ResultCompErr};
 use crate::{Completion, CompletionCode, Error};
 
-#[derive(Default)]
+#[derive(Default, Clone, derive_more::Deref, derive_more::DerefMut)]
 pub struct MQIOutcome<T> {
     /// MQI verb that caused the failure
     pub verb: &'static str,
@@ -12,6 +10,8 @@ pub struct MQIOutcome<T> {
     /// Reason code of the MQI function call
     pub rc: ReasonCode,
     /// Return value of the MQI function call
+    #[deref]
+    #[deref_mut]
     pub value: T,
 }
 
@@ -32,20 +32,6 @@ impl<T> MQIOutcome<T> {
             rc: ReasonCode::default(),
             cc: CompletionCode::default(),
         }
-    }
-}
-
-impl<T> Deref for MQIOutcome<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
-}
-
-impl<T> DerefMut for MQIOutcome<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.value
     }
 }
 

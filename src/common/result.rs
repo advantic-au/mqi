@@ -1,11 +1,7 @@
 use crate::core::values::{MQCC, MQRC};
 use crate::sys;
 use crate::{HasMqNames, MqValue};
-use std::{
-    fmt::{Debug, Display},
-    ops::{Deref, DerefMut},
-};
-use thiserror::Error;
+use std::fmt::{Debug, Display};
 
 /// MQ API reason code (`MQRC_*`)
 pub type ReasonCode = MqValue<MQRC>;
@@ -37,9 +33,16 @@ impl ReasonCode {
     }
 }
 /// A value returned from an MQ API call, optionally with a warning `ReasonCode`
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, derive_more::Deref, derive_more::DerefMut, derive_more::AsRef, derive_more::AsMut)]
 #[must_use]
-pub struct Completion<T>(pub T, pub Option<(ReasonCode, &'static str)>);
+pub struct Completion<T>(
+    #[deref]
+    #[deref_mut]
+    #[as_ref]
+    #[as_mut]
+    pub T,
+    pub Option<(ReasonCode, &'static str)>,
+);
 
 impl<T> Completion<T> {
     pub const fn new(value: T) -> Self {
@@ -101,37 +104,9 @@ impl<T: Display> Display for Completion<T> {
     }
 }
 
-impl<T> AsMut<T> for Completion<T> {
-    fn as_mut(&mut self) -> &mut T {
-        let Self(value, ..) = self;
-        value
-    }
-}
-
-impl<T> AsRef<T> for Completion<T> {
-    fn as_ref(&self) -> &T {
-        let Self(value, ..) = self;
-        value
-    }
-}
-
-impl<T> Deref for Completion<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.as_ref()
-    }
-}
-
-impl<T> DerefMut for Completion<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.as_mut()
-    }
-}
-
 /// MQ failure with `CompCode` != `MQCC_OK`. Has the associated verb and `ReasonCode`.
-#[derive(Debug, Error)]
-#[error("{0}: {1} - {2}")]
+#[derive(Debug, derive_more::Error, derive_more::Display)]
+#[display("{_0}: {_1} - {_2}")]
 pub struct Error(pub CompletionCode, pub &'static str, pub ReasonCode);
 
 /// Result of an MQI API call wrapped in a `Completion` for warnings
