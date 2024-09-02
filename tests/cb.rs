@@ -3,10 +3,10 @@ use std::{error::Error, ptr, sync::Arc, thread};
 
 use mqi::{
     connect_options::{ApplName, Binding, Credentials},
-    core::ConnectionHandle,
+    core::{values, ConnectionHandle},
     mqstr, sys,
     types::QueueName,
-    MqMask, MqStruct, MqValue, Object, QueueManager, ResultCompExt as _, MQMD,
+    MqStruct, Object, QueueManager, ResultCompExt as _, MQMD,
 };
 
 #[test]
@@ -14,10 +14,10 @@ fn qm() -> Result<(), Box<dyn Error>> {
     let mut qm: QueueManager<_> = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
 
     qm.register_event_handler(
-        MqMask::from(sys::MQCBDO_REGISTER_CALL | sys::MQCBDO_DEREGISTER_CALL),
+        values::MQCBDO(sys::MQCBDO_REGISTER_CALL | sys::MQCBDO_DEREGISTER_CALL),
         move |handle, _: &MqStruct<sys::MQCBC>| println!("{handle}"),
     )?;
-    //qm.register_event_handler(MqMask::from(sys::MQCBDO_REGISTER_CALL), &CallbackHandle::from(|_, _: &'_ MqStruct<sys::MQCBC>| ()));
+    //qm.register_event_handler(MQCBDO(sys::MQCBDO_REGISTER_CALL), &CallbackHandle::from(|_, _: &'_ MqStruct<sys::MQCBC>| ()));
     Ok(())
 }
 
@@ -90,7 +90,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
     .warn_as_error()?;
 
     let qm = Arc::new(qm);
-    let object: Object<_> = Object::open(qm.clone(), QUEUE, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
+    let object: Object<_> = Object::open(qm.clone(), QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
 
     let _ = thread::spawn(move || {
         println!("{:?}", object.handle());
@@ -107,7 +107,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
         qm.mq()
             .mqcb(
                 qm.handle(),
-                MqMask::from(sys::MQOP_REGISTER),
+                values::MQOP(sys::MQOP_REGISTER),
                 &cbd,
                 Some(object.handle()),
                 Some(&*mqmd),
@@ -118,7 +118,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
         let ctlo = MqStruct::<sys::MQCTLO>::default();
 
         qm.mq()
-            .mqctl(qm.handle(), MqValue::from(sys::MQOP_START_WAIT), &ctlo)
+            .mqctl(qm.handle(), values::MQOP(sys::MQOP_START_WAIT), &ctlo)
             .warn_as_error()
             .expect("Bad state");
 
@@ -133,7 +133,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
     // let ctlo = MqStruct::<sys::MQCTLO>::default();
     // connection
     //     .mq()
-    //     .mqctl(connection.handle(), MqValue::from(sys::MQOP_SUSPEND), &ctlo)
+    //     .mqctl(connection.handle(), MQOP(sys::MQOP_SUSPEND), &ctlo)
     //     .warn_as_error()?;
 
     // object.close().warn_as_error()?;

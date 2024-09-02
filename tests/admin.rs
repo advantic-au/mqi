@@ -2,17 +2,18 @@
 
 use mqi::admin::Bag;
 use mqi::connect_options::{ApplName, ClientDefinition, Credentials};
-use mqi::core::mqai::values;
+use mqi::core::mqai::values::{MqaiSelector, MQCMD};
+use mqi::core::values;
 use mqi::types::ObjectName;
-use mqi::{mqstr, MqMask, MqStr, MqValue, ResultCompExt as _};
+use mqi::{mqstr, MqStr, ResultCompExt as _};
 use mqi::{sys, QueueManager};
 
 #[test]
 fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
-    let admin_bag = Bag::new(MqMask::from(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
-    admin_bag.add(MqValue::from(sys::MQCA_Q_NAME), "*")?.discard_warning();
+    let admin_bag = Bag::new(values::MQCBO(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
+    admin_bag.add(MqaiSelector(sys::MQCA_Q_NAME), "*")?.discard_warning();
     admin_bag
-        .add(MqValue::from(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
+        .add(MqaiSelector(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
         .discard_warning();
 
     let qm: QueueManager<_> = QueueManager::connect(
@@ -25,11 +26,11 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
     )
     .warn_as_error()?;
     let execute_result = admin_bag
-        .execute(qm.handle(), MqValue::from(sys::MQCMD_INQUIRE_Q), None, None, None)
+        .execute(qm.handle(), MQCMD(sys::MQCMD_INQUIRE_Q), None, None, None)
         .warn_as_error()?;
 
     for bag in execute_result
-        .try_iter::<Bag<_, _>>(MqValue::from(sys::MQHA_BAG_HANDLE))?
+        .try_iter::<Bag<_, _>>(MqaiSelector(sys::MQHA_BAG_HANDLE))?
         .flatten()
     // flatten effectively ignores items that have errors
     {
@@ -38,7 +39,7 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         let alt_date = *bag.inquire::<MqStr<12>>(sys::MQCA_ALTERATION_DATE)?;
         let alt_time = *bag.inquire::<MqStr<12>>(sys::MQCA_ALTERATION_TIME)?;
         let ccsid = *bag.inquire::<sys::MQLONG>(sys::MQIA_CODED_CHAR_SET_ID)?;
-        let q_type = *bag.inquire::<MqValue<values::MQQT>>(sys::MQIA_Q_TYPE)?;
+        let q_type = *bag.inquire::<sys::MQLONG>(sys::MQIA_Q_TYPE)?;
         let q_pageset = *bag.inquire::<sys::MQLONG>(sys::MQIA_PAGESET_ID)?;
         let q_desc = *bag.inquire::<MqStr<64>>(sys::MQCA_Q_DESC)?;
         println!("Queue Name: {}", q.unwrap_or_default());

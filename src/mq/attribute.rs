@@ -1,12 +1,12 @@
 use std::{collections::VecDeque, iter, slice};
 
-use crate::{common::ResultCompErrExt as _, core::values, sys, Conn, MqValue, Object, ResultComp};
+use crate::{common::ResultCompErrExt as _, core::values, sys, Conn, Object, ResultComp};
 
 pub use super::attribute_types::*;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AttributeType {
-    pub(super) attribute: MqValue<values::MQXA>,
+    pub(super) attribute: values::MQXA,
     pub(super) text_len: u32,
 }
 
@@ -22,12 +22,12 @@ impl AttributeType {
     /// # Safety
     /// Consumers must ensure the `text_len` is correct for the given `attribute`
     #[must_use]
-    pub const unsafe fn new(attribute: MqValue<values::MQXA>, text_len: u32) -> Self {
+    pub const unsafe fn new(attribute: values::MQXA, text_len: u32) -> Self {
         Self { attribute, text_len }
     }
 }
 
-impl MqValue<values::MQXA> {
+impl values::MQXA {
     #[inline]
     #[must_use]
     pub const fn is_text(&self) -> bool {
@@ -57,7 +57,7 @@ pub enum AttributeValue<T> {
 
 impl<T> InqResItem<T> {
     #[must_use]
-    pub fn into_tuple(self) -> (MqValue<values::MQXA>, AttributeValue<T>) {
+    pub fn into_tuple(self) -> (values::MQXA, AttributeValue<T>) {
         match self {
             Self::Text(TextItem { selector, value }) => (selector, AttributeValue::Text(value)),
             Self::Long(IntItem { selector, value }) => (selector, AttributeValue::Long(value)),
@@ -69,7 +69,7 @@ struct MultiItemIter<'a> {
     text_pos: usize,
     text_attr: &'a [sys::MQCHAR],
     text_len: slice::Iter<'a, u32>,
-    selectors: slice::Iter<'a, MqValue<values::MQXA>>,
+    selectors: slice::Iter<'a, values::MQXA>,
     int_attr: slice::Iter<'a, sys::MQLONG>,
 }
 
@@ -180,7 +180,7 @@ impl<C: Conn> Object<C> {
 }
 
 pub trait SetItems: sealed::Sealed {
-    fn selectors(&self) -> &[MqValue<values::MQXA>];
+    fn selectors(&self) -> &[values::MQXA];
     fn int_attr(&self) -> &[sys::MQLONG];
     fn text_attr(&self) -> &[sys::MQCHAR];
 }
@@ -191,19 +191,19 @@ mod sealed {
 
 #[derive(Debug, Clone, Copy)]
 pub struct IntItem {
-    selector: MqValue<values::MQXA>,
+    selector: values::MQXA,
     value: sys::MQLONG,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct TextItem<T> {
-    selector: MqValue<values::MQXA>,
+    selector: values::MQXA,
     value: T,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct MultiItem {
-    selectors: Vec<MqValue<values::MQXA>>,
+    selectors: Vec<values::MQXA>,
     int_attr: Vec<sys::MQLONG>,
     text_attr: Vec<sys::MQCHAR>,
     text_len: Vec<u32>,
@@ -211,7 +211,7 @@ pub struct MultiItem {
 
 impl sealed::Sealed for MultiItem {}
 impl SetItems for MultiItem {
-    fn selectors(&self) -> &[MqValue<values::MQXA>] {
+    fn selectors(&self) -> &[values::MQXA] {
         &self.selectors
     }
 
@@ -228,10 +228,10 @@ impl SetItems for MultiItem {
 pub enum AttributeError {
     #[error(ignore)]
     #[display("{_0} is not an integer attribute")]
-    NotIntType(MqValue<values::MQXA>),
+    NotIntType(values::MQXA),
     #[error(ignore)]
     #[display("{_0} is not a text attribute")]
-    NotTextType(MqValue<values::MQXA>),
+    NotTextType(values::MQXA),
     #[display("actual text attribute length = {_0}, expected length = {_1}")]
     InvalidTextLength(usize, usize),
 }
@@ -251,7 +251,7 @@ impl MultiItem {
 }
 
 impl IntItem {
-    pub const fn new(selector: MqValue<values::MQXA>, value: sys::MQLONG) -> Result<Self, AttributeError> {
+    pub const fn new(selector: values::MQXA, value: sys::MQLONG) -> Result<Self, AttributeError> {
         if selector.is_int() {
             Ok(Self { selector, value })
         } else {
@@ -262,7 +262,7 @@ impl IntItem {
     /// # Safety
     /// Consumers must ensure the `selector` is within the MQIA constant range
     #[must_use]
-    pub const unsafe fn new_unchecked(selector: MqValue<values::MQXA>, value: sys::MQLONG) -> Self {
+    pub const unsafe fn new_unchecked(selector: values::MQXA, value: sys::MQLONG) -> Self {
         Self { selector, value }
     }
 }
@@ -284,14 +284,14 @@ impl<'a> TextItem<&'a [sys::MQCHAR]> {
     /// # Safety
     /// Consumers must ensure the `selector` is within the MQCA constant range and the slice is the correct length
     #[must_use]
-    pub const unsafe fn new_unchecked(selector: MqValue<values::MQXA>, value: &'a [sys::MQCHAR]) -> Self {
+    pub const unsafe fn new_unchecked(selector: values::MQXA, value: &'a [sys::MQCHAR]) -> Self {
         Self { selector, value }
     }
 }
 
 impl sealed::Sealed for IntItem {}
 impl SetItems for IntItem {
-    fn selectors(&self) -> &[MqValue<values::MQXA>] {
+    fn selectors(&self) -> &[values::MQXA] {
         slice::from_ref(&self.selector)
     }
 
@@ -306,7 +306,7 @@ impl SetItems for IntItem {
 
 impl<T> sealed::Sealed for InqResItem<T> {}
 impl<T: AsRef<[sys::MQCHAR]>> SetItems for InqResItem<T> {
-    fn selectors(&self) -> &[MqValue<values::MQXA>] {
+    fn selectors(&self) -> &[values::MQXA] {
         match self {
             Self::Text(t) => t.selectors(),
             Self::Long(l) => l.selectors(),
@@ -330,7 +330,7 @@ impl<T: AsRef<[sys::MQCHAR]>> SetItems for InqResItem<T> {
 
 impl<T> sealed::Sealed for TextItem<T> {}
 impl<T: AsRef<[sys::MQCHAR]>> SetItems for TextItem<T> {
-    fn selectors(&self) -> &[MqValue<values::MQXA>] {
+    fn selectors(&self) -> &[values::MQXA] {
         slice::from_ref(&self.selector)
     }
 

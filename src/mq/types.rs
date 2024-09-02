@@ -1,4 +1,4 @@
-use crate::{core::values, headers::TextEnc, sys, MqMask, MqStr, ReasonCode};
+use crate::{core::values, headers::TextEnc, sys, MqStr, ReasonCode};
 use std::str;
 
 use super::headers::fmt::MQFMT_NONE;
@@ -23,13 +23,13 @@ pub type Warning = (ReasonCode, &'static str);
 #[derive(Clone, Copy, Debug)]
 pub struct MessageFormat {
     pub ccsid: sys::MQLONG,
-    pub encoding: MqMask<values::MQENC>,
+    pub encoding: values::MQENC,
     pub fmt: TextEnc<Fmt>,
 }
 
 pub const FORMAT_NONE: MessageFormat = MessageFormat {
     ccsid: 1208,
-    encoding: MqMask::from(sys::MQENC_NATIVE),
+    encoding: values::MQENC(sys::MQENC_NATIVE),
     fmt: TextEnc::Ascii(MQFMT_NONE),
 };
 

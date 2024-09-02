@@ -6,7 +6,7 @@ use std::{
     ptr,
 };
 
-use crate::{core::values::MQENC, sys, MqMask};
+use crate::{core::values::MQENC, sys};
 
 use super::{
     encoding::{ascii7_ebcdic, ebcdic_ascii7, is_ebcdic},
@@ -77,7 +77,7 @@ pub type NextHeader<'a> = (Header<'a>, &'a [u8], usize, MessageFormat);
 #[derive(Debug, Clone, Copy)]
 pub struct EncodedHeader<'a, T: ChainedHeader> {
     pub ccsid: sys::MQLONG,
-    pub encoding: MqMask<MQENC>,
+    pub encoding: MQENC,
     pub raw_header: &'a T,
     pub tail: &'a [u8],
 }
@@ -104,7 +104,7 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     }
 
     #[must_use]
-    pub fn next_encoding(&self) -> MqMask<MQENC> {
+    pub fn next_encoding(&self) -> MQENC {
         let next_encoding = self.native_mqlong(T::next_raw_encoding(self.raw_header)).into();
         if next_encoding == 0 {
             self.encoding
@@ -271,7 +271,7 @@ impl<const N: usize> TextEnc<[u8; N]> {
 fn parse_header<'a, T: ChainedHeader + 'a>(
     data: &'a [u8],
     next_ccsid: i32,
-    next_encoding: MqMask<MQENC>,
+    next_encoding: MQENC,
 ) -> Result<NextHeader<'a>, HeaderError> {
     let struc_len = mem::size_of::<T>();
     if struc_len > data.len() {
@@ -654,29 +654,29 @@ mod tests {
     use std::{mem::transmute, ptr, slice::from_raw_parts};
 
     use crate::{
+        core::values,
         headers::{EncodedHeader, Header, HeaderError},
         sys,
         types::{Fmt, MessageFormat},
-        MqMask,
     };
 
     use super::{fmt, next_header, ChainedHeader, TextEnc};
 
     const NEXT_DEAD: MessageFormat = MessageFormat {
         ccsid: 1208,
-        encoding: MqMask::from(sys::MQENC_NATIVE),
+        encoding: values::MQENC(sys::MQENC_NATIVE),
         fmt: TextEnc::Ebcdic(sys::MQDLH::FMT_EBCDIC),
     };
 
     const NEXT_RFH2: MessageFormat = MessageFormat {
         ccsid: 1208,
-        encoding: MqMask::from(sys::MQENC_NATIVE),
+        encoding: values::MQENC(sys::MQENC_NATIVE),
         fmt: TextEnc::Ebcdic(sys::MQRFH2::FMT_EBCDIC),
     };
 
     const NEXT_STRING: MessageFormat = MessageFormat {
         ccsid: 1208,
-        encoding: MqMask::from(sys::MQENC_NATIVE),
+        encoding: values::MQENC(sys::MQENC_NATIVE),
         fmt: TextEnc::Ascii(fmt::MQFMT_STRING),
     };
 
@@ -725,7 +725,7 @@ mod tests {
             data.as_slice(),
             MessageFormat {
                 ccsid: 1208,
-                encoding: MqMask::from(sys::MQENC_NATIVE),
+                encoding: values::MQENC(sys::MQENC_NATIVE),
                 fmt: TextEnc::Ascii(sys::MQDLH::FMT_ASCII),
             },
         );

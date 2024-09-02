@@ -1,6 +1,11 @@
 use mqi::{
-    connect_options::Credentials, core::values::MQSO, mqstr, open_options::ObjectString, sys, types::QueueName, MqMask, Object,
-    QueueManager, ResultCompExt as _, Subscription,
+    connect_options::Credentials,
+    core::values::{self, MQSO},
+    mqstr,
+    open_options::ObjectString,
+    sys,
+    types::QueueName,
+    Object, QueueManager, ResultCompExt as _, Subscription,
 };
 
 #[test]
@@ -9,12 +14,12 @@ fn subscribe() -> Result<(), Box<dyn std::error::Error>> {
 
     let qm: QueueManager<_> = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
 
-    let object = Object::open::<Object<_>>(&qm, QUEUE, MqMask::from(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
+    let object = Object::open::<Object<_>>(&qm, QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
 
     let (sub, obj) = Subscription::subscribe::<(Subscription<_>, Option<Object<_>>)>(
         &qm,
         (
-            MqMask::<MQSO>::from(sys::MQSO_CREATE | sys::MQSO_NON_DURABLE),
+            MQSO(sys::MQSO_CREATE | sys::MQSO_NON_DURABLE),
             &object,
             ObjectString("dev/"),
         ),

@@ -2,16 +2,16 @@ use std::marker::PhantomData;
 
 use libmqm_sys::function;
 
-use crate::core::mqai::values::MqaiSelector;
-use crate::core::Library;
-use crate::{sys, MqValue, ResultComp, ResultCompErr, ResultCompErrExt, WithMQError as _};
+use crate::core::mqai::values::{MqaiSelector, MQIND};
+use crate::core::{values, Library};
+use crate::{sys, ResultComp, ResultCompErr, ResultCompErrExt, WithMQError as _};
 
 use crate::Error;
 
 use super::{Bag, BagDrop, BagItemGet};
 
 pub struct BagItem<'bag, T, B: BagDrop, L: Library<MQ: function::MQAI>> {
-    selector: MqValue<MqaiSelector>,
+    selector: MqaiSelector,
     index: sys::MQLONG,
     count: sys::MQLONG,
     bag: &'bag Bag<B, L>,
@@ -30,13 +30,13 @@ impl<T: BagItemGet<L>, B: BagDrop, L: Library<MQ: function::MQAI>> Iterator for 
         if self.count == self.index {
             return None;
         };
-        let result = match T::inq_bag_item(self.selector, MqValue::from(self.index), self.bag) {
+        let result = match T::inq_bag_item(self.selector, MQIND(self.index), self.bag) {
             Err(e) => match e.mqi_error() {
-                Some(&Error(cc, _, rc))
-                    if cc == sys::MQCC_FAILED && (rc == sys::MQRC_SELECTOR_NOT_PRESENT || rc == sys::MQRC_INDEX_NOT_PRESENT) =>
-                {
-                    None
-                }
+                Some(&Error(
+                    values::MQCC(sys::MQCC_FAILED),
+                    _,
+                    values::MQRC(sys::MQRC_SELECTOR_NOT_PRESENT | sys::MQRC_INDEX_NOT_PRESENT),
+                )) => None,
                 _ => Some(Err(e)),
             },
             other => Some(other),
@@ -48,7 +48,7 @@ impl<T: BagItemGet<L>, B: BagDrop, L: Library<MQ: function::MQAI>> Iterator for 
 }
 
 impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
-    pub fn try_iter<T: BagItemGet<L>>(&self, selector: MqValue<MqaiSelector>) -> ResultComp<BagItem<'_, T, B, L>> {
+    pub fn try_iter<T: BagItemGet<L>>(&self, selector: MqaiSelector) -> ResultComp<BagItem<'_, T, B, L>> {
         self.mq.mq_count_items(self, selector).map_completion(|count| BagItem {
             selector,
             count,

@@ -1,8 +1,8 @@
-use crate::{core::values, sys, types, Conn, Properties, MqMask, MqiOption};
+use crate::{core::values, sys, types, Conn, Properties, MqiOption};
 
 use super::get::{GetConvert, GetParam, GetWait, MatchOptions};
 
-impl MqiOption<GetParam> for MqMask<values::MQGMO> {
+impl MqiOption<GetParam> for values::MQGMO {
     fn apply_param(self, param: &mut GetParam) {
         param.gmo.Options |= self.value();
     }

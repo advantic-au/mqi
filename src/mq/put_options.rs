@@ -1,4 +1,4 @@
-use crate::{core::values, sys, types, Conn, Properties, MqMask, MqStruct, ResultComp, ResultCompErrExt, MqiAttr, MqiOption};
+use crate::{core::values, sys, types, Conn, Properties, MqStruct, ResultComp, ResultCompErrExt, MqiAttr, MqiOption};
 
 use super::put::{PropertyAction, PutParam};
 
@@ -9,7 +9,7 @@ impl<C: Conn> MqiOption<PutParam<'_>> for &mut Properties<C> {
     }
 }
 
-impl MqiOption<PutParam<'_>> for MqMask<values::MQPMO> {
+impl MqiOption<PutParam<'_>> for values::MQPMO {
     fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
         pmo.Options |= self.value();
     }

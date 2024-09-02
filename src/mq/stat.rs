@@ -4,7 +4,7 @@ use libmqm_sys::MQI;
 
 use crate::{
     core::{values, Library},
-    sys, CompletionCode, MqMask, MqStr, MqValue, ReasonCode, ResultComp, ResultCompErrExt,
+    sys, CompletionCode, MqStr, ReasonCode, ResultComp, ResultCompErrExt,
 };
 
 use super::{types::ObjectName, MqStruct, QueueManagerShare, StrCcsidOwned};
@@ -30,7 +30,7 @@ impl AsyncPutStat {
             put_success_count: sts.PutSuccessCount,
             put_warning_count: sts.PutWarningCount,
             put_failure_count: sts.PutFailureCount,
-            object_type: MqValue::from(sts.ObjectType),
+            object_type: values::MQOT(sts.ObjectType),
             object_name: MqStr::from(sts.ObjectName),
             object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
             resolved_object_name: MqStr::from(sts.ResolvedObjectName),
@@ -52,7 +52,7 @@ impl ReconnectionStat {
                 value => Some(CompletionCode::from(value)),
             },
             reason: ReasonCode::from(sts.Reason),
-            object_type: MqValue::from(sts.ObjectType),
+            object_type: values::MQOT(sts.ObjectType),
             object_name: MqStr::from(sts.ObjectName),
             object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
         }
@@ -81,7 +81,7 @@ impl ReconnectionErrorStat {
                 value => Some(CompletionCode::from(value)),
             },
             reason: ReasonCode::from(sts.Reason),
-            object_type: MqValue::from(sts.ObjectType),
+            object_type: values::MQOT(sts.ObjectType),
             object_name: MqStr::from(sts.ObjectName),
             object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
             object_string: if object_string_buffer.is_empty() {
@@ -100,8 +100,8 @@ impl ReconnectionErrorStat {
                     num::NonZero::new(sts.SubName.VSCCSID),
                 ))
             },
-            open_options: MqMask::from(sts.OpenOptions),
-            sub_options: MqMask::from(sts.SubOptions),
+            open_options: values::MQOO(sts.OpenOptions),
+            sub_options: values::MQSO(sts.SubOptions),
         }
     }
 }
@@ -125,14 +125,14 @@ impl<'cb, L: Library<MQ: MQI>, H> QueueManagerShare<'cb, L, H> {
         sts.ObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
 
         self.mq()
-            .mqstat(self.handle(), MqValue::from(sys::MQSTAT_TYPE_ASYNC_ERROR), &mut sts)
+            .mqstat(self.handle(), values::MQSTAT(sys::MQSTAT_TYPE_ASYNC_ERROR), &mut sts)
             .map_completion(|()| AsyncPutStat::new(&sts, buffer))
     }
 
     pub fn stat_reconnection(&self) -> ResultComp<ReconnectionStat> {
         let mut sts = MqStruct::default();
         self.mq()
-            .mqstat(self.handle(), MqValue::from(sys::MQSTAT_TYPE_RECONNECTION), &mut sts)
+            .mqstat(self.handle(), values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION), &mut sts)
             .map_completion(|()| ReconnectionStat::new(&sts))
     }
 
@@ -157,7 +157,11 @@ impl<'cb, L: Library<MQ: MQI>, H> QueueManagerShare<'cb, L, H> {
         sts.SubName.VSPtr = ptr::from_mut(&mut *sub_name_buffer).cast();
 
         self.mq()
-            .mqstat(self.handle(), MqValue::from(sys::MQSTAT_TYPE_RECONNECTION_ERROR), &mut sts)
+            .mqstat(
+                self.handle(),
+                values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION_ERROR),
+                &mut sts,
+            )
             .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
     }
 }
@@ -170,7 +174,7 @@ pub struct AsyncPutStat {
     pub put_success_count: sys::MQLONG,
     pub put_warning_count: sys::MQLONG,
     pub put_failure_count: sys::MQLONG,
-    pub object_type: MqValue<values::MQOT>,
+    pub object_type: values::MQOT,
     pub object_name: ObjectName,               // TODO: fix wrapper?
     pub object_qmgr_name: ObjectName,          // TODO: fix wrapper?
     pub resolved_object_name: ObjectName,      // TODO: fix wrapper?
@@ -181,7 +185,7 @@ pub struct AsyncPutStat {
 pub struct ReconnectionStat {
     pub warning: Option<CompletionCode>,
     pub reason: ReasonCode,
-    pub object_type: MqValue<values::MQOT>,
+    pub object_type: values::MQOT,
     pub object_name: ObjectName,      // TODO: fix wrapper?
     pub object_qmgr_name: ObjectName, // TODO: fix wrapper?
 }
@@ -189,11 +193,11 @@ pub struct ReconnectionStat {
 pub struct ReconnectionErrorStat {
     pub warning: Option<CompletionCode>,
     pub reason: ReasonCode,
-    pub object_type: MqValue<values::MQOT>,
+    pub object_type: values::MQOT,
     pub object_name: ObjectName,      // TODO: fix wrapper?
     pub object_qmgr_name: ObjectName, // TODO: fix wrapper?
     pub object_string: Option<StrCcsidOwned>,
     pub sub_name: Option<StrCcsidOwned>,
-    pub open_options: MqMask<values::MQOO>,
-    pub sub_options: MqMask<values::MQSO>,
+    pub open_options: values::MQOO,
+    pub sub_options: values::MQSO,
 }

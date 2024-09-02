@@ -2,12 +2,12 @@ use std::{marker::PhantomData, num::NonZero, ptr};
 
 use libmqm_sys::function;
 
-use crate::core::values::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
+use crate::core::values::{self, MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::core::MessageHandle;
 use crate::properties_options::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetProperty};
 use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
 
-use crate::{EncodedString, Error, MqMask, MqStruct, MqValue, ResultCompErrExt};
+use crate::{EncodedString, Error, MqStruct, ResultCompErrExt};
 use crate::{ResultComp, ResultCompErr, ResultErr};
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::MQI>>(
     mqimpo: &mut MqStruct<sys::MQIMPO>,
     name: &MqStruct<sys::MQCHARV>,
     mqpd: &mut MqStruct<sys::MQPD>,
-    value_type: &mut MqValue<MQTYPE>,
+    value_type: &mut MQTYPE,
     mut value: InqBuffer<'a, u8>,
     max_value_size: Option<NonZero<usize>>,
     mut returned_name: Option<InqBuffer<'b, u8>>,
@@ -63,9 +63,8 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::MQI>>(
         ),
         returned_name,
     ) {
-        (Err(core::MqInqError::Length(length, Error(_, _, rc))), rn)
-            if rc == sys::MQRC_PROPERTY_VALUE_TOO_BIG
-                && max_value_size.map_or(true, |max_len| Into::<usize>::into(max_len) > value.len()) =>
+        (Err(core::MqInqError::Length(length, Error(.., values::MQRC(sys::MQRC_PROPERTY_VALUE_TOO_BIG)))), rn)
+            if max_value_size.map_or(true, |max_len| Into::<usize>::into(max_len) > value.len()) =>
         {
             let len = length.try_into().expect("length always converts to usize");
             let value_vec = InqBuffer::Owned(vec![0; len]);
@@ -83,9 +82,8 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::MQI>>(
                 max_name_size,
             )
         }
-        (Err(core::MqInqError::Length(length, Error(_, _, rc))), Some(rn))
-            if rc == sys::MQRC_PROPERTY_NAME_TOO_BIG
-                && max_name_size.map_or(true, |max_len| Into::<usize>::into(max_len) > rn.len()) =>
+        (Err(core::MqInqError::Length(length, Error(.., values::MQRC(sys::MQRC_PROPERTY_NAME_TOO_BIG)))), Some(rn))
+            if max_name_size.map_or(true, |max_len| Into::<usize>::into(max_len) > rn.len()) =>
         {
             let len = length.try_into().expect("length always converts to usize");
             let name_vec = InqBuffer::Owned(vec![0; len]);
@@ -123,7 +121,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::MQI>>(
 pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
     name: &'name N,
     message: &'message Properties<C>,
-    options: MqMask<MQIMPO>,
+    options: MQIMPO,
     _marker: PhantomData<P>,
 }
 
@@ -148,7 +146,7 @@ impl<C: Conn> Properties<C> {
         &self.handle
     }
 
-    pub fn new(connection: C, options: MqValue<MQCMHO>) -> ResultErr<Self> {
+    pub fn new(connection: C, options: MQCMHO) -> ResultErr<Self> {
         let mqcmho = sys::MQCMHO {
             Options: options.value(),
             ..sys::MQCMHO::default()
@@ -162,7 +160,7 @@ impl<C: Conn> Properties<C> {
     pub fn property_iter<'message, 'name, P, N>(
         &'message self,
         name: &'name N,
-        options: MqMask<MQIMPO>,
+        options: MQIMPO,
     ) -> MsgPropIter<'name, 'message, P, N, C>
     where
         P: PropertyValue + ?Sized,
@@ -176,7 +174,7 @@ impl<C: Conn> Properties<C> {
         }
     }
 
-    pub fn property<P>(&self, name: &(impl EncodedString + ?Sized), options: MqMask<MQIMPO>) -> ResultCompErr<Option<P>, Error>
+    pub fn property<P>(&self, name: &(impl EncodedString + ?Sized), options: MQIMPO) -> ResultCompErr<Option<P>, Error>
     where
         P: PropertyValue + ?Sized,
     {
@@ -241,9 +239,16 @@ impl<C: Conn> Properties<C> {
                 value: value.into(),
             });
 
-            property_not_available = mqi_inqmp
-                .as_ref()
-                .is_err_and(|&Error(cc, _, rc)| cc == sys::MQCC_FAILED && rc == sys::MQRC_PROPERTY_NOT_AVAILABLE);
+            property_not_available = mqi_inqmp.as_ref().is_err_and(|e| {
+                matches!(
+                    e,
+                    &Error(
+                        values::MQCC(sys::MQCC_FAILED),
+                        ..,
+                        values::MQRC(sys::MQRC_PROPERTY_NOT_AVAILABLE)
+                    )
+                )
+            });
 
             mqi_inqmp
         });
@@ -255,7 +260,7 @@ impl<C: Conn> Properties<C> {
         }
     }
 
-    pub fn delete_property(&self, name: &(impl EncodedString + ?Sized), options: MqValue<MQDMPO>) -> ResultComp<()> {
+    pub fn delete_property(&self, name: &(impl EncodedString + ?Sized), options: MQDMPO) -> ResultComp<()> {
         let mut mqdmpo = MqStruct::<sys::MQDMPO>::default();
         mqdmpo.Options = options.value();
 
@@ -270,7 +275,7 @@ impl<C: Conn> Properties<C> {
         &self,
         name: &(impl EncodedString + ?Sized),
         value: &(impl SetProperty + ?Sized),
-        location: MqValue<MQSMPO>,
+        location: MQSMPO,
     ) -> ResultComp<()> {
         let mut mqpd = MqStruct::<sys::MQPD>::default();
         let mut mqsmpo = MqStruct::<sys::MQSMPO>::default();

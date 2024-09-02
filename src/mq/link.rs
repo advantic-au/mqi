@@ -6,7 +6,6 @@ use crate::{core::values::MQCBO, ResultComp};
 #[cfg(feature = "mqai")]
 use crate::{
     admin::{Bag, Owned},
-    MqMask,
 };
 
 impl<H: HandleShare> QueueManagerShare<'_, LinkedMQ, H> {
@@ -21,7 +20,7 @@ impl<H: HandleShare> QueueManagerShare<'_, LinkedMQ, H> {
 
 #[cfg(feature = "mqai")]
 impl Bag<Owned, LinkedMQ> {
-    pub fn new(options: MqMask<MQCBO>) -> ResultComp<Self> {
+    pub fn new(options: MQCBO) -> ResultComp<Self> {
         Self::connect_lib(LinkedMQ, options)
     }
 }

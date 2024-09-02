@@ -5,7 +5,7 @@ use libmqm_sys::function;
 
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat};
-use crate::{sys, Conn, Properties, MqMask, MqStruct, Object, QueueManagerShare, ResultComp, MqiAttr, MqiOption, ResultCompErrExt};
+use crate::{sys, Conn, Properties, MqStruct, Object, QueueManagerShare, ResultComp, MqiAttr, MqiOption, ResultCompErrExt};
 use crate::core::{self, values};
 
 use super::OpenParamOption;
@@ -36,7 +36,7 @@ impl PutMessage for str {
     fn format(&self) -> MessageFormat {
         MessageFormat {
             ccsid: 1208,
-            encoding: MqMask::from(sys::MQENC_NATIVE),
+            encoding: values::MQENC(sys::MQENC_NATIVE),
             fmt: TextEnc::Ascii(fmt::MQFMT_STRING),
         }
     }
@@ -91,7 +91,7 @@ impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
                 Version: sys::MQOD_VERSION_4,
                 ..sys::MQOD::default()
             }),
-            MqMask::default(),
+            values::MQPMO::default(),
         );
         open_options.apply_param(&mut mqod);
         put(put_options, message, |(md, pmo), data| {

@@ -8,8 +8,7 @@ use crate::{
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     sys,
     types::{self, Fmt, MessageFormat, MessageId},
-    Buffer, Completion, Conn, Error, MqMask, MqStruct, MqValue, ResultComp, ResultCompErr, StrCcsidCow, MqiAttr, MqiOption,
-    MqiValue,
+    Buffer, Completion, Conn, Error, MqStruct, ResultComp, ResultCompErr, StrCcsidCow, MqiAttr, MqiOption, MqiValue,
 };
 
 use super::Object;
@@ -93,7 +92,7 @@ pub enum GetWait {
 pub enum GetConvert {
     NoConvert,
     Convert,
-    ConvertTo(sys::MQLONG, MqMask<values::MQENC>),
+    ConvertTo(sys::MQLONG, values::MQENC),
 }
 
 pub struct GetParam {
@@ -179,8 +178,8 @@ where
         }
 
         match get_result.map(|state| state.buffer.truncate(state.data_length).into_cow()) {
-            Completion(_, Some((rc, verb))) if rc == sys::MQRC_NOT_CONVERTED => {
-                Err(Error(MqValue::from(sys::MQCC_WARNING), verb, rc).into())
+            Completion(_, Some((rc @ values::MQRC(sys::MQRC_NOT_CONVERTED), verb))) => {
+                Err(Error(values::MQCC(sys::MQCC_WARNING), verb, rc).into())
             }
             Completion(Cow::Borrowed(bytes), warning) => Ok(Completion(
                 Cow::Borrowed(std::str::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e, warning))?),
@@ -342,13 +341,16 @@ impl<C: Conn> Object<C> {
                     message_length: message_length.try_into().expect("length within positive usize range"),
                     format: MessageFormat {
                         ccsid: param.md.CodedCharSetId,
-                        encoding: MqMask::from(param.md.Encoding),
+                        encoding: values::MQENC(param.md.Encoding),
                         fmt: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(param.md.Format) }),
                     },
                 });
-            no_msg_available = mqi_get
-                .as_ref()
-                .is_err_and(|&Error(cc, _, rc)| cc == sys::MQCC_FAILED && rc == sys::MQRC_NO_MSG_AVAILABLE);
+            no_msg_available = mqi_get.as_ref().is_err_and(|e| {
+                matches!(
+                    e,
+                    &Error(values::MQCC(sys::MQCC_FAILED), _, values::MQRC(sys::MQRC_NO_MSG_AVAILABLE))
+                )
+            });
 
             mqi_get
         });

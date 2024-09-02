@@ -1,4 +1,4 @@
-use crate::{core::values, sys, MqMask, MqiValue, ResultCompErr, ResultCompErrExt as _};
+use crate::{core::values, sys, MqiValue, ResultCompErr, ResultCompErrExt as _};
 
 use super::{Conn, MqStruct, Object, OpenOption, OpenParam, OpenValue};
 
@@ -6,7 +6,7 @@ impl<C: Conn> Object<C> {
     pub fn open<'oo, R>(
         connection: C,
         open_option: impl OpenOption<'oo>,
-        options: MqMask<values::MQOO>,
+        options: values::MQOO,
     ) -> ResultCompErr<R, <R as MqiValue<OpenParam<'oo>, Self>>::Error>
     where
         R: OpenValue<Self>,
@@ -26,7 +26,7 @@ impl<C: Conn> Object<C> {
                 .map_completion(|handle| Self {
                     handle,
                     connection,
-                    close_options: MqMask::from(sys::MQCO_NONE),
+                    close_options: values::MQCO(sys::MQCO_NONE),
                 })
         })
     }

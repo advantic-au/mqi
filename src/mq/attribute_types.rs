@@ -1,11 +1,11 @@
-use crate::{sys, MqValue};
+use crate::{core::values::MQXA, sys};
 
 use super::attribute::AttributeType;
 
 // Create a string based InqReqType
 const fn inqreq_str(mqca: sys::MQLONG, length: usize) -> AttributeType {
     AttributeType {
-        attribute: MqValue::from(mqca),
+        attribute: MQXA(mqca),
         #[allow(clippy::cast_possible_truncation)]
         text_len: length as u32,
     }
@@ -14,7 +14,7 @@ const fn inqreq_str(mqca: sys::MQLONG, length: usize) -> AttributeType {
 // Create a MQLONG based InqReqType
 const fn inqreq_long(mqca: sys::MQLONG) -> AttributeType {
     AttributeType {
-        attribute: MqValue::from(mqca),
+        attribute: MQXA(mqca),
         text_len: 0,
     }
 }

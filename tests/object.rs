@@ -5,10 +5,11 @@ use std::thread;
 
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::connect_options::Credentials;
+use mqi::core::values;
 use mqi::open_options::SelectionString;
 use mqi::properties_options::{Attributes, Metadata, Name};
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
-use mqi::{get, Properties, MqMask, MqValue, ResultCompErrExt as _, ResultCompExt as _};
+use mqi::{get, Properties, ResultCompErrExt as _, ResultCompExt as _};
 use mqi::{attribute, mqstr, sys, Object, QueueManager};
 
 #[test]
@@ -20,9 +21,9 @@ fn object() {
         .expect("Could not establish connection");
 
     thread::spawn(move || {
-        let mut props = Properties::new(&qm, MqValue::default()).expect("property creation");
+        let mut props = Properties::new(&qm, values::MQCMHO::default()).expect("property creation");
         props
-            .set_property("my_property", "valuex2", MqValue::default())
+            .set_property("my_property", "valuex2", values::MQSMPO::default())
             .warn_as_error()
             .expect("property set");
 
@@ -43,15 +44,15 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let object = Object::open::<Object<_>>(
         &qm,
         (QUEUE, SelectionString(&*sel)),
-        MqMask::from(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
+        values::MQOO(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
     )?;
-    let mut properties = Properties::new(&qm, MqValue::default())?;
+    let mut properties = Properties::new(&qm, values::MQCMHO::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
     let msg = object.get_message(
         (
-            MqMask::from(sys::MQGMO_BROWSE_FIRST), // Browse it
-            get::GetConvert::ConvertTo(500, MqMask::from(sys::MQENC_NORMAL)),
+            values::MQGMO(sys::MQGMO_BROWSE_FIRST), // Browse it
+            get::GetConvert::ConvertTo(500, values::MQENC(sys::MQENC_NORMAL)),
             &mut properties,          // Get some properties
             get::GetWait::Wait(2000), // Wait for 2 seconds
         ),
@@ -76,7 +77,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
                 let nv: Cow<str> = rfh2.name_value_data().try_into()?;
                 println!("RFH2 name/value data: \"{nv}\"");
             }
-            for v in properties.property_iter("%", MqMask::default()) {
+            for v in properties.property_iter("%", values::MQIMPO::default()) {
                 let (value, Name(name), attr, meta): (String, Name<String>, Attributes, Metadata) = v.warn_as_error()?;
                 println!("Property: {name} = {value}, {attr:?}, {meta:?}");
             }
@@ -103,7 +104,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         // Hmmm... this works. Not documented for MQINQ though.
         #[allow(clippy::cast_possible_truncation)]
         unsafe {
-            AttributeType::new(MqValue::from(sys::MQCA_VERSION), sys::MQ_VERSION_LENGTH as u32)
+            AttributeType::new(values::MQXA(sys::MQCA_VERSION), sys::MQ_VERSION_LENGTH as u32)
         },
         attribute::MQIA_COMMAND_LEVEL,
     ];
@@ -111,7 +112,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
     let (object, qm) = Object::open::<(Object<_>, Option<QueueManagerName>)>(
         &qm,
         QueueManagerName(mqstr!("QM1")),
-        MqMask::from(sys::MQOO_INQUIRE),
+        values::MQOO(sys::MQOO_INQUIRE),
     )
     .warn_as_error()?;
 
@@ -141,7 +142,7 @@ fn transaction() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
     let connection = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
-    let object = Object::open::<Object<_>>(&connection, QUEUE, MqMask::from(sys::MQOO_OUTPUT)).warn_as_error()?;
+    let object = Object::open::<Object<_>>(&connection, QUEUE, values::MQOO(sys::MQOO_OUTPUT)).warn_as_error()?;
 
     object.put_message::<()>((), "message").warn_as_error()?;
 

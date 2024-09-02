@@ -3,10 +3,10 @@ name = "mqi"
 description = "Idiomatic IBM® MQ Interface (MQI) and MQ Administration Interface (MQAI) APIs"
 repository = "https://github.com/advantic-au/mqi"
 version = "0.1.0"
-authors = [ "Warren Spits <warren@advantic.au>" ]
+authors = ["Warren Spits <warren@advantic.au>"]
 license = "Apache-2.0"
-keywords = [ "message-queue", "messaging" ]
-categories = [ "asynchronous" ]
+keywords = ["message-queue", "messaging"]
+categories = ["asynchronous"]
 
 rust-version = "1.79"
 edition = "2021"
@@ -29,20 +29,29 @@ dlopen2 = ["libmqm-sys/dlopen2"]
 bindgen = ["libmqm-sys/bindgen"]
 
 [dependencies]
-phf = { default-features = false, version="0.11.2" }
+phf = { default-features = false, version = "0.11.2" }
 num_enum = "0.7.2"
 num_enum_derive = "0.7.2"
 page_size = "0.6.0"
-thiserror = "1.0.59"
-libmqm-sys = { version="0.3.0", default-features = false }
+libmqm-sys = { version = "0.3.0", default-features = false }
 tracing = { version = "0.1.40", optional = true }
 dlopen2 = "0.7.0"
 regex = "1.10.4"
-derive_more = "0.99.18"
+derive_more = { version = "1.0.0", features = [
+    "deref",
+    "deref_mut",
+    "as_ref",
+    "from",
+    "error",
+    "display",
+    "constructor",
+    "add",
+    "add_assign"
+] }
 
 [build-dependencies]
-libmqm-sys = { version="0.3.0", default-features = false }
-phf = { default-features=false, version="0.11" }
+libmqm-sys = { version = "0.3.0", default-features = false }
+phf = { default-features = false, version = "0.11" }
 phf_codegen = "0.11.2"
 
 ## For development mode only

@@ -1,4 +1,4 @@
-use crate::{define_mqvalue, impl_default_mqvalue, mapping, sys, ConstLookup, MqValue};
+use crate::{define_mqvalue, impl_default_mqvalue, mapping, sys, ConstLookup};
 
 define_mqvalue!(pub MQIND, mapping::MQIND_CONST);
 define_mqvalue!(pub MQQT, mapping::MQQT_CONST);
@@ -6,7 +6,7 @@ define_mqvalue!(pub MQAT, mapping::MQAT_CONST);
 define_mqvalue!(pub MQCMD, mapping::MQCMD_CONST);
 define_mqvalue!(pub MQCFOP, mapping::MQCFOP_CONST);
 define_mqvalue!(pub MqaiSelector, MqaiSelectorLookup);
-impl_default_mqvalue!(MqValue<MQIND>, sys::MQIND_NONE);
+impl_default_mqvalue!(MQIND, sys::MQIND_NONE);
 /*
 
 MQAI selector constant lookup is complex... thanks to this - no less than 8 different constant sets.

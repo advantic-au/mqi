@@ -1,6 +1,6 @@
 use crate::{
     core::{self, values, ObjectHandle},
-    sys, MqMask, MqiOption, MqiValue, ResultComp, ResultCompErr,
+    sys, MqiOption, MqiValue, ResultComp, ResultCompErr,
 };
 
 use super::{Conn, MqStruct, Object};
@@ -10,7 +10,7 @@ use crate::ResultCompErrExt as _;
 pub struct Subscription<C: Conn> {
     handle: core::SubscriptionHandle,
     connection: C,
-    close_options: MqMask<values::MQCO>,
+    close_options: values::MQCO,
 }
 
 pub struct SubscribeState<C: Conn> {
@@ -21,7 +21,7 @@ pub struct SubscribeState<C: Conn> {
 #[derive(Debug)]
 pub struct SubscribeParam<'a> {
     pub sd: MqStruct<'a, sys::MQSD>,
-    pub close_options: MqMask<values::MQCO>,
+    pub close_options: values::MQCO,
     pub provided_object: sys::MQLONG,
 }
 
@@ -63,7 +63,7 @@ impl<C: Conn + Clone> Subscription<C> {
         R: SubscribeValue<C>,
     {
         let mut so = SubscribeParam {
-            close_options: MqMask::default(),
+            close_options: values::MQCO::default(),
             sd: MqStruct::default(),
             provided_object: sys::MQHO_NONE,
         };

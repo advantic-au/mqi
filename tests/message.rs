@@ -2,8 +2,9 @@ use std::error::Error;
 
 use mqi::{
     connect_options::Credentials,
+    core::values,
     properties_options::{self, Attributes},
-    Properties, MqMask, MqValue, QueueManager, ResultCompExt, StrCcsidOwned,
+    Properties, QueueManager, ResultCompExt, StrCcsidOwned,
 };
 
 #[test]
@@ -12,13 +13,13 @@ fn message_handle() -> Result<(), Box<dyn Error>> {
 
     let conn: QueueManager<_> = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
 
-    let message = Properties::new(conn, MqValue::default())?;
+    let message = Properties::new(conn, values::MQCMHO::default())?;
 
     for &(name, value) in PROPS {
-        message.set_property(name, value, MqValue::default()).warn_as_error()?;
+        message.set_property(name, value, values::MQSMPO::default()).warn_as_error()?;
     }
 
-    for v in message.property_iter(properties_options::INQUIRE_ALL, MqMask::default()) {
+    for v in message.property_iter(properties_options::INQUIRE_ALL, values::MQIMPO::default()) {
         let value: (StrCcsidOwned, properties_options::Name<String>, Attributes) = v.warn_as_error()?;
         println!("{value:?}");
     }

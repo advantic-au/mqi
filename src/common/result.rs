@@ -1,23 +1,23 @@
-use crate::core::values::{MQCC, MQRC};
+use crate::core::values;
 use crate::sys;
-use crate::{HasMqNames, MqValue};
+use crate::HasMqNames;
 use std::fmt::{Debug, Display};
 
 /// MQ API reason code (`MQRC_*`)
-pub type ReasonCode = MqValue<MQRC>;
+pub type ReasonCode = values::MQRC;
 
 /// MQ API completion code (`MQCC_*`)
-pub type CompletionCode = MqValue<MQCC>;
+pub type CompletionCode = values::MQCC;
 
 impl Default for ReasonCode {
     fn default() -> Self {
-        Self::from(sys::MQRC_NONE)
+        Self(sys::MQRC_NONE)
     }
 }
 
 impl Default for CompletionCode {
     fn default() -> Self {
-        Self::from(sys::MQCC_UNKNOWN)
+        Self(sys::MQCC_UNKNOWN)
     }
 }
 

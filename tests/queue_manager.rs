@@ -2,9 +2,10 @@ use std::{error::Error, sync::Arc, thread};
 
 use mqi::{
     connect_options::{ApplName, Binding, ClientDefinition, Credentials, Tls},
+    core::values,
     mqstr, sys,
     types::{ChannelName, CipherSpec, ConnectionName, MessageId, QueueName, FORMAT_NONE},
-    Properties, MqMask, MqValue, QueueManager, ResultCompErrExt, ResultCompExt,
+    Properties, QueueManager, ResultCompErrExt, ResultCompExt,
 };
 
 #[test]
@@ -18,8 +19,8 @@ fn thread() {
     println!("{:?}", tag.0);
     thread::spawn(move || {
         let c = Arc::new(qm);
-        let msg = Properties::new(&*c, MqValue::default()).expect("message created");
-        msg.set_property("wally", "test", MqValue::default())
+        let msg = Properties::new(&*c, values::MQCMHO::default()).expect("message created");
+        msg.set_property("wally", "test", values::MQSMPO::default())
             .warn_as_error()
             .expect("property set");
 
@@ -74,7 +75,7 @@ fn connect() -> Result<(), Box<dyn Error>> {
     let creds = Credentials::user("app", "app");
     let conn: QueueManager<_> = QueueManager::connect(None, &(tls, def, creds)).warn_as_error()?;
 
-    conn.put_message::<()>(QUEUE, MqMask::from(sys::MQPMO_SYNCPOINT), "Hello")
+    conn.put_message::<()>(QUEUE, values::MQPMO(sys::MQPMO_SYNCPOINT), "Hello")
         .warn_as_error()?;
 
     Ok(())

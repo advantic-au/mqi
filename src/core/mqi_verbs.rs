@@ -4,7 +4,7 @@ use std::ptr;
 
 use super::values::{MQCO, MQDCC, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
 use super::{ConnectionHandle, Library, MQFunctions, MQIOutcome, MQIOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle};
-use crate::{sys, Error, MqMask, MqStr, MqValue, ResultComp, ResultCompErr, ResultErr, MQMD};
+use crate::{sys, Error, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::{function, MQI};
 
 #[cfg(feature = "tracing")]
@@ -87,12 +87,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
 
     /// Establishes access to an object
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqopen(
-        &self,
-        connection_handle: &ConnectionHandle,
-        mqod: &mut sys::MQOD,
-        options: MqMask<MQOO>,
-    ) -> ResultComp<ObjectHandle> {
+    pub fn mqopen(&self, connection_handle: &ConnectionHandle, mqod: &mut sys::MQOD, options: MQOO) -> ResultComp<ObjectHandle> {
         let mut outcome = MQIOutcome::<ObjectHandle>::with_verb("MQOPEN");
 
         unsafe {
@@ -146,7 +141,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         &self,
         connection_handle: &ConnectionHandle,
         object_handle: &mut ObjectHandle,
-        options: MqMask<MQCO>,
+        options: MQCO,
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCLOSE");
         unsafe {
@@ -248,7 +243,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         &self,
         connection_handle: &ConnectionHandle,
         object_handle: &ObjectHandle,
-        selectors: &[MqValue<MQXA>],
+        selectors: &[MQXA],
         int_attr: &mut [MaybeUninit<sys::MQLONG>],
         text_attr: &mut [MaybeUninit<sys::MQCHAR>],
     ) -> ResultComp<()> {
@@ -312,7 +307,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         &self,
         connection_handle: &ConnectionHandle,
         subscription_handle: &SubscriptionHandle,
-        action: MqValue<MQSR>,
+        action: MQSR,
         mqsro: &mut sys::MQSRO,
     ) -> ResultErr<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQSUBRQ");
@@ -415,7 +410,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         inq_prop_opts: &mut sys::MQIMPO,
         name: &sys::MQCHARV,
         prop_desc: &mut sys::MQPD,
-        prop_type: &mut MqValue<MQTYPE>,
+        prop_type: &mut MQTYPE,
         value: Option<&mut T>,
     ) -> ResultCompErr<sys::MQLONG, error::MqInqError> {
         let mut outcome = MQIOutcome::with_verb("MQINQMP");
@@ -485,12 +480,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     /// Retrieve status information. The type of status information returned is
     /// determined by the `stat_type` value parameter
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqstat(
-        &self,
-        connection_handle: &ConnectionHandle,
-        stat_type: MqValue<MQSTAT>,
-        sts: &mut sys::MQSTS,
-    ) -> ResultComp<()> {
+    pub fn mqstat(&self, connection_handle: &ConnectionHandle, stat_type: MQSTAT, sts: &mut sys::MQSTS) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQSTAT");
         unsafe {
             self.0.lib().MQSTAT(
@@ -516,7 +506,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         set_prop_opts: &sys::MQSMPO,
         name: &sys::MQCHARV,
         prop_desc: &mut sys::MQPD,
-        prop_type: MqValue<MQTYPE>,
+        prop_type: MQTYPE,
         value: &T,
     ) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQSETMP");
@@ -547,7 +537,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
         &self,
         connection_handle: &ConnectionHandle,
         object_handle: &ObjectHandle,
-        selectors: &[MqValue<MQXA>],
+        selectors: &[MQXA],
         int_attr: &[sys::MQLONG],
         text_attr: &[sys::MQCHAR],
     ) -> ResultComp<()> {
@@ -585,7 +575,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqcb(
         &self,
         connection_handle: &ConnectionHandle,
-        operations: MqMask<MQOP>,
+        operations: MQOP,
         callback_desc: &sys::MQCBD,
         object_handle: Option<&ObjectHandle>,
         mqmd: Option<&impl MQMD>,
@@ -611,12 +601,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
 
     /// Performs controlling actions on callbacks and the object handles opened for a connection
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqctl(
-        &self,
-        connection_handle: &ConnectionHandle,
-        operation: MqValue<MQOP>,
-        control_options: &sys::MQCTLO,
-    ) -> ResultComp<()> {
+    pub fn mqctl(&self, connection_handle: &ConnectionHandle, operation: MQOP, control_options: &sys::MQCTLO) -> ResultComp<()> {
         let mut outcome = MQIOutcomeVoid::with_verb("MQCTL");
         unsafe {
             self.0.lib().MQCTL(
@@ -701,7 +686,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     pub fn mqxcnvc<T: ?Sized>(
         &self,
         connection_handle: Option<&ConnectionHandle>,
-        options: MqMask<MQDCC>,
+        options: MQDCC,
         source_ccsid: sys::MQLONG,
         source: &T,
         target_ccsid: sys::MQLONG,

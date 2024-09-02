@@ -4,7 +4,7 @@ use crate::{
     core::values,
     sys,
     types::{QueueManagerName, QueueName},
-    Conn, EncodedString, Error, MqStr, MqValue, ResultComp, ResultCompErrExt, StrCcsidOwned, MqiAttr, MqiOption, MqiValue,
+    Conn, EncodedString, Error, MqStr, ResultComp, ResultCompErrExt, StrCcsidOwned, MqiAttr, MqiOption, MqiValue,
 };
 
 use super::{Object, OpenParam, OpenParamOption, OpenValue};
@@ -77,7 +77,7 @@ impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for Option<QueueName> {
     }
 }
 
-impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for MqValue<values::MQOT> {
+impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for values::MQOT {
     fn extract<F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,

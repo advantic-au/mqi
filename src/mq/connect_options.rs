@@ -3,7 +3,7 @@ use std::{any, cmp, ops::Deref};
 use crate::{
     macros::{all_multi_tuples, reverse_ident},
     core::values,
-    sys, MqMask, MqStr, MqValue, ResultCompErrExt, MqiAttr,
+    sys, MqStr, ResultCompErrExt, MqiAttr,
 };
 
 use super::{
@@ -51,6 +51,55 @@ pub trait ConnectOption<'a> {
     }
 }
 
+impl<'b, O: ConnectOption<'b>> ConnectOption<'b> for Option<O> {
+    const STRUCTS: sys::MQLONG = O::STRUCTS;
+
+    fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>)
+    where
+        'b: 'ptr,
+    {
+        if let Some(co) = self {
+            co.apply_cno(cno);
+        }
+    }
+
+    fn apply_sco<'ptr>(&'ptr self, sco: &mut MqStruct<'ptr, sys::MQSCO>)
+    where
+        'b: 'ptr,
+    {
+        if let Some(co) = self {
+            co.apply_sco(sco);
+        }
+    }
+
+    fn apply_csp<'ptr>(&'ptr self, csp: &mut MqStruct<'ptr, sys::MQCSP>)
+    where
+        'b: 'ptr,
+    {
+        if let Some(co) = self {
+            co.apply_csp(csp);
+        }
+    }
+
+    fn apply_cd<'ptr>(&'ptr self, cd: &mut MqStruct<'ptr, sys::MQCD>)
+    where
+        'b: 'ptr,
+    {
+        if let Some(co) = self {
+            co.apply_cd(cd);
+        }
+    }
+
+    fn apply_bno<'ptr>(&'ptr self, bno: &mut MqStruct<'ptr, sys::MQBNO>)
+    where
+        'b: 'ptr,
+    {
+        if let Some(co) = self {
+            co.apply_bno(bno);
+        }
+    }
+}
+
 #[derive(Clone, Debug, derive_more::Deref)]
 pub struct ClientDefinition<'ptr> {
     cd: MqStruct<'ptr, sys::MQCD>,
@@ -71,11 +120,7 @@ impl<'ptr> ClientDefinition<'ptr> {
 
     /// Create a client definition from the minimal channel name, connection name and optional transport type.
     #[must_use]
-    pub fn new_client(
-        channel_name: &ChannelName,
-        connection_name: &ConnectionName,
-        transport: Option<MqValue<values::MQXPT>>,
-    ) -> Self {
+    pub fn new_client(channel_name: &ChannelName, connection_name: &ConnectionName, transport: Option<values::MQXPT>) -> Self {
         let mut outcome = Self::default_client();
         let mqcd = &mut outcome.cd;
         if let Some(transport) = transport {
@@ -347,7 +392,7 @@ impl<'cred, S: Secret<str>> ConnectOption<'cred> for CredentialsSecret<'cred, S>
     }
 }
 
-impl ConnectOption<'_> for MqMask<values::MQCNO> {
+impl ConnectOption<'_> for values::MQCNO {
     const STRUCTS: i32 = 0;
 
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
@@ -536,7 +581,7 @@ impl<'b, S> MqiAttr<ConnectParam<'b>, S> for ConnTag {
     }
 }
 
-pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, MqValue<values::MQXPT>), MqServerSyntaxError> {
+pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, values::MQXPT), MqServerSyntaxError> {
     #[allow(clippy::unwrap_used)]
     let server_pattern = regex::Regex::new(r"^(.+)/(.+)/(.+)$").unwrap();
 
@@ -554,10 +599,10 @@ pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, MqValue<va
             .map(ConnectionName)
             .ok_or_else(|| MqServerSyntaxError::ConnectionNameFormat(connection_name.to_string()))?;
         let transport = match transport {
-            "TCP" => Ok(MqValue::from(sys::MQXPT_TCP)),
-            "LU62" => Ok(MqValue::from(sys::MQXPT_LU62)),
-            "NETBIOS" => Ok(MqValue::from(sys::MQXPT_NETBIOS)),
-            "SPX" => Ok(MqValue::from(sys::MQXPT_SPX)),
+            "TCP" => Ok(values::MQXPT(sys::MQXPT_TCP)),
+            "LU62" => Ok(values::MQXPT(sys::MQXPT_LU62)),
+            "NETBIOS" => Ok(values::MQXPT(sys::MQXPT_NETBIOS)),
+            "SPX" => Ok(values::MQXPT(sys::MQXPT_SPX)),
             other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
         }?;
         Ok((channel, connection_name, transport))
