@@ -69,7 +69,7 @@ pub struct ChannelName(pub MqStr<20>);
 #[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
 pub struct QueueName(pub ObjectName);
 
-#[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct QueueManagerName(pub ObjectName);
 
 #[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]

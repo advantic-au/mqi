@@ -75,7 +75,12 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 module_name_repetitions = "allow"
 
-
 [package.metadata.docs.rs]
 features = ["docsrs"]
 no-default-features = true
+
+[[example]]
+name = "subscribe_managed"
+
+[dev-dependencies]
+clap = { version = "4.5.16", features = [ "derive"] }

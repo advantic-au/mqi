@@ -33,3 +33,10 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 | MQSUB   | Register subscription               | ✔ | ✔ |  |
 | MQSUBRQ | Subscription request                | ✔ |   |  |
 | MQXCNVC | Convert characters                  | ✔ |   |  |
+
+Examples
+========
+
+| Name              | Description                       | Status |
+|-------------------|-----------------------------------|--------|
+| subscribe_managed | Perform a subscription to a topic |        |
