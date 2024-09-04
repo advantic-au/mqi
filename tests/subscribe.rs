@@ -13,16 +13,10 @@ fn subscribe() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
     let qm: QueueManager<_> = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
-
     let object = Object::open::<Object<_>>(&qm, QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
-
     let (sub, obj) = Subscription::subscribe::<(Subscription<_>, Option<Object<_>>)>(
         &qm,
-        (
-            MQSO(sys::MQSO_CREATE | sys::MQSO_NON_DURABLE),
-            &object,
-            ObjectString("dev/"),
-        ),
+        (MQSO(sys::MQSO_CREATE | sys::MQSO_NON_DURABLE), &object, ObjectString("dev/")),
     )
     .warn_as_error()?;
 

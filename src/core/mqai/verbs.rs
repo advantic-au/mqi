@@ -772,10 +772,9 @@ mod tests {
 
         //dbg!(mq_lib.mq_add_string(&bag_attached, 2, "hello".as_bytes())).expect("BLA2");
         let mut data = Vec::<u8>::with_capacity(page_size::get());
-        let (length, ..) =
-            dbg!(mq_lib.mq_inquire_string(&bag_attached, MqaiSelector(1), MQIND(0), data.spare_capacity_mut()))
-                .warn_as_error()
-                .expect("BLA2");
+        let (length, ..) = dbg!(mq_lib.mq_inquire_string(&bag_attached, MqaiSelector(1), MQIND(0), data.spare_capacity_mut()))
+            .warn_as_error()
+            .expect("BLA2");
         unsafe {
             data.set_len(
                 length

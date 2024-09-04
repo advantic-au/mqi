@@ -157,11 +157,7 @@ impl<'cb, L: Library<MQ: MQI>, H> QueueManagerShare<'cb, L, H> {
         sts.SubName.VSPtr = ptr::from_mut(&mut *sub_name_buffer).cast();
 
         self.mq()
-            .mqstat(
-                self.handle(),
-                values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION_ERROR),
-                &mut sts,
-            )
+            .mqstat(self.handle(), values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION_ERROR), &mut sts)
             .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
     }
 }

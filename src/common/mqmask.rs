@@ -140,13 +140,17 @@ macro_rules! define_mqmask {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let (list, residual) = self.masked_list();
                 if residual == self.0 && residual != 0 {
-                    f.debug_tuple(stringify!($i)).field(&format_args!("{:#X}", self.0)).finish()
+                    f.debug_tuple(stringify!($i))
+                        .field(&format_args!("{:#X}", self.0))
+                        .finish()
                 } else if let Some(mask_str) = Self::mask_str(list, residual) {
                     f.debug_tuple(stringify!($i))
                         .field(&format_args!("{} = {:#X}", mask_str, self.0))
                         .finish()
                 } else {
-                    f.debug_tuple(stringify!($i)).field(&format_args!("{:#X}", self.0)).finish()
+                    f.debug_tuple(stringify!($i))
+                        .field(&format_args!("{:#X}", self.0))
+                        .finish()
                 }
             }
         }
