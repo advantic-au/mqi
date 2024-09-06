@@ -620,7 +620,7 @@ impl<L: Library<MQ: MQAI>> MQFunctions<L> {
         outcome.into()
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_execute(
         &self,

@@ -1,19 +1,31 @@
 use libmqm_sys::link::LinkedMQ;
 
-use super::{connect_options::ConnectOption, types::QueueManagerName, HandleShare, QueueManagerShare, ConnectValue};
+use super::{connect_options::ConnectOption, ConnectAttr, ConnectValue, HandleShare, QueueManagerShare};
 use crate::{core::values::MQCBO, ResultComp};
 
 #[cfg(feature = "mqai")]
-use crate::{
-    admin::{Bag, Owned},
-};
+use crate::admin::{Bag, Owned};
 
 impl<H: HandleShare> QueueManagerShare<'_, LinkedMQ, H> {
-    pub fn connect<'co, R>(qm_name: Option<&QueueManagerName>, options: &impl ConnectOption<'co>) -> ResultComp<R>
+    #[inline]
+    pub fn connect_as<'co, R>(options: impl ConnectOption<'co>) -> ResultComp<R>
     where
         R: ConnectValue<Self>,
     {
-        Self::connect_lib(LinkedMQ, qm_name, options)
+        Self::connect_lib_as(LinkedMQ, options)
+    }
+
+    #[inline]
+    pub fn connect<'co>(options: impl ConnectOption<'co>) -> ResultComp<Self> {
+        Self::connect_lib_as(LinkedMQ, options)
+    }
+
+    #[inline]
+    pub fn connect_with<'co, A>(options: impl ConnectOption<'co>) -> ResultComp<(Self, A)>
+    where
+        A: ConnectAttr<Self>,
+    {
+        Self::connect_lib_as(LinkedMQ, options)
     }
 }
 

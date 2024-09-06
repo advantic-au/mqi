@@ -6,7 +6,7 @@ use std::sync::Arc;
 use libmqm_sys::function;
 
 use crate::core::{self, ConnectionHandle, Library, MQFunctions};
-use crate::{sys, Error, MqiValue, ResultCompErrExt as _};
+use crate::{sys, Error, MqiAttr, MqiValue, ResultCompErrExt as _};
 use crate::ResultComp;
 
 use super::connect_options::{self, ConnectOption};
@@ -39,25 +39,24 @@ pub type ConnectParam<'a> = MqStruct<'a, sys::MQCNO>;
 trait Sealed {}
 
 /// `QueueManagerShare` threading behaviour. Refer to `ShareNone`, `ShareNonBlock` and `ShareBlock`
-#[allow(private_bounds)] // Reason: Deliberate implementation of a sealed trait
+#[expect(private_bounds)] // Reason: Deliberate implementation of a sealed trait
 pub trait HandleShare: Sealed {
     /// One of the `MQCNO_HANDLE_SHARE_*` MQ constants
     const MQCNO_HANDLE_SHARE: sys::MQLONG;
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 /// The `Connection` can only be used in the thread it was created.
 /// See the `MQCNO_HANDLE_SHARE_NONE` connection option.
 #[derive(Debug)]
 pub struct ShareNone(*const ()); // !Send + !Sync
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 /// The `Connection` can be moved to other threads, but only one thread can use it at any one time.
 /// See the `MQCNO_HANDLE_SHARE_NO_BLOCK` connection option.
 #[derive(Debug)]
 pub struct ShareNonBlock(*const ()); // Send + !Sync
 
-#[allow(dead_code)]
 /// The `Connection` can be moved to other threads, and be used by multiple threads concurrently. Blocks when multiple threads call a function.
 /// See the `MQCNO_HANDLE_SHARE_BLOCK` connection option.
 #[derive(Debug)]
@@ -98,12 +97,28 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare, P> MqiValue<P, Self> for Que
 }
 
 pub trait ConnectValue<S>: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
-
 impl<S, T> ConnectValue<S> for T where T: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
+pub trait ConnectAttr<S>: for<'a> MqiAttr<ConnectParam<'a>, S> {}
+impl<S, T> ConnectAttr<S> for T where T: for<'a> MqiAttr<ConnectParam<'a>, S> {}
 
 impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
+    pub fn connect_lib<'co, O>(lib: L, options: O) -> ResultComp<Self>
+    where
+        O: ConnectOption<'co>,
+    {
+        Self::connect_lib_as(lib, options)
+    }
+
+    pub fn connect_lib_with<'co, O, A>(lib: L, options: O) -> ResultComp<(Self, A)>
+    where
+        O: ConnectOption<'co>,
+        A: ConnectAttr<Self>,
+    {
+        Self::connect_lib_as(lib, options)
+    }
+
     /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder
-    pub fn connect_lib<'co, R, O>(lib: L, qm_name: Option<&QueueManagerName>, options: &O) -> ResultComp<R>
+    pub(super) fn connect_lib_as<'co, R, O>(lib: L, options: O) -> ResultComp<R>
     where
         R: ConnectValue<Self>,
         O: ConnectOption<'co>,
@@ -113,27 +128,30 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
         let mut cd = MqStruct::default();
         let mut bno = MqStruct::default();
         let mut csp = MqStruct::default();
+        let structs = options.struct_mask();
 
         options.apply_cno(&mut cno);
-        if const { O::STRUCTS & connect_options::HAS_BNO != 0 } {
+        if structs & connect_options::HAS_BNO != 0 {
             options.apply_bno(&mut bno);
             cno.attach_bno(&bno);
         }
 
-        if const { O::STRUCTS & connect_options::HAS_CD != 0 } {
+        if structs & connect_options::HAS_CD != 0 {
             options.apply_cd(&mut cd);
             cno.attach_cd(&cd);
         }
 
-        if const { O::STRUCTS & connect_options::HAS_SCO != 0 } {
+        if structs & connect_options::HAS_SCO != 0 {
             options.apply_sco(&mut sco);
             cno.attach_sco(&sco);
         }
 
-        if const { O::STRUCTS & connect_options::HAS_CSP != 0 } {
+        if structs & connect_options::HAS_CSP != 0 {
             options.apply_csp(&mut csp);
             cno.attach_csp(&csp);
         }
+
+        let qm_name = options.queue_manager_name();
 
         R::consume(&mut cno, |param| {
             param.Options |= H::MQCNO_HANDLE_SHARE;

@@ -77,7 +77,16 @@ impl<T: for<'a> MqiOption<PutParam<'a>>> PutOption for T {}
 impl<T> PutAttr for T where T: for<'a> MqiAttr<PutParam<'a>, ()> {}
 
 impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
-    pub fn put_message<'oo, R>(
+    pub fn put_message<'oo>(
+        &self,
+        open_options: impl OpenPutOption<'oo>,
+        put_options: impl PutOption,
+        message: &(impl PutMessage + ?Sized),
+    ) -> ResultComp<()> {
+        self.put_message_with(open_options, put_options, message)
+    }
+
+    pub fn put_message_with<'oo, R>(
         &self,
         open_options: impl OpenPutOption<'oo>,
         put_options: impl PutOption,

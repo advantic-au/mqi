@@ -16,7 +16,7 @@ use mqi::{attribute, mqstr, sys, Object, QueueManager};
 fn object() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let qm = QueueManager::connect(None, &Credentials::user("app", "app"))
+    let qm = QueueManager::connect(Credentials::user("app", "app"))
         .warn_as_error()
         .expect("Could not establish connection");
 
@@ -27,7 +27,7 @@ fn object() {
             .warn_as_error()
             .expect("property set");
 
-        qm.put_message::<()>(QUEUE, &mut props, "Hello")
+        qm.put_message(QUEUE, &mut props, "Hello")
             .warn_as_error()
             .expect("Put failed");
     })
@@ -39,9 +39,9 @@ fn object() {
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
     let sel = String::from("my_property = 'valuex2'");
-    let qm = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
+    let qm = QueueManager::connect(Credentials::user("app", "app")).warn_as_error()?;
 
-    let object = Object::open::<Object<_>>(
+    let object = Object::open(
         &qm,
         (QUEUE, SelectionString(&*sel)),
         values::MQOO(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
@@ -49,7 +49,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let mut properties = Properties::new(&qm, values::MQCMHO::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
-    let msg = object.get_message(
+    let msg = object.get_as(
         (
             values::MQGMO(sys::MQGMO_BROWSE_FIRST), // Browse it
             get::GetConvert::ConvertTo(500, values::MQENC(sys::MQENC_NORMAL)),
@@ -102,19 +102,16 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         attribute::MQIA_CODED_CHAR_SET_ID,
         attribute::MQCA_DEF_XMIT_Q_NAME,
         // Hmmm... this works. Not documented for MQINQ though.
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         unsafe {
             AttributeType::new(values::MQXA(sys::MQCA_VERSION), sys::MQ_VERSION_LENGTH as u32)
         },
         attribute::MQIA_COMMAND_LEVEL,
     ];
-    let qm = QueueManager::connect(None, &(Credentials::user("app", "app"))).discard_warning()?;
-    let (object, qm) = Object::open::<(Object<_>, Option<QueueManagerName>)>(
-        &qm,
-        QueueManagerName(mqstr!("QM1")),
-        values::MQOO(sys::MQOO_INQUIRE),
-    )
-    .warn_as_error()?;
+    let qm = QueueManager::connect(Credentials::user("app", "app")).discard_warning()?;
+    let (object, qm) =
+        Object::open_with::<Option<QueueManagerName>>(&qm, QueueManagerName(mqstr!("QM1")), values::MQOO(sys::MQOO_INQUIRE))
+            .warn_as_error()?;
 
     println!("{qm:?}");
     let result = object.inq(INQ)?;
@@ -141,8 +138,8 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 fn transaction() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let connection = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
-    let object = Object::open::<Object<_>>(&connection, QUEUE, values::MQOO(sys::MQOO_OUTPUT)).warn_as_error()?;
+    let connection = QueueManager::connect(Credentials::user("app", "app")).warn_as_error()?;
+    let object = Object::open(&connection, QUEUE, values::MQOO(sys::MQOO_OUTPUT)).warn_as_error()?;
 
     object.put_message::<()>((), "message").warn_as_error()?;
 

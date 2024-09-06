@@ -29,7 +29,7 @@ impl<C: Conn> Drop for Properties<C> {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn inqmp<'a, 'b, A: core::Library<MQ: function::MQI>>(
     mq: &core::MQFunctions<A>,
     connection_handle: Option<&core::ConnectionHandle>,
@@ -163,7 +163,7 @@ impl<C: Conn> Properties<C> {
         options: MQIMPO,
     ) -> MsgPropIter<'name, 'message, P, N, C>
     where
-        P: PropertyValue + ?Sized,
+        P: PropertyValue,
         N: EncodedString + ?Sized,
     {
         MsgPropIter {
@@ -176,7 +176,7 @@ impl<C: Conn> Properties<C> {
 
     pub fn property<P>(&self, name: &(impl EncodedString + ?Sized), options: MQIMPO) -> ResultCompErr<Option<P>, Error>
     where
-        P: PropertyValue + ?Sized,
+        P: PropertyValue,
     {
         const DEFAULT_BUF_SIZE: usize = 1024;
         let mut val_return_buffer = [0; DEFAULT_BUF_SIZE]; // Returned value buffer

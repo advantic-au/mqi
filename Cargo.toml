@@ -8,7 +8,7 @@ license = "Apache-2.0"
 keywords = ["message-queue", "messaging"]
 categories = ["asynchronous"]
 
-rust-version = "1.79"
+rust-version = "1.81"
 edition = "2021"
 build = "build/mod.rs"
 
@@ -69,6 +69,7 @@ nursery = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 unwrap_used = "warn"
 similar_names = "allow"
+allow_attributes = "warn"
 
 # TODO - These should be removed and the underlying problem fixed
 missing_errors_doc = "allow"

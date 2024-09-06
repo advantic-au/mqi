@@ -239,7 +239,7 @@ pub enum AttributeError {
 impl MultiItem {
     pub fn push_text_item(&mut self, text_item: &TextItem<&[sys::MQCHAR]>) {
         self.selectors.push(text_item.selector);
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         self.text_len.push(text_item.value.len() as u32);
         self.text_attr.extend_from_slice(text_item.value);
     }

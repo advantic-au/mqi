@@ -26,7 +26,7 @@ const fn cstr_array<const N: usize>(mqi: &CStr) -> [u8; N] {
     result
 }
 
-#[allow(clippy::cast_possible_wrap)]
+#[expect(clippy::cast_possible_wrap)]
 const INTEGER_NATIVE_MASK: sys::MQLONG = sys::MQENC_NATIVE & (sys::MQENC_INTEGER_MASK as sys::MQLONG);
 
 pub mod fmt {
@@ -122,7 +122,7 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
         }
     }
 
-    #[allow(clippy::len_without_is_empty)]
+    #[expect(clippy::len_without_is_empty)]
     pub fn len(&self) -> Result<usize, HeaderError> {
         T::raw_struc_length(self.raw_header).map_or(Ok(mem::size_of::<T>()), |length| {
             let ln = self.native_mqlong(length);
@@ -173,7 +173,7 @@ pub trait ChainedHeader: Sized {
     fn raw_version(&self) -> sys::MQLONG;
 
     fn validate_length(length: sys::MQLONG) -> Result<(), HeaderError> {
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+        #[expect(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let struc_len = mem::size_of::<Self>() as _;
         if length < struc_len {
             Err(HeaderError::MalformedLength(length))
@@ -182,7 +182,6 @@ pub trait ChainedHeader: Sized {
         }
     }
 
-    #[allow(unused_variables)]
     #[inline]
     fn raw_struc_length(&self) -> Option<sys::MQLONG> {
         None
@@ -525,7 +524,7 @@ impl ChainedHeader for sys::MQRFH2 {
     }
 
     fn validate_length(length: sys::MQLONG) -> Result<(), HeaderError> {
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+        #[expect(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let struc_len = mem::size_of::<Self>() as _;
         // +4 bytes for MQLONG length field
         if length == struc_len || length >= struc_len + 4 {

@@ -1,20 +1,19 @@
-use std::{error::Error, sync::Arc, thread};
+use std::{env, error::Error, sync::Arc, thread};
 
 use mqi::{
     connect_options::{ApplName, Binding, ClientDefinition, Credentials, Tls},
     core::values,
     mqstr, sys,
-    types::{ChannelName, CipherSpec, ConnectionName, MessageId, QueueName, FORMAT_NONE},
+    types::{CipherSpec, MessageId, QueueName, FORMAT_NONE},
     Properties, QueueManager, ResultCompErrExt, ResultCompExt,
 };
 
 #[test]
 fn thread() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
-    let (qm, tag, id) =
-        QueueManager::connect::<(QueueManager<_>, mqi::ConnTag, mqi::ConnectionId)>(None, &Credentials::user("app", "app"))
-            .discard_warning() // ignore warning
-            .expect("Could not establish connection");
+    let (qm, (tag, id)) = QueueManager::connect_with::<(mqi::ConnTag, mqi::ConnectionId)>(&Credentials::user("app", "app"))
+        .discard_warning() // ignore warning
+        .expect("Could not establish connection");
     println!("{:?}", id.0);
     println!("{:?}", tag.0);
     thread::spawn(move || {
@@ -25,7 +24,7 @@ fn thread() {
             .expect("property set");
 
         let msgid = c
-            .put_message::<MessageId>(QUEUE, (), &(b"Hello", FORMAT_NONE))
+            .put_message_with::<MessageId>(QUEUE, (), &("Hello", FORMAT_NONE))
             .warn_as_error()
             .expect("Put failed");
         println!("{msgid:?}");
@@ -41,14 +40,11 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
 
     // Connect to the default queue manager (None) with the provided options
     // Treat all MQCC_WARNING as an error
-    let connection: QueueManager<_> = QueueManager::connect(
-        None,
-        &(
-            Binding::Default,
-            Credentials::user("app", "app"),
-            ApplName(mqstr!("readme_example")),
-        ),
-    )
+    let connection = QueueManager::connect(&(
+        Binding::Default,
+        Credentials::user("app", "app"),
+        ApplName(mqstr!("readme_example")),
+    ))
     .warn_as_error()?;
 
     // Disconnect.
@@ -61,11 +57,7 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
 fn connect() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let def = ClientDefinition::new_client(
-        &ChannelName(mqstr!("DEV.APP.SVRCONN")),
-        &ConnectionName(mqstr!("192.168.92.15(1414)")),
-        None,
-    );
+    let def = ClientDefinition::from_mqserver(&env::var("MQSERVER")?)?;
     let tls = Tls::new(
         &mqstr!("path"),
         Some("password"),
@@ -73,9 +65,9 @@ fn connect() -> Result<(), Box<dyn Error>> {
         &CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")),
     );
     let creds = Credentials::user("app", "app");
-    let conn: QueueManager<_> = QueueManager::connect(None, &(tls, def, creds)).warn_as_error()?;
+    let conn = QueueManager::connect((tls, def, creds)).warn_as_error()?;
 
-    conn.put_message::<()>(QUEUE, values::MQPMO(sys::MQPMO_SYNCPOINT), "Hello")
+    conn.put_message(QUEUE, values::MQPMO(sys::MQPMO_SYNCPOINT), "Hello")
         .warn_as_error()?;
 
     Ok(())

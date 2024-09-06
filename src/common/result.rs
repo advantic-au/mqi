@@ -74,8 +74,7 @@ impl<T> Completion<T> {
 
     /// Returns the reason code associated with the warning. Returns `None` when no warning is issued.
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn warning(&self) -> Option<(ReasonCode, &'static str)> {
+    pub const fn warning(&self) -> Option<(ReasonCode, &'static str)> {
         let Self(_, warning) = self;
         *warning
     }
@@ -157,7 +156,7 @@ where
         self.map(|mq| mq.map(op))
     }
 
-    #[allow(clippy::unwrap_used)]
+    #[expect(clippy::unwrap_used)]
     fn unwrap_completion(self) -> T {
         self.unwrap().discard_warning()
     }

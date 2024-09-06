@@ -870,7 +870,7 @@ const fn ccsid_lookup_init<const N: usize>() -> [(i32, u8, &'static str); N] {
     let mut result = [(0, 0, ""); N];
     while i < CCSID.len() {
         let entry @ (ccsid, ..) = CCSID[i];
-        #[allow(clippy::cast_sign_loss)]
+        #[expect(clippy::cast_sign_loss)]
         let uccsid = ccsid as usize;
         if uccsid < N {
             result[uccsid] = entry;
@@ -883,7 +883,7 @@ const fn ccsid_lookup_init<const N: usize>() -> [(i32, u8, &'static str); N] {
 #[must_use]
 pub fn ccsid_lookup(ccsid: i32) -> Option<&'static CcsidEntry> {
     if ccsid < 2048 {
-        #[allow(clippy::cast_sign_loss)]
+        #[expect(clippy::cast_sign_loss)]
         Some(&CCSID_2K[ccsid as usize]).filter(|(ccsid, ..)| *ccsid != 0)
     } else {
         CCSID

@@ -6,7 +6,7 @@ use super::attribute::AttributeType;
 const fn inqreq_str(mqca: sys::MQLONG, length: usize) -> AttributeType {
     AttributeType {
         attribute: MQXA(mqca),
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         text_len: length as u32,
     }
 }

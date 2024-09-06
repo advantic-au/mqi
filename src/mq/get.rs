@@ -287,7 +287,45 @@ pub trait GetOption: MqiOption<GetParam> {}
 impl<T: MqiOption<GetParam>> GetOption for T {}
 
 impl<C: Conn> Object<C> {
-    pub fn get_message<'b, R, B>(&self, options: impl GetOption, buffer: B) -> ResultCompErr<Option<R>, R::Error>
+    pub fn get_data<'b, B>(&self, options: impl GetOption, buffer: B) -> ResultComp<Option<Cow<'b, [u8]>>>
+    where
+        B: Buffer<'b>,
+    {
+        self.get_as(options, buffer)
+    }
+
+    pub fn get_data_with<'b, A, B>(&self, options: impl GetOption, buffer: B) -> ResultComp<Option<(Cow<'b, [u8]>, A)>>
+    where
+        A: GetAttr<B>,
+        B: Buffer<'b>,
+    {
+        self.get_as(options, buffer)
+    }
+
+    pub fn get_string<'b, B>(
+        &self,
+        options: impl GetOption,
+        buffer: B,
+    ) -> ResultCompErr<Option<StrCcsidCow<'b>>, GetStringCcsidError>
+    where
+        B: Buffer<'b>,
+    {
+        self.get_as(options, buffer)
+    }
+
+    pub fn get_string_with<'b, A, B>(
+        &self,
+        options: impl GetOption,
+        buffer: B,
+    ) -> ResultCompErr<Option<(StrCcsidCow<'b>, A)>, GetStringCcsidError>
+    where
+        A: GetAttr<B>,
+        B: Buffer<'b>,
+    {
+        self.get_as(options, buffer)
+    }
+
+    pub fn get_as<'b, R, B>(&self, options: impl GetOption, buffer: B) -> ResultCompErr<Option<R>, R::Error>
     where
         R: GetValue<B>,
         B: Buffer<'b>,

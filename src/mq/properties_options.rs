@@ -1,3 +1,5 @@
+#![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
+
 use core::str;
 use std::ops::Deref as _;
 use std::{mem, ptr, slice};

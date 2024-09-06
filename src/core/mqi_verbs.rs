@@ -402,7 +402,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
 
     /// Returns the value of a property of a message.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, value)))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn mqinqmp<T: ?Sized>(
         &self,
         connection_handle: Option<&ConnectionHandle>,
@@ -497,7 +497,7 @@ impl<L: Library<MQ: function::MQI>> MQFunctions<L> {
     }
 
     /// Set or modify a property of a message handle
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqsetmp<T: Debug + ?Sized>(
         &self,

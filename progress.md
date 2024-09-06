@@ -39,4 +39,25 @@ Examples
 
 | Name              | Description                       | Status |
 |-------------------|-----------------------------------|--------|
-| subscribe_managed | Perform a subscription to a topic |        |
+| subscribe_managed | Perform a subscription to a topic |   ✔    |
+| Amqsbo            | Handling a poison message - MQGMO_SYNCPOINT | |
+| amqscb            | Callback handling instead of MQGET | |
+| amqsconn          |  Connect to remote QM             | |
+| amqsconntls       | TLS connection                    | |
+| amqsdlh           | put and get message with DLH      | |
+| amqsgbr           | browse loop                       | |
+| amqsget           | get loop                          | |
+| amqsinq           | inquire queue attributes          | |
+| amqsjwt           | token authentication              | |
+| amqspcf           | equivalent to DISPLAY Q(x) ALL.   | |
+| amqsprop          | manipulate message properties (put and get) | |
+| amqspub           | publish to a topic                | |
+| amqsput           | put to queue                      | |
+| amqsset           | set queue attributes (MQSET)      | |
+| amqssub           | subscribe (managed, non-durable)  | |
+| rust async        | | |
+| handling headers. | | |
+| Request Reply (provider) | | |
+| request/reply (consumer) | | |
+| additional attributes on connect / get / put | | |
+| Function for a parameter | | |

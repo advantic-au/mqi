@@ -1,3 +1,5 @@
+#![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
+
 use crate::{define_mqmask, define_mqvalue, impl_default_mqvalue, mapping, sys};
 
 // Open Options mask

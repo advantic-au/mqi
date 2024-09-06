@@ -1,9 +1,20 @@
-use crate::{core::values, sys, MqiValue, ResultCompErr, ResultCompErrExt as _};
+use crate::{core::values, sys, MqiValue, ResultComp, ResultCompErr, ResultCompErrExt as _};
 
-use super::{Conn, MqStruct, Object, OpenOption, OpenParam, OpenValue};
+use super::{Conn, MqStruct, Object, OpenAttr, OpenOption, OpenParam, OpenValue};
 
 impl<C: Conn> Object<C> {
-    pub fn open<'oo, R>(
+    pub fn open<'oo>(connection: C, open_option: impl OpenOption<'oo>, options: values::MQOO) -> ResultComp<Self> {
+        Self::open_as(connection, open_option, options)
+    }
+
+    pub fn open_with<'oo, A>(connection: C, open_option: impl OpenOption<'oo>, options: values::MQOO) -> ResultComp<(Self, A)>
+    where
+        A: OpenAttr<Self>,
+    {
+        Self::open_as(connection, open_option, options)
+    }
+
+    pub(super) fn open_as<'oo, R>(
         connection: C,
         open_option: impl OpenOption<'oo>,
         options: values::MQOO,

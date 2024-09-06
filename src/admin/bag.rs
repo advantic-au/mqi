@@ -114,8 +114,7 @@ impl<L: Library<MQ: function::MQAI>> BagItemGet<L> for Bag<Embedded, L> {
 
 impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn handle(&self) -> &mqai::BagHandle {
+    pub const fn handle(&self) -> &mqai::BagHandle {
         &self.bag
     }
 

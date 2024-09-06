@@ -11,7 +11,7 @@ use mqi::{
 fn message_handle() -> Result<(), Box<dyn Error>> {
     const PROPS: &[(&str, &str)] = &[("usr.b.x", "B"), ("usr.p.x", "A"), ("usr.c", "By"), ("usr.p.y", "C")];
 
-    let conn: QueueManager<_> = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
+    let conn = QueueManager::connect(Credentials::user("app", "app")).warn_as_error()?;
 
     let message = Properties::new(conn, values::MQCMHO::default())?;
 

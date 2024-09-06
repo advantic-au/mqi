@@ -1,3 +1,5 @@
+#![allow(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
+
 #[macro_export]
 macro_rules! define_mqmask {
     ($vis:vis $i:ident, $source:path) => {

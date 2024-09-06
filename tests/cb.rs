@@ -11,7 +11,7 @@ use mqi::{
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
-    let mut qm: QueueManager<_> = QueueManager::connect(None, &Credentials::user("app", "app")).warn_as_error()?;
+    let mut qm = QueueManager::connect(Credentials::user("app", "app")).warn_as_error()?;
 
     qm.register_event_handler(
         values::MQCBDO(sys::MQCBDO_REGISTER_CALL | sys::MQCBDO_DEREGISTER_CALL),
@@ -79,18 +79,15 @@ fn callback() -> Result<(), Box<dyn Error>> {
 
     // Connect to the default queue manager (None) with the provided `connection_options`
     // Treat all MQCC_WARNING as an error
-    let qm: QueueManager<_> = QueueManager::connect(
-        None,
-        &(
-            Binding::Default,
-            ApplName(mqstr!("readme_example")),
-            Credentials::user("app", "app"),
-        ),
-    )
+    let qm = QueueManager::connect(&(
+        Binding::Default,
+        ApplName(mqstr!("readme_example")),
+        Credentials::user("app", "app"),
+    ))
     .warn_as_error()?;
 
     let qm = Arc::new(qm);
-    let object: Object<_> = Object::open(qm.clone(), QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
+    let object = Object::open(qm.clone(), QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
 
     let _ = thread::spawn(move || {
         println!("{:?}", object.handle());

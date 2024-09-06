@@ -1,7 +1,7 @@
 #![cfg(feature = "mqai")]
 
 use mqi::admin::Bag;
-use mqi::connect_options::{ApplName, ClientDefinition, Credentials};
+use mqi::connect_options::{ApplName, Credentials};
 use mqi::core::mqai::values::{MqaiSelector, MQCMD};
 use mqi::core::values;
 use mqi::types::ObjectName;
@@ -16,15 +16,7 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         .add(MqaiSelector(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
         .discard_warning();
 
-    let qm: QueueManager<_> = QueueManager::connect(
-        None,
-        &(
-            ClientDefinition::from_mqserver("DEV.ADMIN.SVRCONN/TCP/192.168.92.15(1414)")?,
-            ApplName(mqstr!("rust_testing")),
-            Credentials::user("admin", "admin"),
-        ),
-    )
-    .warn_as_error()?;
+    let qm = QueueManager::connect(&(ApplName(mqstr!("rust_testing")), Credentials::user("admin", "admin"))).warn_as_error()?;
     let execute_result = admin_bag
         .execute(qm.handle(), MQCMD(sys::MQCMD_INQUIRE_Q), None, None, None)
         .warn_as_error()?;

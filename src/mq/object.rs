@@ -1,6 +1,6 @@
 use crate::{
     core::{values, ObjectHandle},
-    MqStruct, MqiOption, MqiValue,
+    MqStruct, MqiAttr, MqiOption, MqiValue,
 };
 
 use crate::{
@@ -22,7 +22,10 @@ pub struct Object<C: Conn> {
 }
 
 pub trait OpenOption<'oo>: MqiOption<OpenParam<'oo>> {}
-pub trait OpenValue<T>: for<'oo> MqiValue<OpenParam<'oo>, T> {}
+pub trait OpenValue<S>: for<'oo> MqiValue<OpenParam<'oo>, S> {}
+pub trait OpenAttr<S>: for<'oo> MqiAttr<OpenParam<'oo>, S> {}
+
+impl<S, T: for<'oo> MqiAttr<OpenParam<'oo>, S>> OpenAttr<S> for T {}
 
 impl<'oo, T: MqiOption<OpenParam<'oo>>> OpenOption<'oo> for T {}
 

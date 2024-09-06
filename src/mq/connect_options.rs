@@ -1,3 +1,5 @@
+#![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
+
 use std::{any, cmp, ops::Deref};
 
 use crate::{
@@ -7,7 +9,7 @@ use crate::{
 };
 
 use super::{
-    types::{ChannelName, CipherSpec, ConnectionName},
+    types::{ChannelName, CipherSpec, ConnectionName, QueueManagerName},
     ConnTag, ConnectParam, ConnectionId, MqStruct,
 };
 
@@ -16,9 +18,17 @@ pub const HAS_CD: i32 = 0b00100;
 pub const HAS_CSP: i32 = 0b01000;
 pub const HAS_BNO: i32 = 0b10000;
 
-#[allow(unused_variables)]
+#[expect(unused_variables)]
 pub trait ConnectOption<'a> {
-    const STRUCTS: i32;
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        0
+    }
+
+    #[inline]
+    fn queue_manager_name(&self) -> Option<&QueueManagerName> {
+        None
+    }
 
     fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
@@ -51,8 +61,67 @@ pub trait ConnectOption<'a> {
     }
 }
 
+impl<'b, T: ConnectOption<'b>> ConnectOption<'b> for &T {
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        T::struct_mask(self)
+    }
+
+    #[inline]
+    fn queue_manager_name(&self) -> Option<&QueueManagerName> {
+        T::queue_manager_name(self)
+    }
+
+    #[inline]
+    fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>)
+    where
+        'b: 'ptr,
+    {
+        T::apply_cno(self, cno);
+    }
+
+    #[inline]
+    fn apply_sco<'ptr>(&'ptr self, sco: &mut MqStruct<'ptr, sys::MQSCO>)
+    where
+        'b: 'ptr,
+    {
+        T::apply_sco(self, sco);
+    }
+
+    #[inline]
+    fn apply_csp<'ptr>(&'ptr self, csp: &mut MqStruct<'ptr, sys::MQCSP>)
+    where
+        'b: 'ptr,
+    {
+        T::apply_csp(self, csp);
+    }
+
+    #[inline]
+    fn apply_cd<'ptr>(&'ptr self, cd: &mut MqStruct<'ptr, sys::MQCD>)
+    where
+        'b: 'ptr,
+    {
+        T::apply_cd(self, cd);
+    }
+
+    #[inline]
+    fn apply_bno<'ptr>(&'ptr self, bno: &mut MqStruct<'ptr, sys::MQBNO>)
+    where
+        'b: 'ptr,
+    {
+        T::apply_bno(self, bno);
+    }
+}
+
 impl<'b, O: ConnectOption<'b>> ConnectOption<'b> for Option<O> {
-    const STRUCTS: sys::MQLONG = O::STRUCTS;
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        self.as_ref().map_or(0, ConnectOption::struct_mask)
+    }
+
+    fn queue_manager_name(&self) -> Option<&QueueManagerName> {
+        self.as_ref().and_then(|o| o.queue_manager_name())
+    }
 
     fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
@@ -139,13 +208,16 @@ impl<'ptr> ClientDefinition<'ptr> {
 }
 
 impl<'cd> ConnectOption<'cd> for ClientDefinition<'cd> {
-    const STRUCTS: i32 = HAS_CD;
-
     fn apply_cd<'ptr>(&self, cd: &mut MqStruct<'ptr, sys::MQCD>)
     where
         'cd: 'ptr,
     {
         self.cd.clone_into(cd);
+    }
+
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        HAS_CD
     }
 }
 
@@ -160,7 +232,6 @@ pub enum Binding {
 }
 
 impl ConnectOption<'_> for Binding {
-    const STRUCTS: i32 = 0;
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
         'static: 'ptr,
@@ -171,6 +242,12 @@ impl ConnectOption<'_> for Binding {
             Self::Local => sys::MQCNO_LOCAL_BINDING,
             Self::Client => sys::MQCNO_CLIENT_BINDING,
         }
+    }
+}
+
+impl ConnectOption<'_> for QueueManagerName {
+    fn queue_manager_name(&self) -> Option<&QueueManagerName> {
+        Some(self)
     }
 }
 
@@ -303,7 +380,10 @@ impl<'pw> Tls<'pw> {
 }
 
 impl ConnectOption<'_> for CipherSpec {
-    const STRUCTS: i32 = HAS_CD;
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        HAS_CD
+    }
 
     fn apply_cd<'ptr>(&'ptr self, cd: &mut super::MqStruct<'ptr, sys::MQCD>)
     where
@@ -315,7 +395,11 @@ impl ConnectOption<'_> for CipherSpec {
 }
 
 impl<'tls> ConnectOption<'tls> for Tls<'tls> {
-    const STRUCTS: i32 = HAS_SCO | CipherSpec::STRUCTS;
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        HAS_SCO | self.1.struct_mask()
+    }
+
     fn apply_sco<'ptr>(&self, sco: &mut MqStruct<'ptr, sys::MQSCO>)
     where
         'tls: 'ptr,
@@ -358,7 +442,10 @@ impl<T> From<T> for ProtectedSecret<T> {
 }
 
 impl<'cred, S: Secret<str>> ConnectOption<'cred> for CredentialsSecret<'cred, S> {
-    const STRUCTS: i32 = HAS_CSP;
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        HAS_CSP
+    }
 
     fn apply_csp<'ptr>(&'ptr self, csp: &mut MqStruct<'ptr, sys::MQCSP>)
     where
@@ -393,8 +480,6 @@ impl<'cred, S: Secret<str>> ConnectOption<'cred> for CredentialsSecret<'cred, S>
 }
 
 impl ConnectOption<'_> for values::MQCNO {
-    const STRUCTS: i32 = 0;
-
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
         'static: 'ptr,
@@ -403,9 +488,7 @@ impl ConnectOption<'_> for values::MQCNO {
     }
 }
 
-impl ConnectOption<'_> for () {
-    const STRUCTS: i32 = 0;
-}
+impl ConnectOption<'_> for () {}
 
 macro_rules! impl_connectoptions {
     ($first:ident, [$($ty:ident),*]) => {
@@ -416,7 +499,27 @@ macro_rules! impl_connectoptions {
             $first: ConnectOption<'r>,
             $($ty: ConnectOption<'r>),*
         {
-            const STRUCTS: i32 = $first::STRUCTS $(| $ty::STRUCTS)*;
+            #[inline]
+            fn struct_mask(&self) -> i32 {
+                let ( $first, $($ty),*) = self;
+                $first.struct_mask() | $($ty.struct_mask())|*
+            }
+
+
+            fn queue_manager_name(&self) -> Option<&QueueManagerName> {
+                let ( $first, $($ty),*) = self;
+                if let name @ Some(_) = $first.queue_manager_name() {
+                    return name;
+                }
+
+                $(
+                    if let name @ Some(_) = $ty.queue_manager_name() {
+                        return name;
+                    }
+                )*
+
+                None
+            }
 
             #[inline]
             fn apply_cno<'ptr>(&'ptr self, cno: &mut MqStruct<'ptr, sys::MQCNO>)
@@ -475,8 +578,7 @@ macro_rules! impl_connectoptions {
 
 all_multi_tuples!(impl_connectoptions);
 
-impl ConnectOption<'static> for ApplName {
-    const STRUCTS: i32 = 0;
+impl ConnectOption<'_> for ApplName {
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
         'static: 'ptr,
@@ -487,8 +589,6 @@ impl ConnectOption<'static> for ApplName {
 }
 
 impl<'url> ConnectOption<'url> for Ccdt<'url> {
-    const STRUCTS: i32 = 0;
-
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
         'url: 'ptr,
@@ -500,7 +600,10 @@ impl<'url> ConnectOption<'url> for Ccdt<'url> {
 }
 
 impl<'bno> ConnectOption<'bno> for MqStruct<'bno, sys::MQBNO> {
-    const STRUCTS: i32 = HAS_BNO;
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        HAS_BNO
+    }
 
     fn apply_bno<'ptr>(&self, bno: &mut MqStruct<'ptr, sys::MQBNO>)
     where
@@ -518,7 +621,10 @@ impl<'bno> ConnectOption<'bno> for MqStruct<'bno, sys::MQBNO> {
 }
 
 impl<'data> ConnectOption<'data> for MqStruct<'data, sys::MQCSP> {
-    const STRUCTS: i32 = HAS_CSP;
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        HAS_CSP
+    }
 
     fn apply_csp<'ptr>(&self, csp: &mut MqStruct<'ptr, sys::MQCSP>)
     where
@@ -529,7 +635,10 @@ impl<'data> ConnectOption<'data> for MqStruct<'data, sys::MQCSP> {
 }
 
 impl<'data> ConnectOption<'data> for MqStruct<'data, sys::MQSCO> {
-    const STRUCTS: i32 = HAS_SCO;
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        HAS_SCO
+    }
 
     fn apply_sco<'ptr>(&self, sco: &mut MqStruct<'ptr, sys::MQSCO>)
     where
@@ -540,7 +649,10 @@ impl<'data> ConnectOption<'data> for MqStruct<'data, sys::MQSCO> {
 }
 
 impl<'data> ConnectOption<'data> for MqStruct<'data, sys::MQCD> {
-    const STRUCTS: i32 = HAS_CD;
+    #[inline]
+    fn struct_mask(&self) -> i32 {
+        HAS_CD
+    }
 
     fn apply_cno<'ptr>(&self, mqcno: &mut MqStruct<'ptr, sys::MQCNO>)
     where
@@ -582,7 +694,7 @@ impl<'b, S> MqiAttr<ConnectParam<'b>, S> for ConnTag {
 }
 
 pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, values::MQXPT), MqServerSyntaxError> {
-    #[allow(clippy::unwrap_used)]
+    #[expect(clippy::unwrap_used)]
     let server_pattern = regex::Regex::new(r"^(.+)/(.+)/(.+)$").unwrap();
 
     if let Some((_, [channel, transport, connection_name])) = server_pattern.captures(server).map(|v| v.extract()) {

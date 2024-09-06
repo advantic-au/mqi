@@ -1,3 +1,5 @@
+#![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
+
 use crate::{Error, ResultComp, ResultCompErr, ResultCompErrExt};
 
 use super::macros::all_multi_tuples;
@@ -18,6 +20,17 @@ pub trait MqiAttr<P, S>: Sized {
     fn extract<F>(param: &mut P, mqi: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut P) -> ResultComp<S>;
+}
+
+pub struct Callback<F>(pub F);
+
+impl<P, F> MqiOption<P> for Callback<F>
+where
+    F: FnOnce(&mut P),
+{
+    fn apply_param(self, param: &mut P) {
+        self.0(param);
+    }
 }
 
 macro_rules! impl_mqivalue_tuple {
@@ -108,15 +121,6 @@ impl<P, T: MqiOption<P>> MqiOption<P> for Option<T> {
         if let Some(option) = self {
             option.apply_param(param);
         }
-    }
-}
-
-impl<F, P> MqiOption<P> for F
-where
-    F: FnOnce(&mut P),
-{
-    fn apply_param(self, param: &mut P) {
-        self(param);
     }
 }
 
