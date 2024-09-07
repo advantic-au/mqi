@@ -29,6 +29,8 @@ impl<'a, T: EncodedString + ?Sized, O> MqiOption<OpenParamOption<'a, O>> for Sel
 
 impl<'a, T: EncodedString + ?Sized, O> MqiOption<OpenParamOption<'a, O>> for ObjectString<&'a T> {
     fn apply_param(self, (od, ..): &mut OpenParamOption<'a, O>) {
+        od.Version = cmp::max(sys::MQOD_VERSION_4, od.Version);
+        od.ObjectType = sys::MQOT_TOPIC;
         od.attach_object_string(self.0);
     }
 }

@@ -411,7 +411,7 @@ impl<'tls> ConnectOption<'tls> for Tls<'tls> {
     where
         'tls: 'ptr,
     {
-        CipherSpec::apply_cd(&self.1, cd);
+        self.1.apply_cd(cd);
     }
 }
 

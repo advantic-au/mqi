@@ -1,12 +1,21 @@
 use mqi::{
     connect_options::Credentials,
-    core::values::{self, MQSO},
+    core::values::{self, MQOO, MQSO},
     mqstr,
     open_options::ObjectString,
     sys,
     types::QueueName,
     Object, QueueManager, ResultCompExt as _, Subscription,
 };
+
+#[test]
+fn publish() -> Result<(), Box<dyn std::error::Error>> {
+    const TOPIC: ObjectString<&str> = ObjectString("dev/");
+    let qm = QueueManager::connect(Credentials::user("app", "app")).warn_as_error()?;
+    let object = Object::open(qm, TOPIC, MQOO(sys::MQOO_OUTPUT)).warn_as_error()?;
+    object.put_message((), "Hello").warn_as_error()?;
+    Ok(())
+}
 
 #[test]
 fn subscribe() -> Result<(), Box<dyn std::error::Error>> {

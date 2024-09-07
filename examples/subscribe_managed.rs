@@ -30,9 +30,9 @@ struct Args {
     topic: Option<String>,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    const APP_NAME: ApplName = ApplName(mqstr!("subscribe_managed"));
+const APP_NAME: ApplName = ApplName(mqstr!("subscribe_managed"));
 
+fn main() -> Result<(), Box<dyn Error>> {
     let subscriber = tracing_subscriber::fmt().compact().with_max_level(Level::TRACE).finish();
     tracing::subscriber::set_global_default(subscriber)?;
 

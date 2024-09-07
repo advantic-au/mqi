@@ -141,7 +141,7 @@ fn transaction() -> Result<(), Box<dyn Error>> {
     let connection = QueueManager::connect(Credentials::user("app", "app")).warn_as_error()?;
     let object = Object::open(&connection, QUEUE, values::MQOO(sys::MQOO_OUTPUT)).warn_as_error()?;
 
-    object.put_message::<()>((), "message").warn_as_error()?;
+    object.put_message((), "message").warn_as_error()?;
 
     Ok(())
 }
