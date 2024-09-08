@@ -9,7 +9,7 @@ use crate::core::{self, ConnectionHandle, Library, MQFunctions};
 use crate::{sys, Error, MqiAttr, MqiValue, ResultCompErrExt as _};
 use crate::ResultComp;
 
-use super::connect_options::{self, ConnectOption};
+use super::connect_options::{self, ConnectOption, ConnectStructs};
 use super::types::QueueManagerName;
 use super::MqStruct;
 
@@ -123,37 +123,28 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
         R: ConnectValue<Self>,
         O: ConnectOption<'co>,
     {
-        let mut cno = MqStruct::default();
-        let mut sco = MqStruct::default();
-        let mut cd = MqStruct::default();
-        let mut bno = MqStruct::default();
-        let mut csp = MqStruct::default();
-        let structs = options.struct_mask();
+        let mut structs = ConnectStructs::default();
+        let struct_mask = options.apply_param(&mut structs);
 
-        options.apply_cno(&mut cno);
-        if structs & connect_options::HAS_BNO != 0 {
-            options.apply_bno(&mut bno);
-            cno.attach_bno(&bno);
+        if struct_mask & connect_options::HAS_BNO != 0 {
+            structs.cno.attach_bno(&structs.bno);
         }
 
-        if structs & connect_options::HAS_CD != 0 {
-            options.apply_cd(&mut cd);
-            cno.attach_cd(&cd);
+        if struct_mask & connect_options::HAS_CD != 0 {
+            structs.cno.attach_cd(&structs.cd);
         }
 
-        if structs & connect_options::HAS_SCO != 0 {
-            options.apply_sco(&mut sco);
-            cno.attach_sco(&sco);
+        if struct_mask & connect_options::HAS_SCO != 0 {
+            structs.cno.attach_sco(&structs.sco);
         }
 
-        if structs & connect_options::HAS_CSP != 0 {
-            options.apply_csp(&mut csp);
-            cno.attach_csp(&csp);
+        if struct_mask & connect_options::HAS_CSP != 0 {
+            structs.cno.attach_csp(&structs.csp);
         }
 
         let qm_name = options.queue_manager_name();
 
-        R::consume(&mut cno, |param| {
+        R::consume(&mut structs.cno, |param| {
             param.Options |= H::MQCNO_HANDLE_SHARE;
             let mq = core::MQFunctions(lib);
             mq.mqconnx(qm_name.unwrap_or(&QueueManagerName::default()), param)

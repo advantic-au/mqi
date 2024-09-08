@@ -12,7 +12,7 @@ pub struct GroupId(pub [u8; sys::MQ_GROUP_ID_LENGTH]);
 #[derive(Debug, Clone, Copy)]
 pub struct MsgToken(pub [u8; sys::MQ_MSG_TOKEN_LENGTH]);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct UserIdentifier(pub MqStr<12>);
 
 pub type StrucId = [u8; 4];
@@ -60,17 +60,25 @@ impl UserIdentifier {
 
 pub type ObjectName = MqStr<48>;
 
-#[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct ConnectionName(pub MqStr<264>);
 
-#[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct ChannelName(pub MqStr<20>);
 
-#[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct QueueName(pub ObjectName);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct QueueManagerName(pub ObjectName);
 
-#[derive(Debug, Clone, Copy, Default, derive_more::Deref, derive_more::DerefMut)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct CipherSpec(pub MqStr<32>);
+
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+pub struct KeyRepo(pub MqStr<256>);
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+pub struct CryptoHardware(pub MqStr<256>);
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+pub struct CertificateLabel(pub MqStr<64>);

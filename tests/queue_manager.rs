@@ -4,7 +4,7 @@ use mqi::{
     connect_options::{ApplName, Binding, ClientDefinition, Credentials, Tls},
     core::values,
     mqstr, sys,
-    types::{CipherSpec, MessageId, QueueName, FORMAT_NONE},
+    types::{CertificateLabel, CipherSpec, KeyRepo, MessageId, QueueName, FORMAT_NONE},
     Properties, QueueManager, ResultCompErrExt, ResultCompExt,
 };
 
@@ -59,9 +59,9 @@ fn connect() -> Result<(), Box<dyn Error>> {
 
     let def = ClientDefinition::from_mqserver(&env::var("MQSERVER")?)?;
     let tls = Tls::new(
-        &mqstr!("path"),
+        &KeyRepo(mqstr!("path")),
         Some("password"),
-        Some(&mqstr!("label")),
+        Some(&CertificateLabel(mqstr!("label"))),
         &CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")),
     );
     let creds = Credentials::user("app", "app");
