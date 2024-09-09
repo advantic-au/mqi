@@ -16,7 +16,7 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         .add(MqaiSelector(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
         .discard_warning();
 
-    let qm = QueueManager::connect(&(ApplName(mqstr!("rust_testing")), Credentials::user("admin", "admin"))).warn_as_error()?;
+    let qm = QueueManager::connect((ApplName(mqstr!("rust_testing")), Credentials::user("admin", "admin"))).warn_as_error()?;
     let execute_result = admin_bag
         .execute(qm.handle(), MQCMD(sys::MQCMD_INQUIRE_Q), None, None, None)
         .warn_as_error()?;

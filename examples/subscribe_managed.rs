@@ -66,17 +66,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         None
     };
 
-    let qm = QueueManager::connect(&(APP_NAME, qm_name, creds, client_definition)).warn_as_error()?;
+    let qm = QueueManager::connect((APP_NAME, qm_name, creds, client_definition)).warn_as_error()?;
     let (_subscription, queue) =
         Subscription::subscribe_managed(&qm, (MQSO(sys::MQSO_CREATE | sys::MQSO_NON_DURABLE), topic)).warn_as_error()?;
 
     let mut buffer: [u8; 20 * 1024] = [0; 20 * 1024]; // 20kb
 
     while running_check.load(atomic::Ordering::Relaxed) {
-        if let Some((_data, _format)) = queue
+        if let Some((data, _format)) = queue
             .get_data_with::<MessageFormat, _>(GetWait::Wait(500), buffer.as_mut_slice())
             .warn_as_error()?
         {
+            println!("{data:?}");
             // TODO: demonstrate some simple message handling
         }
     }

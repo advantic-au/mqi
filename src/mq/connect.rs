@@ -123,6 +123,9 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
         R: ConnectValue<Self>,
         O: ConnectOption<'co>,
     {
+
+        let qm_name = options.queue_manager_name().copied();
+
         let mut structs = ConnectStructs::default();
         let struct_mask = options.apply_param(&mut structs);
 
@@ -142,12 +145,11 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
             structs.cno.attach_csp(&structs.csp);
         }
 
-        let qm_name = options.queue_manager_name();
 
         R::consume(&mut structs.cno, |param| {
             param.Options |= H::MQCNO_HANDLE_SHARE;
             let mq = core::MQFunctions(lib);
-            mq.mqconnx(qm_name.unwrap_or(&QueueManagerName::default()), param)
+            mq.mqconnx(qm_name.as_ref().unwrap_or(&QueueManagerName::default()), param)
                 .map_completion(|handle| Self {
                     mq,
                     handle,

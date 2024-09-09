@@ -89,8 +89,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         fmt: TextEnc::Ascii(*fmt.as_bytes()),
     };
 
-    let qm = QueueManager::connect(&(APP_NAME, qm_name, creds, client_definition)).warn_as_error()?;
-    let object = Object::open(qm, (queue, topic), MQOO(sys::MQOO_OUTPUT)).warn_as_error()?;
+    let qm = QueueManager::connect((APP_NAME, qm_name, creds, client_definition)).warn_as_error()?;
+    let object = Object::open(qm, (queue, topic, MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
 
     // Read the message from stdin
     let mut stdin = io::stdin();

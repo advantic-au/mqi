@@ -33,46 +33,46 @@ Usage
     mqi = "0.1.0"
     ```
 
-5. Use the crate in your source code:
-
-```rust
-use mqi::prelude::*;
-use mqi::mq;
-```
-
 Example
 -------
 
 Connect to the default queue manager using the MQSERVER environment variable.
 
 ```rust
-use mqi::{mqstr, prelude::*, QueueManager, ConnectionOptions, Credentials};
+use std::error::Error;
+use mqi::{
+    connect_options::{ApplName, Credentials},
+    mqstr,
+    types::QueueName,
+    QueueManager,
+    ResultCompErrExt as _, ResultCompExt as _,
+};
 
-#[test]
-fn default_binding() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
+    const TARGET: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    // Use the default binding which is controlled through the MQI usually using environment variables
-    // eg `MQSERVER = '...'``
-    let connection_options = ConnectionOptions::default_binding()
-        .application_name(Some(mqstr!("readme_example")))
-        .credentials(Credentials::user("user", "password"));
+    // User credentials and application name.
+    // MQI will use the C API defaults of using MQSERVER environment variable
+    let connect_options = (ApplName(mqstr!("readme_example")), Credentials::user("user", "password"));
 
-    // Connect to the default queue manager (None) with the provided `connection_options`
-    // Treat all MQCC_WARNING as an error
-    let qm = QueueManager::new(None, &connection_options)
-        .warn_as_error()?;
-    
-    // Disconnect. 
-    qm.disconnect().warn_as_error()?;
+    // Connect to the queue manager. Make all MQ warnings as a rust Result::Err
+    let queue_manager = QueueManager::connect(connect_options).warn_as_error()?;
+
+    // Put a single string message on the target queue with no explicit put options. Discard any warnings.
+    queue_manager.put_message(TARGET, (), "Hello").discard_warning()?;
+
+    // Queue manager disconnect - this also happens automaticall on Drop.
+    queue_manager.disconnect().discard_warning()?;
 
     Ok(())
 }
+
 ```
 
 Goals
 -----
 
-- Expose an ergonomic and idiomatic API over the IBM MQI libraries.
+- Expose an ergonomic API over the IBM MQI libraries.
 - Become the preferred API for developing MQ applications where performance and safety
   is the primary concern.
 - Provide a simple layer over MQ to connect, send and receive MQ messages,

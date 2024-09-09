@@ -43,8 +43,11 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
 
     let object = Object::open(
         &qm,
-        (QUEUE, SelectionString(&*sel)),
-        values::MQOO(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
+        (
+            QUEUE,
+            SelectionString(&*sel),
+            values::MQOO(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
+        ),
     )?;
     let mut properties = Properties::new(&qm, values::MQCMHO::default())?;
 
@@ -110,7 +113,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
     ];
     let qm = QueueManager::connect(Credentials::user("app", "app")).discard_warning()?;
     let (object, qm) =
-        Object::open_with::<Option<QueueManagerName>>(&qm, QueueManagerName(mqstr!("QM1")), values::MQOO(sys::MQOO_INQUIRE))
+        Object::open_with::<Option<QueueManagerName>>(&qm, (QueueManagerName(mqstr!("QM1")), values::MQOO(sys::MQOO_INQUIRE)))
             .warn_as_error()?;
 
     println!("{qm:?}");
@@ -139,7 +142,7 @@ fn transaction() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
     let connection = QueueManager::connect(Credentials::user("app", "app")).warn_as_error()?;
-    let object = Object::open(&connection, QUEUE, values::MQOO(sys::MQOO_OUTPUT)).warn_as_error()?;
+    let object = Object::open(&connection, (QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
 
     object.put_message((), "message").warn_as_error()?;
 

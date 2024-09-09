@@ -49,6 +49,18 @@ impl<'b, O> MqiOption<OpenParamOption<'b, O>> for QueueManagerName {
     }
 }
 
+impl<'b> MqiOption<OpenParamOption<'b, Self>> for values::MQOO {
+    fn apply_param(self, param: &mut OpenParamOption<'b, Self>) {
+        param.1 |= self;
+    }
+}
+
+impl<'b> MqiOption<OpenParamOption<'b, Self>> for values::MQPMO {
+    fn apply_param(self, param: &mut OpenParamOption<'b, Self>) {
+        param.1 |= self;
+    }
+}
+
 impl<'b> MqiOption<OpenParamOption<'b, values::MQOO>> for AlternateUserId {
     fn apply_param(self, (od, oo): &mut OpenParamOption<'_, values::MQOO>) {
         *oo |= sys::MQOO_ALTERNATE_USER_AUTHORITY;

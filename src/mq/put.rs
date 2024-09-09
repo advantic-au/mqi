@@ -55,8 +55,7 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
 }
 
 impl<C: Conn> Object<C> {
-    pub fn put_message(&self, put_options: impl PutOption, message: &(impl PutMessage + ?Sized)) -> ResultComp<()>
-    {
+    pub fn put_message(&self, put_options: impl PutOption, message: &(impl PutMessage + ?Sized)) -> ResultComp<()> {
         self.put_message_with(put_options, message)
     }
 

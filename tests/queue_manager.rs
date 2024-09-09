@@ -11,7 +11,7 @@ use mqi::{
 #[test]
 fn thread() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
-    let (qm, (tag, id)) = QueueManager::connect_with::<(mqi::ConnTag, mqi::ConnectionId)>(&Credentials::user("app", "app"))
+    let (qm, (tag, id)) = QueueManager::connect_with::<(mqi::ConnTag, mqi::ConnectionId)>(Credentials::user("app", "app"))
         .discard_warning() // ignore warning
         .expect("Could not establish connection");
     println!("{:?}", id.0);
@@ -40,7 +40,7 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
 
     // Connect to the default queue manager (None) with the provided options
     // Treat all MQCC_WARNING as an error
-    let connection = QueueManager::connect(&(
+    let connection = QueueManager::connect((
         Binding::Default,
         Credentials::user("app", "app"),
         ApplName(mqstr!("readme_example")),

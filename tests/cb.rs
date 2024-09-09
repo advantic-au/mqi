@@ -79,7 +79,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
 
     // Connect to the default queue manager (None) with the provided `connection_options`
     // Treat all MQCC_WARNING as an error
-    let qm = QueueManager::connect(&(
+    let qm = QueueManager::connect((
         Binding::Default,
         ApplName(mqstr!("readme_example")),
         Credentials::user("app", "app"),
@@ -87,7 +87,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
     .warn_as_error()?;
 
     let qm = Arc::new(qm);
-    let object = Object::open(qm.clone(), QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
+    let object = Object::open(qm.clone(), (QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF))).warn_as_error()?;
 
     let _ = thread::spawn(move || {
         println!("{:?}", object.handle());

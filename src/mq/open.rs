@@ -3,21 +3,20 @@ use crate::{core::values, sys, MqiValue, ResultComp, ResultCompErr, ResultCompEr
 use super::{Conn, MqStruct, Object, OpenAttr, OpenOption, OpenParam, OpenValue};
 
 impl<C: Conn> Object<C> {
-    pub fn open<'oo>(connection: C, open_option: impl OpenOption<'oo>, options: values::MQOO) -> ResultComp<Self> {
-        Self::open_as(connection, open_option, options)
+    pub fn open<'oo>(connection: C, open_option: impl OpenOption<'oo>) -> ResultComp<Self> {
+        Self::open_as(connection, open_option)
     }
 
-    pub fn open_with<'oo, A>(connection: C, open_option: impl OpenOption<'oo>, options: values::MQOO) -> ResultComp<(Self, A)>
+    pub fn open_with<'oo, A>(connection: C, open_option: impl OpenOption<'oo>) -> ResultComp<(Self, A)>
     where
         A: OpenAttr<Self>,
     {
-        Self::open_as(connection, open_option, options)
+        Self::open_as(connection, open_option)
     }
 
     pub(super) fn open_as<'oo, R>(
         connection: C,
         open_option: impl OpenOption<'oo>,
-        options: values::MQOO,
     ) -> ResultCompErr<R, <R as MqiValue<OpenParam<'oo>, Self>>::Error>
     where
         R: OpenValue<Self>,
@@ -27,7 +26,7 @@ impl<C: Conn> Object<C> {
                 Version: sys::MQOD_VERSION_4,
                 ..sys::MQOD::default()
             }),
-            options,
+            values::MQOO(sys::MQOO_BIND_AS_Q_DEF),
         );
         open_option.apply_param(&mut oo);
         R::consume(&mut oo, |(od, options)| {
