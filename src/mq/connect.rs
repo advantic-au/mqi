@@ -13,9 +13,12 @@ use super::connect_options::{self, ConnectOption, ConnectStructs};
 use super::types::QueueManagerName;
 use super::MqStruct;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::DerefMut, derive_more::Deref)]
 pub struct ConnectionId(pub [sys::MQBYTE; 24]);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::DerefMut, derive_more::Deref)]
 pub struct ConnTag(pub [sys::MQBYTE; 128]);
 
+/// Associated connection handle and MQ library
 pub trait Conn {
     type Lib: Library<MQ: function::MQI>;
     fn mq(&self) -> &MQFunctions<Self::Lib>;
@@ -31,9 +34,11 @@ pub struct QueueManagerShare<'cb, L: Library<MQ: function::MQI>, H> {
     _ref: PhantomData<&'cb mut ()>, // Connection may refer to callback function
 }
 
-/// Thread movable `QueueManagerShare`
+/// Most commonly used [`QueueManagerShare`] instance. Thread movable.
 pub type QueueManager<'cb, L> = QueueManagerShare<'cb, L, ShareBlock>;
 
+
+/// MQCNO parameter used to define the connection
 pub type ConnectParam<'a> = MqStruct<'a, sys::MQCNO>;
 
 trait Sealed {}
@@ -46,18 +51,18 @@ pub trait HandleShare: Sealed {
 }
 
 #[expect(dead_code)]
-/// The `Connection` can only be used in the thread it was created.
+/// The [`QueueManagerShare`] can only be used in the thread it was created.
 /// See the `MQCNO_HANDLE_SHARE_NONE` connection option.
 #[derive(Debug)]
 pub struct ShareNone(*const ()); // !Send + !Sync
 
 #[expect(dead_code)]
-/// The `Connection` can be moved to other threads, but only one thread can use it at any one time.
+/// The [`QueueManagerShare`] can be moved to other threads, but only one thread can use it at any one time.
 /// See the `MQCNO_HANDLE_SHARE_NO_BLOCK` connection option.
 #[derive(Debug)]
 pub struct ShareNonBlock(*const ()); // Send + !Sync
 
-/// The `Connection` can be moved to other threads, and be used by multiple threads concurrently. Blocks when multiple threads call a function.
+/// The [`QueueManagerShare`] can be moved to other threads, and be used by multiple threads concurrently. Blocks when multiple threads call a function.
 /// See the `MQCNO_HANDLE_SHARE_BLOCK` connection option.
 #[derive(Debug)]
 pub struct ShareBlock; // Send + Sync
@@ -102,6 +107,7 @@ pub trait ConnectAttr<S>: for<'a> MqiAttr<ConnectParam<'a>, S> {}
 impl<S, T> ConnectAttr<S> for T where T: for<'a> MqiAttr<ConnectParam<'a>, S> {}
 
 impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> {
+    /// Create and return a connection to a queue manager using a specified MQ [`Library`].
     pub fn connect_lib<'co, O>(lib: L, options: O) -> ResultComp<Self>
     where
         O: ConnectOption<'co>,
@@ -109,6 +115,7 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
         Self::connect_lib_as(lib, options)
     }
 
+    /// Create and return a connection to a queue manager using a specified MQ [`Library`] and inferred [`ConnectAttr`].
     pub fn connect_lib_with<'co, O, A>(lib: L, options: O) -> ResultComp<(Self, A)>
     where
         O: ConnectOption<'co>,
@@ -117,7 +124,7 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
         Self::connect_lib_as(lib, options)
     }
 
-    /// Create a connection to a queue manager using the provided `qm_name` and the `MQCNO` builder
+    /// Create a connection to a queue manager using a specified MQ [`Library`] and inferred return value.
     pub(super) fn connect_lib_as<'co, R, O>(lib: L, options: O) -> ResultComp<R>
     where
         R: ConnectValue<Self>,

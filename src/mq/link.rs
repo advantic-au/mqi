@@ -7,6 +7,8 @@ use crate::{core::values::MQCBO, ResultComp};
 use crate::admin::{Bag, Owned};
 
 impl<H: HandleShare> QueueManagerShare<'_, LinkedMQ, H> {
+    /// Create a connection to a queue manager using the compile time linked MQ library
+    /// and inferred return value.
     #[inline]
     pub fn connect_as<'co, R>(options: impl ConnectOption<'co>) -> ResultComp<R>
     where
@@ -15,11 +17,14 @@ impl<H: HandleShare> QueueManagerShare<'_, LinkedMQ, H> {
         Self::connect_lib_as(LinkedMQ, options)
     }
 
+    /// Create and return a connection to a queue manager using the compile time linked MQ library.
     #[inline]
     pub fn connect<'co>(options: impl ConnectOption<'co>) -> ResultComp<Self> {
         Self::connect_lib_as(LinkedMQ, options)
     }
 
+    /// Create and return a connection to a queue manager using the compile time linked MQ library
+    /// and inferred [`ConnectAttr`].
     #[inline]
     pub fn connect_with<'co, A>(options: impl ConnectOption<'co>) -> ResultComp<(Self, A)>
     where

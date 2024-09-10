@@ -29,7 +29,7 @@ pub struct ConnectStructs<'ptr> {
 }
 
 #[expect(unused_variables)]
-pub trait ConnectOption<'a>: Sized {
+pub trait ConnectOption<'a>: Sized { 
     #[inline]
     fn queue_manager_name(&self) -> Option<&QueueManagerName> {
         None
@@ -122,13 +122,24 @@ impl<'cd> ConnectOption<'cd> for ClientDefinition<'cd> {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct ApplName(pub MqStr<28>);
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+
+/// Client Channel Definition Table URL. Sets the connection as `MQCNO_CLIENT_BINDING`.
+/// 
+/// Implements the [`ConnectOption`] trait as a parameter to the [`QueueManager::connect`](crate::QueueManager::connect) function.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::From)]
 pub struct Ccdt<'url>(pub &'url str);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
+/// Connection binding mode. Represents the `MQCNO_*_BINDING` constants.
+///
+/// Implements the [`ConnectOption`] trait as a parameter to the [`QueueManager::connect`](crate::QueueManager::connect) function.
 pub enum Binding {
+    #[default]
+    /// MQI default binding
     Default,
+    /// Attempt a server connection (`MQCNO_LOCAL_BINDING`)
     Local,
+    /// Attempt a client connection (`MQCNO_CLIENT_BINDING`)
     Client,
 }
 

@@ -283,6 +283,7 @@ impl<S> MqiAttr<GetParam, S> for MessageId {
     }
 }
 
+/// Trait that manipulates the `MQMD` and `MQGMO` structures ([`GetParam`])
 pub trait GetOption: MqiOption<GetParam> {}
 impl<T: MqiOption<GetParam>> GetOption for T {}
 

@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let args = Cli::parse();
 
-    let client_definition = args.connection.client_definition()?;
+    let client_method = args.connection.client_method()?;
     let qm_name = args.connection.queue_manager_name()?;
     let creds = args.connection.credentials();
 
@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = QueueManager::connect((APP_NAME, qm_name, creds, client_definition)).warn_as_error()?;
+    let qm = QueueManager::connect((APP_NAME, qm_name, creds, client_method)).warn_as_error()?;
 
     // Open the queue or topic with MQOO_OUTPUT option
     let object = Object::open(qm, (queue, topic, MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;

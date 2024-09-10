@@ -40,12 +40,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let topic_str = args.topic.or_else(|| env::var("TOPIC").ok());
     let topic = topic_str.as_deref().map(ObjectString);
 
-    let client_definition = args.connection.client_definition()?;
+    let client_method = args.connection.client_method()?;
     let qm_name = args.connection.queue_manager_name()?;
     let creds = args.connection.credentials();
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = QueueManager::connect((APP_NAME, qm_name, creds, client_definition)).warn_as_error()?;
+    let qm = QueueManager::connect((APP_NAME, qm_name, creds, client_method)).warn_as_error()?;
 
     // Create a managed, non-durable subscription to the topic. Fail on any warning.
     // The subscription will persist until `_subscription` is descoped.
