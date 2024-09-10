@@ -39,8 +39,6 @@ Examples
 
 | Name              | Description                        | Status |
 |-------------------|------------------------------------|--------|
-| subscribe_managed | Subscribe and get messages from a topic  |   ✔    |
-| open_put          | Open & put to queue or topic  |   ✔    |
 | Amqsbo            | Handling a poison message - MQGMO_SYNCPOINT | |
 | amqscb            | Callback handling instead of MQGET | |
 | amqsconn          |  Connect to remote QM             | |

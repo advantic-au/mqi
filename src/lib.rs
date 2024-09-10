@@ -14,3 +14,5 @@ pub mod admin;
 pub mod sys {
     pub use libmqm_sys::lib::*; // Re-export mq sys library
 }
+
+pub mod prelude;

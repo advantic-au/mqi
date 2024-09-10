@@ -41,11 +41,11 @@ Connect to the default queue manager using the MQSERVER environment variable.
 ```rust
 use std::error::Error;
 use mqi::{
+    prelude::*,
     connect_options::{ApplName, Credentials},
     mqstr,
     types::QueueName,
     QueueManager,
-    ResultCompErrExt as _, ResultCompExt as _,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -61,13 +61,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Put a single string message on the target queue with no explicit put options. Discard any warnings.
     queue_manager.put_message(TARGET, (), "Hello").discard_warning()?;
 
-    // Queue manager disconnect - this also happens automaticall on Drop.
+    // Queue manager disconnect - this also happens automatically on Drop.
     queue_manager.disconnect().discard_warning()?;
 
     Ok(())
 }
 
 ```
+
+Refer to the [examples](/examples/) folder for additional examples.
 
 Goals
 -----
