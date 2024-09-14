@@ -11,6 +11,7 @@ mod properties;
 mod stat;
 mod strings;
 mod subscribe;
+mod syncpoint;
 
 pub mod encoding;
 pub mod headers;
@@ -25,6 +26,7 @@ pub use buffer::*;
 pub use subscribe::*;
 pub use stat::*;
 pub use properties::*;
+pub use syncpoint::*;
 
 pub mod attribute;
 pub mod get;

@@ -179,13 +179,6 @@ impl<'cb, L: Library<MQ: function::MQI>, H> QueueManagerShare<'cb, L, H> {
         let mut s = self;
         s.mq.mqdisc(&mut s.handle)
     }
-
-    pub fn syncpoint(&mut self) -> Syncpoint<'_, 'cb, L, H> {
-        Syncpoint {
-            connection: self,
-            state: SyncpointState::Open,
-        }
-    }
 }
 
 impl<L: Library<MQ: function::MQI>, H> Conn for Arc<QueueManagerShare<'_, L, H>> {
@@ -221,51 +214,5 @@ impl<L: Library<MQ: function::MQI>, H> Conn for &QueueManagerShare<'_, L, H> {
 
     fn handle(&self) -> &ConnectionHandle {
         QueueManagerShare::<L, H>::handle(self)
-    }
-}
-
-#[derive(Debug)]
-enum SyncpointState {
-    Open,
-    Committed,
-    Backout,
-}
-
-#[must_use]
-pub struct Syncpoint<'connection, 'cb, L: Library<MQ: function::MQI>, H> {
-    state: SyncpointState,
-    connection: &'connection mut QueueManagerShare<'cb, L, H>,
-}
-
-impl<L: Library<MQ: function::MQI>, H> Syncpoint<'_, '_, L, H> {
-    pub fn commit(self) -> ResultComp<()> {
-        let result = self.mq.mqcmit(self.handle());
-        let mut self_mut = self;
-        self_mut.state = SyncpointState::Committed;
-        result
-    }
-
-    pub fn backout(self) -> ResultComp<()> {
-        let result = self.mq.mqback(self.handle());
-        let mut self_mut = self;
-        self_mut.state = SyncpointState::Backout;
-        result
-    }
-}
-
-impl<L: Library<MQ: function::MQI>, H> Drop for Syncpoint<'_, '_, L, H> {
-    fn drop(&mut self) {
-        // TODO: handle close failure
-        if matches!(self.state, SyncpointState::Open) {
-            let _ = self.mq.mqback(self.handle());
-        }
-    }
-}
-
-impl<'cb, L: Library<MQ: function::MQI>, H> Deref for Syncpoint<'_, 'cb, L, H> {
-    type Target = QueueManagerShare<'cb, L, H>;
-
-    fn deref(&self) -> &Self::Target {
-        self.connection
     }
 }
