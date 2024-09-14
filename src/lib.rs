@@ -10,7 +10,7 @@
 //! This crate depends and the [libmqm-sys](https://crates.io/crates/libmqm-sys) crate for
 //! connectivity to MQ queue managers. The underlying connection uses the IBM supplied MQ libraries,
 //! offering proven stability and performance.
-//! 
+//!
 mod common;
 mod constants;
 mod mq;

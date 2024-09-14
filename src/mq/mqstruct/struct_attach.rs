@@ -41,24 +41,24 @@ impl<'ptr> MqStruct<'ptr, sys::MQSD> {
 
 // Functions to attach references to MQCNO
 impl<'ptr> MqStruct<'ptr, sys::MQCNO> {
-    pub fn attach_csp(&mut self, csp: &'ptr sys::MQCSP) {
+    pub fn attach_csp(&mut self, csp: &'ptr MqStruct<'_, sys::MQCSP>) {
         self.Version = cmp::max(sys::MQCNO_VERSION_5, self.Version);
-        self.SecurityParmsPtr = ptr::addr_of!(*csp).cast_mut();
+        self.SecurityParmsPtr = ptr::addr_of!(csp.struc).cast_mut();
     }
 
-    pub fn attach_cd(&mut self, cd: &'ptr sys::MQCD) {
+    pub fn attach_cd(&mut self, cd: &'ptr MqStruct<'_, sys::MQCD>) {
         self.Version = cmp::max(sys::MQCNO_VERSION_2, self.Version);
-        self.ClientConnPtr = ptr::addr_of!(*cd).cast_mut().cast();
+        self.ClientConnPtr = ptr::addr_of!(cd.struc).cast_mut().cast();
     }
 
-    pub fn attach_sco(&mut self, sco: &'ptr sys::MQSCO) {
+    pub fn attach_sco(&mut self, sco: &'ptr MqStruct<'_, sys::MQSCO>) {
         self.Version = cmp::max(sys::MQCNO_VERSION_4, self.Version);
-        self.SSLConfigPtr = ptr::addr_of!(*sco).cast_mut();
+        self.SSLConfigPtr = ptr::addr_of!(sco.struc).cast_mut();
     }
 
-    pub fn attach_bno(&mut self, bno: &'ptr sys::MQBNO) {
+    pub fn attach_bno(&mut self, bno: &'ptr MqStruct<'_, sys::MQBNO>) {
         self.Version = cmp::max(sys::MQCNO_VERSION_8, self.Version);
-        self.BalanceParmsPtr = ptr::addr_of!(*bno).cast_mut();
+        self.BalanceParmsPtr = ptr::addr_of!(bno.struc).cast_mut();
     }
 
     pub fn attach_ccdt(&mut self, url: &'ptr str) {

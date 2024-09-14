@@ -3,6 +3,9 @@
 #[macro_export]
 macro_rules! define_mqvalue {
     ($vis:vis $i:ident, $source:path) => {
+        define_mqvalue!($vis $i, $source, "");
+    };
+    ($vis:vis $i:ident, $source:path, $lit:literal) => {
         #[allow(unused_imports)]
         use $crate::constants::HasConstLookup as _;
         #[allow(unused_imports)]
@@ -10,6 +13,8 @@ macro_rules! define_mqvalue {
         #[allow(unused_imports)]
         use $crate::constants::HasMqNames as _;
 
+        #[allow(clippy::empty_docs)]
+        #[doc = $lit]
         #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
         #[repr(transparent)]
         $vis struct $i(pub $crate::sys::MQLONG);

@@ -19,7 +19,7 @@ pub struct MqStr<const N: usize> {
 #[macro_export]
 macro_rules! mqstr {
     ($val:expr) => {
-        const { $crate::MqStr::from_str($val) }
+        const { $crate::MqStr::def_from_str($val) }
     };
 }
 
@@ -113,7 +113,7 @@ impl<const N: usize> MqStr<N> {
 
     /// Use when defining `MqStr` from const or literal `&str`. Panics on invalid `MqStr`.
     #[must_use]
-    pub const fn from_str(value: &str) -> Self {
+    pub const fn def_from_str(value: &str) -> Self {
         match Self::from_bytes(value.as_bytes()) {
             Ok(result) => result,
             Err(MQStrError::Length { .. }) => panic!("Invalid length"),

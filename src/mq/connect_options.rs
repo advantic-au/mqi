@@ -9,7 +9,9 @@ use crate::{
 };
 
 use super::{
-    types::{CertificateLabel, ChannelName, CipherSpec, ConnectionName, CryptoHardware, KeyRepo, QueueManagerName},
+    types::{
+        impl_from_str, CertificateLabel, ChannelName, CipherSpec, ConnectionName, CryptoHardware, KeyRepo, QueueManagerName,
+    },
     ConnTag, ConnectParam, ConnectionId, MqStruct,
 };
 
@@ -28,8 +30,12 @@ pub struct ConnectStructs<'ptr> {
     pub bno: MqStruct<'ptr, sys::MQBNO>,
 }
 
+/*
+ TODO: I don't believe I have this interface 100% correct. Lifetimes are not conducive
+ to the goals I'm trying to achieve. Borrowing self may be better on apply_param.
+*/
 #[expect(unused_variables)]
-pub trait ConnectOption<'a>: Sized { 
+pub trait ConnectOption<'a>: Sized {
     #[inline]
     fn queue_manager_name(&self) -> Option<&QueueManagerName> {
         None
@@ -43,7 +49,6 @@ pub trait ConnectOption<'a>: Sized {
         HAS_CNO
     }
 }
-
 
 impl<'a, T: ConnectOption<'a> + Copy> ConnectOption<'a> for &T {
     #[inline]
@@ -122,17 +127,18 @@ impl<'cd> ConnectOption<'cd> for ClientDefinition<'cd> {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct ApplName(pub MqStr<28>);
+impl_from_str!(ApplName, MqStr<28>);
 
 /// Client Channel Definition Table URL. Sets the connection as `MQCNO_CLIENT_BINDING`.
-/// 
+///
 /// Implements the [`ConnectOption`] trait as a parameter to the [`QueueManager::connect`](crate::QueueManager::connect) function.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::From)]
 pub struct Ccdt<'url>(pub &'url str);
 
-#[derive(Debug, Clone, Copy, Default)]
 /// Connection binding mode. Represents the `MQCNO_*_BINDING` constants.
 ///
 /// Implements the [`ConnectOption`] trait as a parameter to the [`QueueManager::connect`](crate::QueueManager::connect) function.
+#[derive(Debug, Clone, Copy, Default)]
 pub enum Binding {
     #[default]
     /// MQI default binding

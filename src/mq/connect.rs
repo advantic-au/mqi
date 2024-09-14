@@ -37,7 +37,6 @@ pub struct QueueManagerShare<'cb, L: Library<MQ: function::MQI>, H> {
 /// Most commonly used [`QueueManagerShare`] instance. Thread movable.
 pub type QueueManager<'cb, L> = QueueManagerShare<'cb, L, ShareBlock>;
 
-
 /// MQCNO parameter used to define the connection
 pub type ConnectParam<'a> = MqStruct<'a, sys::MQCNO>;
 
@@ -130,7 +129,6 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
         R: ConnectValue<Self>,
         O: ConnectOption<'co>,
     {
-
         let qm_name = options.queue_manager_name().copied();
 
         let mut structs = ConnectStructs::default();
@@ -151,7 +149,6 @@ impl<L: Library<MQ: function::MQI>, H: HandleShare> QueueManagerShare<'_, L, H> 
         if struct_mask & connect_options::HAS_CSP != 0 {
             structs.cno.attach_csp(&structs.csp);
         }
-
 
         R::consume(&mut structs.cno, |param| {
             param.Options |= H::MQCNO_HANDLE_SHARE;

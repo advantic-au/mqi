@@ -7,7 +7,7 @@ use crate::{
     Conn, EncodedString, Error, MqStr, ResultComp, ResultCompErrExt, StrCcsidOwned, MqiAttr, MqiOption, MqiValue,
 };
 
-use super::{Object, OpenParam, OpenParamOption, OpenValue};
+use super::{types::impl_from_str, Object, OpenParam, OpenParamOption, OpenValue};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SelectionString<T>(pub T);
@@ -15,8 +15,9 @@ pub struct SelectionString<T>(pub T);
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectString<T>(pub T);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct AlternateUserId(pub MqStr<12>);
+impl_from_str!(AlternateUserId, MqStr<12>);
 
 #[derive(Debug, Clone)]
 pub struct ResObjectString(pub StrCcsidOwned);

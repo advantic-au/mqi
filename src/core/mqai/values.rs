@@ -2,12 +2,12 @@
 
 use crate::{define_mqvalue, impl_default_mqvalue, mapping, sys, ConstLookup};
 
-define_mqvalue!(pub MQIND, mapping::MQIND_CONST);
-define_mqvalue!(pub MQQT, mapping::MQQT_CONST);
-define_mqvalue!(pub MQAT, mapping::MQAT_CONST);
-define_mqvalue!(pub MQCMD, mapping::MQCMD_CONST);
-define_mqvalue!(pub MQCFOP, mapping::MQCFOP_CONST);
-define_mqvalue!(pub MqaiSelector, MqaiSelectorLookup);
+define_mqvalue!(pub MQIND, mapping::MQIND_CONST, "Special Index Values");
+define_mqvalue!(pub MQQT, mapping::MQQT_CONST, "Queue Types and Extended Queue Types");
+define_mqvalue!(pub MQAT, mapping::MQAT_CONST, "Put Application Types");
+define_mqvalue!(pub MQCMD, mapping::MQCMD_CONST, "Command Codes");
+define_mqvalue!(pub MQCFOP, mapping::MQCFOP_CONST, "Command format Filter Operators");
+define_mqvalue!(pub MqaiSelector, MqaiSelectorLookup, "Selectors including MQIA, MQCA, MQIACF, MQCACF, MQIACH, MQCACH, QIASY and MQHA");
 impl_default_mqvalue!(MQIND, sys::MQIND_NONE);
 /*
 

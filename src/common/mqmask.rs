@@ -3,6 +3,9 @@
 #[macro_export]
 macro_rules! define_mqmask {
     ($vis:vis $i:ident, $source:path) => {
+        define_mqmask!($vis $i, $source, "");
+    };
+    ($vis:vis $i:ident, $source:path, $lit:literal) => {
         #[allow(unused_imports)]
         use $crate::constants::HasConstLookup as _;
         #[allow(unused_imports)]
@@ -10,6 +13,8 @@ macro_rules! define_mqmask {
         #[allow(unused_imports)]
         use $crate::constants::HasMqNames as _;
 
+        #[allow(clippy::empty_docs)]
+        #[doc = $lit]
         #[derive(
             Clone,
             Copy,

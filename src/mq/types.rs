@@ -12,8 +12,24 @@ pub struct GroupId(pub [u8; sys::MQ_GROUP_ID_LENGTH]);
 #[derive(Debug, Clone, Copy)]
 pub struct MsgToken(pub [u8; sys::MQ_MSG_TOKEN_LENGTH]);
 
+/// Delegates `FromStr` to wrapped type implementation
+macro_rules! impl_from_str {
+    ($i:ident, $ty:ty) => {
+        impl std::str::FromStr for $i {
+            type Err = <$ty as std::str::FromStr>::Err;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Ok(Self(<$ty as std::str::FromStr>::from_str(s)?))
+            }
+        }
+    };
+}
+
+pub(crate) use impl_from_str;
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct UserIdentifier(pub MqStr<12>);
+impl_from_str!(UserIdentifier, MqStr<12>);
 
 pub type StrucId = [u8; 4];
 pub type Fmt = [u8; 8];
@@ -62,22 +78,32 @@ pub type ObjectName = MqStr<48>;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct ConnectionName(pub MqStr<264>);
+impl_from_str!(ConnectionName, MqStr<264>);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct ChannelName(pub MqStr<20>);
+impl_from_str!(ChannelName, MqStr<20>);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct QueueName(pub ObjectName);
+impl_from_str!(QueueName, ObjectName);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct QueueManagerName(pub ObjectName);
+impl_from_str!(QueueManagerName, ObjectName);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct CipherSpec(pub MqStr<32>);
+impl_from_str!(CipherSpec, MqStr<32>);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct KeyRepo(pub MqStr<256>);
+impl_from_str!(KeyRepo, MqStr<256>);
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct CryptoHardware(pub MqStr<256>);
+impl_from_str!(CryptoHardware, MqStr<256>);
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct CertificateLabel(pub MqStr<64>);
+impl_from_str!(CertificateLabel, MqStr<64>);
