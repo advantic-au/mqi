@@ -5,7 +5,7 @@ use libmqm_sys::function;
 
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat};
-use crate::{sys, Conn, Properties, MqStruct, Object, QueueManagerShare, ResultComp, MqiAttr, MqiOption, ResultCompErrExt};
+use crate::{sys, Conn, MqStruct, Object, QueueManagerShare, ResultComp, MqiAttr, MqiOption, ResultCompErrExt};
 use crate::core::{self, values};
 
 use super::OpenParamOption;
@@ -18,13 +18,6 @@ pub trait PutMessage {
 }
 
 pub type PutParam<'a> = (MqStruct<'static, sys::MQMD2>, MqStruct<'a, sys::MQPMO>);
-
-#[derive(Debug)]
-pub enum PropertyAction<'handle, C: Conn> {
-    Reply(&'handle Properties<C>, &'handle mut Properties<C>),
-    Forward(&'handle Properties<C>, &'handle mut Properties<C>),
-    Report(&'handle Properties<C>, &'handle mut Properties<C>),
-}
 
 impl PutMessage for str {
     type Data = Self;
@@ -119,15 +112,11 @@ where
     T: for<'a> MqiAttr<PutParam<'a>, ()>,
     F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>,
 {
-    let MessageFormat {
-        ccsid,
-        encoding,
-        fmt: format,
-    } = message.format();
+    let MessageFormat { ccsid, encoding, fmt } = message.format();
     let md = MqStruct::new(sys::MQMD2 {
         CodedCharSetId: ccsid,
         Encoding: encoding.value(),
-        Format: unsafe { mem::transmute::<Fmt, [i8; 8]>(format.into_ascii().into()) },
+        Format: unsafe { mem::transmute::<Fmt, [i8; 8]>(fmt.into_ascii().into()) },
         ..sys::MQMD2::default()
     });
     let mqpmo = MqStruct::new(sys::MQPMO {

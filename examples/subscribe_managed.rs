@@ -8,7 +8,8 @@ mod args;
 
 use clap::Parser;
 use mqi::{
-    connect_options::ApplName, core::values::MQSO, get::GetWait, mqstr, open_options::ObjectString, prelude::*, sys, types::MessageFormat, QueueManager, Subscription
+    connect_options::ApplName, core::values::MQSO, get::GetWait, mqstr, open_options::ObjectString, prelude::*, sys,
+    types::MessageFormat, QueueManager, Subscription,
 };
 use tracing::Level;
 

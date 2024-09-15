@@ -1,6 +1,22 @@
 use crate::{core::values, sys, types, Conn, Properties, MqStruct, ResultComp, ResultCompErrExt, MqiAttr, MqiOption};
 
-use super::put::{PropertyAction, PutParam};
+use super::{put::PutParam, Object};
+
+#[derive(Debug, Clone, Copy)]
+pub struct Context<T>(pub T);
+
+#[derive(Debug)]
+pub enum PropertyAction<'handle, C: Conn> {
+    Reply(&'handle Properties<C>, &'handle mut Properties<C>),
+    Forward(&'handle Properties<C>, &'handle mut Properties<C>),
+    Report(&'handle Properties<C>, &'handle mut Properties<C>),
+}
+
+impl<C: Conn> MqiOption<PutParam<'_>> for Context<&Object<C>> {
+    fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
+        pmo.Context = unsafe { self.0.handle.raw_handle() };
+    }
+}
 
 impl<C: Conn> MqiOption<PutParam<'_>> for &mut Properties<C> {
     fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
@@ -12,6 +28,12 @@ impl<C: Conn> MqiOption<PutParam<'_>> for &mut Properties<C> {
 impl MqiOption<PutParam<'_>> for values::MQPMO {
     fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
         pmo.Options |= self.value();
+    }
+}
+
+impl MqiOption<PutParam<'_>> for MqStruct<'static, sys::MQMD2> {
+    fn apply_param(self, param: &mut PutParam<'_>) {
+        self.clone_into(&mut param.0);
     }
 }
 

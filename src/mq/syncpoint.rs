@@ -1,4 +1,3 @@
-
 use crate::ResultComp;
 
 use super::Conn;
@@ -18,9 +17,12 @@ pub struct Syncpoint<C: Conn> {
 
 impl<C: Conn> Syncpoint<C> {
     pub const fn new(connection: C) -> Self {
-        Self { state: SyncpointState::Open, connection }
+        Self {
+            state: SyncpointState::Open,
+            connection,
+        }
     }
-    
+
     pub fn commit(self) -> ResultComp<()> {
         let result = self.connection.mq().mqcmit(self.connection.handle());
         let mut self_mut = self;

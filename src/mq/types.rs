@@ -1,7 +1,7 @@
 use crate::{core::values, headers::TextEnc, sys, MqStr, ReasonCode};
-use std::str;
+use std::{mem, str};
 
-use super::headers::fmt::MQFMT_NONE;
+use super::{headers::fmt::MQFMT_NONE, MqStruct};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CorrelationId(pub [u8; sys::MQ_CORREL_ID_LENGTH]);
@@ -41,6 +41,17 @@ pub struct MessageFormat {
     pub ccsid: sys::MQLONG,
     pub encoding: values::MQENC,
     pub fmt: TextEnc<Fmt>,
+}
+
+impl MessageFormat {
+    #[must_use]
+    pub fn from_mqmd2(md: &MqStruct<sys::MQMD2>) -> Self {
+        Self {
+            ccsid: md.CodedCharSetId,
+            encoding: values::MQENC(md.Encoding),
+            fmt: TextEnc::Ascii(unsafe { mem::transmute::<[sys::MQCHAR; 8], [u8; 8]>(md.Format) }),
+        }
+    }
 }
 
 pub const FORMAT_NONE: MessageFormat = MessageFormat {
