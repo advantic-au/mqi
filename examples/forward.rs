@@ -24,6 +24,9 @@ struct Cli {
     #[arg(short = 'x', long, value_enum, default_value_t=ContextArg::Default)]
     context: ContextArg,
 
+    #[arg(short, long, default_value_t = false)]
+    dry_run: bool,
+
     #[arg(short, long)]
     source_queue: String,
 
@@ -111,7 +114,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .warn_as_error()?; // Fail on any warnings
     }
 
-    syncpoint.commit().warn_as_error()?; // Commit both the MQ get and MQ put.
+    if args.dry_run {
+        syncpoint.backout().warn_as_error()?; // Backout any changes
+    } else {
+        syncpoint.commit().warn_as_error()?; // Commit both the MQ get and MQ put.
+    }
 
     Ok(())
 }
