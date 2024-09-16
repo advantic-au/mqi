@@ -1,5 +1,9 @@
 #![allow(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 
+use std::borrow::Cow;
+
+use libmqm_sys::lib::MQLONG;
+
 #[macro_export]
 macro_rules! define_mqvalue {
     ($vis:vis $i:ident, $source:path) => {
@@ -43,7 +47,7 @@ macro_rules! define_mqvalue {
             }
         }
 
-        impl $crate::MQConstant for $i {
+        impl $crate::MqConstant for $i {
             fn mq_value(&self) -> $crate::sys::MQLONG {
                 let Self(value) = self;
                 *value
@@ -53,31 +57,38 @@ macro_rules! define_mqvalue {
         impl std::fmt::Display for $i {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let Self(attribute) = self;
-                let code = self
-                    .mq_primary_name()
-                    .map_or_else(|| std::borrow::Cow::from(attribute.to_string()), std::borrow::Cow::from);
-                f.write_str(&code)
+                $crate::mqvalue::value_display(*attribute, self.mq_primary_name(), f)
             }
         }
 
         impl std::fmt::Debug for $i {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let Self(attribute) = self;
-                let names = self
-                    .mq_names()
-                    .map(std::borrow::Cow::from)
-                    .reduce(|acc, name| std::borrow::Cow::from(format!("{acc}|{name}")));
-
-                if let Some(name_str) = names {
-                    f.debug_tuple(stringify!($i))
-                        .field(&format_args!("{name_str} = {attribute}"))
-                        .finish()
-                } else {
-                    f.debug_tuple(stringify!($i)).field(&format_args!("{attribute}")).finish()
-                }
+                $crate::mqvalue::value_debug(stringify!($i), *attribute, self.mq_names(), f)
             }
         }
     };
+}
+
+pub(crate) fn value_display(value: MQLONG, primary_name: Option<&str>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let code = primary_name.map_or_else(|| Cow::from(value.to_string()), Cow::from);
+    f.write_str(&code)
+}
+
+pub(crate) fn value_debug(
+    type_name: &str,
+    value: MQLONG,
+    names: impl Iterator<Item = &'static str>,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    let names_str = names.map(Cow::from).reduce(|acc, name| Cow::from(format!("{acc}|{name}")));
+    if let Some(name_list) = names_str {
+        f.debug_tuple(type_name)
+            .field(&format_args!("{name_list} = {value}"))
+            .finish()
+    } else {
+        f.debug_tuple(type_name).field(&format_args!("{value}")).finish()
+    }
 }
 
 #[cfg(test)]

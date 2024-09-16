@@ -1,4 +1,4 @@
-use crate::{core::values, sys, types, Conn, Properties, MqStruct, ResultComp, ResultCompErrExt, MqiAttr, MqiOption};
+use crate::{core::values, sys, types, Connection, Properties, MqStruct, ResultComp, ResultCompErrExt, MqiAttr, MqiOption};
 
 use super::{put::PutParam, Object};
 
@@ -6,19 +6,19 @@ use super::{put::PutParam, Object};
 pub struct Context<T>(pub T);
 
 #[derive(Debug)]
-pub enum PropertyAction<'handle, C: Conn> {
+pub enum PropertyAction<'handle, C: Connection> {
     Reply(&'handle Properties<C>, &'handle mut Properties<C>),
     Forward(&'handle Properties<C>, &'handle mut Properties<C>),
     Report(&'handle Properties<C>, &'handle mut Properties<C>),
 }
 
-impl<C: Conn> MqiOption<PutParam<'_>> for Context<&Object<C>> {
+impl<C: Connection> MqiOption<PutParam<'_>> for Context<&Object<C>> {
     fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
         pmo.Context = unsafe { self.0.handle.raw_handle() };
     }
 }
 
-impl<C: Conn> MqiOption<PutParam<'_>> for &mut Properties<C> {
+impl<C: Connection> MqiOption<PutParam<'_>> for &mut Properties<C> {
     fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
         pmo.Action = sys::MQACTP_NEW;
         pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
@@ -37,7 +37,7 @@ impl MqiOption<PutParam<'_>> for MqStruct<'static, sys::MQMD2> {
     }
 }
 
-impl<'handle, C: Conn> MqiOption<PutParam<'_>> for PropertyAction<'handle, C> {
+impl<'handle, C: Connection> MqiOption<PutParam<'_>> for PropertyAction<'handle, C> {
     fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
         match self {
             PropertyAction::Reply(original, new) => {

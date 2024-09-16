@@ -2,7 +2,7 @@ mod handles;
 mod library;
 mod mqi_verbs;
 mod outcome;
-pub mod values;
+pub(crate) mod values;
 
 #[cfg(feature = "mqai")]
 pub mod mqai;

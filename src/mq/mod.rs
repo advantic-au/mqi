@@ -40,3 +40,9 @@ pub mod open_options;
 pub mod properties_options;
 pub mod put_options;
 pub mod subscribe_options;
+
+pub mod values {
+    pub use crate::core::values::*;
+    #[cfg(feature = "mqai")]
+    pub use crate::core::mqai::values::*;
+}

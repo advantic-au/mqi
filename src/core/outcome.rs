@@ -2,7 +2,7 @@ use crate::{sys, ReasonCode, ResultCompErr};
 use crate::{Completion, CompletionCode, Error};
 
 #[derive(Default, Clone, derive_more::Deref, derive_more::DerefMut)]
-pub struct MQIOutcome<T> {
+pub struct MqiOutcome<T> {
     /// MQI verb that caused the failure
     pub verb: &'static str,
     /// Completion code of the MQI function call
@@ -15,15 +15,15 @@ pub struct MQIOutcome<T> {
     pub value: T,
 }
 
-pub type MQIOutcomeVoid = MQIOutcome<()>;
+pub type MqiOutcomeVoid = MqiOutcome<()>;
 
-impl<T: Default> MQIOutcome<T> {
+impl<T: Default> MqiOutcome<T> {
     #[must_use]
     pub fn with_verb(verb: &'static str) -> Self {
         Self { verb, ..Self::default() }
     }
 }
-impl<T> MQIOutcome<T> {
+impl<T> MqiOutcome<T> {
     #[must_use]
     pub fn new(verb: &'static str, value: T) -> Self {
         Self {
@@ -35,9 +35,9 @@ impl<T> MQIOutcome<T> {
     }
 }
 
-impl<T, E: From<Error>> From<MQIOutcome<T>> for ResultCompErr<T, E> {
-    fn from(outcome: MQIOutcome<T>) -> Self {
-        let MQIOutcome { cc, rc, value, verb } = outcome;
+impl<T, E: From<Error>> From<MqiOutcome<T>> for ResultCompErr<T, E> {
+    fn from(outcome: MqiOutcome<T>) -> Self {
+        let MqiOutcome { cc, rc, value, verb } = outcome;
         match cc.value() {
             sys::MQCC_OK => Ok(Completion::new(value)),
             sys::MQCC_WARNING => Ok(Completion::new_warning(value, (rc, verb))),
@@ -46,9 +46,9 @@ impl<T, E: From<Error>> From<MQIOutcome<T>> for ResultCompErr<T, E> {
     }
 }
 
-impl<T, E: From<Error>> From<MQIOutcome<T>> for Result<T, E> {
-    fn from(outcome: MQIOutcome<T>) -> Self {
-        let MQIOutcome { cc, rc, value, verb } = outcome;
+impl<T, E: From<Error>> From<MqiOutcome<T>> for Result<T, E> {
+    fn from(outcome: MqiOutcome<T>) -> Self {
+        let MqiOutcome { cc, rc, value, verb } = outcome;
         match cc.value() {
             sys::MQCC_OK => Ok(value),
             _ => Err(Error(cc, verb, rc).into()),
@@ -58,10 +58,10 @@ impl<T, E: From<Error>> From<MQIOutcome<T>> for Result<T, E> {
 
 /// Traces the MQI outcome
 #[cfg(feature = "tracing")]
-pub fn tracing_outcome<T: std::fmt::Debug>(outcome: &MQIOutcome<T>) {
+pub fn tracing_outcome<T: std::fmt::Debug>(outcome: &MqiOutcome<T>) {
     use crate::HasMqNames as _;
 
-    let MQIOutcome { verb, cc, rc, value } = outcome;
+    let MqiOutcome { verb, cc, rc, value } = outcome;
     match cc.value() {
         sys::MQCC_OK => tracing::event!(
             tracing::Level::DEBUG,
@@ -94,10 +94,10 @@ pub fn tracing_outcome<T: std::fmt::Debug>(outcome: &MQIOutcome<T>) {
 
 /// Traces the MQI outcome without the value
 #[cfg(feature = "tracing")]
-pub fn tracing_outcome_basic<T>(outcome: &MQIOutcome<T>) {
+pub fn tracing_outcome_basic<T>(outcome: &MqiOutcome<T>) {
     use crate::HasMqNames as _;
 
-    let MQIOutcome { verb, cc, rc, .. } = outcome;
+    let MqiOutcome { verb, cc, rc, .. } = outcome;
     match cc.value() {
         sys::MQCC_OK => tracing::event!(
             tracing::Level::DEBUG,

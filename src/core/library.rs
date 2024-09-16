@@ -2,9 +2,9 @@
 use libmqm_sys::link;
 
 #[derive(Debug, Clone)]
-pub struct MQFunctions<L>(pub L);
+pub struct MqFunctions<L>(pub L);
 
-/// Holds a smart pointer to a `MQFunctions`
+/// Holds a smart pointer to a [`MqFunctions`]
 pub trait Library: Clone {
     type MQ;
 
@@ -12,7 +12,7 @@ pub trait Library: Clone {
 }
 
 #[cfg(feature = "link")]
-impl Library for link::LinkedMQ {
+impl Library for link::LinkedMq {
     type MQ = Self;
 
     #[inline]
@@ -23,11 +23,11 @@ impl Library for link::LinkedMQ {
 }
 
 #[cfg(feature = "link")]
-impl super::MQFunctions<link::LinkedMQ> {
-    /// A compile-time linked `MQFunctions`
+impl super::MqFunctions<link::LinkedMq> {
+    /// A compile-time linked [`MqFunctions`]
     #[must_use]
     #[inline]
     pub const fn linked() -> Self {
-        Self(link::LinkedMQ)
+        Self(link::LinkedMq)
     }
 }

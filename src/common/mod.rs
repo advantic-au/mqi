@@ -1,7 +1,7 @@
 pub mod macros;
-mod mqmask;
+pub mod mqmask;
 mod mqstr;
-mod mqvalue;
+pub mod mqvalue;
 mod parameters;
 mod result;
 

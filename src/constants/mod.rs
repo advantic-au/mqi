@@ -13,7 +13,7 @@ macro_rules! impl_constant_lookup {
         }
     };
 }
-pub trait MQConstant {
+pub trait MqConstant {
     fn mq_value(&self) -> sys::MQLONG;
 }
 
@@ -121,7 +121,7 @@ pub trait HasMqNames {
     fn mq_primary_name(&self) -> Option<&'static str>;
 }
 
-impl<T: MQConstant + HasConstLookup> HasMqNames for T {
+impl<T: MqConstant + HasConstLookup> HasMqNames for T {
     fn mq_names(&self) -> impl Iterator<Item = &'static str> {
         Self::const_lookup().by_value(self.mq_value())
     }
@@ -130,7 +130,7 @@ impl<T: MQConstant + HasConstLookup> HasMqNames for T {
     }
 }
 
-impl<T: AsRef<sys::MQLONG>> MQConstant for T {
+impl<T: AsRef<sys::MQLONG>> MqConstant for T {
     fn mq_value(&self) -> sys::MQLONG {
         *self.as_ref()
     }

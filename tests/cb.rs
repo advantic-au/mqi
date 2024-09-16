@@ -2,11 +2,12 @@ use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
 use mqi::{
+    prelude::*,
     connect_options::{ApplName, Binding, Credentials},
-    core::{values, ConnectionHandle},
-    mqstr, sys,
+    core::ConnectionHandle,
+    values, mqstr, sys,
     types::QueueName,
-    MqStruct, Object, QueueManager, ResultCompExt as _, MQMD,
+    MqStruct, Object, QueueManager, MQMD,
 };
 
 #[test]

@@ -1,11 +1,8 @@
-use mqi::{
-    core::{values, MQFunctions},
-    Error, ResultCompExt as _,
-};
+use mqi::{prelude::*, core::MqFunctions, values, Error};
 
 #[test]
 fn mqxcnvc() -> Result<(), Error> {
-    let mq = MQFunctions::linked();
+    let mq = MqFunctions::linked();
     let buffer: [u8; 1024] = [0; 1024];
     let mut target: [u8; 1024] = [0; 1024];
 

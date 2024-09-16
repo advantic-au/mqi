@@ -121,11 +121,11 @@ pub trait ResultCompExt<T, E> {
     fn warn_as_error(self) -> Result<T, E>;
 }
 
-pub trait WithMQError {
+pub trait WithMqError {
     fn mqi_error(&self) -> Option<&Error>;
 }
 
-impl WithMQError for Error {
+impl WithMqError for Error {
     fn mqi_error(&self) -> Option<&Error> {
         Some(self)
     }

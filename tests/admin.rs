@@ -1,28 +1,28 @@
 #![cfg(feature = "mqai")]
 
+use mqi::prelude::*;
 use mqi::admin::Bag;
 use mqi::connect_options::{ApplName, Credentials};
-use mqi::core::mqai::values::{MqaiSelector, MQCMD};
-use mqi::core::values;
+use mqi::values;
 use mqi::types::ObjectName;
-use mqi::{mqstr, MqStr, ResultCompExt as _};
+use mqi::{mqstr, MqStr};
 use mqi::{sys, QueueManager};
 
 #[test]
 fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
     let admin_bag = Bag::new(values::MQCBO(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
-    admin_bag.add(MqaiSelector(sys::MQCA_Q_NAME), "*")?.discard_warning();
+    admin_bag.add(values::MqaiSelector(sys::MQCA_Q_NAME), "*")?.discard_warning();
     admin_bag
-        .add(MqaiSelector(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
+        .add(values::MqaiSelector(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
         .discard_warning();
 
     let qm = QueueManager::connect((ApplName(mqstr!("rust_testing")), Credentials::user("admin", "admin"))).warn_as_error()?;
     let execute_result = admin_bag
-        .execute(qm.handle(), MQCMD(sys::MQCMD_INQUIRE_Q), None, None, None)
+        .execute(qm.handle(), values::MQCMD(sys::MQCMD_INQUIRE_Q), None, None, None)
         .warn_as_error()?;
 
     for bag in execute_result
-        .try_iter::<Bag<_, _>>(MqaiSelector(sys::MQHA_BAG_HANDLE))?
+        .try_iter::<Bag<_, _>>(values::MqaiSelector(sys::MQHA_BAG_HANDLE))?
         .flatten()
     // flatten effectively ignores items that have errors
     {

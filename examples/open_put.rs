@@ -9,7 +9,7 @@ mod args;
 
 use mqi::{
     connect_options::ApplName,
-    core::values::{MQENC, MQOO, MQPMO},
+    values::{MQENC, MQOO, MQPMO},
     headers::TextEnc,
     mqstr,
     open_options::ObjectString,

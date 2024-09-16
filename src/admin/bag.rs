@@ -5,10 +5,10 @@ use libmqm_sys::function;
 use crate::core::mqai::values::{MqaiSelector, MQCMD, MQIND};
 use crate::core::values::{self, MQCBO};
 use crate::core::{self, mqai, ConnectionHandle, Library};
-use crate::{sys, Completion, Error, ResultComp, ResultCompErr, ResultCompErrExt, ResultCompExt, WithMQError as _};
+use crate::{sys, Completion, Error, ResultComp, ResultCompErr, ResultCompErrExt, ResultCompExt, WithMqError as _};
 
 pub trait BagDrop: Sized {
-    fn drop_bag<L: Library<MQ: function::MQAI>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
+    fn drop_bag<L: Library<MQ: function::Mqai>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
 }
 
 use super::{BagItemGet, BagItemPut};
@@ -55,7 +55,7 @@ pub struct Owned {}
 pub struct Embedded {}
 
 impl BagDrop for Owned {
-    fn drop_bag<L: Library<MQ: function::MQAI>>(bag: &mut Bag<Self, L>) -> ResultComp<()> {
+    fn drop_bag<L: Library<MQ: function::Mqai>>(bag: &mut Bag<Self, L>) -> ResultComp<()> {
         if bag.is_deletable() {
             bag.mq.mq_delete_bag(&mut bag.bag)
         } else {
@@ -64,19 +64,19 @@ impl BagDrop for Owned {
     }
 }
 impl BagDrop for Embedded {
-    fn drop_bag<L: Library<MQ: function::MQAI>>(_bag: &mut Bag<Self, L>) -> ResultComp<()> {
+    fn drop_bag<L: Library<MQ: function::Mqai>>(_bag: &mut Bag<Self, L>) -> ResultComp<()> {
         Ok(Completion::new(()))
     }
 }
 
 #[derive(Debug)]
-pub struct Bag<B: BagDrop, L: Library<MQ: function::MQAI>> {
+pub struct Bag<B: BagDrop, L: Library<MQ: function::Mqai>> {
     bag: mqai::BagHandle,
-    pub(super) mq: core::MQFunctions<L>,
+    pub(super) mq: core::MqFunctions<L>,
     _marker: PhantomData<B>,
 }
 
-impl<T: BagDrop, L: Library<MQ: function::MQAI>> std::ops::Deref for Bag<T, L> {
+impl<T: BagDrop, L: Library<MQ: function::Mqai>> std::ops::Deref for Bag<T, L> {
     type Target = mqai::BagHandle;
 
     fn deref(&self) -> &Self::Target {
@@ -84,9 +84,9 @@ impl<T: BagDrop, L: Library<MQ: function::MQAI>> std::ops::Deref for Bag<T, L> {
     }
 }
 
-impl<L: Library<MQ: function::MQAI>> Bag<Owned, L> {
+impl<L: Library<MQ: function::Mqai>> Bag<Owned, L> {
     pub fn connect_lib(lib: L, options: MQCBO) -> ResultComp<Self> {
-        let mq = core::MQFunctions(lib);
+        let mq = core::MqFunctions(lib);
         let bag = mq.mq_create_bag(options)?;
 
         mq.mq_set_integer(&bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default(), 1208)
@@ -100,7 +100,7 @@ impl<L: Library<MQ: function::MQAI>> Bag<Owned, L> {
     }
 }
 
-impl<L: Library<MQ: function::MQAI>> BagItemGet<L> for Bag<Embedded, L> {
+impl<L: Library<MQ: function::Mqai>> BagItemGet<L> for Bag<Embedded, L> {
     fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_bag(bag, selector, index).map_completion(|bag_handle| Self {
             bag: bag_handle,
@@ -112,7 +112,7 @@ impl<L: Library<MQ: function::MQAI>> BagItemGet<L> for Bag<Embedded, L> {
     type Error = Error;
 }
 
-impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
+impl<B: BagDrop, L: Library<MQ: function::Mqai>> Bag<B, L> {
     #[must_use]
     pub const fn handle(&self) -> &mqai::BagHandle {
         &self.bag
@@ -175,7 +175,7 @@ impl<B: BagDrop, L: Library<MQ: function::MQAI>> Bag<B, L> {
     }
 }
 
-impl<B: BagDrop, L: Library<MQ: function::MQAI>> Drop for Bag<B, L> {
+impl<B: BagDrop, L: Library<MQ: function::Mqai>> Drop for Bag<B, L> {
     fn drop(&mut self) {
         let _ = B::drop_bag(self);
     }

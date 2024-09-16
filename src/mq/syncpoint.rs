@@ -1,6 +1,6 @@
 use crate::ResultComp;
 
-use super::Conn;
+use super::Connection;
 
 #[derive(Debug, PartialEq)]
 enum SyncpointState {
@@ -10,12 +10,12 @@ enum SyncpointState {
 }
 
 #[must_use]
-pub struct Syncpoint<C: Conn> {
+pub struct Syncpoint<C: Connection> {
     state: SyncpointState,
     connection: C,
 }
 
-impl<C: Conn> Syncpoint<C> {
+impl<C: Connection> Syncpoint<C> {
     pub const fn new(connection: C) -> Self {
         Self {
             state: SyncpointState::Open,
@@ -38,7 +38,7 @@ impl<C: Conn> Syncpoint<C> {
     }
 }
 
-impl<C: Conn> Drop for Syncpoint<C> {
+impl<C: Connection> Drop for Syncpoint<C> {
     fn drop(&mut self) {
         // TODO: handle close failure
         if self.state == SyncpointState::Open {

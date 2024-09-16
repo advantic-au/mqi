@@ -3,8 +3,7 @@ use std::str::FromStr;
 use clap::Args;
 use mqi::{
     connect_options::{Binding, Ccdt, ClientDefinition, ConnectOption, Credentials},
-    core::values,
-    sys,
+    values, sys,
     types::QueueManagerName,
 };
 
@@ -56,7 +55,7 @@ impl ConnectionArgs {
         Ok(cno_all)
     }
 
-    pub fn queue_manager_name(&self) -> Result<Option<QueueManagerName>, mqi::MQStrError> {
+    pub fn queue_manager_name(&self) -> Result<Option<QueueManagerName>, mqi::MqStrError> {
         self.connect_queue_manager
             .as_deref()
             .map(QueueManagerName::from_str) // Convert to QueueManagerName which has 48 character length

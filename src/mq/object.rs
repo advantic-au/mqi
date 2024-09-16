@@ -5,7 +5,7 @@ use crate::{
 
 use crate::{
     core::{self, values::MQCO},
-    Conn,
+    Connection,
 };
 use crate::sys;
 use crate::ResultComp;
@@ -15,7 +15,7 @@ pub type OpenParam<'a> = OpenParamOption<'a, values::MQOO>;
 
 #[must_use]
 #[derive(Debug)]
-pub struct Object<C: Conn> {
+pub struct Object<C: Connection> {
     pub(super) handle: core::ObjectHandle,
     pub(super) connection: C,
     pub(super) close_options: MQCO,
@@ -29,7 +29,7 @@ impl<S, T: for<'oo> MqiAttr<OpenParam<'oo>, S>> OpenAttr<S> for T {}
 
 impl<'oo, T: MqiOption<OpenParam<'oo>>> OpenOption<'oo> for T {}
 
-impl<C: Conn> Object<C> {
+impl<C: Connection> Object<C> {
     #[must_use]
     pub const fn handle(&self) -> &core::ObjectHandle {
         &self.handle
@@ -63,7 +63,7 @@ impl<C: Conn> Object<C> {
     }
 }
 
-impl<C: Conn> Drop for Object<C> {
+impl<C: Connection> Drop for Object<C> {
     fn drop(&mut self) {
         // TODO: handle close failure
         if self.handle.is_closeable() {

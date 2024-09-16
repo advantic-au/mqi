@@ -1,11 +1,11 @@
 use std::{env, error::Error, sync::Arc, thread};
 
 use mqi::{
+    prelude::*,
     connect_options::{ApplName, Binding, ClientDefinition, Credentials, Tls},
-    core::values,
-    mqstr, sys,
+    values, mqstr, sys,
     types::{CertificateLabel, CipherSpec, KeyRepo, MessageId, QueueName, FORMAT_NONE},
-    Properties, QueueManager, ResultCompErrExt, ResultCompExt,
+    Properties, QueueManager,
 };
 
 #[test]

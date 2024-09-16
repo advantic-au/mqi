@@ -1,5 +1,9 @@
 #![allow(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 
+use std::borrow::Cow;
+
+use crate::{sys, ConstLookup, ConstantItem};
+
 #[macro_export]
 macro_rules! define_mqmask {
     ($vis:vis $i:ident, $source:path) => {
@@ -51,42 +55,14 @@ macro_rules! define_mqmask {
         impl $i {
             pub fn masked_list(&self) -> (impl Iterator<Item = $crate::ConstantItem<'static>>, $crate::sys::MQLONG) {
                 let &Self(val) = self;
-                let cl = Self::const_lookup();
-                let source = cl.all();
-                let mut mask_list = Vec::new();
-                let residual = source
-                    .into_iter()
-                    .filter(|&(value, name)| value != 0 && !name.ends_with("_MASK"))
-                    .fold(val, |acc, item @ (value, ..)| {
-                        let masked = val & value;
-                        if masked == value {
-                            mask_list.push(item);
-                            acc & !masked
-                        } else {
-                            acc
-                        }
-                    });
-                (mask_list.into_iter(), residual)
+                $crate::mqmask::masked_list(val, Self::const_lookup().all())
             }
 
             fn mask_str<'a>(
                 list: impl Iterator<Item = $crate::ConstantItem<'a>>,
                 residual: $crate::sys::MQLONG,
             ) -> Option<std::borrow::Cow<'a, str>> {
-                let res_cow = (residual != 0).then(|| std::borrow::Cow::from(format!("{residual:#X}")));
-                let list = list.map(|(.., name)| std::borrow::Cow::from(name)).chain(res_cow);
-                list.reduce(|mut acc, name| {
-                    let acc_mut = acc.to_mut();
-                    acc_mut.push('|');
-                    acc_mut.push_str(&name);
-                    acc
-                })
-                .or_else(|| {
-                    Self::const_lookup()
-                        .by_value(residual)
-                        .next()
-                        .map(std::borrow::Cow::from)
-                })
+                $crate::mqmask::mask_str(Self::const_lookup(), list, residual)
             }
         }
 
@@ -145,23 +121,65 @@ macro_rules! define_mqmask {
 
         impl std::fmt::Debug for $i {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                let (list, residual) = self.masked_list();
-                if residual == self.0 && residual != 0 {
-                    f.debug_tuple(stringify!($i))
-                        .field(&format_args!("{:#X}", self.0))
-                        .finish()
-                } else if let Some(mask_str) = Self::mask_str(list, residual) {
-                    f.debug_tuple(stringify!($i))
-                        .field(&format_args!("{} = {:#X}", mask_str, self.0))
-                        .finish()
-                } else {
-                    f.debug_tuple(stringify!($i))
-                        .field(&format_args!("{:#X}", self.0))
-                        .finish()
-                }
+                $crate::mqmask::mask_debug(stringify!($i), self.0, Self::const_lookup(), f)
             }
         }
     };
+}
+
+pub(crate) fn mask_debug(
+    type_name: &str,
+    value: sys::MQLONG,
+    lookup: &impl ConstLookup,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    // let (list, residual) = self.masked_list();
+    let (list, residual) = masked_list(value, lookup.all());
+    if residual == value && residual != 0 {
+        f.debug_tuple(type_name).field(&format_args!("{value:#X}")).finish()
+    } else if let Some(mask_str) = mask_str(lookup, list, residual) {
+        f.debug_tuple(type_name)
+            .field(&format_args!("{mask_str} = {value:#X}"))
+            .finish()
+    } else {
+        f.debug_tuple(type_name).field(&format_args!("{value:#X}")).finish()
+    }
+}
+
+pub(crate) fn masked_list<'a>(
+    value: sys::MQLONG,
+    source: impl Iterator<Item = ConstantItem<'a>>,
+) -> (impl Iterator<Item = ConstantItem<'a>>, sys::MQLONG) {
+    let mut mask_list = Vec::new();
+    let residual = source
+        .into_iter()
+        .filter(|&(value, name)| value != 0 && !name.ends_with("_MASK"))
+        .fold(value, |acc, item @ (val, ..)| {
+            let masked = value & val;
+            if masked == val {
+                mask_list.push(item);
+                acc & !masked
+            } else {
+                acc
+            }
+        });
+    (mask_list.into_iter(), residual)
+}
+
+pub(crate) fn mask_str<'a>(
+    lookup: &'a impl ConstLookup,
+    list: impl Iterator<Item = ConstantItem<'a>>,
+    residual: sys::MQLONG,
+) -> Option<Cow<'a, str>> {
+    let res_cow = (residual != 0).then(|| Cow::from(format!("{residual:#X}")));
+    let list = list.map(|(.., name)| Cow::from(name)).chain(res_cow);
+    list.reduce(|mut acc, name| {
+        let acc_mut = acc.to_mut();
+        acc_mut.push('|');
+        acc_mut.push_str(&name);
+        acc
+    })
+    .or_else(|| lookup.by_value(residual).next().map(Cow::from))
 }
 
 #[cfg(test)]

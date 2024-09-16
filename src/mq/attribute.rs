@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, iter, slice};
 
-use crate::{common::ResultCompErrExt as _, core::values, sys, Conn, Object, ResultComp};
+use crate::{common::ResultCompErrExt as _, core::values, sys, Connection, Object, ResultComp};
 
 pub use super::attribute_types::*;
 
@@ -127,7 +127,7 @@ impl<'a> Iterator for MultiItemIter<'a> {
     }
 }
 
-impl<C: Conn> Object<C> {
+impl<C: Connection> Object<C> {
     pub fn inq<'a>(&self, selectors: impl IntoIterator<Item = &'a AttributeType>) -> ResultComp<MultiItem> {
         let mut text_total = 0;
         let mut int_count = 0;
@@ -343,7 +343,7 @@ impl<T: AsRef<[sys::MQCHAR]>> SetItems for TextItem<T> {
     }
 }
 
-impl<C: Conn> Object<C> {
+impl<C: Connection> Object<C> {
     pub fn set(&self, items: &impl SetItems) -> ResultComp<()> {
         let connection = self.connection();
         connection.mq().mqset(

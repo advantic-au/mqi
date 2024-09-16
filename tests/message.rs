@@ -1,10 +1,11 @@
 use std::error::Error;
 
 use mqi::{
+    prelude::*,
     connect_options::Credentials,
-    core::values,
+    values,
     properties_options::{self, Attributes},
-    Properties, QueueManager, ResultCompExt, StrCcsidOwned,
+    Properties, QueueManager, StrCcsidOwned,
 };
 
 #[test]

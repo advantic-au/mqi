@@ -6,13 +6,13 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 
 | Verb    | Description                         | Wrapped  | API | Comments |
 |---------|-------------------------------------|----------|----------|-|
-| MQBACK  | Back out changes                    | ✔ |   |  |
+| MQBACK  | Back out changes                    | ✔ | ✔ |  |
 | MQBEGIN | Begin unit of work                  | ✔ | Experiment | |
 | MQBUFMH | Convert buffer into message handle  | ✔ |   |  |
 | MQCB    | Manage callback                     | ✔ | Experiment | |
 | MQCLOSE | Close object                        | ✔ | ✔ |  |
-| MQCMIT  | Commit changes                      | ✔ | Experiment | |
-| MQCONN  | Connect queue manager               | ✔ | Not Used | All features in MCONNX |
+| MQCMIT  | Commit changes                      | ✔ | ✔ | |
+| MQCONN  | Connect queue manager               | ✔ | Not Used | Equivalent features in MCONNX |
 | MQCONNX | Connect queue manager (extended)    | ✔ | ✔ |  |
 | MQCRTMH | Create message handle               | ✔ | ✔ |  |
 | MQCTL   | Control callbacks                   | ✔ | Experiment | |

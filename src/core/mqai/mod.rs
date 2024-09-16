@@ -1,6 +1,6 @@
 mod filter;
 mod handles;
-pub mod values;
+pub(crate) mod values;
 mod verbs;
 
 pub use filter::*;

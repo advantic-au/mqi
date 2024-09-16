@@ -1,6 +1,6 @@
 use std::{num, ptr};
 
-use libmqm_sys::MQI;
+use libmqm_sys::Mqi;
 
 use crate::{
     core::{values, Library},
@@ -106,7 +106,7 @@ impl ReconnectionErrorStat {
     }
 }
 
-impl<'cb, L: Library<MQ: MQI>, H> QueueManagerShare<'cb, L, H> {
+impl<'cb, L: Library<MQ: Mqi>, H> QueueManagerShare<'cb, L, H> {
     pub fn stat_put(&self) -> ResultComp<AsyncPutStat> {
         let mut sts = MqStruct::new(sys::MQSTS {
             Version: sys::MQSTS_VERSION_2,

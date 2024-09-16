@@ -1,8 +1,8 @@
 use crate::{core::values, sys, MqiValue, ResultComp, ResultCompErr, ResultCompErrExt as _};
 
-use super::{Conn, MqStruct, Object, OpenAttr, OpenOption, OpenParam, OpenValue};
+use super::{Connection, MqStruct, Object, OpenAttr, OpenOption, OpenParam, OpenValue};
 
-impl<C: Conn> Object<C> {
+impl<C: Connection> Object<C> {
     pub fn open<'oo>(connection: C, open_option: impl OpenOption<'oo>) -> ResultComp<Self> {
         Self::open_as(connection, open_option)
     }

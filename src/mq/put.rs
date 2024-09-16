@@ -5,7 +5,7 @@ use libmqm_sys::function;
 
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat};
-use crate::{sys, Conn, MqStruct, Object, QueueManagerShare, ResultComp, MqiAttr, MqiOption, ResultCompErrExt};
+use crate::{sys, Connection, MqStruct, Object, QueueManagerShare, ResultComp, MqiAttr, MqiOption, ResultCompErrExt};
 use crate::core::{self, values};
 
 use super::OpenParamOption;
@@ -47,7 +47,7 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
     }
 }
 
-impl<C: Conn> Object<C> {
+impl<C: Connection> Object<C> {
     pub fn put_message(&self, put_options: impl PutOption, message: &(impl PutMessage + ?Sized)) -> ResultComp<()> {
         self.put_message_with(put_options, message)
     }
@@ -73,7 +73,7 @@ impl<'a, T: MqiOption<OpenParamOption<'a, values::MQPMO>>> OpenPutOption<'a> for
 impl<T: for<'a> MqiOption<PutParam<'a>>> PutOption for T {}
 impl<T> PutAttr for T where T: for<'a> MqiAttr<PutParam<'a>, ()> {}
 
-impl<L: core::Library<MQ: function::MQI>, H> QueueManagerShare<'_, L, H> {
+impl<L: core::Library<MQ: function::Mqi>, H> QueueManagerShare<'_, L, H> {
     pub fn put_message<'oo>(
         &self,
         open_options: impl OpenPutOption<'oo>,

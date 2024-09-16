@@ -3,13 +3,14 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
+use mqi::prelude::*;
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::connect_options::Credentials;
-use mqi::core::values;
+use mqi::values;
 use mqi::open_options::SelectionString;
 use mqi::properties_options::{Attributes, Metadata, Name};
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
-use mqi::{get, Properties, ResultCompErrExt as _, ResultCompExt as _};
+use mqi::{get, Properties};
 use mqi::{attribute, mqstr, sys, Object, QueueManager};
 
 #[test]

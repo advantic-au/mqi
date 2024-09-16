@@ -5,7 +5,7 @@ mod args;
 use clap::{Parser, ValueEnum};
 use mqi::{
     connect_options::ApplName,
-    core::values::{MQCMHO, MQGMO, MQOO, MQPMO},
+    values::{MQCMHO, MQGMO, MQOO, MQPMO},
     mqstr,
     prelude::*,
     put_options::{Context, PropertyAction},

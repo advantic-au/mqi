@@ -76,10 +76,10 @@ impl<const N: usize> From<[sys::MQCHAR; N]> for MqStr<N> {
 }
 
 impl<const N: usize> MqStr<N> {
-    pub const fn from_bytes(value: &[u8]) -> Result<Self, MQStrError> {
+    pub const fn from_bytes(value: &[u8]) -> Result<Self, MqStrError> {
         let length = value.len();
         if N < length {
-            return Err(MQStrError::Length { length, max: N });
+            return Err(MqStrError::Length { length, max: N });
         }
         let mut result = Self::empty();
         let mut i = 0;
@@ -116,7 +116,7 @@ impl<const N: usize> MqStr<N> {
     pub const fn def_from_str(value: &str) -> Self {
         match Self::from_bytes(value.as_bytes()) {
             Ok(result) => result,
-            Err(MQStrError::Length { .. }) => panic!("Invalid length"),
+            Err(MqStrError::Length { .. }) => panic!("Invalid length"),
         }
     }
 
@@ -142,7 +142,7 @@ impl<const N: usize> MqStr<N> {
 }
 
 impl<const N: usize> FromStr for MqStr<N> {
-    type Err = MQStrError;
+    type Err = MqStrError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::from_bytes(s.as_bytes())
@@ -180,13 +180,13 @@ impl<const N: usize> AsMut<[sys::MQCHAR; N]> for MqStr<N> {
 }
 
 #[derive(derive_more::Error, derive_more::Display, Debug)]
-pub enum MQStrError {
+pub enum MqStrError {
     #[display("String of length {length} exceeds maximum length {max}")]
     Length { length: usize, max: usize },
 }
 
 impl<const N: usize> TryFrom<&str> for MqStr<N> {
-    type Error = MQStrError;
+    type Error = MqStrError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Self::from_bytes(value.as_bytes())
