@@ -3,17 +3,17 @@ use crate::{
     sys, MqiAttr, MqiOption, MqiValue, ResultComp, ResultCompErr,
 };
 
-use super::{Connection, MqStruct, Object};
+use super::{Conn, MqStruct, Object};
 use crate::ResultCompErrExt as _;
 
 #[derive(Debug)]
-pub struct Subscription<C: Connection> {
+pub struct Subscription<C: Conn> {
     handle: core::SubscriptionHandle,
     connection: C,
     close_options: values::MQCO,
 }
 
-pub struct SubscribeState<C: Connection> {
+pub struct SubscribeState<C: Conn> {
     pub subscription: Subscription<C>,
     pub object: Option<Object<C>>,
 }
@@ -25,7 +25,7 @@ pub struct SubscribeParam<'a> {
     pub provided_object: sys::MQLONG,
 }
 
-impl<C: Connection> Subscription<C> {
+impl<C: Conn> Subscription<C> {
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
         s.connection
@@ -34,7 +34,7 @@ impl<C: Connection> Subscription<C> {
     }
 }
 
-impl<C: Connection> Drop for Subscription<C> {
+impl<C: Conn> Drop for Subscription<C> {
     fn drop(&mut self) {
         // TODO: handle close failure
         if self.handle.is_closeable() {
@@ -46,17 +46,17 @@ impl<C: Connection> Drop for Subscription<C> {
     }
 }
 
-pub trait SubscribeValue<C: Connection>: for<'so> MqiValue<SubscribeParam<'so>, SubscribeState<C>> {}
-pub trait SubscribeAttr<C: Connection>: for<'so> MqiAttr<SubscribeParam<'so>, SubscribeState<C>> {}
-pub trait SubscribeOption<'so, C: Connection>: MqiOption<SubscribeParam<'so>> {}
+pub trait SubscribeValue<C: Conn>: for<'so> MqiValue<SubscribeParam<'so>, SubscribeState<C>> {}
+pub trait SubscribeAttr<C: Conn>: for<'so> MqiAttr<SubscribeParam<'so>, SubscribeState<C>> {}
+pub trait SubscribeOption<'so, C: Conn>: MqiOption<SubscribeParam<'so>> {}
 
 // Blanket implementation for SubscribeValue<C>
-impl<T, C: Connection> SubscribeValue<C> for T where for<'so> Self: MqiValue<SubscribeParam<'so>, SubscribeState<C>> {}
-impl<T, C: Connection> SubscribeAttr<C> for T where for<'so> Self: MqiAttr<SubscribeParam<'so>, SubscribeState<C>> {}
+impl<T, C: Conn> SubscribeValue<C> for T where for<'so> Self: MqiValue<SubscribeParam<'so>, SubscribeState<C>> {}
+impl<T, C: Conn> SubscribeAttr<C> for T where for<'so> Self: MqiAttr<SubscribeParam<'so>, SubscribeState<C>> {}
 
-impl<'so, C: Connection, A: MqiOption<SubscribeParam<'so>>> SubscribeOption<'so, C> for A {}
+impl<'so, C: Conn, A: MqiOption<SubscribeParam<'so>>> SubscribeOption<'so, C> for A {}
 
-impl<C: Connection + Clone> Subscription<C> {
+impl<C: Conn + Clone> Subscription<C> {
     pub fn subscribe<'so>(connection: C, subscribe_option: impl SubscribeOption<'so, C>) -> ResultComp<Self> {
         Self::subscribe_as(connection, subscribe_option)
     }

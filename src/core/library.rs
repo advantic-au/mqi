@@ -1,7 +1,7 @@
 #[cfg(feature = "link")]
 use libmqm_sys::link;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct MqFunctions<L>(pub L);
 
 /// Holds a smart pointer to a [`MqFunctions`]

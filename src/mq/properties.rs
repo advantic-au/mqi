@@ -5,18 +5,18 @@ use libmqm_sys::function;
 use crate::core::values::{self, MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::core::MessageHandle;
 use crate::properties_options::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetProperty};
-use crate::{core, sys, Buffer as _, Completion, Connection, InqBuffer};
+use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
 
 use crate::{EncodedString, Error, MqStruct, ResultCompErrExt};
 use crate::{ResultComp, ResultCompErr, ResultErr};
 
 #[derive(Debug)]
-pub struct Properties<C: Connection> {
+pub struct Properties<C: Conn> {
     handle: core::MessageHandle,
     connection: C,
 }
 
-impl<C: Connection> Drop for Properties<C> {
+impl<C: Conn> Drop for Properties<C> {
     fn drop(&mut self) {
         let mqdmho = sys::MQDMHO::default();
 
@@ -118,14 +118,14 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::Mqi>>(
     }
 }
 
-pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Connection> {
+pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
     name: &'name N,
     message: &'message Properties<C>,
     options: MQIMPO,
     _marker: PhantomData<P>,
 }
 
-impl<P: PropertyValue, N: EncodedString + ?Sized, C: Connection> Iterator for MsgPropIter<'_, '_, P, N, C> {
+impl<P: PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
     type Item = ResultCompErr<P, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -141,7 +141,7 @@ impl<P: PropertyValue, N: EncodedString + ?Sized, C: Connection> Iterator for Ms
     }
 }
 
-impl<C: Connection> Properties<C> {
+impl<C: Conn> Properties<C> {
     pub const fn handle(&self) -> &MessageHandle {
         &self.handle
     }

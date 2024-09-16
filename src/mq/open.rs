@@ -1,25 +1,25 @@
-use crate::{core::values, sys, MqiValue, ResultComp, ResultCompErr, ResultCompErrExt as _};
+use crate::{prelude::*, values, sys, MqiValue, ResultComp, ResultCompErr};
 
-use super::{Connection, MqStruct, Object, OpenAttr, OpenOption, OpenParam, OpenValue};
+use super::{Conn, MqStruct, Object, OpenAttr, OpenOption, OpenParam, OpenValue, QueueManager};
 
-impl<C: Connection> Object<C> {
-    pub fn open<'oo>(connection: C, open_option: impl OpenOption<'oo>) -> ResultComp<Self> {
-        Self::open_as(connection, open_option)
+impl<C: Conn + Clone> QueueManager<C> {
+    pub fn open<'oo>(&self, open_option: impl OpenOption<'oo>) -> ResultComp<Object<C>> {
+        self.open_as(open_option)
     }
 
-    pub fn open_with<'oo, A>(connection: C, open_option: impl OpenOption<'oo>) -> ResultComp<(Self, A)>
+    pub fn open_with<'oo, A>(&self, open_option: impl OpenOption<'oo>) -> ResultComp<(Object<C>, A)>
     where
-        A: OpenAttr<Self>,
+        A: OpenAttr<Object<C>>,
     {
-        Self::open_as(connection, open_option)
+        self.open_as(open_option)
     }
 
     pub(super) fn open_as<'oo, R>(
-        connection: C,
+        &self,
         open_option: impl OpenOption<'oo>,
-    ) -> ResultCompErr<R, <R as MqiValue<OpenParam<'oo>, Self>>::Error>
+    ) -> ResultCompErr<R, <R as MqiValue<OpenParam<'oo>, Object<C>>>::Error>
     where
-        R: OpenValue<Self>,
+        R: OpenValue<Object<C>>,
     {
         let mut oo = (
             MqStruct::new(sys::MQOD {
@@ -30,12 +30,12 @@ impl<C: Connection> Object<C> {
         );
         open_option.apply_param(&mut oo);
         R::consume(&mut oo, |(od, options)| {
-            connection
+            self.0
                 .mq()
-                .mqopen(connection.handle(), od, *options)
-                .map_completion(|handle| Self {
+                .mqopen(self.0.handle(), od, *options)
+                .map_completion(|handle| Object {
                     handle,
-                    connection,
+                    connection: self.0.clone(),
                     close_options: values::MQCO(sys::MQCO_NONE),
                 })
         })

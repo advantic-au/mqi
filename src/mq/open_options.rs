@@ -4,7 +4,7 @@ use crate::{
     core::values,
     sys,
     types::{QueueManagerName, QueueName},
-    Connection, EncodedString, Error, MqStr, ResultComp, ResultCompErrExt, StrCcsidOwned, MqiAttr, MqiOption, MqiValue,
+    Conn, EncodedString, Error, MqStr, ResultComp, ResultCompErrExt, StrCcsidOwned, MqiAttr, MqiOption, MqiValue,
 };
 
 use super::{types::impl_from_str, Object, OpenParam, OpenParamOption, OpenValue};
@@ -105,7 +105,7 @@ impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for values::MQOT {
 // Blanket implementation of OpenValue
 impl<T, S> OpenValue<S> for T where for<'oo> Self: MqiValue<OpenParam<'oo>, S> {}
 
-impl<C: Connection, P> MqiValue<P, Self> for Object<C> {
+impl<C: Conn, P> MqiValue<P, Self> for Object<C> {
     type Error = Error;
 
     fn consume<F>(param: &mut P, open: F) -> crate::ResultCompErr<Self, Self::Error>

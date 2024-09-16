@@ -14,7 +14,7 @@ pub mod raw {
     use super::RawHandle;
     use crate::sys;
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub struct Connection;
     impl RawHandle for Connection {
         type HandleType = sys::MQHCONN;

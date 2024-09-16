@@ -5,7 +5,7 @@ use crate::{
         values::{self, MQCBDO},
         ConnectionHandle, Library,
     },
-    sys, Error, MqStruct, QueueManagerShare,
+    sys, Error, MqStruct, ConnectOwn,
 };
 
 type CallbackData<F> = (MQCBDO, F);
@@ -32,7 +32,7 @@ fn event_callback<F: FnMut(&ConnectionHandle, &MqStruct<sys::MQCBC>)>(
     }
 }
 
-impl<'a, L: Library<MQ: function::Mqi>, H> QueueManagerShare<'a, L, H> {
+impl<'a, L: Library<MQ: function::Mqi>, H> ConnectOwn<'a, L, H> {
     pub fn register_event_handler<F: FnMut(&ConnectionHandle, &MqStruct<sys::MQCBC>) + 'a + Send>(
         &mut self,
         options: MQCBDO,

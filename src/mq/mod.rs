@@ -1,5 +1,5 @@
 mod buffer;
-mod callback;
+// mod callback;
 mod connect;
 #[cfg(feature = "link")]
 mod link;

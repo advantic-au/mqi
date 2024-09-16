@@ -1,10 +1,6 @@
 use std::error::Error;
 use mqi::{
-    prelude::*,
-    connect_options::{ApplName, Credentials},
-    mqstr,
-    types::QueueName,
-    QueueManager,
+    connect_options::{ApplName, Credentials}, mqstr, prelude::*, types::QueueName, QueueManager, ShareBlock
 };
 
 fn main() -> Result<(), Box<dyn Error>> {

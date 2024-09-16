@@ -1,12 +1,12 @@
 use libmqm_sys::link::LinkedMq;
 
-use super::{connect_options::ConnectOption, ConnectAttr, ConnectValue, HandleShare, QueueManagerShare};
+use super::{connect_options::ConnectOption, ConnectAttr, ConnectValue, Connection, HandleShare, QueueManager};
 use crate::{core::values::MQCBO, ResultComp};
 
 #[cfg(feature = "mqai")]
 use crate::admin::{Bag, Owned};
 
-impl<H: HandleShare> QueueManagerShare<'_, LinkedMq, H> {
+impl<H: HandleShare> QueueManager<Connection<LinkedMq, H>> {
     /// Create a connection to a queue manager using the compile time linked MQ library
     /// and inferred return value.
     #[inline]

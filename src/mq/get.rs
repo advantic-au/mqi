@@ -8,7 +8,7 @@ use crate::{
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     sys,
     types::{self, Fmt, MessageFormat, MessageId},
-    Buffer, Completion, Connection, Error, MqStruct, ResultComp, ResultCompErr, StrCcsidCow, MqiAttr, MqiOption, MqiValue,
+    Buffer, Completion, Conn, Error, MqStruct, ResultComp, ResultCompErr, StrCcsidCow, MqiAttr, MqiOption, MqiValue,
 };
 
 use super::Object;
@@ -287,7 +287,7 @@ impl<S> MqiAttr<GetParam, S> for MessageId {
 pub trait GetOption: MqiOption<GetParam> {}
 impl<T: MqiOption<GetParam>> GetOption for T {}
 
-impl<C: Connection> Object<C> {
+impl<C: Conn> Object<C> {
     pub fn get_data<'b, B>(&self, options: impl GetOption, buffer: B) -> ResultComp<Option<Cow<'b, [u8]>>>
     where
         B: Buffer<'b>,
