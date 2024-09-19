@@ -1,10 +1,11 @@
 use crate::{
-    core::{self, values, ObjectHandle},
+    values,
+    prelude::*,
+    core::{self, ObjectHandle},
     sys, MqiAttr, MqiOption, MqiValue, ResultComp, ResultCompErr,
 };
 
-use super::{Conn, MqStruct, Object};
-use crate::ResultCompErrExt as _;
+use super::{Conn, IntoConnection, MqStruct, Object};
 
 #[derive(Debug)]
 pub struct Subscription<C: Conn> {
@@ -57,11 +58,17 @@ impl<T, C: Conn> SubscribeAttr<C> for T where for<'so> Self: MqiAttr<SubscribePa
 impl<'so, C: Conn, A: MqiOption<SubscribeParam<'so>>> SubscribeOption<'so, C> for A {}
 
 impl<C: Conn + Clone> Subscription<C> {
-    pub fn subscribe<'so>(connection: C, subscribe_option: impl SubscribeOption<'so, C>) -> ResultComp<Self> {
+    pub fn subscribe<'so>(
+        connection: impl IntoConnection<C>,
+        subscribe_option: impl SubscribeOption<'so, C>,
+    ) -> ResultComp<Self> {
         Self::subscribe_as(connection, subscribe_option)
     }
 
-    pub fn subscribe_with<'so, A>(connection: C, subscribe_option: impl SubscribeOption<'so, C>) -> ResultComp<(Self, A)>
+    pub fn subscribe_with<'so, A>(
+        connection: impl IntoConnection<C>,
+        subscribe_option: impl SubscribeOption<'so, C>,
+    ) -> ResultComp<(Self, A)>
     where
         A: SubscribeAttr<C>,
     {
@@ -69,7 +76,7 @@ impl<C: Conn + Clone> Subscription<C> {
     }
 
     pub fn subscribe_managed_with<'so, A>(
-        connection: C,
+        connection: impl IntoConnection<C>,
         subscribe_option: impl SubscribeOption<'so, C>,
     ) -> ResultComp<(Self, Object<C>, A)>
     where
@@ -80,14 +87,14 @@ impl<C: Conn + Clone> Subscription<C> {
     }
 
     pub fn subscribe_managed<'so>(
-        connection: C,
+        connection: impl IntoConnection<C>,
         subscribe_option: impl SubscribeOption<'so, C>,
     ) -> ResultComp<(Self, Object<C>)> {
         Self::subscribe_managed_with::<()>(connection, subscribe_option).map_completion(|(sub, queue, ..)| (sub, queue))
     }
 
     pub(super) fn subscribe_as<'so, R>(
-        connection: C,
+        connection: impl IntoConnection<C>,
         subscribe_option: impl SubscribeOption<'so, C>,
     ) -> ResultCompErr<R, <R as MqiValue<SubscribeParam<'so>, SubscribeState<C>>>::Error>
     where
@@ -101,6 +108,7 @@ impl<C: Conn + Clone> Subscription<C> {
 
         subscribe_option.apply_param(&mut so);
 
+        let connection = connection.into_connection();
         R::consume(&mut so, |param| {
             let mut obj_handle = ObjectHandle::from(param.provided_object);
             connection

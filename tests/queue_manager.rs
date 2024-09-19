@@ -1,19 +1,20 @@
 use std::{env, error::Error, sync::Arc, thread};
 
 use mqi::{
-    prelude::*,
     connect_options::{ApplName, Binding, ClientDefinition, Credentials, Tls},
-    values, mqstr, sys,
+    prelude::*,
+    sys,
     types::{CertificateLabel, CipherSpec, KeyRepo, MessageId, QueueName, FORMAT_NONE},
-    Properties, QueueManager,
+    values, Connection, Properties, QueueManager, ShareBlock,
 };
 
 #[test]
 fn thread() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
-    let (qm, (tag, id)) = QueueManager::connect_with::<(mqi::ConnTag, mqi::ConnectionId)>(Credentials::user("app", "app"))
-        .discard_warning() // ignore warning
-        .expect("Could not establish connection");
+    let (qm, (tag, id)) =
+        Connection::<_, ShareBlock>::connect_with::<(mqi::ConnTag, mqi::ConnectionId)>(Credentials::user("app", "app"))
+            .discard_warning() // ignore warning
+            .expect("Could not establish connection");
     println!("{:?}", id.0);
     println!("{:?}", tag.0);
     thread::spawn(move || {
@@ -23,7 +24,7 @@ fn thread() {
             .warn_as_error()
             .expect("property set");
 
-        let msgid = c
+        let msgid = QueueManager(c.clone())
             .put_message_with::<MessageId>(QUEUE, (), &("Hello", FORMAT_NONE))
             .warn_as_error()
             .expect("Put failed");
@@ -40,7 +41,7 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
 
     // Connect to the default queue manager (None) with the provided options
     // Treat all MQCC_WARNING as an error
-    let connection = QueueManager::connect((
+    let connection = Connection::<_, ShareBlock>::connect((
         Binding::Default,
         Credentials::user("app", "app"),
         ApplName(mqstr!("readme_example")),
@@ -65,9 +66,10 @@ fn connect() -> Result<(), Box<dyn Error>> {
         &CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")),
     );
     let creds = Credentials::user("app", "app");
-    let conn = QueueManager::connect((tls, def, creds)).warn_as_error()?;
+    let conn = Connection::<_, ShareBlock>::connect((tls, def, creds)).warn_as_error()?;
 
-    conn.put_message(QUEUE, values::MQPMO(sys::MQPMO_SYNCPOINT), "Hello")
+    QueueManager(conn)
+        .put_message(QUEUE, values::MQPMO(sys::MQPMO_SYNCPOINT), "Hello")
         .warn_as_error()?;
 
     Ok(())

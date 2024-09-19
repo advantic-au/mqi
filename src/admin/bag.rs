@@ -2,10 +2,10 @@ use std::marker::PhantomData;
 
 use libmqm_sys::function;
 
-use crate::core::mqai::values::{MqaiSelector, MQCMD, MQIND};
-use crate::core::values::{self, MQCBO};
-use crate::core::{self, mqai, ConnectionHandle, Library};
-use crate::{sys, Completion, Error, ResultComp, ResultCompErr, ResultCompErrExt, ResultCompExt, WithMqError as _};
+use crate::values::{MqaiSelector, MQIND, MQCBO, MQCC, MQRC};
+use crate::core::{self, mqai, Library};
+use crate::prelude::*;
+use crate::{sys, Completion, Error, ResultComp, ResultCompErr, WithMqError as _};
 
 pub trait BagDrop: Sized {
     fn drop_bag<L: Library<MQ: function::Mqai>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
@@ -85,7 +85,7 @@ impl<T: BagDrop, L: Library<MQ: function::Mqai>> std::ops::Deref for Bag<T, L> {
 }
 
 impl<L: Library<MQ: function::Mqai>> Bag<Owned, L> {
-    pub fn connect_lib(lib: L, options: MQCBO) -> ResultComp<Self> {
+    pub fn new_lib(lib: L, options: MQCBO) -> ResultComp<Self> {
         let mq = core::MqFunctions(lib);
         let bag = mq.mq_create_bag(options)?;
 
@@ -133,9 +133,7 @@ impl<B: BagDrop, L: Library<MQ: function::Mqai>> Bag<B, L> {
     pub fn inquire<T: BagItemGet<L>>(&self, selector: impl InqSelect) -> ResultCompErr<Option<T>, T::Error> {
         match T::inq_bag_item(selector.selector(), selector.index().unwrap_or_default(), self) {
             Err(e) => match e.mqi_error() {
-                Some(&Error(values::MQCC(sys::MQCC_FAILED), _, values::MQRC(sys::MQRC_SELECTOR_NOT_PRESENT))) => {
-                    Ok(Completion::new(None))
-                }
+                Some(&Error(MQCC(sys::MQCC_FAILED), _, MQRC(sys::MQRC_SELECTOR_NOT_PRESENT))) => Ok(Completion::new(None)),
                 _ => Err(e),
             },
             other => other.map_completion(Option::Some),
@@ -149,29 +147,6 @@ impl<B: BagDrop, L: Library<MQ: function::Mqai>> Bag<B, L> {
     pub fn delete(&self, selector: impl InqSelect) -> ResultComp<()> {
         self.mq
             .mq_delete_item(self, selector.selector(), selector.index().unwrap_or_default())
-    }
-
-    pub fn execute(
-        &self,
-        handle: &ConnectionHandle,
-        command: MQCMD,
-        options: Option<&mqai::BagHandle>,
-        admin_q: Option<&core::ObjectHandle>,
-        response_q: Option<&core::ObjectHandle>,
-    ) -> ResultComp<Bag<Owned, L>> {
-        // There shouldn't be any warnings for creating a bag - so treat the warning as an error
-        let response_bag = Bag::connect_lib(self.mq.0.clone(), MQCBO(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
-        self.mq
-            .mq_execute(
-                handle,
-                command,
-                options,
-                self.handle(),
-                response_bag.handle(),
-                admin_q,
-                response_q,
-            )
-            .map_completion(|()| response_bag)
     }
 }
 

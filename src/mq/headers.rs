@@ -6,7 +6,7 @@ use std::{
     ptr,
 };
 
-use crate::{core::values::MQENC, sys};
+use crate::{values::MQENC, sys};
 
 use super::{
     encoding::{ascii7_ebcdic, ebcdic_ascii7, is_ebcdic},
@@ -653,7 +653,7 @@ mod tests {
     use std::{mem::transmute, ptr, slice::from_raw_parts};
 
     use crate::{
-        core::values,
+        values,
         headers::{EncodedHeader, Header, HeaderError},
         sys,
         types::{Fmt, MessageFormat},

@@ -1,11 +1,12 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
+#![allow(non_snake_case)]
 
 use std::{any, cmp};
 
 use crate::{
     macros::{all_multi_tuples, reverse_ident},
-    core::values,
-    sys, MqStr, ResultCompErrExt, MqiAttr,
+    prelude::*,
+    values, sys, MqStr, MqiAttr,
 };
 
 use super::{
@@ -391,7 +392,7 @@ impl ConnectOption<'_> for () {}
 macro_rules! impl_connectoptions {
     ($first:ident, [$($ty:ident),*]) => {
         // reverse_ident macro is used to ensure right to left application of options
-        #[allow(non_snake_case,unused_parens)]
+        #[allow(non_snake_case,unused_variables)]
         impl<'r, $first $(, $ty)*> ConnectOption<'r> for ($first $(, $ty)*)
         where
             $first: ConnectOption<'r>,

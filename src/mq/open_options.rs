@@ -1,10 +1,11 @@
 use std::{cmp, num, ptr};
 
 use crate::{
-    core::values,
+    values,
+    prelude::*,
     sys,
     types::{QueueManagerName, QueueName},
-    Conn, EncodedString, Error, MqStr, ResultComp, ResultCompErrExt, StrCcsidOwned, MqiAttr, MqiOption, MqiValue,
+    Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, MqiAttr, MqiOption, MqiValue,
 };
 
 use super::{types::impl_from_str, Object, OpenParam, OpenParamOption, OpenValue};

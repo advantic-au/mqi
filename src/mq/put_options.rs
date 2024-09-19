@@ -1,4 +1,4 @@
-use crate::{core::values, sys, types, Conn, Properties, MqStruct, ResultComp, ResultCompErrExt, MqiAttr, MqiOption};
+use crate::{values, prelude::*, sys, types, Conn, Properties, MqStruct, ResultComp, MqiAttr, MqiOption};
 
 use super::{put::PutParam, Object};
 

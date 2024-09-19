@@ -9,14 +9,14 @@ mod args;
 
 use mqi::{
     connect_options::ApplName,
-    values::{MQENC, MQOO, MQPMO},
     headers::TextEnc,
     mqstr,
     open_options::ObjectString,
     prelude::*,
     sys,
     types::{MessageFormat, QueueManagerName, QueueName},
-    MqStr, Object, QueueManager,
+    values::{MQENC, MQOO, MQPMO},
+    Connection, MqStr, Object, ShareBlock,
 };
 use tracing::Level;
 
@@ -95,10 +95,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = QueueManager::connect((APP_NAME, qm_name, creds, cno, client_method)).warn_as_error()?;
+    let connection = Connection::<_, ShareBlock>::connect((APP_NAME, qm_name, creds, cno, client_method)).warn_as_error()?;
 
     // Open the queue or topic with MQOO_OUTPUT option
-    let object = Object::open(qm, (target_queue, target_qm, target_topic, oo)).warn_as_error()?;
+
+    let object = Object::open(&connection, (target_queue, target_qm, target_topic, oo)).warn_as_error()?;
 
     // Read the message from stdin
     let mut stdin = io::stdin();

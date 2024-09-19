@@ -8,8 +8,7 @@ mod args;
 
 use clap::Parser;
 use mqi::{
-    connect_options::ApplName, values::MQSO, get::GetWait, mqstr, open_options::ObjectString, prelude::*, sys,
-    types::MessageFormat, QueueManager, Subscription,
+    connect_options::ApplName, get::GetWait, open_options::ObjectString, prelude::*, sys, types::MessageFormat, values::MQSO, Connection, QueueManager, ShareBlock, Subscription
 };
 use tracing::Level;
 
@@ -39,12 +38,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let cno = args.connection.cno()?;
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = QueueManager::connect((APP_NAME, qm_name, creds, cno, client_method)).warn_as_error()?;
+    // let qm = Connection::<_, ShareBlock>::connect((APP_NAME, qm_name, creds, cno, client_method)).warn_as_error()?;
+
+    let qm = Connection::<_, ShareBlock>::connect_as::<QueueManager<std::rc::Rc<Connection<_, _>>>>((APP_NAME, qm_name, creds, cno, client_method)).warn_as_error()?;
 
     // Create a managed, non-durable subscription to the topic. Fail on any warning.
     // The subscription will persist until `_subscription` is descoped.
     let (_subscription, queue) =
-        Subscription::subscribe_managed(&qm, (MQSO(sys::MQSO_CREATE | sys::MQSO_NON_DURABLE), topic)).warn_as_error()?;
+        Subscription::subscribe_managed(qm, (MQSO(sys::MQSO_CREATE | sys::MQSO_NON_DURABLE), topic)).warn_as_error()?;
 
     let mut buffer: [u8; 20 * 1024] = [0; 20 * 1024]; // 20kb
 

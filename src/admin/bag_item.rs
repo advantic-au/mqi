@@ -2,9 +2,10 @@ use libmqm_sys::function;
 use std::{fmt::Debug, num::NonZeroI32};
 
 use crate::core::mqai;
-use crate::core::mqai::values::{MqaiSelector, MQIND};
+use crate::values::{MqaiSelector, MQIND};
 use crate::core::Library;
-use crate::{sys, Completion, EncodedString, Error, MqStr, ResultComp, ResultCompErr, ResultCompErrExt, ResultCompExt, WithMqError};
+use crate::prelude::*;
+use crate::{sys, Completion, EncodedString, Error, MqStr, ResultComp, ResultCompErr, WithMqError};
 
 use super::{Bag, BagDrop};
 

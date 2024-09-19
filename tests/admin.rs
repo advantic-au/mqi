@@ -1,11 +1,11 @@
 #![cfg(feature = "mqai")]
 
-use mqi::prelude::*;
+use mqi::{prelude::*, Connection, ShareBlock};
 use mqi::admin::Bag;
-use mqi::connect_options::{ApplName, Credentials};
+use mqi::connect_options::{ApplName, ClientDefinition, Credentials};
 use mqi::values;
 use mqi::types::ObjectName;
-use mqi::{mqstr, MqStr};
+use mqi::MqStr;
 use mqi::{sys, QueueManager};
 
 #[test]
@@ -16,13 +16,19 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         .add(values::MqaiSelector(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
         .discard_warning();
 
-    let qm = QueueManager::connect((ApplName(mqstr!("rust_testing")), Credentials::user("admin", "admin"))).warn_as_error()?;
-    let execute_result = admin_bag
-        .execute(qm.handle(), values::MQCMD(sys::MQCMD_INQUIRE_Q), None, None, None)
+    let qm = Connection::<_, ShareBlock>::connect((
+        ApplName(mqstr!("rust_testing")),
+        ClientDefinition::from_mqserver("DEV.ADMIN.SVRCONN/TCP/192.168.92.15(1414)")?,
+        Credentials::user("admin", "admin"),
+    ))
+    .warn_as_error()?;
+
+    let execute_result = QueueManager(qm)
+        .execute(&admin_bag, values::MQCMD(sys::MQCMD_INQUIRE_Q))
         .warn_as_error()?;
 
     for bag in execute_result
-        .try_iter::<Bag<_, _>>(values::MqaiSelector(sys::MQHA_BAG_HANDLE))?
+        .try_bag_iter(values::MqaiSelector(sys::MQHA_BAG_HANDLE))?
         .flatten()
     // flatten effectively ignores items that have errors
     {

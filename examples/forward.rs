@@ -5,13 +5,12 @@ mod args;
 use clap::{Parser, ValueEnum};
 use mqi::{
     connect_options::ApplName,
-    values::{MQCMHO, MQGMO, MQOO, MQPMO},
-    mqstr,
     prelude::*,
     put_options::{Context, PropertyAction},
     sys,
     types::{MessageFormat, QueueManagerName, QueueName},
-    MqStruct, Object, Properties, QueueManager, Syncpoint,
+    values::{MQCMHO, MQGMO, MQOO, MQPMO},
+    Connection, MqStruct, Object, Properties, QueueManager, ShareBlock, Syncpoint,
 };
 
 const APP_NAME: ApplName = ApplName(mqstr!("forward"));
@@ -65,18 +64,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     let target_qm = args.queue_manager.as_deref().map(QueueManagerName::from_str).transpose()?;
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = QueueManager::connect((APP_NAME, qm_name, creds, cno, client_method)).warn_as_error()?;
+    let connection = Connection::<_, ShareBlock>::connect((APP_NAME, qm_name, creds, cno, client_method)).warn_as_error()?;
     let obj = Object::open(
-        &qm,
+        &connection,
         (source_queue, MQOO(sys::MQOO_INPUT_AS_Q_DEF | sys::MQOO_SAVE_ALL_CONTEXT)),
     )
     .warn_as_error()?; // Fail on any warnings
 
     let mut buffer: [u8; 20 * 1024] = [0; 20 * 1024]; // 20kb
 
-    let syncpoint = Syncpoint::new(&qm);
+    let syncpoint = Syncpoint::new(&connection);
 
-    let mut properties = Properties::new(&qm, MQCMHO::default())?;
+    let mut properties = Properties::new(&connection, MQCMHO::default())?;
     let message = obj
         .get_data_with::<MqStruct<sys::MQMD2> /* MQMD2 */, _ /* buffer */>(
             (
@@ -88,30 +87,31 @@ fn main() -> Result<(), Box<dyn Error>> {
         .warn_as_error()?; // Fail on any warnings
 
     if let Some((msg_data, md)) = message {
-        let mut target_properties = Properties::new(&qm, MQCMHO::default())?; // Create a placeholder for target properties
+        let mut target_properties = Properties::new(&connection, MQCMHO::default())?; // Create a placeholder for target properties
         let fmt = MessageFormat::from_mqmd2(&md);
-        qm.put_message(
-            (
-                // Options used when opening the queue
-                MQPMO(sys::MQPMO_SYNCPOINT), // Syncpoint - final execution on commit.
-                MQPMO(match args.context {
-                    ContextArg::Default => sys::MQPMO_DEFAULT_CONTEXT,
-                    ContextArg::None => sys::MQPMO_NO_CONTEXT,
-                    ContextArg::Identity => sys::MQPMO_PASS_IDENTITY_CONTEXT,
-                    ContextArg::All => sys::MQPMO_PASS_ALL_CONTEXT,
-                }),
-                target_qm,    // Target queue manager
-                target_queue, // Target queue
-            ),
-            (
-                // Options used when putting to the queue
-                md,                                                           // Original MQMD2
-                Context(&obj),                                                // Source object as context
-                PropertyAction::Forward(&properties, &mut target_properties), // Forward the properties
-            ),
-            &(msg_data, fmt), // Set the message content and format
-        )
-        .warn_as_error()?; // Fail on any warnings
+        QueueManager(&connection)
+            .put_message(
+                (
+                    // Options used when opening the queue
+                    MQPMO(sys::MQPMO_SYNCPOINT), // Syncpoint - final execution on commit.
+                    MQPMO(match args.context {
+                        ContextArg::Default => sys::MQPMO_DEFAULT_CONTEXT,
+                        ContextArg::None => sys::MQPMO_NO_CONTEXT,
+                        ContextArg::Identity => sys::MQPMO_PASS_IDENTITY_CONTEXT,
+                        ContextArg::All => sys::MQPMO_PASS_ALL_CONTEXT,
+                    }),
+                    target_qm,    // Target queue manager
+                    target_queue, // Target queue
+                ),
+                (
+                    // Options used when putting to the queue
+                    md,                                                           // Original MQMD2
+                    Context(&obj),                                                // Source object as context
+                    PropertyAction::Forward(&properties, &mut target_properties), // Forward the properties
+                ),
+                &(msg_data, fmt), // Set the message content and format
+            )
+            .warn_as_error()?; // Fail on any warnings
     }
 
     if args.dry_run {

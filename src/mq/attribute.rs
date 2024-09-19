@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, iter, slice};
 
-use crate::{common::ResultCompErrExt as _, core::values, sys, Conn, Object, ResultComp};
+use crate::{prelude::*, values, sys, Conn, Object, ResultComp};
 
 pub use super::attribute_types::*;
 

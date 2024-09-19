@@ -1,12 +1,13 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use libmqm_sys::function;
 
 use crate::core::{self, ConnectionHandle, Library, MqFunctions};
-use crate::{sys, Error, MqiAttr, MqiValue, ResultCompErrExt as _};
+use crate::{sys, prelude::*, Error, MqiAttr, MqiValue};
 use crate::ResultComp;
 
 use super::connect_options::{self, ConnectOption, ConnectStructs};
@@ -30,18 +31,18 @@ pub trait Conn {
 pub struct Connection<L: Library<MQ: function::Mqi>, H> {
     handle: core::ConnectionHandle,
     mq: core::MqFunctions<L>,
-    _share: PhantomData<H>,         // Send and Sync control
+    _share: PhantomData<H>, // Send and Sync control
 }
 
 #[derive(Debug, Clone)]
 pub struct ConnectionRef<'conn, L: Library<MQ: function::Mqi>, H> {
     handle: core::ConnectionHandle,
     mq: core::MqFunctions<L>,
-    _share: PhantomData<H>, // Send and Sync control
-    _ref: PhantomData<&'conn ()> // Reference to original connection handle
+    _share: PhantomData<H>,       // Send and Sync control
+    _ref: PhantomData<&'conn ()>, // Reference to original connection handle
 }
 
-pub struct QueueManager<C: Conn>(pub(super) C);
+pub struct QueueManager<C: Conn>(pub C);
 
 /// MQCNO parameter used to define the connection
 pub type ConnectParam<'a> = MqStruct<'a, sys::MQCNO>;
@@ -53,6 +54,22 @@ trait Sealed {}
 pub trait HandleShare: Sealed + Clone {
     /// One of the `MQCNO_HANDLE_SHARE_*` MQ constants
     const MQCNO_HANDLE_SHARE: sys::MQLONG;
+}
+
+pub trait IntoConnection<C> {
+    fn into_connection(self) -> C;
+}
+
+impl<C: Conn> IntoConnection<Self> for C {
+    fn into_connection(self) -> Self {
+        self
+    }
+}
+
+impl<C: Conn> IntoConnection<C> for QueueManager<C> {
+    fn into_connection(self) -> C {
+        self.0
+    }
 }
 
 /// The [`QueueManagerShare`] can only be used in the thread it was created.
@@ -93,7 +110,7 @@ impl<L: Library<MQ: function::Mqi>, H> Drop for Connection<L, H> {
     }
 }
 
-impl<L: Library<MQ: function::Mqi>, H: HandleShare, P> MqiValue<P, Self> for QueueManager<Connection<L, H>> {
+impl<L: Library<MQ: function::Mqi>, H: HandleShare, P> MqiValue<P, Self> for Connection<L, H> {
     type Error = Error;
 
     fn consume<F>(param: &mut P, connect: F) -> ResultComp<Self>
@@ -104,17 +121,25 @@ impl<L: Library<MQ: function::Mqi>, H: HandleShare, P> MqiValue<P, Self> for Que
     }
 }
 
+impl<T: From<Connection<L, H>> + Conn, L: Library<MQ: function::Mqi>, H: HandleShare, P> MqiValue<P, Connection<L, H>>
+    for QueueManager<T>
+{
+    type Error = Error;
+
+    fn consume<F>(param: &mut P, connect: F) -> ResultComp<Self>
+    where
+        F: FnOnce(&mut P) -> ResultComp<Connection<L, H>>,
+    {
+        connect(param).map_completion(|connection| Self(connection.into()))
+    }
+}
+
 pub trait ConnectValue<S>: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
 impl<S, T> ConnectValue<S> for T where T: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
 pub trait ConnectAttr<S>: for<'a> MqiAttr<ConnectParam<'a>, S> {}
 impl<S, T> ConnectAttr<S> for T where T: for<'a> MqiAttr<ConnectParam<'a>, S> {}
 
-impl<L: Library<MQ: function::Mqi>, H: HandleShare> QueueManager<Connection<L, H>> {
-
-    pub fn r(&self) -> QueueManager<ConnectionRef<L, H>> {
-        QueueManager(ConnectionRef { handle: self.0.handle.clone(), mq: self.0.mq.clone(), _share: PhantomData, _ref: PhantomData })
-    }
-
+impl<L: Library<MQ: function::Mqi>, H: HandleShare> Connection<L, H> {
     /// Create and return a connection to a queue manager using a specified MQ [`Library`].
     pub fn connect_lib<'co, O>(lib: L, options: O) -> ResultComp<Self>
     where
@@ -163,11 +188,11 @@ impl<L: Library<MQ: function::Mqi>, H: HandleShare> QueueManager<Connection<L, H
             param.Options |= H::MQCNO_HANDLE_SHARE;
             let mq = core::MqFunctions(lib);
             mq.mqconnx(qm_name.as_ref().unwrap_or(&QueueManagerName::default()), param)
-                .map_completion(|handle| Self(Connection {
+                .map_completion(|handle| Self {
                     mq,
                     handle,
                     _share: PhantomData,
-                }))
+                })
         })
     }
 }
@@ -180,6 +205,18 @@ impl<L: Library<MQ: function::Mqi>, H> Connection<L, H> {
 }
 
 impl<L: Library<MQ: function::Mqi>, H> Conn for Arc<Connection<L, H>> {
+    type Lib = L;
+
+    fn mq(&self) -> &MqFunctions<Self::Lib> {
+        self.deref().mq()
+    }
+
+    fn handle(&self) -> &ConnectionHandle {
+        self.deref().handle()
+    }
+}
+
+impl<L: Library<MQ: function::Mqi>, H> Conn for Rc<Connection<L, H>> {
     type Lib = L;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {

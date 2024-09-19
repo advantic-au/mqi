@@ -2,9 +2,9 @@ use core::str;
 use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
 
 use crate::{
-    common::ResultCompErrExt as _,
+    prelude::*,
     macros::all_multi_tuples,
-    core::values,
+    values,
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     sys,
     types::{self, Fmt, MessageFormat, MessageId},

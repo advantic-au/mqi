@@ -3,8 +3,9 @@ use std::mem;
 
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat};
-use crate::{sys, Conn, MqStruct, Object, ResultComp, MqiAttr, MqiOption, ResultCompErrExt};
+use crate::{sys, Conn, MqStruct, Object, ResultComp, MqiAttr, MqiOption};
 use crate::values;
+use crate::prelude::*;
 
 use super::{OpenParamOption, QueueManager};
 

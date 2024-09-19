@@ -1,4 +1,8 @@
-use crate::{core::values, headers::TextEnc, sys, MqStr, ReasonCode};
+use crate::{
+    values::{MQRC, MQENC},
+    headers::TextEnc,
+    sys, MqStr,
+};
 use std::{mem, str};
 
 use super::{headers::fmt::MQFMT_NONE, MqStruct};
@@ -34,12 +38,12 @@ impl_from_str!(UserIdentifier, MqStr<12>);
 pub type StrucId = [u8; 4];
 pub type Fmt = [u8; 8];
 
-pub type Warning = (ReasonCode, &'static str);
+pub type Warning = (MQRC, &'static str);
 
 #[derive(Clone, Copy, Debug)]
 pub struct MessageFormat {
     pub ccsid: sys::MQLONG,
-    pub encoding: values::MQENC,
+    pub encoding: MQENC,
     pub fmt: TextEnc<Fmt>,
 }
 
@@ -48,7 +52,7 @@ impl MessageFormat {
     pub fn from_mqmd2(md: &MqStruct<sys::MQMD2>) -> Self {
         Self {
             ccsid: md.CodedCharSetId,
-            encoding: values::MQENC(md.Encoding),
+            encoding: MQENC(md.Encoding),
             fmt: TextEnc::Ascii(unsafe { mem::transmute::<[sys::MQCHAR; 8], [u8; 8]>(md.Format) }),
         }
     }
@@ -56,7 +60,7 @@ impl MessageFormat {
 
 pub const FORMAT_NONE: MessageFormat = MessageFormat {
     ccsid: 1208,
-    encoding: values::MQENC(sys::MQENC_NATIVE),
+    encoding: MQENC(sys::MQENC_NATIVE),
     fmt: TextEnc::Ascii(MQFMT_NONE),
 };
 

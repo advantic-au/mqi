@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
-use mqi::prelude::*;
+use mqi::{prelude::*, Connection, ShareBlock};
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::connect_options::Credentials;
 use mqi::values;
@@ -11,24 +11,24 @@ use mqi::open_options::SelectionString;
 use mqi::properties_options::{Attributes, Metadata, Name};
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
 use mqi::{get, Properties};
-use mqi::{attribute, mqstr, sys, Object, QueueManager};
+use mqi::{attribute, sys, Object, QueueManager};
 
 #[test]
 fn object() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let qm = QueueManager::connect(Credentials::user("app", "app"))
+    let connection = Connection::<_, ShareBlock>::connect(Credentials::user("app", "app"))
         .warn_as_error()
         .expect("Could not establish connection");
 
     thread::spawn(move || {
-        let mut props = Properties::new(&qm, values::MQCMHO::default()).expect("property creation");
+        let mut props = Properties::new(&connection, values::MQCMHO::default()).expect("property creation");
         props
             .set_property("my_property", "valuex2", values::MQSMPO::default())
             .warn_as_error()
             .expect("property set");
-
-        qm.put_message(QUEUE, &mut props, "Hello")
+        QueueManager(&connection)
+            .put_message(QUEUE, &mut props, "Hello")
             .warn_as_error()
             .expect("Put failed");
     })
@@ -40,17 +40,17 @@ fn object() {
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
     let sel = String::from("my_property = 'valuex2'");
-    let qm = QueueManager::connect(Credentials::user("app", "app")).warn_as_error()?;
+    let connection = Connection::<_, ShareBlock>::connect(Credentials::user("app", "app")).warn_as_error()?;
 
     let object = Object::open(
-        &qm,
+        &connection,
         (
             QUEUE,
             SelectionString(&*sel),
             values::MQOO(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
         ),
     )?;
-    let mut properties = Properties::new(&qm, values::MQCMHO::default())?;
+    let mut properties = Properties::new(&connection, values::MQCMHO::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
     let msg = object.get_as(
@@ -112,10 +112,12 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         },
         attribute::MQIA_COMMAND_LEVEL,
     ];
-    let qm = QueueManager::connect(Credentials::user("app", "app")).discard_warning()?;
-    let (object, qm) =
-        Object::open_with::<Option<QueueManagerName>>(&qm, (QueueManagerName(mqstr!("QM1")), values::MQOO(sys::MQOO_INQUIRE)))
-            .warn_as_error()?;
+    let connection = Connection::<_, ShareBlock>::connect(Credentials::user("app", "app")).discard_warning()?;
+    let (object, qm) = Object::open_with::<Option<QueueManagerName>>(
+        &connection,
+        (QueueManagerName(mqstr!("QM1")), values::MQOO(sys::MQOO_INQUIRE)),
+    )
+    .warn_as_error()?;
 
     println!("{qm:?}");
     let result = object.inq(INQ)?;
@@ -142,8 +144,8 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 fn transaction() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let connection = QueueManager::connect(Credentials::user("app", "app")).warn_as_error()?;
-    let object = Object::open(&connection, (QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
+    let connection = Connection::<_, ShareBlock>::connect(Credentials::user("app", "app")).warn_as_error()?;
+    let object = Object::open(connection, (QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
 
     object.put_message((), "message").warn_as_error()?;
 

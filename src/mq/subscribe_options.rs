@@ -1,7 +1,7 @@
-use crate::{core::values, Error, MqiAttr, MqiOption, MqiValue, ResultComp, ResultCompErr};
+use crate::{values, Error, MqiAttr, MqiOption, MqiValue, ResultComp, ResultCompErr};
 
 use super::{open_options::ObjectString, Conn, EncodedString, Object, SubscribeParam, SubscribeState, Subscription};
-use crate::ResultCompErrExt as _;
+use crate::prelude::*;
 
 impl<'so, T: EncodedString + ?Sized> MqiOption<SubscribeParam<'so>> for ObjectString<&'so T> {
     #[inline]

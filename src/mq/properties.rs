@@ -2,13 +2,16 @@ use std::{marker::PhantomData, num::NonZero, ptr};
 
 use libmqm_sys::function;
 
-use crate::core::values::{self, MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
+use crate::values::{MQRC, MQCC, MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
+use crate::prelude::*;
 use crate::core::MessageHandle;
 use crate::properties_options::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetProperty};
 use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
 
-use crate::{EncodedString, Error, MqStruct, ResultCompErrExt};
+use crate::{EncodedString, Error, MqStruct};
 use crate::{ResultComp, ResultCompErr, ResultErr};
+
+use super::IntoConnection;
 
 #[derive(Debug)]
 pub struct Properties<C: Conn> {
@@ -63,7 +66,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::Mqi>>(
         ),
         returned_name,
     ) {
-        (Err(core::MqInqError::Length(length, Error(.., values::MQRC(sys::MQRC_PROPERTY_VALUE_TOO_BIG)))), rn)
+        (Err(core::MqInqError::Length(length, Error(.., MQRC(sys::MQRC_PROPERTY_VALUE_TOO_BIG)))), rn)
             if max_value_size.map_or(true, |max_len| Into::<usize>::into(max_len) > value.len()) =>
         {
             let len = length.try_into().expect("length always converts to usize");
@@ -82,7 +85,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::Mqi>>(
                 max_name_size,
             )
         }
-        (Err(core::MqInqError::Length(length, Error(.., values::MQRC(sys::MQRC_PROPERTY_NAME_TOO_BIG)))), Some(rn))
+        (Err(core::MqInqError::Length(length, Error(.., MQRC(sys::MQRC_PROPERTY_NAME_TOO_BIG)))), Some(rn))
             if max_name_size.map_or(true, |max_len| Into::<usize>::into(max_len) > rn.len()) =>
         {
             let len = length.try_into().expect("length always converts to usize");
@@ -146,11 +149,12 @@ impl<C: Conn> Properties<C> {
         &self.handle
     }
 
-    pub fn new(connection: C, options: MQCMHO) -> ResultErr<Self> {
+    pub fn new(connection: impl IntoConnection<C>, options: MQCMHO) -> ResultErr<Self> {
         let mqcmho = sys::MQCMHO {
             Options: options.value(),
             ..sys::MQCMHO::default()
         };
+        let connection = connection.into_connection();
         connection
             .mq()
             .mqcrtmh(Some(connection.handle()), &mqcmho)
@@ -239,16 +243,9 @@ impl<C: Conn> Properties<C> {
                 value: value.into(),
             });
 
-            property_not_available = mqi_inqmp.as_ref().is_err_and(|e| {
-                matches!(
-                    e,
-                    &Error(
-                        values::MQCC(sys::MQCC_FAILED),
-                        ..,
-                        values::MQRC(sys::MQRC_PROPERTY_NOT_AVAILABLE)
-                    )
-                )
-            });
+            property_not_available = mqi_inqmp
+                .as_ref()
+                .is_err_and(|e| matches!(e, &Error(MQCC(sys::MQCC_FAILED), .., MQRC(sys::MQRC_PROPERTY_NOT_AVAILABLE))));
 
             mqi_inqmp
         });

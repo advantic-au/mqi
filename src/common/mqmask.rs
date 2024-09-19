@@ -133,7 +133,6 @@ pub(crate) fn mask_debug(
     lookup: &impl ConstLookup,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
-    // let (list, residual) = self.masked_list();
     let (list, residual) = masked_list(value, lookup.all());
     if residual == value && residual != 0 {
         f.debug_tuple(type_name).field(&format_args!("{value:#X}")).finish()

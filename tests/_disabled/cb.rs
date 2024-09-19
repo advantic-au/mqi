@@ -5,7 +5,7 @@ use mqi::{
     prelude::*,
     connect_options::{ApplName, Binding, Credentials},
     core::ConnectionHandle,
-    values, mqstr, sys,
+    values, sys,
     types::QueueName,
     MqStruct, Object, QueueManager, MQMD,
 };

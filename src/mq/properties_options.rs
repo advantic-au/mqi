@@ -11,8 +11,9 @@ use libmqm_sys::lib::MQTYPE_STRING;
 
 // use crate::core::macros::all_multi_tuples;
 use crate::macros::all_multi_tuples;
-use crate::{sys, Completion, Error, MqStr, MqStruct, MqiAttr, MqiValue, ResultComp, ResultCompErrExt, StrCcsidOwned, StringCcsid};
-use crate::core::values::{self, MQENC, MQTYPE};
+use crate::prelude::*;
+use crate::{sys, Completion, Error, MqStr, MqStruct, MqiAttr, MqiValue, ResultComp, StrCcsidOwned, StringCcsid};
+use crate::values::{self, MQENC, MQTYPE};
 
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";

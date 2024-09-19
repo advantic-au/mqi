@@ -1,4 +1,4 @@
-use crate::{core::values, sys, types, Conn, Properties, MqiOption};
+use crate::{values, sys, types, Conn, Properties, MqiOption};
 
 use super::get::{GetConvert, GetParam, GetWait, MatchOptions};
 

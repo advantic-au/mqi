@@ -1,7 +1,4 @@
-use crate::{
-    core::{values, ObjectHandle},
-    MqStruct, MqiAttr, MqiOption, MqiValue,
-};
+use crate::{values, core::ObjectHandle, MqStruct, MqiAttr, MqiOption, MqiValue};
 
 use crate::{
     core::{self, values::MQCO},
@@ -77,7 +74,7 @@ impl<C: Conn> Drop for Object<C> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::values::MQCO;
+    use crate::values::MQCO;
     use crate::sys;
 
     #[test]

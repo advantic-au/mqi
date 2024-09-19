@@ -2,13 +2,14 @@ use std::marker::PhantomData;
 
 use libmqm_sys::function;
 
-use crate::core::mqai::values::{MqaiSelector, MQIND};
-use crate::core::{values, Library};
-use crate::{sys, ResultComp, ResultCompErr, ResultCompErrExt, WithMqError as _};
+use crate::values::{MqaiSelector, MQIND, MQCC, MQRC};
+use crate::core::Library;
+use crate::prelude::*;
+use crate::{sys, ResultComp, ResultCompErr, WithMqError as _};
 
 use crate::Error;
 
-use super::{Bag, BagDrop, BagItemGet};
+use super::{Bag, BagDrop, BagItemGet, Embedded};
 
 pub struct BagItem<'bag, T, B: BagDrop, L: Library<MQ: function::Mqai>> {
     selector: MqaiSelector,
@@ -32,11 +33,9 @@ impl<T: BagItemGet<L>, B: BagDrop, L: Library<MQ: function::Mqai>> Iterator for 
         };
         let result = match T::inq_bag_item(self.selector, MQIND(self.index), self.bag) {
             Err(e) => match e.mqi_error() {
-                Some(&Error(
-                    values::MQCC(sys::MQCC_FAILED),
-                    _,
-                    values::MQRC(sys::MQRC_SELECTOR_NOT_PRESENT | sys::MQRC_INDEX_NOT_PRESENT),
-                )) => None,
+                Some(&Error(MQCC(sys::MQCC_FAILED), _, MQRC(sys::MQRC_SELECTOR_NOT_PRESENT | sys::MQRC_INDEX_NOT_PRESENT))) => {
+                    None
+                }
                 _ => Some(Err(e)),
             },
             other => Some(other),
@@ -56,5 +55,9 @@ impl<B: BagDrop, L: Library<MQ: function::Mqai>> Bag<B, L> {
             bag: self,
             data: PhantomData,
         })
+    }
+
+    pub fn try_bag_iter(&self, selector: MqaiSelector) -> ResultComp<BagItem<'_, Bag<Embedded, L>, B, L>> {
+        self.try_iter(selector)
     }
 }

@@ -1,6 +1,6 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 
-use crate::{Error, ResultComp, ResultCompErr, ResultCompErrExt};
+use crate::{Error, ResultComp, ResultCompErr, prelude::*};
 
 use super::macros::all_multi_tuples;
 

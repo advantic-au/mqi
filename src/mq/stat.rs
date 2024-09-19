@@ -2,8 +2,8 @@ use std::{num, ptr};
 
 use crate::{
     prelude::*,
-    values,
-    sys, CompletionCode, MqStr, ReasonCode, ResultComp
+    values::{self, MQCC, MQRC},
+    sys, MqStr, ResultComp,
 };
 
 use super::{types::ObjectName, Conn, MqStruct, QueueManager, StrCcsidOwned};
@@ -23,9 +23,9 @@ impl AsyncPutStat {
         Self {
             warning: match sts.CompCode {
                 0 => None,
-                value => Some(CompletionCode::from(value)),
+                value => Some(MQCC::from(value)),
             },
-            reason: ReasonCode::from(sts.Reason),
+            reason: MQRC::from(sts.Reason),
             put_success_count: sts.PutSuccessCount,
             put_warning_count: sts.PutWarningCount,
             put_failure_count: sts.PutFailureCount,
@@ -48,9 +48,9 @@ impl ReconnectionStat {
         Self {
             warning: match sts.CompCode {
                 0 => None,
-                value => Some(CompletionCode::from(value)),
+                value => Some(MQCC::from(value)),
             },
-            reason: ReasonCode::from(sts.Reason),
+            reason: MQRC::from(sts.Reason),
             object_type: values::MQOT(sts.ObjectType),
             object_name: MqStr::from(sts.ObjectName),
             object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
@@ -77,9 +77,9 @@ impl ReconnectionErrorStat {
         Self {
             warning: match sts.CompCode {
                 0 => None,
-                value => Some(CompletionCode::from(value)),
+                value => Some(MQCC::from(value)),
             },
-            reason: ReasonCode::from(sts.Reason),
+            reason: MQRC::from(sts.Reason),
             object_type: values::MQOT(sts.ObjectType),
             object_name: MqStr::from(sts.ObjectName),
             object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
@@ -123,14 +123,16 @@ impl<C: Conn> QueueManager<C> {
         );
         sts.ObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
 
-        self.0.mq()
+        self.0
+            .mq()
             .mqstat(self.0.handle(), values::MQSTAT(sys::MQSTAT_TYPE_ASYNC_ERROR), &mut sts)
             .map_completion(|()| AsyncPutStat::new(&sts, buffer))
     }
 
     pub fn stat_reconnection(&self) -> ResultComp<ReconnectionStat> {
         let mut sts = MqStruct::default();
-        self.0.mq()
+        self.0
+            .mq()
             .mqstat(self.0.handle(), values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION), &mut sts)
             .map_completion(|()| ReconnectionStat::new(&sts))
     }
@@ -155,8 +157,9 @@ impl<C: Conn> QueueManager<C> {
             Vec::with_capacity(sts.SubName.VSBufSize.try_into().expect("buffer length to convert to usize"));
         sts.SubName.VSPtr = ptr::from_mut(&mut *sub_name_buffer).cast();
 
-        self.0.mq()
-            .mqstat(self.0. handle(), values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION_ERROR), &mut sts)
+        self.0
+            .mq()
+            .mqstat(self.0.handle(), values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION_ERROR), &mut sts)
             .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
     }
 }
@@ -164,8 +167,8 @@ impl<C: Conn> QueueManager<C> {
 const DEFAULT_OBJECTSTRING_LENGTH: sys::MQLONG = 4096;
 
 pub struct AsyncPutStat {
-    pub warning: Option<CompletionCode>,
-    pub reason: ReasonCode,
+    pub warning: Option<MQCC>,
+    pub reason: MQRC,
     pub put_success_count: sys::MQLONG,
     pub put_warning_count: sys::MQLONG,
     pub put_failure_count: sys::MQLONG,
@@ -178,16 +181,16 @@ pub struct AsyncPutStat {
 }
 
 pub struct ReconnectionStat {
-    pub warning: Option<CompletionCode>,
-    pub reason: ReasonCode,
+    pub warning: Option<MQCC>,
+    pub reason: MQRC,
     pub object_type: values::MQOT,
     pub object_name: ObjectName,      // TODO: fix wrapper?
     pub object_qmgr_name: ObjectName, // TODO: fix wrapper?
 }
 
 pub struct ReconnectionErrorStat {
-    pub warning: Option<CompletionCode>,
-    pub reason: ReasonCode,
+    pub warning: Option<MQCC>,
+    pub reason: MQRC,
     pub object_type: values::MQOT,
     pub object_name: ObjectName,      // TODO: fix wrapper?
     pub object_qmgr_name: ObjectName, // TODO: fix wrapper?

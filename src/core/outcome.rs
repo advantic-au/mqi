@@ -1,18 +1,33 @@
-use crate::{sys, ReasonCode, ResultCompErr};
-use crate::{Completion, CompletionCode, Error};
+use crate::{
+    sys,
+    values::{MQCC, MQRC},
+    ResultCompErr,
+};
+use crate::{Completion, Error};
 
-#[derive(Default, Clone, derive_more::Deref, derive_more::DerefMut)]
+#[derive(Clone, derive_more::Deref, derive_more::DerefMut)]
 pub struct MqiOutcome<T> {
     /// MQI verb that caused the failure
     pub verb: &'static str,
     /// Completion code of the MQI function call
-    pub cc: CompletionCode,
+    pub cc: MQCC,
     /// Reason code of the MQI function call
-    pub rc: ReasonCode,
+    pub rc: MQRC,
     /// Return value of the MQI function call
     #[deref]
     #[deref_mut]
     pub value: T,
+}
+
+impl<T: Default> Default for MqiOutcome<T> {
+    fn default() -> Self {
+        Self {
+            verb: Default::default(),
+            cc: MQCC::from(sys::MQCC_UNKNOWN),
+            rc: MQRC::from(sys::MQRC_NONE),
+            value: Default::default(),
+        }
+    }
 }
 
 pub type MqiOutcomeVoid = MqiOutcome<()>;
@@ -29,8 +44,8 @@ impl<T> MqiOutcome<T> {
         Self {
             verb,
             value,
-            rc: ReasonCode::default(),
-            cc: CompletionCode::default(),
+            rc: MQRC::from(sys::MQRC_NONE),
+            cc: MQCC::from(sys::MQCC_UNKNOWN),
         }
     }
 }
