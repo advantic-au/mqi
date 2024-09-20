@@ -38,7 +38,7 @@ pub type ObjectHandle = Handle<raw::Object>;
 pub type MessageHandle = Handle<raw::Message>;
 pub type SubscriptionHandle = ObjectHandle;
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[repr(transparent)]
 pub struct Handle<R: RawHandle>(pub(super) R::HandleType);
 

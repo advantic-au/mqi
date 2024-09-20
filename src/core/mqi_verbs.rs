@@ -87,7 +87,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
 
     /// Establishes access to an object
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqopen(&self, connection_handle: &ConnectionHandle, mqod: &mut sys::MQOD, options: MQOO) -> ResultComp<ObjectHandle> {
+    pub fn mqopen(&self, connection_handle: ConnectionHandle, mqod: &mut sys::MQOD, options: MQOO) -> ResultComp<ObjectHandle> {
         let mut outcome = MqiOutcome::<ObjectHandle>::with_verb("MQOPEN");
 
         unsafe {
@@ -109,7 +109,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
     pub fn mqput1<T: ?Sized>(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: ConnectionHandle,
         mqod: &mut sys::MQOD,
         mqmd: Option<&mut impl MQMD>,
         pmo: &mut sys::MQPMO,
@@ -139,7 +139,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqclose(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: ConnectionHandle,
         object_handle: &mut ObjectHandle,
         options: MQCO,
     ) -> ResultComp<()> {
@@ -161,7 +161,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     /// Indicates to the queue manager that the application has reached a sync point, and that all the
     /// message gets and puts that have occurred since the last sync point are to be made permanent.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqcmit(&self, connection_handle: &ConnectionHandle) -> ResultComp<()> {
+    pub fn mqcmit(&self, connection_handle: ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQCMIT");
         unsafe {
             self.0
@@ -178,7 +178,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
     pub fn mqput<T: ?Sized>(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         mqmd: Option<&mut impl MQMD>,
         pmo: &mut sys::MQPMO,
@@ -209,7 +209,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
     pub fn mqget<T: ?Sized>(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         mqmd: Option<&mut impl MQMD>,
         gmo: &mut sys::MQGMO,
@@ -241,7 +241,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", , skip(self)))]
     pub fn mqinq(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         selectors: &[MQXA],
         int_attr: &mut [MaybeUninit<sys::MQLONG>],
@@ -280,7 +280,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqsub(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: ConnectionHandle,
         mqsd: &mut sys::MQSD,
         object_handle: &mut ObjectHandle,
     ) -> ResultComp<SubscriptionHandle> {
@@ -305,7 +305,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqsubrq(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: ConnectionHandle,
         subscription_handle: &SubscriptionHandle,
         action: MQSR,
         mqsro: &mut sys::MQSRO,
@@ -329,7 +329,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     /// Begins a unit of work that is coordinated by the queue manager, and that can
     /// involve external resource managers.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqbegin(&self, connection_handle: &ConnectionHandle, mqbo: &mut sys::MQBO) -> ResultComp<()> {
+    pub fn mqbegin(&self, connection_handle: ConnectionHandle, mqbo: &mut sys::MQBO) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQBEGIN");
         unsafe {
             self.0.lib().MQBEGIN(
@@ -347,7 +347,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     /// Indicates to the queue manager that all the message gets and puts that have
     /// occurred since the last sync point are to be backed out
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqback(&self, connection_handle: &ConnectionHandle) -> ResultComp<()> {
+    pub fn mqback(&self, connection_handle: ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQBACK");
         unsafe {
             self.0
@@ -361,7 +361,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
 
     /// Creates a message handle for use with mqsetmp, mqinqmp, and mqdltmp.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqcrtmh(&self, connection_handle: Option<&ConnectionHandle>, cmho: &sys::MQCMHO) -> ResultErr<MessageHandle> {
+    pub fn mqcrtmh(&self, connection_handle: Option<ConnectionHandle>, cmho: &sys::MQCMHO) -> ResultErr<MessageHandle> {
         let mut outcome = MqiOutcome::<MessageHandle>::with_verb("MQCRTMH");
         unsafe {
             self.0.lib().MQCRTMH(
@@ -381,7 +381,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqdltmh(
         &self,
-        connection_handle: Option<&ConnectionHandle>,
+        connection_handle: Option<ConnectionHandle>,
         message_handle: &mut MessageHandle,
         dmho: &sys::MQDMHO,
     ) -> ResultErr<()> {
@@ -405,7 +405,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[expect(clippy::too_many_arguments)]
     pub fn mqinqmp<T: ?Sized>(
         &self,
-        connection_handle: Option<&ConnectionHandle>,
+        connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
         inq_prop_opts: &mut sys::MQIMPO,
         name: &sys::MQCHARV,
@@ -456,7 +456,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqdltmp(
         &self,
-        connection_handle: Option<&ConnectionHandle>,
+        connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
         delete_prop_opts: &sys::MQDMPO,
         name: &sys::MQCHARV,
@@ -480,7 +480,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     /// Retrieve status information. The type of status information returned is
     /// determined by the `stat_type` value parameter
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqstat(&self, connection_handle: &ConnectionHandle, stat_type: MQSTAT, sts: &mut sys::MQSTS) -> ResultComp<()> {
+    pub fn mqstat(&self, connection_handle: ConnectionHandle, stat_type: MQSTAT, sts: &mut sys::MQSTS) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQSTAT");
         unsafe {
             self.0.lib().MQSTAT(
@@ -501,7 +501,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqsetmp<T: Debug + ?Sized>(
         &self,
-        connection_handle: Option<&ConnectionHandle>,
+        connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
         set_prop_opts: &sys::MQSMPO,
         name: &sys::MQCHARV,
@@ -535,7 +535,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqset(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         selectors: &[MQXA],
         int_attr: &[sys::MQLONG],
@@ -574,7 +574,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqcb(
         &self,
-        connection_handle: &ConnectionHandle,
+        connection_handle: ConnectionHandle,
         operations: MQOP,
         callback_desc: &sys::MQCBD,
         object_handle: Option<&ObjectHandle>,
@@ -601,7 +601,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
 
     /// Performs controlling actions on callbacks and the object handles opened for a connection
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqctl(&self, connection_handle: &ConnectionHandle, operation: MQOP, control_options: &sys::MQCTLO) -> ResultComp<()> {
+    pub fn mqctl(&self, connection_handle: ConnectionHandle, operation: MQOP, control_options: &sys::MQCTLO) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQCTL");
         unsafe {
             self.0.lib().MQCTL(
@@ -621,7 +621,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(buffer, self)))]
     pub fn mqmhbuf<T: ?Sized>(
         &self,
-        connection_handle: Option<&ConnectionHandle>,
+        connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
         mhbuf_options: &sys::MQMHBO,
         name: &sys::MQCHARV,
@@ -654,7 +654,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(buffer, self)))]
     pub fn mqbufm<T: ?Sized>(
         &self,
-        connection_handle: Option<&ConnectionHandle>,
+        connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
         bufmh_options: &sys::MQBMHO,
         mqmd: &mut impl MQMD,
@@ -685,7 +685,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(source, target, self)))]
     pub fn mqxcnvc<T: ?Sized>(
         &self,
-        connection_handle: Option<&ConnectionHandle>,
+        connection_handle: Option<ConnectionHandle>,
         options: MQDCC,
         source_ccsid: sys::MQLONG,
         source: &T,

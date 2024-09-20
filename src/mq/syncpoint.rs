@@ -1,6 +1,6 @@
 use crate::ResultComp;
 
-use super::{IntoConnection, Conn};
+use super::Conn;
 
 #[derive(Debug, PartialEq)]
 enum SyncpointState {
@@ -16,10 +16,10 @@ pub struct Syncpoint<C: Conn> {
 }
 
 impl<C: Conn> Syncpoint<C> {
-    pub fn new(connection: impl IntoConnection<C>) -> Self {
+    pub const fn new(connection: C) -> Self {
         Self {
             state: SyncpointState::Open,
-            connection: connection.into_connection(),
+            connection,
         }
     }
 

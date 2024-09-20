@@ -1,12 +1,16 @@
 use std::{num, ptr};
 
+use libmqm_sys::function;
+
 use crate::{
+    core::{ConnectionHandle, Library, MqFunctions},
     prelude::*,
+    sys,
     values::{self, MQCC, MQRC},
-    sys, MqStr, ResultComp,
+    MqStr, ResultComp,
 };
 
-use super::{types::ObjectName, Conn, MqStruct, QueueManager, StrCcsidOwned};
+use super::{types::ObjectName, MqStruct, StrCcsidOwned};
 
 impl AsyncPutStat {
     fn new(sts: &MqStruct<sys::MQSTS>, buffer: Vec<u8>) -> Self {
@@ -105,63 +109,64 @@ impl ReconnectionErrorStat {
     }
 }
 
-impl<C: Conn> QueueManager<C> {
-    pub fn stat_put(&self) -> ResultComp<AsyncPutStat> {
-        let mut sts = MqStruct::new(sys::MQSTS {
-            Version: sys::MQSTS_VERSION_2,
-            ..sys::MQSTS::default()
-        });
+pub fn stat_put<L: Library<MQ: function::Mqi>>(functions: &MqFunctions<L>, handle: ConnectionHandle) -> ResultComp<AsyncPutStat> {
+    let mut sts = MqStruct::new(sys::MQSTS {
+        Version: sys::MQSTS_VERSION_2,
+        ..sys::MQSTS::default()
+    });
 
-        if sts.ObjectString.VSBufSize == 0 {
-            sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-        }
-        let mut buffer: Vec<_> = Vec::with_capacity(
-            sts.ObjectString
-                .VSBufSize
-                .try_into()
-                .expect("buffer length to convert to usize"),
-        );
-        sts.ObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
-
-        self.0
-            .mq()
-            .mqstat(self.0.handle(), values::MQSTAT(sys::MQSTAT_TYPE_ASYNC_ERROR), &mut sts)
-            .map_completion(|()| AsyncPutStat::new(&sts, buffer))
-    }
-
-    pub fn stat_reconnection(&self) -> ResultComp<ReconnectionStat> {
-        let mut sts = MqStruct::default();
-        self.0
-            .mq()
-            .mqstat(self.0.handle(), values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION), &mut sts)
-            .map_completion(|()| ReconnectionStat::new(&sts))
-    }
-
-    pub fn stat_reconnection_error(&self) -> ResultComp<ReconnectionErrorStat> {
-        let mut sts = MqStruct::new(sys::MQSTS {
-            Version: sys::MQSTS_VERSION_2,
-            ..sys::MQSTS::default()
-        });
-
+    if sts.ObjectString.VSBufSize == 0 {
         sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-        let mut object_string_buffer: Vec<_> = Vec::with_capacity(
-            sts.ObjectString
-                .VSBufSize
-                .try_into()
-                .expect("buffer length to convert to usize"),
-        );
-        sts.ObjectString.VSPtr = ptr::from_mut(&mut *object_string_buffer).cast();
-
-        sts.SubName.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-        let mut sub_name_buffer: Vec<_> =
-            Vec::with_capacity(sts.SubName.VSBufSize.try_into().expect("buffer length to convert to usize"));
-        sts.SubName.VSPtr = ptr::from_mut(&mut *sub_name_buffer).cast();
-
-        self.0
-            .mq()
-            .mqstat(self.0.handle(), values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION_ERROR), &mut sts)
-            .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
     }
+    let mut buffer: Vec<_> = Vec::with_capacity(
+        sts.ObjectString
+            .VSBufSize
+            .try_into()
+            .expect("buffer length to convert to usize"),
+    );
+    sts.ObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
+
+    functions
+        .mqstat(handle, values::MQSTAT(sys::MQSTAT_TYPE_ASYNC_ERROR), &mut sts)
+        .map_completion(|()| AsyncPutStat::new(&sts, buffer))
+}
+
+pub fn stat_reconnection<L: Library<MQ: function::Mqi>>(
+    functions: &MqFunctions<L>,
+    handle: ConnectionHandle,
+) -> ResultComp<ReconnectionStat> {
+    let mut sts = MqStruct::default();
+    functions
+        .mqstat(handle, values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION), &mut sts)
+        .map_completion(|()| ReconnectionStat::new(&sts))
+}
+
+pub fn stat_reconnection_error<L: Library<MQ: function::Mqi>>(
+    functions: &MqFunctions<L>,
+    handle: ConnectionHandle,
+) -> ResultComp<ReconnectionErrorStat> {
+    let mut sts = MqStruct::new(sys::MQSTS {
+        Version: sys::MQSTS_VERSION_2,
+        ..sys::MQSTS::default()
+    });
+
+    sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
+    let mut object_string_buffer: Vec<_> = Vec::with_capacity(
+        sts.ObjectString
+            .VSBufSize
+            .try_into()
+            .expect("buffer length to convert to usize"),
+    );
+    sts.ObjectString.VSPtr = ptr::from_mut(&mut *object_string_buffer).cast();
+
+    sts.SubName.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
+    let mut sub_name_buffer: Vec<_> =
+        Vec::with_capacity(sts.SubName.VSBufSize.try_into().expect("buffer length to convert to usize"));
+    sts.SubName.VSPtr = ptr::from_mut(&mut *sub_name_buffer).cast();
+
+    functions
+        .mqstat(handle, values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION_ERROR), &mut sts)
+        .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
 }
 
 const DEFAULT_OBJECTSTRING_LENGTH: sys::MQLONG = 4096;

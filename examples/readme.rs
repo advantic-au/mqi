@@ -3,7 +3,7 @@ use mqi::{
     connect_options::{ApplName, Credentials},
     prelude::*,
     types::QueueName,
-    Connection, QueueManager, ShareBlock,
+    ThreadNone,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -14,12 +14,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let connect_options = (ApplName(mqstr!("readme_example")), Credentials::user("user", "password"));
 
     // Connect to the queue manager. Make all MQ warnings as a rust Result::Err
-    let queue_manager = Connection::<_, ShareBlock>::connect(connect_options).warn_as_error()?;
+    let queue_manager = mqi::connect::<ThreadNone>(connect_options).warn_as_error()?;
 
     // Put a single string message on the target queue. Discard any warnings.
-    QueueManager(&queue_manager)
-        .put_message(TARGET, (), "Hello")
-        .discard_warning()?;
+    queue_manager.put_message(TARGET, (), "Hello").discard_warning()?;
 
     // Queue manager disconnect - this also happens automatically on Drop.
     queue_manager.disconnect().discard_warning()?;

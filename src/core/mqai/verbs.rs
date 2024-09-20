@@ -623,7 +623,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_execute(
         &self,
-        handle: &core::ConnectionHandle,
+        handle: core::ConnectionHandle,
         command: MQCMD,
         options: Option<&BagHandle>,
         admin: &BagHandle,
@@ -682,7 +682,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, bag)))]
     pub fn mq_get_bag(
         &self,
-        handle: &core::ConnectionHandle,
+        handle: core::ConnectionHandle,
         object: &core::ObjectHandle,
         mqmd: &mut impl MQMD,
         gmo: &mut sys::MQGMO,
@@ -709,7 +709,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_put_bag(
         &self,
-        handle: &core::ConnectionHandle,
+        handle: core::ConnectionHandle,
         object: &core::ObjectHandle,
         mqmd: &mut impl MQMD,
         pmo: &mut sys::MQPMO,

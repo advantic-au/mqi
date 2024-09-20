@@ -1,17 +1,17 @@
 use std::error::Error;
 
 use mqi::{
-    connect_options::Credentials,
     prelude::*,
+    connect_options::Credentials,
     properties_options::{self, Attributes},
-    values, Connection, Properties, ShareBlock, StrCcsidOwned,
+    values, Properties, ThreadNone, StrCcsidOwned,
 };
 
 #[test]
 fn message_handle() -> Result<(), Box<dyn Error>> {
     const PROPS: &[(&str, &str)] = &[("usr.b.x", "B"), ("usr.p.x", "A"), ("usr.c", "By"), ("usr.p.y", "C")];
 
-    let conn = Connection::<_, ShareBlock>::connect(Credentials::user("app", "app")).warn_as_error()?;
+    let conn = mqi::connect::<ThreadNone>(Credentials::user("app", "app")).warn_as_error()?;
 
     let message = Properties::new(conn, values::MQCMHO::default())?;
 

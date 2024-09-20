@@ -10,7 +10,7 @@ use mqi::{
     sys,
     types::{MessageFormat, QueueManagerName, QueueName},
     values::{MQCMHO, MQGMO, MQOO, MQPMO},
-    Connection, MqStruct, Object, Properties, QueueManager, ShareBlock, Syncpoint,
+    MqStruct, Object, Properties, ThreadNone, Syncpoint,
 };
 
 const APP_NAME: ApplName = ApplName(mqstr!("forward"));
@@ -64,16 +64,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     let target_qm = args.queue_manager.as_deref().map(QueueManagerName::from_str).transpose()?;
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let connection = Connection::<_, ShareBlock>::connect((APP_NAME, qm_name, creds, cno, client_method)).warn_as_error()?;
+    let connection = mqi::connect::<ThreadNone>((APP_NAME, qm_name, creds, cno, client_method)).warn_as_error()?;
+    let connect_ref = connection.connection_ref();
     let obj = Object::open(
-        &connection,
+        connect_ref,
         (source_queue, MQOO(sys::MQOO_INPUT_AS_Q_DEF | sys::MQOO_SAVE_ALL_CONTEXT)),
     )
     .warn_as_error()?; // Fail on any warnings
 
     let mut buffer: [u8; 20 * 1024] = [0; 20 * 1024]; // 20kb
 
-    let syncpoint = Syncpoint::new(&connection);
+    let syncpoint = Syncpoint::new(connect_ref);
 
     let mut properties = Properties::new(&connection, MQCMHO::default())?;
     let message = obj
@@ -89,7 +90,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     if let Some((msg_data, md)) = message {
         let mut target_properties = Properties::new(&connection, MQCMHO::default())?; // Create a placeholder for target properties
         let fmt = MessageFormat::from_mqmd2(&md);
-        QueueManager(&connection)
+        connect_ref
             .put_message(
                 (
                     // Options used when opening the queue

@@ -1,4 +1,4 @@
-use libmqm_sys::Mqai;
+use libmqm_sys::{function, Mqai};
 
 use crate::core::mqai::BagHandle;
 use crate::core::ObjectHandle;
@@ -7,7 +7,7 @@ use crate::{
     core::Library,
     sys,
     values::{MQCBO, MQCMD},
-    Conn, QueueManager, ResultComp,
+    Conn, ResultComp,
 };
 
 use super::{Bag, BagDrop, Owned};
@@ -54,19 +54,22 @@ impl MqiOption<ExecuteParam<'_>> for MQCMD {
 pub trait ExecuteOption: for<'a> MqiOption<ExecuteParam<'a>> {}
 impl<T> ExecuteOption for T where T: for<'a> MqiOption<ExecuteParam<'a>> {}
 
-impl<C: Conn<Lib: Library<MQ: Mqai>>> QueueManager<C> {
-    pub fn execute(&self, admin: &Bag<impl BagDrop, C::Lib>, options: impl ExecuteOption) -> ResultComp<Bag<Owned, C::Lib>> {
-        let lib = self.0.mq().0.clone();
+pub trait QueueManagerAdmin: Conn<Lib: Library<MQ: Mqai>> {
+    fn execute(&self, admin: &Bag<impl BagDrop, Self::Lib>, options: impl ExecuteOption) -> ResultComp<Bag<Owned, Self::Lib>>;
+}
+
+impl<C: Conn<Lib: Library<MQ: function::Mqai>>> QueueManagerAdmin for C {
+    fn execute(&self, admin: &Bag<impl BagDrop, Self::Lib>, options: impl ExecuteOption) -> ResultComp<Bag<Owned, Self::Lib>> {
+        let lib = self.mq().0.clone();
         // There shouldn't be any warnings for creating a bag - so treat the warning as an error
         let response_bag = Bag::new_lib(lib, MQCBO(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
 
         let mut param = ExecuteParam::default();
         options.apply_param(&mut param);
 
-        self.0
-            .mq()
+        self.mq()
             .mq_execute(
-                self.0.handle(),
+                self.handle(),
                 param.command,
                 param.options,
                 admin,

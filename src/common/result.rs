@@ -14,7 +14,7 @@ impl MQRC {
         ))
     }
 }
-/// A value returned from an MQ API call, optionally with a warning `MQRC`
+/// A value returned from an MQ API call, optionally with a warning [`MQRC`]
 #[derive(Debug, Clone, derive_more::Deref, derive_more::DerefMut, derive_more::AsRef, derive_more::AsMut)]
 #[must_use]
 pub struct Completion<T>(

@@ -1,5 +1,5 @@
 mod buffer;
-// mod callback;
+mod callback;
 mod connect;
 #[cfg(feature = "link")]
 mod link;
@@ -8,6 +8,7 @@ mod mqstruct;
 mod object;
 mod open;
 mod properties;
+mod queue_manager;
 mod stat;
 mod strings;
 mod subscribe;
@@ -27,6 +28,7 @@ pub use subscribe::*;
 pub use stat::*;
 pub use properties::*;
 pub use syncpoint::*;
+pub use queue_manager::*;
 
 pub mod attribute;
 pub mod get;

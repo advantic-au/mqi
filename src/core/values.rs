@@ -17,21 +17,19 @@ impl_default_mqvalue!(MQGMO, sys::MQGMO_NONE);
 define_mqmask!(pub MQPMO, mapping::MQPMO_CONST, "Options mask to control the action of `MQPUT` and `MQPUT1`");
 impl_default_mqvalue!(MQPMO, sys::MQPMO_NONE);
 define_mqvalue!(pub MQSTAT, mapping::MQSTAT_CONST, "Value describing the MQSTAT outcome");
-// Create bag options mask
-define_mqmask!(pub MQCBO, mapping::MQCBO_CONST);
+define_mqmask!(pub MQCBO, mapping::MQCBO_CONST, "Create-Bag options mask for `mqCreateBag`");
 define_mqvalue!(pub MQCMHO, mapping::MQCMHO_CONST, "Create message handle options for `MQCRTMH`");
 impl_default_mqvalue!(MQCMHO, sys::MQCMHO_DEFAULT_VALIDATION);
-define_mqvalue!(pub MQSMPO, mapping::MQSMPO_CONST);
+define_mqvalue!(pub MQSMPO, mapping::MQSMPO_CONST, "Set message property options");
 impl_default_mqvalue!(MQSMPO, sys::MQSMPO_SET_FIRST);
-define_mqvalue!(pub MQDMPO, mapping::MQDMPO_CONST);
+define_mqvalue!(pub MQDMPO, mapping::MQDMPO_CONST, "Delete message property options");
 impl_default_mqvalue!(MQDMPO, sys::MQDMPO_DEL_FIRST);
-define_mqvalue!(pub MQXA, mapping::MQXA_FULL_CONST);
-// Callback options (`MQCBDO_*`)
-define_mqmask!(pub MQCBDO, mapping::MQCBDO_CONST);
+define_mqvalue!(pub MQXA, mapping::MQXA_FULL_CONST, "Integer and Character attribute selectors");
+define_mqmask!(pub MQCBDO, mapping::MQCBDO_CONST, "Options mask to control the action of `MQCB`");
 define_mqmask!(pub MQIMPO, mapping::MQIMPO_CONST, "Options mask to control the action of `MQINQMP`");
 impl_default_mqvalue!(MQIMPO, sys::MQIMPO_NONE);
 define_mqvalue!(pub MQPD, mapping::MQPD_CONST, "Property descriptor, support and context");
-define_mqmask!(pub MQCOPY, mapping::MQCOPY_CONST);
+define_mqmask!(pub MQCOPY, mapping::MQCOPY_CONST, "Property copy options mask");
 define_mqvalue!(pub MQRC, mapping::MQRC_FULL_CONST, "Reason Code from an MQ function call");
 define_mqvalue!(pub MQCC, mapping::MQCC_CONST, "Completion Code from an MQ function call");
 define_mqmask!(pub MQDCC, mapping::MQDCC_CONST, "Options mask that control the action of `MQXCNVC`");

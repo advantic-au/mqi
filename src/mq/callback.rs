@@ -1,17 +1,20 @@
 use libmqm_sys::function;
 
 use crate::{
-    core::{
-        values::{self, MQCBDO},
-        ConnectionHandle, Library,
-    },
-    sys, Error, MqStruct, ConnectOwn,
+    core::{values::MQCBDO, Library, MqFunctions},
+    sys, Error, MqStruct,
 };
 
-type CallbackData<F> = (MQCBDO, F);
+use super::{values::MQOP, Conn as _, Connection, ConnectionRef};
 
-fn event_callback<F: FnMut(&ConnectionHandle, &MqStruct<sys::MQCBC>)>(
-    conn: sys::MQHCONN,
+struct CallbackData<F, L> {
+    options: MQCBDO,
+    closure: F,
+    mq: MqFunctions<L>,
+}
+
+fn event_callback<L: Library<MQ: function::Mqi>, H, F: FnMut(ConnectionRef<'_, L, H>, &MqStruct<sys::MQCBC>)>(
+    hconn: sys::MQHCONN,
     _: sys::PMQVOID,
     _: sys::PMQVOID,
     _: sys::PMQVOID,
@@ -19,40 +22,41 @@ fn event_callback<F: FnMut(&ConnectionHandle, &MqStruct<sys::MQCBC>)>(
 ) {
     unsafe {
         if let Some(context) = cbc.cast::<MqStruct<sys::MQCBC>>().as_ref() {
-            if let Some((options, cb)) = context.CallbackArea.cast::<CallbackData<F>>().as_mut() {
+            if let Some(CallbackData {
+                options, closure, mq, ..
+            }) = context.CallbackArea.cast::<CallbackData<F, L>>().as_mut()
+            {
                 if (context.CallType != sys::MQCBCT_DEREGISTER_CALL) || (*options & sys::MQCBDO_DEREGISTER_CALL) != 0 {
-                    cb(&conn.into(), context);
+                    closure(ConnectionRef::from_parts(hconn.into(), mq.clone()), context);
                 }
                 if context.CallType == sys::MQCBCT_DEREGISTER_CALL {
-                    let _ = Box::<CallbackData<F>>::from_raw(context.CallbackArea.cast());
-                    // Recreate the box so it deallocates
+                    // Recreate the box so it deallocates / drops
+                    let _ = Box::<CallbackData<F, L>>::from_raw(context.CallbackArea.cast());
                 }
             }
         }
     }
 }
 
-impl<'a, L: Library<MQ: function::Mqi>, H> ConnectOwn<'a, L, H> {
-    pub fn register_event_handler<F: FnMut(&ConnectionHandle, &MqStruct<sys::MQCBC>) + 'a + Send>(
+impl<L: Library<MQ: function::Mqi>, H> Connection<L, H> {
+    pub fn register_event_handler<F: FnMut(ConnectionRef<'_, L, H>, &MqStruct<sys::MQCBC>)>(
         &mut self,
         options: MQCBDO,
         closure: F,
     ) -> Result<(), Error> {
-        let cb_data: *mut CallbackData<F> = Box::into_raw(Box::from((options, closure)));
+        let cb_data: *mut CallbackData<F, L> = Box::into_raw(Box::from(CallbackData {
+            options,
+            closure,
+            mq: self.mq().clone(),
+        }));
         let mut cbd = MqStruct::<sys::MQCBD>::default();
         cbd.CallbackArea = cb_data.cast();
         cbd.Options = (options | sys::MQCBDO_DEREGISTER_CALL).0; // Always register for the deregister call
-        cbd.CallbackFunction = event_callback::<F> as *mut _;
+        cbd.CallbackFunction = event_callback::<L, H, F> as *mut _;
         cbd.CallbackType = sys::MQCBT_EVENT_HANDLER;
 
-        self.mq().mqcb(
-            self.handle(),
-            values::MQOP(sys::MQOP_REGISTER),
-            &cbd,
-            None,
-            None::<&sys::MQMD>,
-            None,
-        )?;
+        self.mq()
+            .mqcb(self.handle(), MQOP(sys::MQOP_REGISTER), &cbd, None, None::<&sys::MQMD>, None)?;
 
         Ok(())
     }

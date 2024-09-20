@@ -11,8 +11,6 @@ use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
 use crate::{EncodedString, Error, MqStruct};
 use crate::{ResultComp, ResultCompErr, ResultErr};
 
-use super::IntoConnection;
-
 #[derive(Debug)]
 pub struct Properties<C: Conn> {
     handle: core::MessageHandle,
@@ -35,7 +33,7 @@ impl<C: Conn> Drop for Properties<C> {
 #[expect(clippy::too_many_arguments)]
 fn inqmp<'a, 'b, A: core::Library<MQ: function::Mqi>>(
     mq: &core::MqFunctions<A>,
-    connection_handle: Option<&core::ConnectionHandle>,
+    connection_handle: Option<core::ConnectionHandle>,
     message_handle: &core::MessageHandle,
     mqimpo: &mut MqStruct<sys::MQIMPO>,
     name: &MqStruct<sys::MQCHARV>,
@@ -149,12 +147,11 @@ impl<C: Conn> Properties<C> {
         &self.handle
     }
 
-    pub fn new(connection: impl IntoConnection<C>, options: MQCMHO) -> ResultErr<Self> {
+    pub fn new(connection: C, options: MQCMHO) -> ResultErr<Self> {
         let mqcmho = sys::MQCMHO {
             Options: options.value(),
             ..sys::MQCMHO::default()
         };
-        let connection = connection.into_connection();
         connection
             .mq()
             .mqcrtmh(Some(connection.handle()), &mqcmho)
