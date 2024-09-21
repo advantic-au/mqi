@@ -1,4 +1,4 @@
-use std::{num, ptr};
+use std::ptr;
 
 use libmqm_sys::function;
 
@@ -6,7 +6,7 @@ use crate::{
     core::{ConnectionHandle, Library, MqFunctions},
     prelude::*,
     sys,
-    values::{self, MQCC, MQRC},
+    values::{self, MQCC, MQRC, CCSID},
     MqStr, ResultComp,
 };
 
@@ -41,7 +41,7 @@ impl AsyncPutStat {
             object_string: if buffer.is_empty() {
                 None
             } else {
-                Some(StrCcsidOwned::from_vec(buffer, num::NonZero::new(sts.ObjectString.VSCCSID)))
+                Some(StrCcsidOwned::from_vec(buffer, CCSID(sts.ObjectString.VSCCSID)))
             },
         }
     }
@@ -90,18 +90,12 @@ impl ReconnectionErrorStat {
             object_string: if object_string_buffer.is_empty() {
                 None
             } else {
-                Some(StrCcsidOwned::from_vec(
-                    object_string_buffer,
-                    num::NonZero::new(sts.ObjectString.VSCCSID),
-                ))
+                Some(StrCcsidOwned::from_vec(object_string_buffer, CCSID(sts.ObjectString.VSCCSID)))
             },
             sub_name: if sub_name_buffer.is_empty() {
                 None
             } else {
-                Some(StrCcsidOwned::from_vec(
-                    sub_name_buffer,
-                    num::NonZero::new(sts.SubName.VSCCSID),
-                ))
+                Some(StrCcsidOwned::from_vec(sub_name_buffer, CCSID(sts.SubName.VSCCSID)))
             },
             open_options: values::MQOO(sts.OpenOptions),
             sub_options: values::MQSO(sts.SubOptions),

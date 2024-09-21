@@ -1,4 +1,9 @@
-use mqi::{prelude::*, core::MqFunctions, values, Error};
+use mqi::{
+    core::MqFunctions,
+    prelude::*,
+    values::{self, CCSID},
+    Error,
+};
 
 #[test]
 fn mqxcnvc() -> Result<(), Error> {
@@ -7,7 +12,7 @@ fn mqxcnvc() -> Result<(), Error> {
     let mut target: [u8; 1024] = [0; 1024];
 
     let length = mq
-        .mqxcnvc(None, values::MQDCC::default(), 1208, &buffer, 500, &mut target)
+        .mqxcnvc(None, values::MQDCC::default(), CCSID(1208), &buffer, CCSID(500), &mut target)
         .warn_as_error()?;
 
     assert_eq!(length, 1024);

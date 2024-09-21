@@ -10,6 +10,7 @@ use crate::{sys, Conn, MqStruct, Object, ResultComp, MqiAttr, MqiOption};
 use crate::values;
 use crate::prelude::*;
 
+use super::values::{CCSID, MQENC};
 use super::OpenParamOption;
 
 pub trait PutMessage {
@@ -30,8 +31,8 @@ impl PutMessage for str {
 
     fn format(&self) -> MessageFormat {
         MessageFormat {
-            ccsid: 1208,
-            encoding: values::MQENC(sys::MQENC_NATIVE),
+            ccsid: CCSID(1208),
+            encoding: MQENC(sys::MQENC_NATIVE),
             fmt: TextEnc::Ascii(fmt::MQFMT_STRING),
         }
     }
@@ -105,7 +106,11 @@ where
     T: for<'a> MqiAttr<PutParam<'a>, ()>,
     F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>,
 {
-    let MessageFormat { ccsid, encoding, fmt } = message.format();
+    let MessageFormat {
+        ccsid: CCSID(ccsid),
+        encoding,
+        fmt,
+    } = message.format();
     let md = MqStruct::new(sys::MQMD2 {
         CodedCharSetId: ccsid,
         Encoding: encoding.value(),

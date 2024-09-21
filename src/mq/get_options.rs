@@ -27,7 +27,7 @@ impl MqiOption<GetParam> for GetConvert {
             Self::Convert => param.gmo.Options |= sys::MQGMO_CONVERT,
             Self::ConvertTo(ccsid, encoding) => {
                 param.gmo.Options |= sys::MQGMO_CONVERT;
-                param.md.CodedCharSetId = ccsid;
+                param.md.CodedCharSetId = ccsid.0;
                 param.md.Encoding = encoding.value();
             }
         }

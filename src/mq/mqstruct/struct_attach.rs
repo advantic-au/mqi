@@ -1,7 +1,7 @@
-use std::{cmp, num::NonZero, ptr};
+use std::{cmp, ptr};
 
 use super::MqStruct;
-use crate::{sys, EncodedString};
+use crate::{sys, values::CCSID, EncodedString};
 
 const C_EMPTY: *mut std::ffi::c_void = c"".as_ptr().cast_mut().cast();
 
@@ -15,10 +15,10 @@ const fn mq_str_ptr<T>(value: &str) -> *mut T {
     }
 }
 
-fn set_mqcharv(mqcharv: &mut sys::MQCHARV, data: &[u8], ccsid: Option<NonZero<i32>>) {
+fn set_mqcharv(mqcharv: &mut sys::MQCHARV, data: &[u8], ccsid: CCSID) {
     mqcharv.VSPtr = ptr::from_ref(data).cast_mut().cast();
     mqcharv.VSLength = data.len().try_into().expect("length converts to MQLONG");
-    mqcharv.VSCCSID = ccsid.map_or(0, NonZero::into);
+    mqcharv.VSCCSID = ccsid.0;
 }
 
 impl<'ptr> MqStruct<'ptr, sys::MQOD> {

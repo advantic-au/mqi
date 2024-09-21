@@ -7,7 +7,7 @@ use crate::core::{Library, MqFunctions, MqiOutcome, MqiOutcomeVoid};
 use crate::{core, MQMD};
 use crate::{sys, ResultComp};
 
-use crate::values::{MqaiSelector, MQCBO, MQCFOP, MQCMD, MQIND};
+use crate::values::{MqaiSelector, CCSID, MQCBO, MQCFOP, MQCMD, MQIND};
 use super::{BagHandle, Filter};
 
 #[cfg(feature = "tracing")]
@@ -500,8 +500,8 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         selector: MqaiSelector,
         index: MQIND,
         value: &mut T,
-    ) -> ResultComp<(sys::MQLONG, sys::MQLONG)> {
-        let mut outcome = MqiOutcome::with_verb("mqInquireString");
+    ) -> ResultComp<(sys::MQLONG, CCSID)> {
+        let mut outcome = MqiOutcome::<(sys::MQLONG, CCSID)>::with_verb("mqInquireString");
         let (length, ccsid) = &mut outcome.value;
         unsafe {
             self.0.lib().mqInquireString(
@@ -513,7 +513,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                     .expect("value length exceeds maximum positive MQLONG"),
                 ptr::from_mut(value).cast(),
                 length,
-                ccsid,
+                &mut ccsid.0,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );

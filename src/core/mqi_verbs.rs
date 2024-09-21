@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::mem::{size_of_val, MaybeUninit};
 use std::ptr;
 
-use super::values::{MQCO, MQDCC, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
+use super::values::{CCSID, MQCO, MQDCC, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
 use super::{ConnectionHandle, Library, MqFunctions, MqiOutcome, MqiOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle};
 use crate::{sys, Error, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::{function, Mqi};
@@ -687,9 +687,9 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
         &self,
         connection_handle: Option<ConnectionHandle>,
         options: MQDCC,
-        source_ccsid: sys::MQLONG,
+        source_ccsid: CCSID,
         source: &T,
-        target_ccsid: sys::MQLONG,
+        target_ccsid: CCSID,
         target: &mut T,
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQXCNVC");
@@ -697,12 +697,12 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
             self.0.lib().MQXCNVC(
                 connection_handle.map_or(sys::MQHC_DEF_HCONN, |h| h.raw_handle()),
                 options.value(),
-                source_ccsid,
+                source_ccsid.0,
                 size_of_val(source)
                     .try_into()
                     .expect("usize length of source converts into MQLONG"),
                 ptr::from_ref(source).cast_mut().cast(),
-                target_ccsid,
+                target_ccsid.0,
                 size_of_val(target)
                     .try_into()
                     .expect("usize length of target converts into MQLONG"),

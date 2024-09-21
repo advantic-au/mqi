@@ -6,7 +6,7 @@ use std::thread;
 use mqi::{prelude::*, ThreadNoBlock, ThreadNone};
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::connect_options::Credentials;
-use mqi::values;
+use mqi::values::{self, CCSID};
 use mqi::open_options::SelectionString;
 use mqi::properties_options::{Attributes, Metadata, Name};
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
@@ -56,7 +56,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let msg = object.get_as(
         (
             values::MQGMO(sys::MQGMO_BROWSE_FIRST), // Browse it
-            get::GetConvert::ConvertTo(500, values::MQENC(sys::MQENC_NORMAL)),
+            get::GetConvert::ConvertTo(CCSID(500), values::MQENC(sys::MQENC_NORMAL)),
             &mut properties,          // Get some properties
             get::GetWait::Wait(2000), // Wait for 2 seconds
         ),

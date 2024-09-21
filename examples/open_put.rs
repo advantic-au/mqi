@@ -15,7 +15,7 @@ use mqi::{
     prelude::*,
     sys,
     types::{MessageFormat, QueueManagerName, QueueName},
-    values::{MQENC, MQOO, MQPMO},
+    values::{CCSID, MQENC, MQOO, MQPMO},
     MqStr, Object, ThreadNone,
 };
 use tracing::Level;
@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     /* TODO: conversion from str -> TextEnc::Ascii is clunky */
     let fmt: MqStr<8> = (*args.format.unwrap_or_default()).try_into()?;
     let msg_fmt = MessageFormat {
-        ccsid: 1208,
+        ccsid: CCSID(1208),
         encoding: MQENC::default(),
         fmt: TextEnc::Ascii(*fmt.as_bytes()),
     };

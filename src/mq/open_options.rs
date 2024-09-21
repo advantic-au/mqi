@@ -1,7 +1,7 @@
-use std::{cmp, num, ptr};
+use std::{cmp, ptr};
 
 use crate::{
-    values,
+    values::{MQOO, MQOT, MQPMO, CCSID},
     prelude::*,
     sys,
     types::{QueueManagerName, QueueName},
@@ -51,28 +51,28 @@ impl<'b, O> MqiOption<OpenParamOption<'b, O>> for QueueManagerName {
     }
 }
 
-impl<'b> MqiOption<OpenParamOption<'b, Self>> for values::MQOO {
+impl<'b> MqiOption<OpenParamOption<'b, Self>> for MQOO {
     fn apply_param(self, param: &mut OpenParamOption<'b, Self>) {
         param.1 |= self;
     }
 }
 
-impl<'b> MqiOption<OpenParamOption<'b, Self>> for values::MQPMO {
+impl<'b> MqiOption<OpenParamOption<'b, Self>> for MQPMO {
     fn apply_param(self, param: &mut OpenParamOption<'b, Self>) {
         param.1 |= self;
     }
 }
 
-impl<'b> MqiOption<OpenParamOption<'b, values::MQOO>> for AlternateUserId {
-    fn apply_param(self, (od, oo): &mut OpenParamOption<'_, values::MQOO>) {
+impl<'b> MqiOption<OpenParamOption<'b, MQOO>> for AlternateUserId {
+    fn apply_param(self, (od, oo): &mut OpenParamOption<'_, MQOO>) {
         *oo |= sys::MQOO_ALTERNATE_USER_AUTHORITY;
         od.Version = cmp::max(sys::MQOD_VERSION_3, od.Version);
         od.AlternateUserId = self.0.into();
     }
 }
 
-impl<'b> MqiOption<OpenParamOption<'b, values::MQPMO>> for AlternateUserId {
-    fn apply_param(self, (od, pmo): &mut OpenParamOption<'_, values::MQPMO>) {
+impl<'b> MqiOption<OpenParamOption<'b, MQPMO>> for AlternateUserId {
+    fn apply_param(self, (od, pmo): &mut OpenParamOption<'_, MQPMO>) {
         *pmo |= sys::MQPMO_ALTERNATE_USER_AUTHORITY;
         od.Version = cmp::max(sys::MQOD_VERSION_3, od.Version);
         od.AlternateUserId = self.0.into();
@@ -93,7 +93,7 @@ impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for Option<QueueName> {
     }
 }
 
-impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for values::MQOT {
+impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for MQOT {
     fn extract<F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
@@ -166,7 +166,7 @@ impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<ResObjectString> {
                 } else {
                     Some(ResObjectString(StrCcsidOwned::from_vec(
                         buffer,
-                        num::NonZero::new(od.ResObjectString.VSCCSID),
+                        CCSID(od.ResObjectString.VSCCSID),
                     )))
                 },
                 state,

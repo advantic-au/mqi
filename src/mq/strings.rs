@@ -1,22 +1,18 @@
-use std::{
-    borrow::Cow,
-    num::{NonZero, NonZeroI32},
-    ptr,
-};
+use std::{borrow::Cow, ptr};
 
 use crate::sys;
 
-use super::MqStruct;
+use super::{values::CCSID, MqStruct};
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
-    pub(crate) ccsid: Option<std::num::NonZeroI32>,
+    pub(crate) ccsid: CCSID,
     pub(crate) le: bool,
     pub(crate) data: T,
 }
 
 impl<T> StringCcsid<T> {
-    pub const fn new(data: T, ccsid: Option<std::num::NonZeroI32>, le: bool) -> Self {
+    pub const fn new(data: T, ccsid: CCSID, le: bool) -> Self {
         Self { ccsid, le, data }
     }
 }
@@ -34,14 +30,14 @@ pub enum FromStringCcsidError {
 }
 
 #[derive(derive_more::Error, derive_more::Display, Debug)]
-#[display("{} is not a UTF-8 CCSID", str.ccsid.map_or(0, NonZeroI32::get))]
+#[display("{} is not a UTF-8 CCSID", str.ccsid)]
 pub struct CcsidError {
     str: StrCcsidOwned,
 }
 
 impl StrCcsidOwned {
     #[must_use]
-    pub const fn from_vec(data: Vec<u8>, ccsid: Option<NonZero<i32>>) -> Self {
+    pub const fn from_vec(data: Vec<u8>, ccsid: CCSID) -> Self {
         Self {
             ccsid,
             le: NATIVE_IS_LE,
@@ -53,7 +49,7 @@ impl StrCcsidOwned {
 impl<'a> From<&'a str> for StrCcsid<'a> {
     fn from(value: &'a str) -> Self {
         Self {
-            ccsid: NonZero::new(1208),
+            ccsid: CCSID(1208),
             data: value.as_bytes(),
             le: NATIVE_IS_LE,
         }
@@ -63,7 +59,7 @@ impl<'a> From<&'a str> for StrCcsid<'a> {
 impl<'a, T: Into<Cow<'a, str>>> From<T> for StrCcsidCow<'a> {
     fn from(value: T) -> Self {
         Self {
-            ccsid: NonZero::new(1208),
+            ccsid: CCSID(1208),
             data: match value.into() {
                 Cow::Borrowed(str_val) => Cow::Borrowed(str_val.as_bytes()),
                 Cow::Owned(str_val) => Cow::Owned(str_val.into()),
@@ -76,7 +72,7 @@ impl<'a, T: Into<Cow<'a, str>>> From<T> for StrCcsidCow<'a> {
 impl<T: ToString> From<T> for StrCcsidOwned {
     fn from(value: T) -> Self {
         Self {
-            ccsid: NonZero::new(1208),
+            ccsid: CCSID(1208),
             data: value.to_string().into_bytes(),
             le: NATIVE_IS_LE,
         }
@@ -87,7 +83,7 @@ impl<T: Into<Vec<u8>>> TryFrom<StringCcsid<T>> for String {
     type Error = FromStringCcsidError;
 
     fn try_from(value: StringCcsid<T>) -> Result<Self, Self::Error> {
-        if value.ccsid != NonZeroI32::new(1208) {
+        if value.ccsid != 1208 {
             return Err(FromStringCcsidError::NonUtf8Ccsid(CcsidError {
                 str: StringCcsid {
                     ccsid: value.ccsid,
@@ -104,7 +100,7 @@ impl<'a, T: Into<Cow<'a, [u8]>>> TryFrom<StringCcsid<T>> for Cow<'a, str> {
     type Error = FromStringCcsidError;
 
     fn try_from(value: StringCcsid<T>) -> Result<Self, Self::Error> {
-        if value.ccsid != NonZeroI32::new(1208) {
+        if value.ccsid != 1208 {
             return Err(FromStringCcsidError::NonUtf8Ccsid(CcsidError {
                 str: StringCcsid {
                     ccsid: value.ccsid,
@@ -122,13 +118,13 @@ impl<'a, T: Into<Cow<'a, [u8]>>> TryFrom<StringCcsid<T>> for Cow<'a, str> {
 }
 
 pub trait EncodedString {
-    fn ccsid(&self) -> Option<NonZeroI32>;
+    fn ccsid(&self) -> CCSID;
     fn data(&self) -> &[u8];
 }
 
 impl EncodedString for str {
-    fn ccsid(&self) -> Option<NonZeroI32> {
-        NonZeroI32::new(1208) // = UTF-8 CCSID. str types are _always_ UTF-8
+    fn ccsid(&self) -> CCSID {
+        CCSID(1208) // = UTF-8 CCSID. str types are _always_ UTF-8
     }
 
     fn data(&self) -> &[u8] {
@@ -137,7 +133,7 @@ impl EncodedString for str {
 }
 
 impl<T: AsRef<[u8]>> EncodedString for StringCcsid<T> {
-    fn ccsid(&self) -> Option<NonZeroI32> {
+    fn ccsid(&self) -> CCSID {
         self.ccsid
     }
 
@@ -157,7 +153,7 @@ impl<'a> MqStruct<'a, sys::MQCHARV> {
             VSPtr: ptr::from_ref(data).cast_mut().cast(),
             VSLength: len,
             VSBufSize: len,
-            VSCCSID: value.ccsid().map_or(0, NonZero::into),
+            VSCCSID: value.ccsid().0,
             ..sys::MQCHARV::default()
         })
     }
@@ -166,7 +162,7 @@ impl<'a> MqStruct<'a, sys::MQCHARV> {
 impl<T: Default> Default for StringCcsid<T> {
     fn default() -> Self {
         Self {
-            ccsid: NonZero::new(1208),
+            ccsid: CCSID(1208),
             data: Default::default(),
             le: NATIVE_IS_LE,
         }
@@ -175,14 +171,14 @@ impl<T: Default> Default for StringCcsid<T> {
 
 #[cfg(test)]
 mod test {
-    use std::{borrow::Cow, num::NonZero};
+    use std::borrow::Cow;
 
-    use crate::{StrCcsid, StrCcsidCow, StringCcsid};
+    use crate::{values::CCSID, StrCcsid, StrCcsidCow, StringCcsid};
 
     use super::NATIVE_IS_LE;
 
     const NON_UTF8_COW: StrCcsidCow = StrCcsidCow {
-        ccsid: NonZero::new(450),
+        ccsid: CCSID(450),
         data: Cow::Borrowed(b"Hello".as_slice()),
         le: NATIVE_IS_LE,
     };

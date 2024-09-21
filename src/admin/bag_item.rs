@@ -1,8 +1,8 @@
 use libmqm_sys::function;
-use std::{fmt::Debug, num::NonZeroI32};
+use std::fmt::Debug;
 
 use crate::core::mqai;
-use crate::values::{MqaiSelector, MQIND};
+use crate::values::{MqaiSelector, CCSID, MQIND};
 use crate::core::Library;
 use crate::prelude::*;
 use crate::{sys, Completion, EncodedString, Error, MqStr, ResultComp, ResultCompErr, WithMqError};
@@ -11,8 +11,8 @@ use super::{Bag, BagDrop};
 
 #[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
 pub enum PutStringCcsidError {
-    #[display("Provided CCSID = {}, bag CCSID = {}", _0.map_or(0, NonZeroI32::get), _1.map_or(0, NonZeroI32::get))]
-    CcsidMismatch(Option<NonZeroI32>, Option<NonZeroI32>),
+    #[display("Provided CCSID = {}, bag CCSID = {}", _0, _1)]
+    CcsidMismatch(CCSID, CCSID),
     #[from]
     Mqi(Error),
 }
@@ -118,7 +118,7 @@ impl<T: EncodedString + ?Sized, L: Library<MQ: function::Mqai>> BagItemPut<L> fo
     type Error = PutStringCcsidError;
 
     fn add_to_bag<B: BagDrop>(&self, selector: MqaiSelector, bag: &Bag<B, L>) -> ResultCompErr<(), Self::Error> {
-        let bag_ccsid = NonZeroI32::new(
+        let bag_ccsid = CCSID(
             bag.mq
                 .mq_inquire_integer(bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
                 .warn_as_error()?,
@@ -130,7 +130,7 @@ impl<T: EncodedString + ?Sized, L: Library<MQ: function::Mqai>> BagItemPut<L> fo
     }
 
     fn set_bag_item<B: BagDrop>(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultCompErr<(), Self::Error> {
-        let bag_ccsid = NonZeroI32::new(
+        let bag_ccsid = CCSID(
             bag.mq
                 .mq_inquire_integer(bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
                 .warn_as_error()?,
@@ -147,7 +147,7 @@ impl<T: EncodedString, L: Library<MQ: function::Mqai>> BagItemPut<L> for mqai::F
 
     fn add_to_bag<B: BagDrop>(&self, selector: MqaiSelector, bag: &Bag<B, L>) -> ResultCompErr<(), Self::Error> {
         let Self { operator, value } = self;
-        let bag_ccsid = NonZeroI32::new(
+        let bag_ccsid = CCSID(
             bag.mq
                 .mq_inquire_integer(bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
                 .warn_as_error()?,
@@ -169,7 +169,7 @@ impl<T: EncodedString, L: Library<MQ: function::Mqai>> BagItemPut<L> for mqai::F
 
     fn set_bag_item<B: BagDrop>(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultCompErr<(), Self::Error> {
         let Self { operator, value } = self;
-        let bag_ccsid = NonZeroI32::new(
+        let bag_ccsid = CCSID(
             bag.mq
                 .mq_inquire_integer(bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
                 .warn_as_error()?,

@@ -1,5 +1,5 @@
 use crate::{
-    values::{MQRC, MQENC},
+    values::{MQRC, MQENC, CCSID},
     headers::TextEnc,
     sys, MqStr,
 };
@@ -42,7 +42,7 @@ pub type Warning = (MQRC, &'static str);
 
 #[derive(Clone, Copy, Debug)]
 pub struct MessageFormat {
-    pub ccsid: sys::MQLONG,
+    pub ccsid: CCSID,
     pub encoding: MQENC,
     pub fmt: TextEnc<Fmt>,
 }
@@ -51,7 +51,7 @@ impl MessageFormat {
     #[must_use]
     pub fn from_mqmd2(md: &MqStruct<sys::MQMD2>) -> Self {
         Self {
-            ccsid: md.CodedCharSetId,
+            ccsid: CCSID(md.CodedCharSetId),
             encoding: MQENC(md.Encoding),
             fmt: TextEnc::Ascii(unsafe { mem::transmute::<[sys::MQCHAR; 8], [u8; 8]>(md.Format) }),
         }
@@ -59,7 +59,7 @@ impl MessageFormat {
 }
 
 pub const FORMAT_NONE: MessageFormat = MessageFormat {
-    ccsid: 1208,
+    ccsid: CCSID(1208),
     encoding: MQENC(sys::MQENC_NATIVE),
     fmt: TextEnc::Ascii(MQFMT_NONE),
 };

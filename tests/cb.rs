@@ -16,7 +16,14 @@ fn qm() -> Result<(), Box<dyn Error>> {
     let mut qm = mqi::connect::<ThreadNone>(Credentials::user("app", "app")).warn_as_error()?;
 
     qm.register_event_handler(
-        MQCBDO(sys::MQCBDO_REGISTER_CALL | sys::MQCBDO_DEREGISTER_CALL),
+        MQCBDO(
+            sys::MQCBDO_NONE
+                | sys::MQCBDO_MC_EVENT_CALL
+                | sys::MQCBDO_EVENT_CALL
+                | sys::MQCBDO_REGISTER_CALL
+                | sys::MQCBDO_DEREGISTER_CALL, // | sys::MQCBDO_START_CALL
+                                               // | sys::MQCBDO_STOP_CALL,
+        ),
         move |connection, options| {
             println!("{connection:?}");
             println!("{}", MQCBCT(options.CallType));
@@ -25,9 +32,10 @@ fn qm() -> Result<(), Box<dyn Error>> {
             println!("{}", MQRC(options.Reason));
             println!("{}", MQCBF(options.Flags));
             println!("{}", MQRD(options.ReconnectDelay));
-
         },
     )?;
+
+    qm.disconnect().warn_as_error()?;
     //qm.register_event_handler(MQCBDO(sys::MQCBDO_REGISTER_CALL), &CallbackHandle::from(|_, _: &'_ MqStruct<sys::MQCBC>| ()));
     Ok(())
 }

@@ -1,15 +1,16 @@
 use std::{
     ffi::CStr,
     fmt::{Debug, Display},
-    mem,
-    num::NonZeroI32,
-    ptr,
+    mem, ptr,
 };
 
-use crate::{values::MQENC, sys};
+use crate::{
+    values::{MQENC, CCSID},
+    sys,
+};
 
 use super::{
-    encoding::{ascii7_ebcdic, ebcdic_ascii7, is_ebcdic},
+    encoding::{ascii7_ebcdic, ebcdic_ascii7},
     types::{Fmt, MessageFormat, StrucId},
     StrCcsid, StringCcsid,
 };
@@ -76,7 +77,7 @@ pub type NextHeader<'a> = (Header<'a>, &'a [u8], usize, MessageFormat);
 
 #[derive(Debug, Clone, Copy)]
 pub struct EncodedHeader<'a, T: ChainedHeader> {
-    pub ccsid: sys::MQLONG,
+    pub ccsid: CCSID,
     pub encoding: MQENC,
     pub raw_header: &'a T,
     pub tail: &'a [u8],
@@ -94,12 +95,12 @@ impl Header<'_> {
 
 impl<T: ChainedHeader> EncodedHeader<'_, T> {
     #[must_use]
-    pub fn next_ccsid(&self) -> sys::MQLONG {
+    pub fn next_ccsid(&self) -> CCSID {
         let next_ccsid = self.native_mqlong(T::next_raw_ccsid(self.raw_header));
         if next_ccsid == 0 {
             self.ccsid
         } else {
-            next_ccsid
+            CCSID(next_ccsid)
         }
     }
 
@@ -115,7 +116,7 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
 
     #[must_use]
     pub fn next_format(&self) -> TextEnc<Fmt> {
-        if is_ebcdic(self.ccsid).unwrap_or(false) {
+        if self.ccsid.is_ebcdic().unwrap_or(false) {
             TextEnc::Ebcdic(T::next_raw_format(self.raw_header))
         } else {
             TextEnc::Ascii(T::next_raw_format(self.raw_header))
@@ -135,7 +136,7 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     fn struc_matches(&self) -> bool {
         swap_to_native(T::raw_version(self.raw_header), (self.encoding & INTEGER_NATIVE_MASK) != 0) == T::VERSION && {
             let struc_id = T::raw_struc_id(self.raw_header);
-            let ebcdic = is_ebcdic(self.ccsid).unwrap_or(false);
+            let ebcdic = self.ccsid.is_ebcdic().unwrap_or(false);
             (ebcdic && struc_id == T::STRUC_ID_EBCDIC) || (!ebcdic && struc_id == T::STRUC_ID_ASCII)
         }
     }
@@ -269,7 +270,7 @@ impl<const N: usize> TextEnc<[u8; N]> {
 
 fn parse_header<'a, T: ChainedHeader + 'a>(
     data: &'a [u8],
-    next_ccsid: i32,
+    next_ccsid: CCSID,
     next_encoding: MQENC,
 ) -> Result<NextHeader<'a>, HeaderError> {
     let struc_len = mem::size_of::<T>();
@@ -540,7 +541,7 @@ impl<'a> EncodedHeader<'a, sys::MQRFH2> {
     pub fn name_value_data(&self) -> StrCcsid<'a> {
         StringCcsid::new(
             &self.tail[4..], // Exclude 4 bytes for the length prelude
-            NonZeroI32::new(self.native_mqlong(self.raw_header.NameValueCCSID)),
+            CCSID(self.native_mqlong(self.raw_header.NameValueCCSID)),
             (self.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
         )
     }
@@ -592,11 +593,7 @@ impl ChainedHeader for sys::MQRFH {
 impl<'a> EncodedHeader<'a, sys::MQRFH> {
     #[must_use]
     pub fn name_value_data(&self) -> StrCcsid<'a> {
-        StringCcsid::new(
-            self.tail,
-            NonZeroI32::new(self.ccsid),
-            (self.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
-        )
+        StringCcsid::new(self.tail, self.ccsid, (self.encoding & sys::MQENC_INTEGER_REVERSED) != 0)
     }
 }
 
@@ -653,28 +650,28 @@ mod tests {
     use std::{mem::transmute, ptr, slice::from_raw_parts};
 
     use crate::{
-        values,
         headers::{EncodedHeader, Header, HeaderError},
         sys,
         types::{Fmt, MessageFormat},
+        values::{self, CCSID},
     };
 
     use super::{fmt, next_header, ChainedHeader, TextEnc};
 
     const NEXT_DEAD: MessageFormat = MessageFormat {
-        ccsid: 1208,
+        ccsid: CCSID(1208),
         encoding: values::MQENC(sys::MQENC_NATIVE),
         fmt: TextEnc::Ebcdic(sys::MQDLH::FMT_EBCDIC),
     };
 
     const NEXT_RFH2: MessageFormat = MessageFormat {
-        ccsid: 1208,
+        ccsid: CCSID(1208),
         encoding: values::MQENC(sys::MQENC_NATIVE),
         fmt: TextEnc::Ebcdic(sys::MQRFH2::FMT_EBCDIC),
     };
 
     const NEXT_STRING: MessageFormat = MessageFormat {
-        ccsid: 1208,
+        ccsid: CCSID(1208),
         encoding: values::MQENC(sys::MQENC_NATIVE),
         fmt: TextEnc::Ascii(fmt::MQFMT_STRING),
     };
@@ -723,7 +720,7 @@ mod tests {
         let headers = Header::iter(
             data.as_slice(),
             MessageFormat {
-                ccsid: 1208,
+                ccsid: CCSID(1208),
                 encoding: values::MQENC(sys::MQENC_NATIVE),
                 fmt: TextEnc::Ascii(sys::MQDLH::FMT_ASCII),
             },

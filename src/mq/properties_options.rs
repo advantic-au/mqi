@@ -13,7 +13,7 @@ use libmqm_sys::lib::MQTYPE_STRING;
 use crate::macros::all_multi_tuples;
 use crate::prelude::*;
 use crate::{sys, Completion, Error, MqStr, MqStruct, MqiAttr, MqiValue, ResultComp, StrCcsidOwned, StringCcsid};
-use crate::values::{self, MQENC, MQTYPE};
+use crate::values::{self, CCSID, MQENC, MQTYPE};
 
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
@@ -274,7 +274,8 @@ impl<T: AsRef<[u8]>> SetProperty for StringCcsid<T> {
     type Data = [u8];
 
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
-        smpo.ValueCCSID = self.ccsid.map_or(0, Into::into);
+        let CCSID(ccsid) = self.ccsid;
+        smpo.ValueCCSID = ccsid;
         (self.data.as_ref(), values::MQTYPE(MQTYPE_STRING))
     }
 }
@@ -402,7 +403,7 @@ impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwne
             let name = state.name.as_ref().expect("Option is always Some");
             (
                 Self(StrCcsidOwned {
-                    ccsid: NonZero::new(param.impo.ReturnedName.VSCCSID),
+                    ccsid: CCSID(param.impo.ReturnedName.VSCCSID),
                     le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
                     data: name.clone().into_owned(),
                 }),
@@ -426,7 +427,7 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Value {
         mqinqmp(param).map_completion(|state| match param.value_type.value() {
             sys::MQTYPE_BOOLEAN => Self::Boolean(state.value[8] != 0),
             sys::MQTYPE_STRING => Self::String(StringCcsid {
-                ccsid: NonZero::new(param.impo.ReturnedCCSID),
+                ccsid: CCSID(param.impo.ReturnedCCSID),
                 data: state.value.into_owned(),
                 le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
             }),
@@ -680,7 +681,7 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for StrCcsidOwned {
         param.value_type = MQTYPE(sys::MQTYPE_STRING);
         param.impo.Options |= sys::MQIMPO_CONVERT_TYPE;
         mqinqmp(param).map_completion(|state| Self {
-            ccsid: NonZero::new(param.impo.ReturnedCCSID),
+            ccsid: CCSID(param.impo.ReturnedCCSID),
             data: state.value.into_owned(),
             le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
         })

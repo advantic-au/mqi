@@ -4,14 +4,12 @@ use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
 use crate::{
     prelude::*,
     macros::all_multi_tuples,
-    values,
+    values::{self, CCSID},
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     sys,
     types::{self, Fmt, MessageFormat, MessageId},
-    Buffer, Completion, Conn, Error, MqStruct, ResultComp, ResultCompErr, StrCcsidCow, MqiAttr, MqiOption, MqiValue,
+    Buffer, Completion, Conn, Error, MqStruct, ResultComp, ResultCompErr, StrCcsidCow, MqiAttr, MqiOption, MqiValue, Object,
 };
-
-use super::Object;
 
 #[derive(Clone, Debug)]
 pub struct Headers<'a> {
@@ -69,7 +67,7 @@ pub enum GetStringError {
     #[display("Message parsing error: {_0}")]
     Utf8Parse(Utf8Error, Option<types::Warning>),
     #[display("Unexpected format or CCSID. Message format = '{_0}', CCSID = {_1}")]
-    UnexpectedFormat(TextEnc<Fmt>, sys::MQLONG, Option<types::Warning>),
+    UnexpectedFormat(TextEnc<Fmt>, CCSID, Option<types::Warning>),
     #[from]
     MQ(Error),
 }
@@ -92,7 +90,7 @@ pub enum GetWait {
 pub enum GetConvert {
     NoConvert,
     Convert,
-    ConvertTo(sys::MQLONG, values::MQENC),
+    ConvertTo(values::CCSID, values::MQENC),
 }
 
 pub struct GetParam {
@@ -152,7 +150,7 @@ impl<'a, P, B: Buffer<'a>> MqiValue<P, GetState<B>> for StrCcsidCow<'a> {
         }
 
         Ok(state.map(|state| Self {
-            ccsid: NonZero::new(state.format.ccsid),
+            ccsid: state.format.ccsid,
             data: state.buffer.truncate(state.data_length).into_cow(),
             le: (state.format.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
         }))
@@ -379,7 +377,7 @@ impl<C: Conn> Object<C> {
                     data_length: data_length.try_into().expect("length within positive usize range"),
                     message_length: message_length.try_into().expect("length within positive usize range"),
                     format: MessageFormat {
-                        ccsid: param.md.CodedCharSetId,
+                        ccsid: CCSID(param.md.CodedCharSetId),
                         encoding: values::MQENC(param.md.Encoding),
                         fmt: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(param.md.Format) }),
                     },

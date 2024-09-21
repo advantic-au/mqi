@@ -1,6 +1,8 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 
-use crate::{define_mqmask, define_mqvalue, impl_default_mqvalue, mapping, sys};
+use std::fmt::{Debug, Display};
+
+use crate::{define_mqmask, define_mqvalue, encoding, impl_default_mqvalue, mapping, sys};
 
 define_mqmask!(pub MQOO, mapping::MQOO_CONST, "Options mask to control the action of `MQOPEN`");
 define_mqmask!(pub MQCO, mapping::MQCO_CONST, "Options mask to control the action of `MQCLOSE`");
@@ -43,3 +45,46 @@ define_mqmask!(pub MQCNO, mapping::MQCNO_CONST, "Options mask that control the a
 define_mqvalue!(pub MQXPT, mapping::MQXPT_CONST, "Transport Types");
 
 define_mqvalue!(pub MQOT, mapping::MQOT_CONST, "Object Types and Extended Object Types");
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
+pub struct CCSID(pub sys::MQLONG);
+
+impl CCSID {
+    #[must_use]
+    pub fn name(self) -> Option<&'static str> {
+        encoding::ccsid_lookup(self.0).map(|&(.., name)| name)
+    }
+
+    #[must_use]
+    pub fn is_ebcdic(self) -> Option<bool> {
+        encoding::ccsid_lookup(self.0).map(|&(_, encoding, _)| encoding == 1)
+    }
+}
+
+impl Display for CCSID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)?;
+        if let Some(name) = self.name() {
+            write!(f, " ({name})")?;
+        }
+        Ok(())
+    }
+}
+
+impl Debug for CCSID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let encoding = encoding::ccsid_lookup(self.0);
+        match encoding {
+            Some(&(.., name)) => f.debug_tuple("CCSID").field(&format_args!("{} ({name})", self.0)).finish(),
+            None => f.debug_tuple("CCSID").field(&format_args!("{} (unknown)", self.0)).finish(),
+        }
+    }
+}
+
+impl_default_mqvalue!(CCSID, sys::MQCCSI_UNDEFINED);
+
+impl PartialEq<sys::MQLONG> for CCSID {
+    fn eq(&self, other: &sys::MQLONG) -> bool {
+        self.0 == *other
+    }
+}
