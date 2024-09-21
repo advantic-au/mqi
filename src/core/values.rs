@@ -7,6 +7,10 @@ define_mqmask!(pub MQCO, mapping::MQCO_CONST, "Options mask to control the actio
 impl_default_mqvalue!(MQCO, sys::MQCO_NONE);
 define_mqmask!(pub MQSO, mapping::MQSO_CONST, "Options mask to control the action of `MQSUB`");
 define_mqmask!(pub MQOP, mapping::MQOP_CONST, "Operation codes for `MQCTL` and `MQCB`");
+define_mqvalue!(pub MQCBCT, mapping::MQCBCT_CONST, "Callback control and message delivery call types");
+define_mqvalue!(pub MQCBF, mapping::MQCBCF_CONST, "Flags containing information about the callback consumer");
+define_mqvalue!(pub MQCS, mapping::MQCS_CONST, "Callback consumer state");
+define_mqvalue!(pub MQRD, mapping::MQRD_CONST, "Reconnect delay");
 define_mqvalue!(pub MQSR, mapping::MQSR_CONST, "Value describing action for `MQSUBRQ`");
 define_mqvalue!(pub MQTYPE, mapping::MQTYPE_CONST, "Property data types");
 impl_default_mqvalue!(MQTYPE, sys::MQTYPE_AS_SET);

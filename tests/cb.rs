@@ -2,21 +2,31 @@ use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
 use mqi::{
-    prelude::*,
     connect_options::{ApplName, Binding, Credentials},
     core::ConnectionHandle,
-    values, sys,
+    prelude::*,
+    sys,
     types::QueueName,
-    MqStruct, Object, QueueManager, MQMD,
+    values::{MQCBCT, MQCBDO, MQCBF, MQCC, MQCS, MQOO, MQOP, MQRC, MQRD},
+    Conn as _, MqStruct, Object, ThreadBlock, ThreadNone, MQMD,
 };
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
-    let mut qm = QueueManager::connect(Credentials::user("app", "app")).warn_as_error()?;
+    let mut qm = mqi::connect::<ThreadNone>(Credentials::user("app", "app")).warn_as_error()?;
 
     qm.register_event_handler(
-        values::MQCBDO(sys::MQCBDO_REGISTER_CALL | sys::MQCBDO_DEREGISTER_CALL),
-        move |handle, _: &MqStruct<sys::MQCBC>| println!("{handle}"),
+        MQCBDO(sys::MQCBDO_REGISTER_CALL | sys::MQCBDO_DEREGISTER_CALL),
+        move |connection, options| {
+            println!("{connection:?}");
+            println!("{}", MQCBCT(options.CallType));
+            println!("{}", MQCS(options.State));
+            println!("{}", MQCC(options.CompCode));
+            println!("{}", MQRC(options.Reason));
+            println!("{}", MQCBF(options.Flags));
+            println!("{}", MQRD(options.ReconnectDelay));
+
+        },
     )?;
     //qm.register_event_handler(MQCBDO(sys::MQCBDO_REGISTER_CALL), &CallbackHandle::from(|_, _: &'_ MqStruct<sys::MQCBC>| ()));
     Ok(())
@@ -80,7 +90,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
 
     // Connect to the default queue manager (None) with the provided `connection_options`
     // Treat all MQCC_WARNING as an error
-    let qm = QueueManager::connect((
+    let qm = mqi::connect::<ThreadBlock>((
         Binding::Default,
         ApplName(mqstr!("readme_example")),
         Credentials::user("app", "app"),
@@ -88,7 +98,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
     .warn_as_error()?;
 
     let qm = Arc::new(qm);
-    let object = Object::open(qm.clone(), (QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF))).warn_as_error()?;
+    let object = Object::open(qm.clone(), (QUEUE, MQOO(sys::MQOO_INPUT_AS_Q_DEF))).warn_as_error()?;
 
     let _ = thread::spawn(move || {
         println!("{:?}", object.handle());
@@ -105,7 +115,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
         qm.mq()
             .mqcb(
                 qm.handle(),
-                values::MQOP(sys::MQOP_REGISTER),
+                MQOP(sys::MQOP_REGISTER),
                 &cbd,
                 Some(object.handle()),
                 Some(&*mqmd),
@@ -116,7 +126,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
         let ctlo = MqStruct::<sys::MQCTLO>::default();
 
         qm.mq()
-            .mqctl(qm.handle(), values::MQOP(sys::MQOP_START_WAIT), &ctlo)
+            .mqctl(qm.handle(), MQOP(sys::MQOP_START_WAIT), &ctlo)
             .warn_as_error()
             .expect("Bad state");
 
