@@ -17,18 +17,17 @@ use mqi::{attribute, sys, Object};
 fn object() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let connection = mqi::connect::<ThreadNoBlock>(Credentials::user("app", "app"))
+    let qm = mqi::connect::<ThreadNoBlock>(Credentials::user("app", "app"))
         .warn_as_error()
         .expect("Could not establish connection");
 
     thread::spawn(move || {
-        let mut props = Properties::new(&connection, values::MQCMHO::default()).expect("property creation");
+        let mut props = Properties::new(qm.connection_ref(), values::MQCMHO::default()).expect("property creation");
         props
             .set_property("my_property", "valuex2", values::MQSMPO::default())
             .warn_as_error()
             .expect("property set");
-        connection
-            .put_message(QUEUE, &mut props, "Hello")
+        qm.put_message(QUEUE, &mut props, "Hello")
             .warn_as_error()
             .expect("Put failed");
     })
@@ -40,17 +39,17 @@ fn object() {
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
     let sel = String::from("my_property = 'valuex2'");
-    let connection = mqi::connect::<ThreadNone>(Credentials::user("app", "app")).warn_as_error()?;
+    let qm = mqi::connect::<ThreadNone>(Credentials::user("app", "app")).warn_as_error()?;
 
     let object = Object::open(
-        &connection,
+        &qm,
         (
             QUEUE,
             SelectionString(&*sel),
             values::MQOO(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
         ),
     )?;
-    let mut properties = Properties::new(&connection, values::MQCMHO::default())?;
+    let mut properties = Properties::new(&qm, values::MQCMHO::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
     let msg = object.get_as(

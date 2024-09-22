@@ -75,8 +75,8 @@ impl Debug for CCSID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let encoding = encoding::ccsid_lookup(self.0);
         match encoding {
-            Some(&(.., name)) => f.debug_tuple("CCSID").field(&format_args!("{} ({name})", self.0)).finish(),
-            None => f.debug_tuple("CCSID").field(&format_args!("{} (unknown)", self.0)).finish(),
+            Some(&(.., name)) => f.debug_tuple("CCSID").field(&format_args!("{}: {name}", self.0)).finish(),
+            None => f.debug_tuple("CCSID").field(&format_args!("{}", self.0)).finish(),
         }
     }
 }
@@ -86,5 +86,24 @@ impl_default_mqvalue!(CCSID, sys::MQCCSI_UNDEFINED);
 impl PartialEq<sys::MQLONG> for CCSID {
     fn eq(&self, other: &sys::MQLONG) -> bool {
         self.0 == *other
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::convert::identity;
+
+    use crate::values::CCSID;
+
+    #[test]
+    fn ccsid() {
+        assert_eq!(format!("{:?}", CCSID(1208)), "CCSID(1208: UTF-8)");
+        assert_eq!(format!("{}", CCSID(1208)), "1208 (UTF-8)");
+        assert_eq!(format!("{}", CCSID(5050)), "5050 (EUC-JP)");
+        assert!(CCSID(1208).is_ebcdic().is_some_and(|e| !e));
+        assert!(CCSID(500).is_ebcdic().is_some_and(identity));
+        assert!(CCSID(999).is_ebcdic().is_none());
+        assert_eq!(format!("{}", CCSID(999)), "999");
+        assert_eq!(format!("{:?}", CCSID(999)), "CCSID(999)");
     }
 }

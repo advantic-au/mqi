@@ -40,7 +40,7 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
 
     // Connect to the default queue manager (None) with the provided options
     // Treat all MQCC_WARNING as an error
-    let connection = mqi::connect::<ThreadNone>((
+    let qm = mqi::connect::<ThreadNone>((
         Binding::Default,
         Credentials::user("app", "app"),
         ApplName(mqstr!("readme_example")),
@@ -48,7 +48,7 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
     .warn_as_error()?;
 
     // Disconnect.
-    connection.disconnect().warn_as_error()?;
+    qm.disconnect().warn_as_error()?;
 
     Ok(())
 }
@@ -65,9 +65,9 @@ fn connect() -> Result<(), Box<dyn Error>> {
         &CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")),
     );
     let creds = Credentials::user("app", "app");
-    let conn = mqi::connect::<ThreadNone>((tls, def, creds)).warn_as_error()?;
+    let qm = mqi::connect::<ThreadNone>((tls, def, creds)).warn_as_error()?;
 
-    conn.put_message(QUEUE, values::MQPMO(sys::MQPMO_SYNCPOINT), "Hello")
+    qm.put_message(QUEUE, values::MQPMO(sys::MQPMO_SYNCPOINT), "Hello")
         .warn_as_error()?;
 
     Ok(())
