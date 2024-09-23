@@ -58,7 +58,10 @@ pub trait QueueManagerAdmin: Conn<Lib: Library<MQ: Mqai>> {
     fn execute(&self, admin: &Bag<impl BagDrop, Self::Lib>, options: impl ExecuteOption) -> ResultComp<Bag<Owned, Self::Lib>>;
 }
 
-impl<C: Conn<Lib: Library<MQ: function::Mqai>>> QueueManagerAdmin for C {
+impl<C> QueueManagerAdmin for C
+where
+    C: Conn<Lib: Library<MQ: function::Mqai> + Clone>, // A clonable connnection that supports MQAI functions
+{
     fn execute(&self, admin: &Bag<impl BagDrop, Self::Lib>, options: impl ExecuteOption) -> ResultComp<Bag<Owned, Self::Lib>> {
         let lib = self.mq().0.clone();
         // There shouldn't be any warnings for creating a bag - so treat the warning as an error

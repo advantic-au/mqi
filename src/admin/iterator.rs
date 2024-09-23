@@ -11,7 +11,11 @@ use crate::Error;
 
 use super::{Bag, BagDrop, BagItemGet, Embedded};
 
-pub struct BagItem<'bag, T, B: BagDrop, L: Library<MQ: function::Mqai>> {
+pub struct BagItem<'bag, T, B, L>
+where
+    B: BagDrop,
+    L: Library<MQ: function::Mqai>,
+{
     selector: MqaiSelector,
     index: sys::MQLONG,
     count: sys::MQLONG,
@@ -19,7 +23,12 @@ pub struct BagItem<'bag, T, B: BagDrop, L: Library<MQ: function::Mqai>> {
     data: PhantomData<T>,
 }
 
-impl<T: BagItemGet<L>, B: BagDrop, L: Library<MQ: function::Mqai>> Iterator for BagItem<'_, T, B, L> {
+impl<T, B, L> Iterator for BagItem<'_, T, B, L>
+where
+    T: BagItemGet<L>,
+    B: BagDrop,
+    L: Library<MQ: function::Mqai>,
+{
     type Item = ResultCompErr<T, T::Error>;
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -46,7 +55,11 @@ impl<T: BagItemGet<L>, B: BagDrop, L: Library<MQ: function::Mqai>> Iterator for 
     }
 }
 
-impl<B: BagDrop, L: Library<MQ: function::Mqai>> Bag<B, L> {
+impl<B, L> Bag<B, L>
+where
+    B: BagDrop,
+    L: Library<MQ: function::Mqai> + Clone,
+{
     pub fn try_iter<T: BagItemGet<L>>(&self, selector: MqaiSelector) -> ResultComp<BagItem<'_, T, B, L>> {
         self.mq.mq_count_items(self, selector).map_completion(|count| BagItem {
             selector,

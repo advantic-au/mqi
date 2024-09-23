@@ -100,7 +100,7 @@ impl<L: Library<MQ: function::Mqai>> Bag<Owned, L> {
     }
 }
 
-impl<L: Library<MQ: function::Mqai>> BagItemGet<L> for Bag<Embedded, L> {
+impl<L: Library<MQ: function::Mqai> + Clone> BagItemGet<L> for Bag<Embedded, L> {
     fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_bag(bag, selector, index).map_completion(|bag_handle| Self {
             bag: bag_handle,

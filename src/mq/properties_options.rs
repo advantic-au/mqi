@@ -507,40 +507,6 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for bool {
     }
 }
 
-// impl PropertyValue for sys::MQLONG {
-//     fn max_value_size() -> Option<NonZero<usize>> {
-//         sys::MQLONG::max_value_size()
-//     }
-// }
-
-// impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for sys::MQLONG {
-//     type Error = Error;
-
-//     fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
-//     where
-//         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
-//     {
-//         sys::MQLONG::consume(param, mqinqmp).map_completion(Self::from)
-//     }
-// }
-
-// impl PropertyValue for sys::MQLONG {
-//     fn max_value_size() -> Option<NonZero<usize>> {
-//         sys::MQLONG::max_value_size()
-//     }
-// }
-
-// impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for sys::MQLONG {
-//     type Error = Error;
-
-//     fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
-//     where
-//         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
-//     {
-//         sys::MQLONG::consume(param, mqinqmp).map_completion(Self::from)
-//     }
-// }
-
 impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Vec<u8> {
     type Error = Error;
 

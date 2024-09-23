@@ -57,14 +57,20 @@ pub trait HandleShare: Sealed + Clone {
     const MQCNO_HANDLE_SHARE: sys::MQLONG;
 }
 
-impl<L: Library<MQ: function::Mqi>, H> Connection<L, H> {
+impl<L, H> Connection<L, H>
+where
+    L: Library<MQ: function::Mqi> + Clone,
+{
     #[inline]
     pub fn connection_ref(&self) -> ConnectionRef<L, H> {
         ConnectionRef::from_parts(self.handle, self.mq.clone())
     }
 }
 
-impl<L: Library<MQ: function::Mqi>, H> ConnectionRef<'_, L, H> {
+impl<L, H> ConnectionRef<'_, L, H>
+where
+    L: Library<MQ: function::Mqi>,
+{
     pub const fn from_parts(handle: ConnectionHandle, mq: MqFunctions<L>) -> Self {
         Self {
             handle,

@@ -8,7 +8,7 @@ use mqi::{
     sys,
     types::QueueName,
     values::{MQCBCT, MQCBDO, MQCBF, MQCC, MQCS, MQOO, MQOP, MQRC, MQRD},
-    Conn as _, MqStruct, Object, ThreadBlock, ThreadNone, MQMD,
+    MqStruct, Object, ThreadBlock, ThreadNone, MQMD,
 };
 
 #[test]
