@@ -148,7 +148,7 @@ impl<'a> MqStruct<'a, sys::MQCHARV> {
         let len = data
             .len()
             .try_into()
-            .expect("string length exceeds maximum positive MQLONG for MQCHARV");
+            .expect("string length should not exceed maximum positive MQLONG for MQCHARV");
         MqStruct::new(sys::MQCHARV {
             VSPtr: ptr::from_ref(data).cast_mut().cast(),
             VSLength: len,

@@ -4,18 +4,20 @@ use crate::{Error, ResultComp, ResultCompErr, prelude::*};
 
 use super::macros::all_multi_tuples;
 
-pub trait MqiValue<P, S>: Sized {
+pub trait MqiValue<P, S> {
     type Error: From<Error> + std::fmt::Debug;
 
     fn consume<F>(param: &mut P, mqi: F) -> ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut P) -> ResultComp<S>;
+        F: FnOnce(&mut P) -> ResultComp<S>,
+        Self: std::marker::Sized;
 }
 
-pub trait MqiAttr<P, S>: Sized {
+pub trait MqiAttr<P, S> {
     fn extract<F>(param: &mut P, mqi: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut P) -> ResultComp<S>;
+        F: FnOnce(&mut P) -> ResultComp<S>,
+        Self: Sized;
 }
 
 pub struct Callback<F>(pub F);
@@ -43,7 +45,7 @@ macro_rules! impl_mqivalue_tuple {
                     })
                 })
                 .map_completion(|a| {
-                    let ($($ty),*) = rest_outer.expect("rest_outer set by extract closure");
+                    let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
                     (a, $($ty),*)
                 })
             }
@@ -72,7 +74,7 @@ macro_rules! impl_mqiattr_tuple {
                     })
                 })
                 .map_completion(|(a, s)| {
-                    let ($($ty),*) = rest_outer.expect("rest_outer set by extract closure");
+                    let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
                     ((a, $($ty),*), s)
                 })
             }

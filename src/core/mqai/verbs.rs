@@ -129,7 +129,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 selector.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -154,7 +154,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 selector.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
                 operator.0,
                 &mut outcome.cc.0,
@@ -180,7 +180,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 selector.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -205,7 +205,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 selector.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
                 operator.0,
                 &mut outcome.cc.0,
@@ -311,7 +311,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 index.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -338,7 +338,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 index.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
                 operator.0,
                 &mut outcome.cc.0,
@@ -366,7 +366,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 index.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -393,7 +393,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 index.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
                 operator.0,
                 &mut outcome.cc.0,
@@ -481,7 +481,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 index.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(value).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
@@ -510,7 +510,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 index.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(value).cast(),
                 length,
                 &mut ccsid.0,
@@ -530,8 +530,8 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         selector: MqaiSelector,
         index: MQIND,
         value: &mut T,
-    ) -> ResultComp<(sys::MQLONG, sys::MQLONG, MQCFOP)> {
-        let mut outcome = MqiOutcome::new("mqInquireStringFilter", (-1, 0, MQCFOP(0)));
+    ) -> ResultComp<(sys::MQLONG, CCSID, MQCFOP)> {
+        let mut outcome = MqiOutcome::new("mqInquireStringFilter", (-1, CCSID(0), MQCFOP(0)));
         let (length, ccsid, operator) = &mut outcome.value;
         unsafe {
             self.0.lib().mqInquireStringFilter(
@@ -540,10 +540,10 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 index.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(value).cast(),
                 length,
-                ccsid,
+                &mut ccsid.0,
                 &mut operator.0,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -571,7 +571,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 index.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(value).cast(),
                 length,
                 &mut operator.0,
@@ -746,11 +746,11 @@ mod tests {
         let linked = MqFunctions::linked();
         let mut bag = linked
             .mq_create_bag(MQCBO(sys::MQCBO_COMMAND_BAG))
-            .expect("Failed to create MQ BAG");
+            .expect("creation of MQ bag should not fail");
         linked
             .mq_delete_bag(&mut bag)
             .warn_as_error()
-            .expect("Failed to delete MQ BAG");
+            .expect("deletion of MQ bag should not fail");
     }
 
     #[test]
@@ -762,7 +762,7 @@ mod tests {
         mq_lib
             .mq_add_bag(&bag, MqaiSelector(0), &bag_attached)
             .warn_as_error()
-            .expect("Failed to add bag");
+            .expect("adding to a bag should not fail");
         dbg!(mq_lib.mq_inquire_bag(&bag, MqaiSelector(0), MQIND(0))).warn_as_error()?;
         dbg!(mq_lib.mq_add_integer(&bag_attached, MqaiSelector(0), 999)).warn_as_error()?;
         dbg!(mq_lib.mq_add_string(&bag_attached, MqaiSelector(1), &wally)).warn_as_error()?;
@@ -778,7 +778,7 @@ mod tests {
             data.set_len(
                 length
                     .try_into()
-                    .expect("length returned by mq_inquire_string is a negative number"),
+                    .expect("length returned by mq_inquire_string should not be a negative number"),
             );
         }
         dbg!(data);

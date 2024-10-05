@@ -50,9 +50,14 @@ pub type ConnectParam<'a> = MqStruct<'a, sys::MQCNO>;
 
 trait Sealed {}
 
-/// [`Connection`] threading behaviour. Refer to [`ShareNone`], [`ShareNonBlock`] and [`ShareBlock`]
+/// [`Connection`] threading behaviour. This must be one of [`ThreadNone`], [`ThreadNoBlock`] or [`ThreadBlock`].
+/// This value will influence the [`Send`] and [`Sync`] traits on the [`Connection`].
+///
+/// For more information on multithreading support for MQ connections refer to [thread independent connections].
+///
+/// [thread independent connections]: https://www.ibm.com/docs/en/ibm-mq/latest?topic=call-shared-thread-independent-connections-mqconnx
 #[expect(private_bounds, reason = "sealed trait pattern")]
-pub trait HandleShare: Sealed + Clone {
+pub trait Threading: Sealed {
     /// One of the `MQCNO_HANDLE_SHARE_*` MQ constants
     const MQCNO_HANDLE_SHARE: sys::MQLONG;
 }
@@ -101,15 +106,15 @@ impl Sealed for ThreadNoBlock {}
 impl Sealed for ThreadBlock {}
 unsafe impl Send for ThreadNoBlock {}
 
-impl HandleShare for ThreadNone {
+impl Threading for ThreadNone {
     const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_NONE;
 }
 
-impl HandleShare for ThreadBlock {
+impl Threading for ThreadBlock {
     const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_BLOCK;
 }
 
-impl HandleShare for ThreadNoBlock {
+impl Threading for ThreadNoBlock {
     const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_NO_BLOCK;
 }
 
@@ -119,7 +124,7 @@ impl<L: Library<MQ: function::Mqi>, H> Drop for Connection<L, H> {
     }
 }
 
-impl<L: Library<MQ: function::Mqi>, H: HandleShare, P> MqiValue<P, Self> for Connection<L, H> {
+impl<L: Library<MQ: function::Mqi>, H: Threading, P> MqiValue<P, Self> for Connection<L, H> {
     type Error = Error;
 
     fn consume<F>(param: &mut P, connect: F) -> ResultComp<Self>
@@ -138,7 +143,7 @@ impl<S, T> ConnectAttr<S> for T where T: for<'a> MqiAttr<ConnectParam<'a>, S> {}
 /// Create and return a [`Connection`] to a queue manager using a specified MQ [`Library`].
 pub fn connect_lib<'co, H, L>(lib: L, options: impl ConnectOption<'co>) -> ResultComp<Connection<L, H>>
 where
-    H: HandleShare,
+    H: Threading,
     L: Library<MQ: function::Mqi>,
 {
     connect_lib_as(lib, options)
@@ -148,7 +153,7 @@ where
 pub fn connect_lib_with<'co, A, H, L>(lib: L, options: impl ConnectOption<'co>) -> ResultComp<(Connection<L, H>, A)>
 where
     A: ConnectAttr<Connection<L, H>>,
-    H: HandleShare,
+    H: Threading,
     L: Library<MQ: function::Mqi>,
 {
     connect_lib_as(lib, options)
@@ -158,7 +163,7 @@ where
 pub(super) fn connect_lib_as<'co, R, H, L>(lib: L, options: impl ConnectOption<'co>) -> ResultComp<R>
 where
     R: ConnectValue<Connection<L, H>>,
-    H: HandleShare,
+    H: Threading,
     L: Library<MQ: function::Mqi>,
 {
     let qm_name = options.queue_manager_name().copied();

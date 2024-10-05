@@ -38,6 +38,7 @@ pub struct ConnectStructs<'ptr> {
     pub bno: MqStruct<'ptr, sys::MQBNO>,
 }
 
+/// A trait that manipulates the parameters to the [`mqconnx`](`crate::core::MqFunctions::mqconnx`) function
 #[expect(unused_variables)]
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `ConnectOption` so it can't be used as an argument for MQI connect"
@@ -46,27 +47,27 @@ pub struct ConnectStructs<'ptr> {
  TODO: I don't believe I have this interface 100% correct. Lifetimes are not conducive
  to the goals I'm trying to achieve. Borrowing self may be better on apply_param.
 */
-/// A trait which allows a type to be used as a parameter to the MQI [`connect`](crate::connect) family of functions
-pub trait ConnectOption<'a>: Sized {
+pub trait ConnectOption<'a> {
     /// Returns the queue manager name to connect to, or `None` to use the default queue manager name.
     #[inline]
     fn queue_manager_name(&self) -> Option<&QueueManagerName> {
         None
     }
 
-    /// Applies the type to to the [`ConnectStructs`] structures.
+    /// Applies the type to to the structures contained in [`ConnectStructs`].
     ///
     /// Returns a mask indicating which structures are used by the type.
     #[inline]
     fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'a: 'ptr,
+        Self: std::marker::Sized,
     {
         HAS_CNO
     }
 }
 
-/// Accept a reference to a [`ConnectOption`]
+// Accept a reference to a `ConnectOption`
 impl<'a, T: ConnectOption<'a> + Copy> ConnectOption<'a> for &T {
     #[inline]
     fn queue_manager_name(&self) -> Option<&QueueManagerName> {
@@ -114,9 +115,7 @@ impl_mqstruct_min_version!(sys::MQCNO);
 pub struct ApplName(pub MqStr<28>);
 impl_from_str!(ApplName, MqStr<28>);
 
-/// Client Channel Definition Table URL. Sets the connection as `MQCNO_CLIENT_BINDING`.
-///
-/// Implements the [`ConnectOption`] trait as a parameter to the [`connect`](crate::connect) function.
+/// Client Channel Definition Table URL connection option. Sets the connection as `MQCNO_CLIENT_BINDING`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::From)]
 pub struct Ccdt<'url>(pub &'url str);
 
@@ -177,9 +176,7 @@ impl<'m> ConnectOption<'m> for MqServer<'m> {
     }
 }
 
-/// Connection binding mode. Represents the `MQCNO_*_BINDING` constants.
-///
-/// Implements the [`ConnectOption`] trait as a parameter to the [`connect`](crate::connect) function.
+/// Connection binding mode connection option. Represents the `MQCNO_*_BINDING` constants.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum Binding {
     #[default]

@@ -181,7 +181,7 @@ impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<ResObjectString> {
             od.ResObjectString
                 .VSBufSize
                 .try_into()
-                .expect("buffer length to convert to usize"),
+                .expect("buffer length should convert to usize"),
         );
         od.ResObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
 
@@ -192,7 +192,7 @@ impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<ResObjectString> {
                     od.ResObjectString
                         .VSLength
                         .try_into()
-                        .expect("buffer length to convert to usize"),
+                        .expect("buffer length should convert to usize"),
                 );
             }
             (

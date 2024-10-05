@@ -1,6 +1,5 @@
 use crate::{
     core::{self, ObjectHandle},
-    macros::all_option_tuples,
     prelude::*,
     sys, values, MqiAttr, MqiValue, ResultComp, ResultCompErr,
 };
@@ -50,14 +49,13 @@ impl<C: Conn> Drop for Subscription<C> {
 pub trait SubscribeValue<C: Conn>: for<'so> MqiValue<SubscribeParam<'so>, SubscribeState<C>> {}
 pub trait SubscribeAttr<C: Conn>: for<'so> MqiAttr<SubscribeParam<'so>, SubscribeState<C>> {}
 
+/// A trait that manipulates the parameters to the [`mqsub`](`crate::core::MqFunctions::mqsub`) function
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
 )]
 pub trait SubscribeOption<'so> {
     fn apply_param(self, param: &mut SubscribeParam<'so>);
 }
-
-all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>);
 
 // Blanket implementation for SubscribeValue<C>
 impl<T, C: Conn> SubscribeValue<C> for T where for<'so> Self: MqiValue<SubscribeParam<'so>, SubscribeState<C>> {}
@@ -83,7 +81,13 @@ impl<C: Conn + Clone> Subscription<C> {
         A: SubscribeAttr<C>,
     {
         Self::subscribe_as::<(Self, Option<Object<C>>, A)>(connection, (values::MQSO(sys::MQSO_MANAGED), subscribe_option))
-            .map_completion(|(qm, queue, attr)| (qm, queue.expect("managed queue should always be returned"), attr))
+            .map_completion(|(qm, queue, attr)| {
+                (
+                    qm,
+                    queue.expect("managed queue should always be returned with MQSO_MANAGED option"),
+                    attr,
+                )
+            })
     }
 
     pub fn subscribe_managed<'so>(connection: C, subscribe_option: impl SubscribeOption<'so>) -> ResultComp<(Self, Object<C>)> {

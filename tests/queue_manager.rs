@@ -20,17 +20,17 @@ fn thread() {
         let msg = Properties::new(qm.connection_ref(), values::MQCMHO::default()).expect("message created");
         msg.set_property("wally", "test", values::MQSMPO::default())
             .warn_as_error()
-            .expect("property set");
+            .expect("property set should not fail");
 
         let msgid = qm
             .connection_ref()
             .put_message_with::<MessageId>(QUEUE, (), &("Hello", FORMAT_NONE))
             .warn_as_error()
-            .expect("Put failed");
+            .expect("message put should not fail");
         println!("{msgid:?}");
     })
     .join()
-    .expect("Failed to join");
+    .expect("thread join should not fail");
 }
 
 #[test]

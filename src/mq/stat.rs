@@ -20,7 +20,7 @@ impl AsyncPutStat {
                 sts.ObjectString
                     .VSLength
                     .try_into()
-                    .expect("buffer length to convert to usize"),
+                    .expect("buffer length should convert to usize"),
             );
         }
 
@@ -70,12 +70,17 @@ impl ReconnectionErrorStat {
                 sts.ObjectString
                     .VSLength
                     .try_into()
-                    .expect("buffer length to convert to usize"),
+                    .expect("buffer length should convert to usize"),
             );
         }
         let mut sub_name_buffer = sub_name_buffer;
         unsafe {
-            sub_name_buffer.set_len(sts.SubName.VSLength.try_into().expect("buffer length to convert to usize"));
+            sub_name_buffer.set_len(
+                sts.SubName
+                    .VSLength
+                    .try_into()
+                    .expect("buffer length should convert to usize"),
+            );
         }
 
         Self {
@@ -116,7 +121,7 @@ pub fn stat_put<L: Library<MQ: function::Mqi>>(functions: &MqFunctions<L>, handl
         sts.ObjectString
             .VSBufSize
             .try_into()
-            .expect("buffer length to convert to usize"),
+            .expect("buffer length should convert to usize"),
     );
     sts.ObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
 
@@ -149,13 +154,17 @@ pub fn stat_reconnection_error<L: Library<MQ: function::Mqi>>(
         sts.ObjectString
             .VSBufSize
             .try_into()
-            .expect("buffer length to convert to usize"),
+            .expect("buffer length should convert to usize"),
     );
     sts.ObjectString.VSPtr = ptr::from_mut(&mut *object_string_buffer).cast();
 
     sts.SubName.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-    let mut sub_name_buffer: Vec<_> =
-        Vec::with_capacity(sts.SubName.VSBufSize.try_into().expect("buffer length to convert to usize"));
+    let mut sub_name_buffer: Vec<_> = Vec::with_capacity(
+        sts.SubName
+            .VSBufSize
+            .try_into()
+            .expect("buffer length should convert to usize"),
+    );
     sts.SubName.VSPtr = ptr::from_mut(&mut *sub_name_buffer).cast();
 
     functions

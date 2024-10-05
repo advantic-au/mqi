@@ -8,7 +8,12 @@ use super::{
     ReconnectionErrorStat, ReconnectionStat,
 };
 
+/// A trait that provides functions to put messages to a queue manager and inquire on the status of a previous MQI call or connection
 pub trait QueueManager {
+    /// Put a message to a queue or topic with a specified return type that implements [`PutAttr`].
+    ///
+    /// Type inference of the return value may not always work so you may have to explicitly state the return type using the
+    /// `put_message_with::<Type>` syntax.
     fn put_message_with<'oo, R>(
         &self,
         open_options: impl OpenOption<'oo, MQPMO>,
@@ -18,6 +23,7 @@ pub trait QueueManager {
     where
         R: PutAttr;
 
+    /// Put a message to a queue or topic
     #[inline]
     fn put_message<'oo>(
         &self,

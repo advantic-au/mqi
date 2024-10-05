@@ -363,7 +363,7 @@ impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<String> {
                 // SAFETY: The bytes coming from the MQI library should be correct as there
                 // is no conversion error
                 // The unwrap will succeed as the Option is always some if this code is executed
-                let name = state.name.as_ref().expect("Option is always Some here");
+                let name = state.name.as_ref().expect("Name should not be None");
                 (Self(unsafe { str::from_utf8_unchecked(name).to_string() }), state)
             })),
         }
@@ -382,9 +382,9 @@ impl<'p, 's, const N: usize> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for N
                 Err(Error(values::MQCC(sys::MQCC_WARNING), verb, rc))
             }
             other => Ok(other.map(|state| {
-                let name = state.name.as_ref().expect("Option is always Some here");
+                let name = state.name.as_ref().expect("Name should not be None");
                 (
-                    Self(MqStr::from_bytes(name).expect("buffer size always equals required length")),
+                    Self(MqStr::from_bytes(name).expect("buffer size should equal required length")),
                     state,
                 )
             })),
@@ -399,7 +399,7 @@ impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwne
     {
         param.name_required = NameUsage::AnyLength;
         mqinqmp(param).map_completion(|state| {
-            let name = state.name.as_ref().expect("Option is always Some");
+            let name = state.name.as_ref().expect("Name should not be None");
             (
                 Self(StrCcsidOwned {
                     ccsid: CCSID(param.impo.ReturnedName.VSCCSID),
@@ -471,7 +471,7 @@ macro_rules! impl_as_primitive {
     ($type:ty) => {
         impl AsPrimitive for $type {
             fn as_primitive(buffer: &[u8]) -> Self {
-                Self::from_ne_bytes(buffer.try_into().expect("buffer size always exceeds required length"))
+                Self::from_ne_bytes(buffer.try_into().expect("buffer size should exceed required length"))
             }
         }
     };
@@ -557,7 +557,7 @@ impl<'p, 's, const N: usize> MqiValue<PropertyParam<'p>, PropertyState<'s>> for 
     {
         param.value_type = MQTYPE(sys::MQTYPE_BYTE_STRING);
         param.impo.Options |= sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
-        mqinqmp(param).map_completion(|state| Self::from_bytes(&state.value).expect("buffer size always equals required length"))
+        mqinqmp(param).map_completion(|state| Self::from_bytes(&state.value).expect("buffer size should equal required length"))
     }
 }
 

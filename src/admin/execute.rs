@@ -54,6 +54,10 @@ impl ExecuteOption<'_> for MQCMD {
     }
 }
 
+/// A trait that manipulates the parameters to the [`mq_execute`](`crate::core::MqFunctions::mq_execute`) function
+#[diagnostic::on_unimplemented(
+    message = "{Self} does not implement `ExecuteOption` so it can't be used as an argument for MQI execute"
+)]
 pub trait ExecuteOption<'a> {
     fn apply_param(self, param: &mut ExecuteParam<'a>);
 }

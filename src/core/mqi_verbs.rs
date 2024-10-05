@@ -124,7 +124,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
                 ptr::from_mut(pmo).cast(),
                 size_of_val(body)
                     .try_into()
-                    .expect("body length exceeds maximum positive MQLONG"),
+                    .expect("body length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(body).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -194,7 +194,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
                 ptr::from_mut(pmo).cast(),
                 size_of_val(body)
                     .try_into()
-                    .expect("body length exceeds maximum positive MQLONG"),
+                    .expect("body length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(body).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -224,7 +224,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
                 ptr::from_mut(gmo).cast(),
                 size_of_val(body)
                     .try_into()
-                    .expect("body length exceeds maximum positive MQLONG"),
+                    .expect("body length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(body).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
@@ -255,17 +255,17 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
                 selectors
                     .len()
                     .try_into()
-                    .expect("selectors count exceeds maximum positive MQLONG"),
+                    .expect("selectors count should not exceed maximum positive MQLONG"),
                 selectors.as_ptr().cast_mut().cast(),
                 int_attr
                     .len()
                     .try_into()
-                    .expect("int_attr count exceeds maximum positive MQLONG"),
+                    .expect("int_attr count should not exceed maximum positive MQLONG"),
                 int_attr.as_mut_ptr().cast(),
                 text_attr
                     .len()
                     .try_into()
-                    .expect("text_attr count exceeds maximum positive MQLONG"),
+                    .expect("text_attr count should not exceed maximum positive MQLONG"),
                 text_attr.as_mut_ptr().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -418,7 +418,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
             (
                 size_of_val(out)
                     .try_into()
-                    .expect("target value length exceeds maximum positive MQLONG"),
+                    .expect("target value length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(out).cast(),
             )
         });
@@ -520,7 +520,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
                 prop_type.0,
                 size_of_val(value)
                     .try_into()
-                    .expect("value length exceeds maximum positive MQLONG"),
+                    .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -549,17 +549,17 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
                 selectors
                     .len()
                     .try_into()
-                    .expect("selectors count exceeds maximum positive MQLONG"),
+                    .expect("selectors count should not exceed maximum positive MQLONG"),
                 selectors.as_ptr().cast_mut().cast(),
                 int_attr
                     .len()
                     .try_into()
-                    .expect("int_attr count exceeds maximum positive MQLONG"),
+                    .expect("int_attr count should not exceed maximum positive MQLONG"),
                 int_attr.as_ptr().cast_mut(),
                 text_attr
                     .len()
                     .try_into()
-                    .expect("text_attr count exceeds maximum positive MQLONG"),
+                    .expect("text_attr count should not exceed maximum positive MQLONG"),
                 text_attr.as_ptr().cast_mut(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -638,7 +638,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
                 ptr::from_mut(mqmd).cast(),
                 size_of_val(buffer)
                     .try_into()
-                    .expect("buffer length exceeds maximum positive MQLONG"),
+                    .expect("buffer length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(buffer).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
@@ -669,7 +669,7 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
                 ptr::from_mut(mqmd).cast(),
                 size_of_val(buffer)
                     .try_into()
-                    .expect("buffer length exceeds maximum positive MQLONG"),
+                    .expect("buffer length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(buffer).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
@@ -700,12 +700,12 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
                 source_ccsid.0,
                 size_of_val(source)
                     .try_into()
-                    .expect("usize length of source converts into MQLONG"),
+                    .expect("usize length of source should convert into MQLONG"),
                 ptr::from_ref(source).cast_mut().cast(),
                 target_ccsid.0,
                 size_of_val(target)
                     .try_into()
-                    .expect("usize length of target converts into MQLONG"),
+                    .expect("usize length of target should convert into MQLONG"),
                 ptr::from_mut(target).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,

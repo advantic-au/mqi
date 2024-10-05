@@ -163,14 +163,18 @@ mod tests {
 
     #[test]
     fn add_items() {
-        let bag = Bag::new(MQCBO(sys::MQCBO_GROUP_BAG)).expect("Failed to create bag");
-        let property = bag.inquire::<sys::MQLONG>(MqaiSelector(0)).expect("Failed to retrieve item");
+        let bag = Bag::new(MQCBO(sys::MQCBO_GROUP_BAG)).expect("creation of bag to not fail");
+        let property = bag
+            .inquire::<sys::MQLONG>(MqaiSelector(0))
+            .expect("retrieval of an item should not fail");
         property.map_or_else(|| eprintln!("No CCSID!"), |ccsid| println!("CCSID is {ccsid}"));
 
         bag.add(MqaiSelector(0), "abc")
             .discard_warning()
             .expect("Failed to add string");
 
-        bag.delete(MqaiSelector(0)).discard_warning().expect("Failed to delete item");
+        bag.delete(MqaiSelector(0))
+            .discard_warning()
+            .expect("deletion of an item should not fail");
     }
 }

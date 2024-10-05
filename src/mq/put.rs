@@ -13,6 +13,8 @@ use crate::prelude::*;
 use super::values::{CCSID, MQENC, MQPMO};
 use super::{OpenOption, OpenParamOption};
 
+/// A trait that provides a rendered message for the [`mqput`](`crate::core::MqFunctions::mqput`) function
+#[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessae` so it can't be used as an argument for MQI put")]
 pub trait PutMessage {
     type Data: ?Sized;
 
@@ -68,6 +70,8 @@ impl<C: Conn> Object<C> {
     }
 }
 
+/// A trait that manipulates the parameters to the [`mqput`](`crate::core::MqFunctions::mqput`) function
+#[diagnostic::on_unimplemented(message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put")]
 pub trait PutOption {
     fn apply_param(self, param: &mut PutParam);
 }

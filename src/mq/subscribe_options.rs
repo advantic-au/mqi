@@ -1,7 +1,9 @@
-use crate::{values, Error, MqiAttr, MqiValue, ResultComp, ResultCompErr};
+use crate::{macros::all_option_tuples, values, Error, MqiAttr, MqiValue, ResultComp, ResultCompErr};
 
 use super::{open_options::ObjectString, Conn, EncodedString, Object, SubscribeOption, SubscribeParam, SubscribeState, Subscription};
 use crate::prelude::*;
+
+all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>);
 
 impl<'so, T: EncodedString + ?Sized> SubscribeOption<'so> for ObjectString<&'so T> {
     #[inline]

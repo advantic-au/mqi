@@ -281,7 +281,8 @@ impl<S> MqiAttr<GetParam, S> for MessageId {
     }
 }
 
-/// Trait that manipulates the `MQMD` and `MQGMO` structures ([`GetParam`])
+/// A trait that manipulates the parameters to the [`mqget`](`crate::core::MqFunctions::mqget`) function
+#[diagnostic::on_unimplemented(message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get")]
 pub trait GetOption {
     fn apply_param(self, param: &mut GetParam);
 }
@@ -366,7 +367,7 @@ impl<C: Conn> Object<C> {
                                 write_area
                                     .len()
                                     .try_into()
-                                    .expect("length of buffer must fit in positive i32"),
+                                    .expect("length of buffer should be within positive i32 range"),
                                 length,
                             ),
                             returned_length => returned_length,
@@ -375,8 +376,12 @@ impl<C: Conn> Object<C> {
                 })
                 .map_completion(|(message_length, data_length)| GetState {
                     buffer,
-                    data_length: data_length.try_into().expect("length within positive usize range"),
-                    message_length: message_length.try_into().expect("length within positive usize range"),
+                    data_length: data_length
+                        .try_into()
+                        .expect("data length should be within positive usize range"),
+                    message_length: message_length
+                        .try_into()
+                        .expect("message length should be within positive usize range"),
                     format: MessageFormat {
                         ccsid: CCSID(param.md.CodedCharSetId),
                         encoding: values::MQENC(param.md.Encoding),

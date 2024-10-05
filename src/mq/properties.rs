@@ -47,7 +47,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::Mqi>>(
     if let Some(rn) = returned_name.as_mut() {
         let rn_ref = rn.as_mut();
         mqimpo.ReturnedName.VSPtr = rn_ref.as_mut_ptr().cast();
-        mqimpo.ReturnedName.VSBufSize = rn_ref.len().try_into().expect("length always converts to usize");
+        mqimpo.ReturnedName.VSBufSize = rn_ref.len().try_into().expect("length should convert to usize");
     } else {
         mqimpo.ReturnedName.VSPtr = ptr::null_mut();
     }
@@ -67,7 +67,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::Mqi>>(
         (Err(core::MqInqError::Length(length, Error(.., MQRC(sys::MQRC_PROPERTY_VALUE_TOO_BIG)))), rn)
             if max_value_size.map_or(true, |max_len| Into::<usize>::into(max_len) > value.len()) =>
         {
-            let len = length.try_into().expect("length always converts to usize");
+            let len = length.try_into().expect("length should convert to usize");
             let value_vec = InqBuffer::Owned(vec![0; len]);
             inqmp(
                 mq,
@@ -86,7 +86,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::Mqi>>(
         (Err(core::MqInqError::Length(length, Error(.., MQRC(sys::MQRC_PROPERTY_NAME_TOO_BIG)))), Some(rn))
             if max_name_size.map_or(true, |max_len| Into::<usize>::into(max_len) > rn.len()) =>
         {
-            let len = length.try_into().expect("length always converts to usize");
+            let len = length.try_into().expect("length should convert to usize");
             let name_vec = InqBuffer::Owned(vec![0; len]);
             inqmp(
                 mq,
@@ -104,14 +104,14 @@ fn inqmp<'a, 'b, A: core::Library<MQ: function::Mqi>>(
         }
         (other, rn) => other.map_completion(|length| {
             (
-                value.truncate(length.try_into().expect("length always convertable to usize")),
+                value.truncate(length.try_into().expect("length should convert to usize")),
                 rn.map(|name| {
                     name.truncate(
                         mqimpo
                             .ReturnedName
                             .VSLength
                             .try_into()
-                            .expect("length always convertable to usize"),
+                            .expect("length should convert to usize"),
                     )
                 }),
             )
@@ -217,7 +217,7 @@ impl<C: Conn> Properties<C> {
                     .as_ref()
                     .len()
                     .try_into()
-                    .expect("length of buffer must always fit in an MQLONG"),
+                    .expect("length of buffer should fit within MQLONG range"),
                 ..sys::MQCHARV::default()
             });
 

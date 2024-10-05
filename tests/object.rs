@@ -19,20 +19,20 @@ fn object() {
 
     let qm = mqi::connect::<ThreadNoBlock>(Credentials::user("app", "app"))
         .warn_as_error()
-        .expect("Could not establish connection");
+        .expect("connection should be established");
 
     thread::spawn(move || {
         let mut props = Properties::new(qm.connection_ref(), values::MQCMHO::default()).expect("property creation");
         props
             .set_property("my_property", "valuex2", values::MQSMPO::default())
             .warn_as_error()
-            .expect("property set");
+            .expect("property set should not fail");
         qm.put_message(QUEUE, &mut props, "Hello")
             .warn_as_error()
-            .expect("Put failed");
+            .expect("message put should not fail");
     })
     .join()
-    .expect("Panic from connection thread");
+    .expect("thread join should not fail");
 }
 
 #[test]

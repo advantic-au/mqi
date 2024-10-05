@@ -81,7 +81,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
                             context
                                 .DataLength
                                 .try_into()
-                                .expect("Callback data length exceeds maximum positive MQLONG"),
+                                .expect("Callback data length should not exceed maximum positive MQLONG"),
                         )
                     }),
                     context,
@@ -129,14 +129,14 @@ fn callback() -> Result<(), Box<dyn Error>> {
                 Some(&*mqmd),
                 Some(&gmo),
             )
-            .expect("Bad state");
+            .expect("mqcb should not fail");
 
         let ctlo = MqStruct::<sys::MQCTLO>::default();
 
         qm.mq()
             .mqctl(qm.handle(), MQOP(sys::MQOP_START_WAIT), &ctlo)
             .warn_as_error()
-            .expect("Bad state");
+            .expect("mqctl should not fail");
 
         // Disconnect.
         // object.close().warn_as_error().expect("Bad state");

@@ -17,7 +17,7 @@ const fn mq_str_ptr<T>(value: &str) -> *mut T {
 
 fn set_mqcharv(mqcharv: &mut sys::MQCHARV, data: &[u8], ccsid: CCSID) {
     mqcharv.VSPtr = ptr::from_ref(data).cast_mut().cast();
-    mqcharv.VSLength = data.len().try_into().expect("length converts to MQLONG");
+    mqcharv.VSLength = data.len().try_into().expect("length should convert to MQLONG");
     mqcharv.VSCCSID = ccsid.0;
 }
 
@@ -64,7 +64,10 @@ impl<'ptr> MqStruct<'ptr, sys::MQCNO> {
     pub fn attach_ccdt(&mut self, url: &'ptr str) {
         self.set_min_version(sys::MQCNO_VERSION_6);
         self.CCDTUrlPtr = mq_str_ptr(url);
-        self.CCDTUrlLength = url.len().try_into().expect("CCDT url length exceeds maximum positive MQLONG");
+        self.CCDTUrlLength = url
+            .len()
+            .try_into()
+            .expect("CCDT url length should not exceed maximum positive MQLONG");
     }
 }
 
@@ -77,18 +80,24 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
         self.CSPPasswordLength = password
             .len()
             .try_into()
-            .expect("Password length exceeds maximum positive MQLONG");
+            .expect("Password length should not exceed maximum positive MQLONG");
     }
 
     pub fn attach_userid(&mut self, userid: &'ptr str) {
         self.CSPUserIdPtr = mq_str_ptr(userid);
-        self.CSPUserIdLength = userid.len().try_into().expect("User length exceeds maximum positive MQLONG");
+        self.CSPUserIdLength = userid
+            .len()
+            .try_into()
+            .expect("User length should not exceed maximum positive MQLONG");
     }
 
     pub fn attach_token(&mut self, token: &'ptr str) {
         self.set_min_version(sys::MQCSP_VERSION_3);
         self.TokenPtr = mq_str_ptr(token);
-        self.TokenLength = token.len().try_into().expect("Token length exceeds maximum positive MQLONG");
+        self.TokenLength = token
+            .len()
+            .try_into()
+            .expect("Token length should not exceed maximum positive MQLONG");
     }
 
     pub fn attach_initial_key(&mut self, initial_key: &'ptr str) {
@@ -97,7 +106,7 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
         self.InitialKeyLength = initial_key
             .len()
             .try_into()
-            .expect("Initial key length exceeds maximum positive MQLONG");
+            .expect("Initial key length should not exceed maximum positive MQLONG");
     }
 }
 
@@ -107,7 +116,10 @@ impl<'ptr> MqStruct<'ptr, sys::MQSCO> {
         self.set_min_version(sys::MQSCO_VERSION_6);
         if let Some(ps) = password {
             self.KeyRepoPasswordPtr = mq_str_ptr(ps);
-            self.KeyRepoPasswordLength = ps.len().try_into().expect("Password length exceeds maximum positive MQLONG");
+            self.KeyRepoPasswordLength = ps
+                .len()
+                .try_into()
+                .expect("Password length should not exceed maximum positive MQLONG");
         } else {
             self.KeyRepoPasswordPtr = ptr::null_mut();
             self.KeyRepoPasswordLength = 0;
@@ -119,6 +131,6 @@ impl<'ptr> MqStruct<'ptr, sys::MQSCO> {
         self.AuthInfoRecCount = air
             .len()
             .try_into()
-            .expect("Auth info record count exceeds maximum positive MQLONG");
+            .expect("Auth info record count should not exceed maximum positive MQLONG");
     }
 }
