@@ -1,17 +1,17 @@
 use crate::{
-    put::{OpenPutOption, PutAttr, PutMessage, PutOption},
+    put::{PutAttr, PutMessage, PutOption},
     ResultComp,
 };
 
 use super::{
-    put::put_message_with, stat_put, stat_reconnection, stat_reconnection_error, AsyncPutStat, Conn, ReconnectionErrorStat,
-    ReconnectionStat,
+    put::put_message_with, stat_put, stat_reconnection, stat_reconnection_error, values::MQPMO, AsyncPutStat, Conn, OpenOption,
+    ReconnectionErrorStat, ReconnectionStat,
 };
 
 pub trait QueueManager {
     fn put_message_with<'oo, R>(
         &self,
-        open_options: impl OpenPutOption<'oo>,
+        open_options: impl OpenOption<'oo, MQPMO>,
         put_options: impl PutOption,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<R>
@@ -21,7 +21,7 @@ pub trait QueueManager {
     #[inline]
     fn put_message<'oo>(
         &self,
-        open_options: impl OpenPutOption<'oo>,
+        open_options: impl OpenOption<'oo, MQPMO>,
         put_options: impl PutOption,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<()> {
@@ -37,7 +37,7 @@ impl<C: Conn> QueueManager for C {
     #[inline]
     fn put_message_with<'oo, R>(
         &self,
-        open_options: impl OpenPutOption<'oo>,
+        open_options: impl OpenOption<'oo, MQPMO>,
         put_options: impl PutOption,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<R>

@@ -16,7 +16,7 @@ struct CallbackData<F, L> {
 fn event_callback<L, H, F>(hconn: sys::MQHCONN, _: sys::PMQVOID, _: sys::PMQVOID, _: sys::PMQVOID, cbc: *const sys::MQCBC)
 where
     L: Library<MQ: function::Mqi> + Clone,
-    F: FnMut(ConnectionRef<'_, L, H>, &MqStruct<sys::MQCBC>),
+    F: FnMut(ConnectionRef<L, H>, &MqStruct<sys::MQCBC>),
 {
     unsafe {
         if let Some(context) = cbc.cast::<MqStruct<sys::MQCBC>>().as_ref() {
@@ -42,7 +42,7 @@ where
 {
     pub fn register_event_handler<F>(&mut self, options: MQCBDO, closure: F) -> Result<(), Error>
     where
-        F: FnMut(ConnectionRef<'_, L, H>, &MqStruct<sys::MQCBC>),
+        F: FnMut(ConnectionRef<L, H>, &MqStruct<sys::MQCBC>),
     {
         let cb_data: *mut CallbackData<F, L> = Box::into_raw(Box::from(CallbackData {
             options,

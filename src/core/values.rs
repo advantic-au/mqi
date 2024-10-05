@@ -62,7 +62,7 @@ impl CCSID {
 }
 
 impl Display for CCSID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)?;
         if let Some(name) = self.name() {
             write!(f, " ({name})")?;
@@ -72,7 +72,7 @@ impl Display for CCSID {
 }
 
 impl Debug for CCSID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let encoding = encoding::ccsid_lookup(self.0);
         match encoding {
             Some(&(.., name)) => f.debug_tuple("CCSID").field(&format_args!("{}: {name}", self.0)).finish(),

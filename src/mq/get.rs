@@ -2,13 +2,13 @@ use core::str;
 use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
 
 use crate::{
-    prelude::*,
-    macros::all_multi_tuples,
-    values::{self, CCSID},
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
+    macros::all_multi_tuples,
+    prelude::*,
     sys,
     types::{self, Fmt, MessageFormat, MessageId},
-    Buffer, Completion, Conn, Error, MqStruct, ResultComp, ResultCompErr, StrCcsidCow, MqiAttr, MqiOption, MqiValue, Object,
+    values::{self, CCSID},
+    Buffer, Completion, Conn, Error, MqStruct, MqiAttr, MqiValue, Object, ResultComp, ResultCompErr, StrCcsidCow,
 };
 
 #[derive(Clone, Debug)]
@@ -122,7 +122,7 @@ impl<'a, B: Buffer<'a>> GetValue<B> for Cow<'a, [u8]> {}
 impl<'a, B: Buffer<'a>> GetValue<B> for Vec<u8> {}
 
 macro_rules! impl_getvalue {
-    ($first:ident, [$($ty:ident),*]) => {
+    ([$first:ident, $($ty:ident),*]) => {
         impl<B, $first, $($ty),*> GetValue<B> for ($first, $($ty),*)
         where
             $first: GetValue<B>,
@@ -282,8 +282,9 @@ impl<S> MqiAttr<GetParam, S> for MessageId {
 }
 
 /// Trait that manipulates the `MQMD` and `MQGMO` structures ([`GetParam`])
-pub trait GetOption: MqiOption<GetParam> {}
-impl<T: MqiOption<GetParam>> GetOption for T {}
+pub trait GetOption {
+    fn apply_param(self, param: &mut GetParam);
+}
 
 impl<C: Conn> Object<C> {
     pub fn get_data<'b, B>(&self, options: impl GetOption, buffer: B) -> ResultComp<Option<Cow<'b, [u8]>>>

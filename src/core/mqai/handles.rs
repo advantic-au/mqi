@@ -27,7 +27,7 @@ impl From<sys::MQHBAG> for BagHandle {
 impl_constant_lookup!(BagHandle, mapping::MQHB_CONST);
 
 impl Display for BagHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match Self::const_lookup().by_value(self.0).next() {
             Some(name) => write!(f, "HBAG({name})"),
             None => write!(f, "HBAG({:#010X})", self.0),

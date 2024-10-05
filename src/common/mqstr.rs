@@ -156,7 +156,7 @@ impl<const N: usize> Default for MqStr<N> {
 }
 
 impl<const N: usize> Display for MqStr<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         unsafe { std::str::from_utf8_unchecked(self.value()) }.fmt(f) // TODO: is unsafe ok here?
     }
 }

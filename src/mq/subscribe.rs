@@ -1,8 +1,8 @@
 use crate::{
-    values,
-    prelude::*,
     core::{self, ObjectHandle},
-    sys, MqiAttr, MqiOption, MqiValue, ResultComp, ResultCompErr,
+    macros::all_option_tuples,
+    prelude::*,
+    sys, values, MqiAttr, MqiValue, ResultComp, ResultCompErr,
 };
 
 use super::{Conn, MqStruct, Object};
@@ -49,20 +49,26 @@ impl<C: Conn> Drop for Subscription<C> {
 
 pub trait SubscribeValue<C: Conn>: for<'so> MqiValue<SubscribeParam<'so>, SubscribeState<C>> {}
 pub trait SubscribeAttr<C: Conn>: for<'so> MqiAttr<SubscribeParam<'so>, SubscribeState<C>> {}
-pub trait SubscribeOption<'so, C: Conn>: MqiOption<SubscribeParam<'so>> {}
+
+#[diagnostic::on_unimplemented(
+    message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
+)]
+pub trait SubscribeOption<'so> {
+    fn apply_param(self, param: &mut SubscribeParam<'so>);
+}
+
+all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>);
 
 // Blanket implementation for SubscribeValue<C>
 impl<T, C: Conn> SubscribeValue<C> for T where for<'so> Self: MqiValue<SubscribeParam<'so>, SubscribeState<C>> {}
 impl<T, C: Conn> SubscribeAttr<C> for T where for<'so> Self: MqiAttr<SubscribeParam<'so>, SubscribeState<C>> {}
 
-impl<'so, C: Conn, A: MqiOption<SubscribeParam<'so>>> SubscribeOption<'so, C> for A {}
-
 impl<C: Conn + Clone> Subscription<C> {
-    pub fn subscribe<'so>(connection: C, subscribe_option: impl SubscribeOption<'so, C>) -> ResultComp<Self> {
+    pub fn subscribe<'so>(connection: C, subscribe_option: impl SubscribeOption<'so>) -> ResultComp<Self> {
         Self::subscribe_as(connection, subscribe_option)
     }
 
-    pub fn subscribe_with<'so, A>(connection: C, subscribe_option: impl SubscribeOption<'so, C>) -> ResultComp<(Self, A)>
+    pub fn subscribe_with<'so, A>(connection: C, subscribe_option: impl SubscribeOption<'so>) -> ResultComp<(Self, A)>
     where
         A: SubscribeAttr<C>,
     {
@@ -71,7 +77,7 @@ impl<C: Conn + Clone> Subscription<C> {
 
     pub fn subscribe_managed_with<'so, A>(
         connection: C,
-        subscribe_option: impl SubscribeOption<'so, C>,
+        subscribe_option: impl SubscribeOption<'so>,
     ) -> ResultComp<(Self, Object<C>, A)>
     where
         A: SubscribeAttr<C>,
@@ -80,16 +86,13 @@ impl<C: Conn + Clone> Subscription<C> {
             .map_completion(|(qm, queue, attr)| (qm, queue.expect("managed queue should always be returned"), attr))
     }
 
-    pub fn subscribe_managed<'so>(
-        connection: C,
-        subscribe_option: impl SubscribeOption<'so, C>,
-    ) -> ResultComp<(Self, Object<C>)> {
+    pub fn subscribe_managed<'so>(connection: C, subscribe_option: impl SubscribeOption<'so>) -> ResultComp<(Self, Object<C>)> {
         Self::subscribe_managed_with::<()>(connection, subscribe_option).map_completion(|(sub, queue, ..)| (sub, queue))
     }
 
     pub(super) fn subscribe_as<'so, R>(
         connection: C,
-        subscribe_option: impl SubscribeOption<'so, C>,
+        subscribe_option: impl SubscribeOption<'so>,
     ) -> ResultCompErr<R, <R as MqiValue<SubscribeParam<'so>, SubscribeState<C>>>::Error>
     where
         R: SubscribeValue<C>,

@@ -2,9 +2,10 @@ use std::str::FromStr;
 
 use clap::Args;
 use mqi::{
-    connect_options::{Binding, Ccdt, ClientDefinition, ConnectOption, Credentials},
-    values, sys,
+    connect_options::{Binding, Ccdt, ConnectOption, Credentials, MqServer},
+    sys,
     types::QueueManagerName,
+    values,
 };
 
 #[derive(clap::Parser, Debug)]
@@ -39,7 +40,7 @@ pub struct MethodArgs {
 impl MethodArgs {
     pub fn connect_option(&self) -> anyhow::Result<impl ConnectOption> {
         Ok((
-            self.mqserver.as_deref().map(ClientDefinition::from_mqserver).transpose()?,
+            self.mqserver.as_deref().map(MqServer::try_from).transpose()?,
             self.ccdt.as_deref().map(Ccdt),
             if self.local { Binding::Local } else { Binding::Default },
         ))

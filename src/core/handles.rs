@@ -92,7 +92,7 @@ impl Default for ConnectionHandle {
 impl_constant_lookup!(ConnectionHandle, mapping::MQHC_CONST);
 
 impl Display for ConnectionHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match Self::const_lookup().by_value(self.0).next() {
             Some(name) => write!(f, "HCONN({name})"),
             None => write!(f, "HCONN({:#010X})", self.0),
@@ -123,7 +123,7 @@ impl Default for ObjectHandle {
 impl_constant_lookup!(ObjectHandle, mapping::MQHO_CONST);
 
 impl Display for ObjectHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match Self::const_lookup().by_value(self.0).next() {
             Some(name) => write!(f, "HOBJ({name})"),
             None => write!(f, "HOBJ({:#010X})", self.0),
@@ -134,7 +134,7 @@ impl Display for ObjectHandle {
 impl_constant_lookup!(MessageHandle, mapping::MQHM_CONST);
 
 impl Display for MessageHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let handle_mqlong = self.0.try_into().ok();
         match handle_mqlong.and_then(|value| Self::const_lookup().by_value(value).next()) {
             Some(name) => write!(f, "HMSG({name})"),

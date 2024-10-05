@@ -1,4 +1,4 @@
-use crate::{values, core::ObjectHandle, MqStruct, MqiAttr, MqiOption, MqiValue};
+use crate::{values, core::ObjectHandle, MqStruct, MqiAttr, MqiValue};
 
 use crate::{
     core::{self, values::MQCO},
@@ -7,7 +7,11 @@ use crate::{
 use crate::sys;
 use crate::ResultComp;
 
-pub type OpenParamOption<'a, T> = (MqStruct<'a, sys::MQOD>, T);
+pub struct OpenParamOption<'a, T> {
+    pub mqod: MqStruct<'a, sys::MQOD>,
+    pub options: T,
+}
+
 pub type OpenParam<'a> = OpenParamOption<'a, values::MQOO>;
 
 #[must_use]
@@ -18,13 +22,16 @@ pub struct Object<C: Conn> {
     pub(super) close_options: MQCO,
 }
 
-pub trait OpenOption<'oo>: MqiOption<OpenParam<'oo>> {}
+#[diagnostic::on_unimplemented(
+    message = "{Self} does not implement `OpenOption` so it can't be used as an argument for MQI open"
+)]
+pub trait OpenOption<'oo, T> {
+    fn apply_param(self, param: &mut OpenParamOption<'oo, T>);
+}
 pub trait OpenValue<S>: for<'oo> MqiValue<OpenParam<'oo>, S> {}
 pub trait OpenAttr<S>: for<'oo> MqiAttr<OpenParam<'oo>, S> {}
 
 impl<S, T: for<'oo> MqiAttr<OpenParam<'oo>, S>> OpenAttr<S> for T {}
-
-impl<'oo, T: MqiOption<OpenParam<'oo>>> OpenOption<'oo> for T {}
 
 impl<C: Conn> Object<C> {
     #[must_use]

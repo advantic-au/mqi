@@ -1,6 +1,6 @@
-use std::{cmp, ptr};
+use std::ptr;
 
-use super::MqStruct;
+use super::{impl_mqstruct_min_version, MqStruct};
 use crate::{sys, values::CCSID, EncodedString};
 
 const C_EMPTY: *mut std::ffi::c_void = c"".as_ptr().cast_mut().cast();
@@ -23,12 +23,12 @@ fn set_mqcharv(mqcharv: &mut sys::MQCHARV, data: &[u8], ccsid: CCSID) {
 
 impl<'ptr> MqStruct<'ptr, sys::MQOD> {
     pub fn attach_selection_string<S: EncodedString + ?Sized>(&mut self, selection: &'ptr S) {
-        self.Version = cmp::max(sys::MQOD_VERSION_4, self.Version);
+        self.set_min_version(sys::MQOD_VERSION_4);
         set_mqcharv(&mut self.SelectionString, selection.data(), selection.ccsid());
     }
 
     pub fn attach_object_string<S: EncodedString + ?Sized>(&mut self, object: &'ptr S) {
-        self.Version = cmp::max(sys::MQOD_VERSION_4, self.Version);
+        self.set_min_version(sys::MQOD_VERSION_4);
         set_mqcharv(&mut self.ObjectString, object.data(), object.ccsid());
     }
 }
@@ -41,32 +41,34 @@ impl<'ptr> MqStruct<'ptr, sys::MQSD> {
 
 // Functions to attach references to MQCNO
 impl<'ptr> MqStruct<'ptr, sys::MQCNO> {
-    pub fn attach_csp(&mut self, csp: &'ptr MqStruct<'_, sys::MQCSP>) {
-        self.Version = cmp::max(sys::MQCNO_VERSION_5, self.Version);
+    pub fn attach_csp(&mut self, csp: &'ptr MqStruct<sys::MQCSP>) {
+        self.set_min_version(sys::MQCNO_VERSION_5);
         self.SecurityParmsPtr = ptr::addr_of!(csp.struc).cast_mut();
     }
 
-    pub fn attach_cd(&mut self, cd: &'ptr MqStruct<'_, sys::MQCD>) {
-        self.Version = cmp::max(sys::MQCNO_VERSION_2, self.Version);
+    pub fn attach_cd(&mut self, cd: &'ptr MqStruct<sys::MQCD>) {
+        self.set_min_version(sys::MQCNO_VERSION_2);
         self.ClientConnPtr = ptr::addr_of!(cd.struc).cast_mut().cast();
     }
 
-    pub fn attach_sco(&mut self, sco: &'ptr MqStruct<'_, sys::MQSCO>) {
-        self.Version = cmp::max(sys::MQCNO_VERSION_4, self.Version);
+    pub fn attach_sco(&mut self, sco: &'ptr MqStruct<sys::MQSCO>) {
+        self.set_min_version(sys::MQCNO_VERSION_4);
         self.SSLConfigPtr = ptr::addr_of!(sco.struc).cast_mut();
     }
 
-    pub fn attach_bno(&mut self, bno: &'ptr MqStruct<'_, sys::MQBNO>) {
-        self.Version = cmp::max(sys::MQCNO_VERSION_8, self.Version);
+    pub fn attach_bno(&mut self, bno: &'ptr MqStruct<sys::MQBNO>) {
+        self.set_min_version(sys::MQCNO_VERSION_8);
         self.BalanceParmsPtr = ptr::addr_of!(bno.struc).cast_mut();
     }
 
     pub fn attach_ccdt(&mut self, url: &'ptr str) {
-        self.Version = cmp::max(sys::MQCNO_VERSION_6, self.Version);
+        self.set_min_version(sys::MQCNO_VERSION_6);
         self.CCDTUrlPtr = mq_str_ptr(url);
         self.CCDTUrlLength = url.len().try_into().expect("CCDT url length exceeds maximum positive MQLONG");
     }
 }
+
+impl_mqstruct_min_version!(sys::MQCSP);
 
 // Functions to attach references to MQCSP
 impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
@@ -84,13 +86,13 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
     }
 
     pub fn attach_token(&mut self, token: &'ptr str) {
-        self.Version = cmp::max(sys::MQCSP_VERSION_3, self.Version);
+        self.set_min_version(sys::MQCSP_VERSION_3);
         self.TokenPtr = mq_str_ptr(token);
         self.TokenLength = token.len().try_into().expect("Token length exceeds maximum positive MQLONG");
     }
 
     pub fn attach_initial_key(&mut self, initial_key: &'ptr str) {
-        self.Version = cmp::max(sys::MQCSP_VERSION_2, self.Version);
+        self.set_min_version(sys::MQCSP_VERSION_2);
         self.InitialKeyPtr = mq_str_ptr(initial_key);
         self.InitialKeyLength = initial_key
             .len()
@@ -102,7 +104,7 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
 // Functions to attach references to MQSCO
 impl<'ptr> MqStruct<'ptr, sys::MQSCO> {
     pub fn attach_repo_password(&mut self, password: Option<&'ptr str>) {
-        self.Version = cmp::max(sys::MQSCO_VERSION_6, self.Version);
+        self.set_min_version(sys::MQSCO_VERSION_6);
         if let Some(ps) = password {
             self.KeyRepoPasswordPtr = mq_str_ptr(ps);
             self.KeyRepoPasswordLength = ps.len().try_into().expect("Password length exceeds maximum positive MQLONG");

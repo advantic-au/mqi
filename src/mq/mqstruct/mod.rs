@@ -1,4 +1,7 @@
 mod struct_attach;
+mod version;
+
+pub(super) use version::*;
 
 use std::{
     marker::PhantomData,

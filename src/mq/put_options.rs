@@ -1,9 +1,14 @@
-use crate::{values, prelude::*, sys, types, Conn, Properties, MqStruct, ResultComp, MqiAttr, MqiOption};
+use crate::{macros::all_option_tuples, prelude::*, sys, types, values, Conn, MqStruct, MqiAttr, Properties, ResultComp};
 
-use super::{put::PutParam, Object};
+use super::{
+    put::{PutOption, PutParam},
+    Object,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Context<T>(pub T);
+
+all_option_tuples!(PutOption, PutParam);
 
 #[derive(Debug)]
 pub enum PropertyAction<'handle, C: Conn> {
@@ -12,33 +17,33 @@ pub enum PropertyAction<'handle, C: Conn> {
     Report(&'handle Properties<C>, &'handle mut Properties<C>),
 }
 
-impl<C: Conn> MqiOption<PutParam<'_>> for Context<&Object<C>> {
-    fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
+impl<C: Conn> PutOption for Context<&Object<C>> {
+    fn apply_param(self, (.., pmo): &mut PutParam) {
         pmo.Context = unsafe { self.0.handle.raw_handle() };
     }
 }
 
-impl<C: Conn> MqiOption<PutParam<'_>> for &mut Properties<C> {
-    fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
+impl<C: Conn> PutOption for &mut Properties<C> {
+    fn apply_param(self, (.., pmo): &mut PutParam) {
         pmo.Action = sys::MQACTP_NEW;
         pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
     }
 }
 
-impl MqiOption<PutParam<'_>> for values::MQPMO {
-    fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
+impl PutOption for values::MQPMO {
+    fn apply_param(self, (.., pmo): &mut PutParam) {
         pmo.Options |= self.value();
     }
 }
 
-impl MqiOption<PutParam<'_>> for MqStruct<'static, sys::MQMD2> {
-    fn apply_param(self, param: &mut PutParam<'_>) {
+impl PutOption for MqStruct<'static, sys::MQMD2> {
+    fn apply_param(self, param: &mut PutParam) {
         self.clone_into(&mut param.0);
     }
 }
 
-impl<'handle, C: Conn> MqiOption<PutParam<'_>> for PropertyAction<'handle, C> {
-    fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
+impl<'handle, C: Conn> PutOption for PropertyAction<'handle, C> {
+    fn apply_param(self, (.., pmo): &mut PutParam) {
         match self {
             PropertyAction::Reply(original, new) => {
                 pmo.Action = sys::MQACTP_REPLY;

@@ -55,14 +55,14 @@ macro_rules! define_mqvalue {
         }
 
         impl std::fmt::Display for $i {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 let Self(attribute) = self;
                 $crate::mqvalue::value_display(*attribute, self.mq_primary_name(), f)
             }
         }
 
         impl std::fmt::Debug for $i {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 let Self(attribute) = self;
                 $crate::mqvalue::value_debug(stringify!($i), *attribute, self.mq_names(), f)
             }
@@ -70,7 +70,7 @@ macro_rules! define_mqvalue {
     };
 }
 
-pub(crate) fn value_display(value: MQLONG, primary_name: Option<&str>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+pub(crate) fn value_display(value: MQLONG, primary_name: Option<&str>, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     let code = primary_name.map_or_else(|| Cow::from(value.to_string()), Cow::from);
     f.write_str(&code)
 }
@@ -79,7 +79,7 @@ pub(crate) fn value_debug(
     type_name: &str,
     value: MQLONG,
     names: impl Iterator<Item = &'static str>,
-    f: &mut std::fmt::Formatter<'_>,
+    f: &mut std::fmt::Formatter,
 ) -> std::fmt::Result {
     let names_str = names.map(Cow::from).reduce(|acc, name| Cow::from(format!("{acc}|{name}")));
     if let Some(name_list) = names_str {

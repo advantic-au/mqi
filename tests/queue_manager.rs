@@ -1,7 +1,7 @@
 use std::{env, error::Error, thread};
 
 use mqi::{
-    connect_options::{ApplName, Binding, ClientDefinition, Credentials, Tls},
+    connect_options::{ApplName, Binding, Credentials, MqServer, Tls},
     prelude::*,
     sys,
     types::{CertificateLabel, CipherSpec, KeyRepo, MessageId, QueueName, FORMAT_NONE},
@@ -57,7 +57,9 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
 fn connect() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let def = ClientDefinition::from_mqserver(&env::var("MQSERVER")?)?;
+    let env = env::var("MQSERVER")?;
+    let def = MqServer::try_from(&*env)?;
+
     let tls = Tls::new(
         &KeyRepo(mqstr!("path")),
         Some("password"),

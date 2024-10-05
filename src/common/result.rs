@@ -77,7 +77,7 @@ impl<I: Iterator> Iterator for Completion<I> {
 }
 
 impl<T: Display> Display for Completion<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self(value, Some((warning, verb))) => write!(f, "MQCC_WARNING: {verb} {warning} {value}"),
             Self(value, None) => write!(f, "MQCC_OK: {value}"),

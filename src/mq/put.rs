@@ -6,12 +6,12 @@ use libmqm_sys::function;
 use crate::core::{ConnectionHandle, Library, MqFunctions};
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat};
-use crate::{sys, Conn, MqStruct, Object, ResultComp, MqiAttr, MqiOption};
+use crate::{sys, Conn, MqStruct, Object, ResultComp, MqiAttr};
 use crate::values;
 use crate::prelude::*;
 
-use super::values::{CCSID, MQENC};
-use super::OpenParamOption;
+use super::values::{CCSID, MQENC, MQPMO};
+use super::{OpenOption, OpenParamOption};
 
 pub trait PutMessage {
     type Data: ?Sized;
@@ -68,18 +68,17 @@ impl<C: Conn> Object<C> {
     }
 }
 
-pub trait OpenPutOption<'a>: MqiOption<OpenParamOption<'a, values::MQPMO>> {}
-pub trait PutOption: for<'a> MqiOption<PutParam<'a>> {}
+pub trait PutOption {
+    fn apply_param(self, param: &mut PutParam);
+}
 pub trait PutAttr: for<'a> MqiAttr<PutParam<'a>, ()> {}
 
-impl<'a, T: MqiOption<OpenParamOption<'a, values::MQPMO>>> OpenPutOption<'a> for T {}
-impl<T: for<'a> MqiOption<PutParam<'a>>> PutOption for T {}
 impl<T> PutAttr for T where T: for<'a> MqiAttr<PutParam<'a>, ()> {}
 
 pub(super) fn put_message_with<'oo, R, L>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
-    open_options: impl OpenPutOption<'oo>,
+    open_options: impl OpenOption<'oo, MQPMO>,
     put_options: impl PutOption,
     message: &(impl PutMessage + ?Sized),
 ) -> ResultComp<R>
@@ -87,21 +86,21 @@ where
     R: PutAttr,
     L: Library<MQ: function::Mqi>,
 {
-    let mut mqod = (
-        MqStruct::new(sys::MQOD {
+    let mut open_params = OpenParamOption {
+        mqod: MqStruct::new(sys::MQOD {
             Version: sys::MQOD_VERSION_4,
             ..sys::MQOD::default()
         }),
-        values::MQPMO::default(),
-    );
-    open_options.apply_param(&mut mqod);
+        options: values::MQPMO::default(),
+    };
+    open_options.apply_param(&mut open_params);
     put(put_options, message, |(md, pmo), data| {
-        pmo.Options |= mqod.1.value();
-        functions.mqput1(handle, &mut mqod.0, Some(&mut **md), pmo, data)
+        pmo.Options |= open_params.options.value();
+        functions.mqput1(handle, &mut open_params.mqod, Some(&mut **md), pmo, data)
     })
 }
 
-fn put<T, F>(options: impl for<'a> MqiOption<PutParam<'a>>, message: &(impl PutMessage + ?Sized), put: F) -> ResultComp<T>
+fn put<T, F>(options: impl PutOption, message: &(impl PutMessage + ?Sized), put: F) -> ResultComp<T>
 where
     T: for<'a> MqiAttr<PutParam<'a>, ()>,
     F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>,

@@ -60,7 +60,7 @@ where
     B: BagDrop,
     L: Library<MQ: function::Mqai> + Clone,
 {
-    pub fn try_iter<T: BagItemGet<L>>(&self, selector: MqaiSelector) -> ResultComp<BagItem<'_, T, B, L>> {
+    pub fn try_iter<T: BagItemGet<L>>(&self, selector: MqaiSelector) -> ResultComp<BagItem<T, B, L>> {
         self.mq.mq_count_items(self, selector).map_completion(|count| BagItem {
             selector,
             count,
@@ -70,7 +70,7 @@ where
         })
     }
 
-    pub fn try_bag_iter(&self, selector: MqaiSelector) -> ResultComp<BagItem<'_, Bag<Embedded, L>, B, L>> {
+    pub fn try_bag_iter(&self, selector: MqaiSelector) -> ResultComp<BagItem<Bag<Embedded, L>, B, L>> {
         self.try_iter(selector)
     }
 }

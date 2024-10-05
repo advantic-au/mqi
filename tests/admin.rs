@@ -2,7 +2,7 @@
 
 use mqi::{prelude::*, ThreadNone};
 use mqi::admin::Bag;
-use mqi::connect_options::{ApplName, ClientDefinition, Credentials};
+use mqi::connect_options::{ApplName, Credentials, MqServer};
 use mqi::values;
 use mqi::types::ObjectName;
 use mqi::MqStr;
@@ -18,7 +18,7 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
 
     let qm = mqi::connect::<ThreadNone>((
         ApplName(mqstr!("rust_testing")),
-        ClientDefinition::from_mqserver("DEV.ADMIN.SVRCONN/TCP/192.168.92.15(1414)")?,
+        MqServer::try_from("DEV.ADMIN.SVRCONN/TCP/192.168.92.15(1414)")?,
         Credentials::user("admin", "admin"),
     ))
     .warn_as_error()?;

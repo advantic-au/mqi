@@ -84,7 +84,7 @@ pub struct EncodedHeader<'a, T: ChainedHeader> {
 }
 
 impl Header<'_> {
-    pub const fn iter(data: &[u8], format: MessageFormat) -> HeaderIter<'_> {
+    pub const fn iter(data: &[u8], format: MessageFormat) -> HeaderIter {
         HeaderIter {
             format,
             data,
@@ -188,8 +188,8 @@ pub trait ChainedHeader: Sized {
         None
     }
 
-    fn header(encoded: EncodedHeader<'_, Self>) -> Header<'_>;
-    fn from_header(header: Header<'_>) -> Option<EncodedHeader<'_, Self>>;
+    fn header(encoded: EncodedHeader<Self>) -> Header;
+    fn from_header(header: Header) -> Option<EncodedHeader<Self>>;
 }
 
 #[derive(Clone, Copy)]
@@ -199,7 +199,7 @@ pub enum TextEnc<T> {
 }
 
 impl<const N: usize> Debug for TextEnc<[u8; N]> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Ascii(fmt) => f
                 .debug_tuple("Ascii")
@@ -214,7 +214,7 @@ impl<const N: usize> Debug for TextEnc<[u8; N]> {
 }
 
 impl<const N: usize> Display for TextEnc<[u8; N]> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Ascii(fmt) => std::fmt::Display::fmt(&String::from_utf8_lossy(fmt.as_slice()), f),
             Self::Ebcdic(fmt) => {
@@ -349,11 +349,11 @@ impl ChainedHeader for sys::MQDH {
         Some(self.StrucLength)
     }
 
-    fn header(encoded: EncodedHeader<'_, Self>) -> Header<'_> {
+    fn header(encoded: EncodedHeader<Self>) -> Header {
         Header::Dh(encoded)
     }
 
-    fn from_header(header: Header<'_>) -> Option<EncodedHeader<'_, Self>> {
+    fn from_header(header: Header) -> Option<EncodedHeader<Self>> {
         match header {
             Header::Dh(dh) => Some(dh),
             _ => None,
@@ -392,11 +392,11 @@ impl ChainedHeader for sys::MQCIH {
         Some(self.StrucLength)
     }
 
-    fn header(encoded: EncodedHeader<'_, Self>) -> Header<'_> {
+    fn header(encoded: EncodedHeader<Self>) -> Header {
         Header::Cih(encoded)
     }
 
-    fn from_header(header: Header<'_>) -> Option<EncodedHeader<'_, Self>> {
+    fn from_header(header: Header) -> Option<EncodedHeader<Self>> {
         match header {
             Header::Cih(cih) => Some(cih),
             _ => None,
@@ -431,11 +431,11 @@ impl ChainedHeader for sys::MQDLH {
         self.Version
     }
 
-    fn header(encoded: EncodedHeader<'_, Self>) -> Header<'_> {
+    fn header(encoded: EncodedHeader<Self>) -> Header {
         Header::Dlh(encoded)
     }
 
-    fn from_header(header: Header<'_>) -> Option<EncodedHeader<'_, Self>> {
+    fn from_header(header: Header) -> Option<EncodedHeader<Self>> {
         match header {
             Header::Dlh(dlh) => Some(dlh),
             _ => None,
@@ -470,11 +470,11 @@ impl ChainedHeader for sys::MQIIH {
         self.Version
     }
 
-    fn header(encoded: EncodedHeader<'_, Self>) -> Header<'_> {
+    fn header(encoded: EncodedHeader<Self>) -> Header {
         Header::Iih(encoded)
     }
 
-    fn from_header(header: Header<'_>) -> Option<EncodedHeader<'_, Self>> {
+    fn from_header(header: Header) -> Option<EncodedHeader<Self>> {
         match header {
             Header::Iih(iih) => Some(iih),
             _ => None,
@@ -513,11 +513,11 @@ impl ChainedHeader for sys::MQRFH2 {
         Some(self.StrucLength)
     }
 
-    fn header(encoded: EncodedHeader<'_, Self>) -> Header<'_> {
+    fn header(encoded: EncodedHeader<Self>) -> Header {
         Header::Rfh2(encoded)
     }
 
-    fn from_header(header: Header<'_>) -> Option<EncodedHeader<'_, Self>> {
+    fn from_header(header: Header) -> Option<EncodedHeader<Self>> {
         match header {
             Header::Rfh2(rfh2) => Some(rfh2),
             _ => None,
@@ -578,11 +578,11 @@ impl ChainedHeader for sys::MQRFH {
         Some(self.StrucLength)
     }
 
-    fn header(encoded: EncodedHeader<'_, Self>) -> Header<'_> {
+    fn header(encoded: EncodedHeader<Self>) -> Header {
         Header::Rfh(encoded)
     }
 
-    fn from_header(header: Header<'_>) -> Option<EncodedHeader<'_, Self>> {
+    fn from_header(header: Header) -> Option<EncodedHeader<Self>> {
         match header {
             Header::Rfh(rfh) => Some(rfh),
             _ => None,

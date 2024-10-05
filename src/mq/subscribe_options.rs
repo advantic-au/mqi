@@ -1,33 +1,33 @@
-use crate::{values, Error, MqiAttr, MqiOption, MqiValue, ResultComp, ResultCompErr};
+use crate::{values, Error, MqiAttr, MqiValue, ResultComp, ResultCompErr};
 
-use super::{open_options::ObjectString, Conn, EncodedString, Object, SubscribeParam, SubscribeState, Subscription};
+use super::{open_options::ObjectString, Conn, EncodedString, Object, SubscribeOption, SubscribeParam, SubscribeState, Subscription};
 use crate::prelude::*;
 
-impl<'so, T: EncodedString + ?Sized> MqiOption<SubscribeParam<'so>> for ObjectString<&'so T> {
+impl<'so, T: EncodedString + ?Sized> SubscribeOption<'so> for ObjectString<&'so T> {
     #[inline]
     fn apply_param(self, param: &mut SubscribeParam<'so>) {
         param.sd.attach_object_string(self.0);
     }
 }
 
-impl<C: Conn> MqiOption<SubscribeParam<'_>> for &Object<C> {
+impl<C: Conn> SubscribeOption<'_> for &Object<C> {
     #[inline]
-    fn apply_param(self, param: &mut SubscribeParam<'_>) {
+    fn apply_param(self, param: &mut SubscribeParam) {
         param.provided_object = unsafe { self.handle.raw_handle() };
     }
 }
 
 // Set the close options for the subscription when opening
-impl MqiOption<SubscribeParam<'_>> for values::MQCO {
+impl SubscribeOption<'_> for values::MQCO {
     #[inline]
-    fn apply_param(self, param: &mut SubscribeParam<'_>) {
+    fn apply_param(self, param: &mut SubscribeParam) {
         param.close_options |= self;
     }
 }
 
-impl MqiOption<SubscribeParam<'_>> for values::MQSO {
+impl SubscribeOption<'_> for values::MQSO {
     #[inline]
-    fn apply_param(self, param: &mut SubscribeParam<'_>) {
+    fn apply_param(self, param: &mut SubscribeParam) {
         param.sd.Options |= self.value();
     }
 }

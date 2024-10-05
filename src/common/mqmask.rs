@@ -110,7 +110,7 @@ macro_rules! define_mqmask {
 
         // Format of Display is 'CONSTANT_A|CONSTANT_B|(residual number))'
         impl std::fmt::Display for $i {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 let (list_iter, residual) = self.masked_list();
                 match Self::mask_str(list_iter, residual) {
                     Some(mask_str) => f.write_str(&mask_str),
@@ -120,7 +120,7 @@ macro_rules! define_mqmask {
         }
 
         impl std::fmt::Debug for $i {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 $crate::mqmask::mask_debug(stringify!($i), self.0, Self::const_lookup(), f)
             }
         }
@@ -131,7 +131,7 @@ pub(crate) fn mask_debug(
     type_name: &str,
     value: sys::MQLONG,
     lookup: &impl ConstLookup,
-    f: &mut std::fmt::Formatter<'_>,
+    f: &mut std::fmt::Formatter,
 ) -> std::fmt::Result {
     let (list, residual) = masked_list(value, lookup.all());
     if residual == value && residual != 0 {

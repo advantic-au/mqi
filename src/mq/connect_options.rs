@@ -1,28 +1,35 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 #![allow(non_snake_case)]
 
-use std::{any, cmp};
+use std::{any, ptr};
 
 use crate::{
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
-    values, sys, MqStr, MqiAttr,
+    sys, values, MqStr, MqiAttr,
 };
 
 use super::{
+    impl_mqstruct_min_version,
     types::{
         impl_from_str, CertificateLabel, ChannelName, CipherSpec, ConnectionName, CryptoHardware, KeyRepo, QueueManagerName,
     },
     ConnTag, ConnectParam, ConnectionId, MqStruct,
 };
 
+/// A [`MQCNO`](sys::MQCNO) structure is required for the connection option
 pub const HAS_CNO: i32 = 0b00000;
+/// A [`MQSCO`](sys::MQSCO) structure is required for the connection option
 pub const HAS_SCO: i32 = 0b00010;
+/// A [`MQSCD`](sys::MQCD) structure is required for the connection option
 pub const HAS_CD: i32 = 0b00100;
+/// A [`MQSCSP`](sys::MQCSP) structure is required for the connection option
 pub const HAS_CSP: i32 = 0b01000;
+/// A [`MQBNO`](sys::MQBNO) structure is required for the connection option
 pub const HAS_BNO: i32 = 0b10000;
 
-#[derive(Debug, Clone, Default)]
+/// A collection of MQ structures used by MQ at connection time
+#[derive(Debug, Clone)]
 pub struct ConnectStructs<'ptr> {
     pub cno: MqStruct<'ptr, sys::MQCNO>,
     pub sco: MqStruct<'ptr, sys::MQSCO>,
@@ -31,17 +38,25 @@ pub struct ConnectStructs<'ptr> {
     pub bno: MqStruct<'ptr, sys::MQBNO>,
 }
 
+#[expect(unused_variables)]
+#[diagnostic::on_unimplemented(
+    message = "{Self} does not implement `ConnectOption` so it can't be used as an argument for MQI connect"
+)]
 /*
  TODO: I don't believe I have this interface 100% correct. Lifetimes are not conducive
  to the goals I'm trying to achieve. Borrowing self may be better on apply_param.
 */
-#[expect(unused_variables)]
+/// A trait which allows a type to be used as a parameter to the MQI [`connect`](crate::connect) family of functions
 pub trait ConnectOption<'a>: Sized {
+    /// Returns the queue manager name to connect to, or `None` to use the default queue manager name.
     #[inline]
     fn queue_manager_name(&self) -> Option<&QueueManagerName> {
         None
     }
 
+    /// Applies the type to to the [`ConnectStructs`] structures.
+    ///
+    /// Returns a mask indicating which structures are used by the type.
     #[inline]
     fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
@@ -51,6 +66,7 @@ pub trait ConnectOption<'a>: Sized {
     }
 }
 
+/// Accept a reference to a [`ConnectOption`]
 impl<'a, T: ConnectOption<'a> + Copy> ConnectOption<'a> for &T {
     #[inline]
     fn queue_manager_name(&self) -> Option<&QueueManagerName> {
@@ -78,53 +94,21 @@ impl<'a, O: ConnectOption<'a>> ConnectOption<'a> for Option<O> {
     }
 }
 
-#[derive(Clone, Debug, derive_more::Deref)]
-pub struct ClientDefinition<'ptr> {
-    cd: MqStruct<'ptr, sys::MQCD>,
-}
-
-impl<'ptr> ClientDefinition<'ptr> {
-    #[must_use]
-    pub fn default_client() -> Self {
-        Self::from_mqcd(MqStruct::new(sys::MQCD {
-            Version: sys::MQCD_VERSION_12,
-            ..sys::MQCD::client_conn_default()
-        }))
-    }
-    #[must_use]
-    pub const fn from_mqcd(cd: MqStruct<'ptr, sys::MQCD>) -> Self {
-        Self { cd }
-    }
-
-    /// Create a client definition from the minimal channel name, connection name and optional transport type.
-    #[must_use]
-    pub fn new_client(channel_name: &ChannelName, connection_name: &ConnectionName, transport: Option<values::MQXPT>) -> Self {
-        let mut outcome = Self::default_client();
-        let mqcd = &mut outcome.cd;
-        if let Some(transport) = transport {
-            mqcd.TransportType = transport.value();
+impl Default for ConnectStructs<'_> {
+    fn default() -> Self {
+        Self {
+            cno: MqStruct::default(),
+            sco: MqStruct::default(),
+            csp: MqStruct::default(),
+            cd: MqStruct::new(sys::MQCD::client_conn_default()),
+            bno: MqStruct::default(),
         }
-        channel_name.copy_into_mqchar(&mut mqcd.ChannelName);
-        connection_name.copy_into_mqchar(&mut mqcd.ConnectionName);
-
-        outcome
-    }
-
-    pub fn from_mqserver(server: &str) -> Result<Self, MqServerSyntaxError> {
-        let (channel_name, connection_name, transport) = mqserver(server)?;
-        Ok(Self::new_client(&channel_name, &connection_name, Some(transport)))
     }
 }
 
-impl<'cd> ConnectOption<'cd> for ClientDefinition<'cd> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
-    where
-        'cd: 'ptr,
-    {
-        self.cd.clone_into(&mut structs.cd);
-        HAS_CD
-    }
-}
+impl_mqstruct_min_version!(sys::MQSCO);
+impl_mqstruct_min_version!(sys::MQCD);
+impl_mqstruct_min_version!(sys::MQCNO);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct ApplName(pub MqStr<28>);
@@ -132,13 +116,70 @@ impl_from_str!(ApplName, MqStr<28>);
 
 /// Client Channel Definition Table URL. Sets the connection as `MQCNO_CLIENT_BINDING`.
 ///
-/// Implements the [`ConnectOption`] trait as a parameter to the [`QueueManager::connect`](crate::QueueManager::connect) function.
+/// Implements the [`ConnectOption`] trait as a parameter to the [`connect`](crate::connect) function.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::From)]
 pub struct Ccdt<'url>(pub &'url str);
 
+#[derive(Debug, Clone, Copy)]
+pub struct MqServer<'m> {
+    channel_name: &'m str,
+    connection_name: &'m str,
+    transport: values::MQXPT,
+}
+
+impl<'m> TryFrom<&'m str> for MqServer<'m> {
+    type Error = MqServerSyntaxError;
+
+    fn try_from(server: &'m str) -> Result<Self, Self::Error> {
+        #[allow(clippy::unwrap_used)]
+        let server_pattern = regex_lite::Regex::new(r"^(.{1,20}?)/(.+?)/(.{1,264}?)$").unwrap();
+
+        if let Some((_, [channel, transport, connection_name])) = server_pattern.captures(server).map(|v| v.extract()) {
+            Ok(Self {
+                channel_name: if channel.len() <= 20 {
+                    Ok(channel)
+                } else {
+                    Err(MqServerSyntaxError::ChannelFormat(channel.to_string()))
+                }?,
+                connection_name: if connection_name.len() <= 264 {
+                    Ok(connection_name)
+                } else {
+                    Err(MqServerSyntaxError::ConnectionNameFormat(connection_name.to_string()))
+                }?,
+                transport: match transport {
+                    "TCP" => Ok(values::MQXPT(sys::MQXPT_TCP)),
+                    "LU62" => Ok(values::MQXPT(sys::MQXPT_LU62)),
+                    "NETBIOS" => Ok(values::MQXPT(sys::MQXPT_NETBIOS)),
+                    "SPX" => Ok(values::MQXPT(sys::MQXPT_SPX)),
+                    other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
+                }?,
+            })
+        } else {
+            Err(MqServerSyntaxError::InvalidFormat)
+        }
+    }
+}
+
+impl<'m> ConnectOption<'m> for MqServer<'m> {
+    fn apply_param<'ptr>(self, ConnectStructs { cno, cd, .. }: &mut ConnectStructs<'ptr>) -> i32
+    where
+        'm: 'ptr,
+    {
+        cd.ChannelName = [32; 20];
+        cd.ChannelName[..self.channel_name.len()].copy_from_slice(unsafe { &*(ptr::from_ref(self.channel_name) as *const [i8]) });
+        cd.ConnectionName = [32; 264];
+        cd.ConnectionName[..self.connection_name.len()]
+            .copy_from_slice(unsafe { &*(ptr::from_ref(self.connection_name) as *const [i8]) });
+        cd.TransportType = self.transport.value();
+        cno.Options &= !sys::MQCNO_LOCAL_BINDING;
+        cno.Options |= sys::MQCNO_CLIENT_BINDING;
+        HAS_CD
+    }
+}
+
 /// Connection binding mode. Represents the `MQCNO_*_BINDING` constants.
 ///
-/// Implements the [`ConnectOption`] trait as a parameter to the [`QueueManager::connect`](crate::QueueManager::connect) function.
+/// Implements the [`ConnectOption`] trait as a parameter to the [`connect`](crate::connect) function.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum Binding {
     #[default]
@@ -249,7 +290,7 @@ impl<'pw> Tls<'pw> {
     }
 
     pub fn certificate_label(&mut self, label: Option<&CertificateLabel>) -> &mut Self {
-        self.0.Version = cmp::max(sys::MQSCO_VERSION_5, self.0.Version);
+        self.0.set_min_version(sys::MQSCO_VERSION_5);
         label
             .unwrap_or(&CertificateLabel::default())
             .copy_into_mqchar(&mut self.0.CertificateLabel);
@@ -257,7 +298,7 @@ impl<'pw> Tls<'pw> {
     }
 
     pub fn fips_required(&mut self, is_required: bool) -> &mut Self {
-        self.0.Version = cmp::max(sys::MQSCO_VERSION_2, self.0.Version);
+        self.0.set_min_version(sys::MQSCO_VERSION_2);
         self.0.FipsRequired = if is_required {
             sys::MQSSL_FIPS_YES
         } else {
@@ -267,19 +308,19 @@ impl<'pw> Tls<'pw> {
     }
 
     pub fn suite_b_policy(&mut self, policy: impl Into<[sys::MQLONG; 4]>) -> &mut Self {
-        self.0.Version = cmp::max(sys::MQSCO_VERSION_3, self.0.Version);
+        self.0.set_min_version(sys::MQSCO_VERSION_3);
         self.0.EncryptionPolicySuiteB = policy.into();
         self
     }
 
     pub fn cert_val_policy(&mut self, policy: sys::MQLONG) -> &mut Self {
-        self.0.Version = cmp::max(sys::MQSCO_VERSION_4, self.0.Version);
+        self.0.set_min_version(sys::MQSCO_VERSION_4);
         self.0.CertificateValPolicy = policy;
         self
     }
 
     pub fn key_reset_count(&mut self, count: sys::MQLONG) -> &mut Self {
-        self.0.Version = cmp::max(sys::MQSCO_VERSION_2, self.0.Version);
+        self.0.set_min_version(sys::MQSCO_VERSION_2);
         self.0.KeyResetCount = count;
         self
     }
@@ -300,7 +341,7 @@ impl ConnectOption<'_> for CipherSpec {
     where
         'static: 'ptr,
     {
-        structs.cd.Version = cmp::max(sys::MQCD_VERSION_7, structs.cd.Version);
+        structs.cd.set_min_version(sys::MQCD_VERSION_7);
         self.copy_into_mqchar(&mut structs.cd.SSLCipherSpec);
         HAS_CD
     }
@@ -329,7 +370,7 @@ impl<'t, T: ?Sized> Secret<'t, T> for ProtectedSecret<&'t T> {
 }
 
 impl<T> std::fmt::Debug for ProtectedSecret<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.debug_tuple("ProtectedSecret")
             .field(&format_args!("{} <REDACTED>", any::type_name::<T>()))
             .finish()
@@ -390,7 +431,7 @@ impl ConnectOption<'_> for values::MQCNO {
 impl ConnectOption<'_> for () {}
 
 macro_rules! impl_connectoptions {
-    ($first:ident, [$($ty:ident),*]) => {
+    ([$first:ident, $($ty:ident),*]) => {
         // reverse_ident macro is used to ensure right to left application of options
         #[allow(non_snake_case,unused_variables)]
         impl<'r, $first $(, $ty)*> ConnectOption<'r> for ($first $(, $ty)*)
@@ -432,7 +473,7 @@ impl ConnectOption<'_> for ApplName {
     where
         'static: 'ptr,
     {
-        structs.cno.Version = cmp::max(sys::MQCNO_VERSION_7, structs.cno.Version);
+        structs.cno.set_min_version(sys::MQCNO_VERSION_7);
         self.0.copy_into_mqchar(&mut structs.cno.ApplName);
         HAS_CNO
     }
@@ -457,7 +498,7 @@ impl<'bno> ConnectOption<'bno> for MqStruct<'bno, sys::MQBNO> {
         'bno: 'ptr,
     {
         self.clone_into(&mut structs.bno);
-        structs.cno.Version = cmp::max(sys::MQCNO_VERSION_8, structs.cno.Version);
+        structs.cno.set_min_version(sys::MQCNO_VERSION_8);
         HAS_BNO
     }
 }
@@ -468,7 +509,7 @@ impl<'csp> ConnectOption<'csp> for MqStruct<'csp, sys::MQCSP> {
         'csp: 'ptr,
     {
         self.clone_into(&mut structs.csp);
-        structs.cno.Version = cmp::max(sys::MQCNO_VERSION_5, structs.cno.Version);
+        structs.cno.set_min_version(sys::MQCNO_VERSION_5);
         HAS_CSP
     }
 }
@@ -479,7 +520,7 @@ impl<'sco> ConnectOption<'sco> for MqStruct<'sco, sys::MQSCO> {
         'sco: 'ptr,
     {
         self.clone_into(&mut structs.sco);
-        structs.cno.Version = cmp::max(sys::MQCNO_VERSION_4, structs.cno.Version);
+        structs.cno.set_min_version(sys::MQCNO_VERSION_4);
         HAS_SCO
     }
 }
@@ -490,7 +531,7 @@ impl<'cd> ConnectOption<'cd> for MqStruct<'cd, sys::MQCD> {
         'cd: 'ptr,
     {
         self.clone_into(&mut structs.cd);
-        structs.cno.Version = cmp::max(sys::MQCNO_VERSION_2, structs.cno.Version);
+        structs.cno.set_min_version(sys::MQCNO_VERSION_2);
         structs.cno.Options &= !sys::MQCNO_LOCAL_BINDING;
         structs.cno.Options |= sys::MQCNO_CLIENT_BINDING;
         HAS_CD
@@ -503,7 +544,7 @@ impl<'b, S> MqiAttr<ConnectParam<'b>, S> for ConnectionId {
     where
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
-        param.Version = cmp::max(sys::MQCNO_VERSION_5, param.Version);
+        param.set_min_version(sys::MQCNO_VERSION_5);
         connect(param).map_completion(|state| (Self(param.ConnectionId), state))
     }
 }
@@ -515,7 +556,7 @@ impl<'b, S> MqiAttr<ConnectParam<'b>, S> for ConnTag {
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
         param.Options |= sys::MQCNO_GENERATE_CONN_TAG;
-        param.Version = cmp::max(sys::MQCNO_VERSION_3, param.Version);
+        param.set_min_version(sys::MQCNO_VERSION_3);
         connect(param).map_completion(|state| (Self(param.ConnTag), state))
     }
 }
@@ -567,11 +608,19 @@ pub enum MqServerSyntaxError {
 
 #[cfg(test)]
 mod tests {
-    use super::{ProtectedSecret, Secret as _};
+    use super::{MqServer, MqServerSyntaxError, ProtectedSecret, Secret as _};
 
     #[test]
     fn secret() {
         let x: ProtectedSecret<&str> = "hello".into();
         let _secret = x.expose_secret();
+    }
+
+    #[test]
+    fn mqserver() -> Result<(), MqServerSyntaxError> {
+        let mqserver = MqServer::try_from("a/TCP/c")?;
+        assert!(mqserver.channel_name.len() == 1);
+
+        Ok(())
     }
 }

@@ -9,7 +9,6 @@ use crate::macros::reverse_ident;
 
 use libmqm_sys::lib::MQTYPE_STRING;
 
-// use crate::core::macros::all_multi_tuples;
 use crate::macros::all_multi_tuples;
 use crate::prelude::*;
 use crate::{sys, Completion, Error, MqStr, MqStruct, MqiAttr, MqiValue, ResultComp, StrCcsidOwned, StringCcsid};
@@ -49,7 +48,7 @@ pub trait SetPropertyAttr {
 }
 
 macro_rules! impl_setproperty_tuple {
-    ($first:ident, [$($ty:ident),*]) => {
+    ([$first:ident, $($ty:ident),*]) => {
         impl<$first, $($ty),*> SetProperty for ($first, $($ty),*)
         where
             $first: SetProperty,
@@ -76,7 +75,7 @@ impl SetPropertyAttr for Attributes {
 all_multi_tuples!(impl_setproperty_tuple);
 
 macro_rules! impl_propertyvalue_tuple {
-    ($first:ident, [$($ty:ident),*]) => {
+    ([$first:ident, $($ty:ident),*]) => {
         impl<$first, $($ty),*> PropertyValue for ($first, $($ty),*)
             where
                 $first: PropertyValue,
@@ -145,7 +144,7 @@ pub enum Value {
 
 impl Metadata {
     #[must_use]
-    pub fn new(length: usize, impo: &MqStruct<'_, sys::MQIMPO>, value_type: values::MQTYPE) -> Self {
+    pub fn new(length: usize, impo: &MqStruct<sys::MQIMPO>, value_type: values::MQTYPE) -> Self {
         Self {
             length,
             ccsid: impo.ReturnedCCSID,

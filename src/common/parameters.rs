@@ -4,10 +4,6 @@ use crate::{Error, ResultComp, ResultCompErr, prelude::*};
 
 use super::macros::all_multi_tuples;
 
-pub trait MqiOption<P> {
-    fn apply_param(self, param: &mut P);
-}
-
 pub trait MqiValue<P, S>: Sized {
     type Error: From<Error> + std::fmt::Debug;
 
@@ -24,17 +20,8 @@ pub trait MqiAttr<P, S>: Sized {
 
 pub struct Callback<F>(pub F);
 
-impl<P, F> MqiOption<P> for Callback<F>
-where
-    F: FnOnce(&mut P),
-{
-    fn apply_param(self, param: &mut P) {
-        self.0(param);
-    }
-}
-
 macro_rules! impl_mqivalue_tuple {
-    ($first:ident, [$($ty:ident),*]) => {
+    ([$first:ident, $($ty:ident),*]) => {
         impl<P, S, $first, $($ty),*> MqiValue<P, S> for ($first, $($ty),*)
         where
             $first: MqiValue<P, S>,
@@ -65,7 +52,7 @@ macro_rules! impl_mqivalue_tuple {
 }
 
 macro_rules! impl_mqiattr_tuple {
-    ($first:ident, [$($ty:ident),*]) => {
+    ([$first:ident, $($ty:ident),*]) => {
         impl<P, S, $first, $($ty),*> MqiAttr<P, S> for ($first, $($ty),*)
         where
             $first: MqiAttr<P, S>,
@@ -115,36 +102,3 @@ impl<P, S> MqiAttr<P, S> for () {
         mqi(param).map_completion(|state| ((), state))
     }
 }
-
-impl<P, T: MqiOption<P>> MqiOption<P> for Option<T> {
-    fn apply_param(self, param: &mut P) {
-        if let Some(option) = self {
-            option.apply_param(param);
-        }
-    }
-}
-
-impl<P> MqiOption<P> for () {
-    fn apply_param(self, _param: &mut P) {}
-}
-
-// TODO: Future me (and others) will hate me if I don't document what is happening here
-macro_rules! impl_mqioption_tuple {
-    ($first:ident, [$($ty:ident),*]) => {
-        #[allow(non_snake_case,unused_parens)]
-        impl<P, $first, $($ty, )*> MqiOption<P> for ($first, $($ty, )*)
-        where
-            $first: MqiOption<P>,
-            $($ty: MqiOption<P>,)*
-        {
-            #[inline]
-            fn apply_param(self, param: &mut P) {
-                let ($first, $($ty, )*) = self;
-                ($($ty),*).apply_param(param);
-                $first.apply_param(param);
-            }
-        }
-    }
-}
-
-all_multi_tuples!(impl_mqioption_tuple);

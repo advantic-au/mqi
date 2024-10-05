@@ -1,14 +1,47 @@
-use std::{cmp, ptr};
+use std::ptr;
 
 use crate::{
-    values::{MQOO, MQOT, MQPMO, CCSID},
+    macros::all_multi_tuples,
     prelude::*,
     sys,
     types::{QueueManagerName, QueueName},
-    Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, MqiAttr, MqiOption, MqiValue,
+    values::{CCSID, MQOO, MQOT, MQPMO},
+    Conn, EncodedString, Error, MqStr, MqiAttr, MqiValue, ResultComp, StrCcsidOwned,
 };
 
-use super::{types::impl_from_str, Object, OpenParam, OpenParamOption, OpenValue};
+use super::{impl_mqstruct_min_version, types::impl_from_str, Object, OpenOption, OpenParam, OpenParamOption, OpenValue};
+
+impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
+    fn apply_param(self, param: &mut OpenParamOption<'oo, O>) {
+        if let Some(value) = self {
+            value.apply_param(param);
+        }
+    }
+}
+
+impl<'oo, O> OpenOption<'oo, O> for () {
+    fn apply_param(self, _param: &mut OpenParamOption<'oo, O>) {}
+}
+
+macro_rules! impl_openoption_tuple {
+    ([$first:ident, $($rest:ident),*]) => {
+        #[expect(non_snake_case)]
+        impl <'oo, O, $first, $($rest),*> OpenOption<'oo, O> for ($first, $($rest),*)
+        where
+            $first: OpenOption<'oo, O>,
+            $($rest: OpenOption<'oo, O> ),*
+        {
+            #[inline]
+            fn apply_param(self,param: &mut OpenParamOption<'oo, O>){
+                let($first, $($rest),*) = self;
+                ($($rest),*).apply_param(param);
+                $first.apply_param(param);
+            }
+        }
+    };
+}
+
+all_multi_tuples!(impl_openoption_tuple);
 
 #[derive(Debug, Clone, Copy)]
 pub struct SelectionString<T>(pub T);
@@ -23,59 +56,61 @@ impl_from_str!(AlternateUserId, MqStr<12>);
 #[derive(Debug, Clone)]
 pub struct ResObjectString(pub StrCcsidOwned);
 
-impl<'a, T: EncodedString + ?Sized, O> MqiOption<OpenParamOption<'a, O>> for SelectionString<&'a T> {
-    fn apply_param(self, (od, ..): &mut OpenParamOption<'a, O>) {
-        od.attach_selection_string(self.0);
+impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for SelectionString<&'a T> {
+    fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
+        mqod.attach_selection_string(self.0);
     }
 }
 
-impl<'a, T: EncodedString + ?Sized, O> MqiOption<OpenParamOption<'a, O>> for ObjectString<&'a T> {
-    fn apply_param(self, (od, ..): &mut OpenParamOption<'a, O>) {
-        od.Version = cmp::max(sys::MQOD_VERSION_4, od.Version);
-        od.ObjectType = sys::MQOT_TOPIC;
-        od.attach_object_string(self.0);
+impl_mqstruct_min_version!(sys::MQOD);
+
+impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString<&'a T> {
+    fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
+        mqod.set_min_version(sys::MQOD_VERSION_4);
+        mqod.ObjectType = sys::MQOT_TOPIC;
+        mqod.attach_object_string(self.0);
     }
 }
 
-impl<'b, O> MqiOption<OpenParamOption<'b, O>> for QueueName {
-    fn apply_param(self, (od, ..): &mut OpenParamOption<'_, O>) {
-        od.ObjectName = self.0.into();
-        od.ObjectType = sys::MQOT_Q;
+impl<'b, O> OpenOption<'b, O> for QueueName {
+    fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
+        mqod.ObjectName = self.0.into();
+        mqod.ObjectType = sys::MQOT_Q;
     }
 }
 
-impl<'b, O> MqiOption<OpenParamOption<'b, O>> for QueueManagerName {
-    fn apply_param(self, (od, ..): &mut OpenParamOption<'_, O>) {
-        od.ObjectQMgrName = self.0.into();
-        od.ObjectType = sys::MQOT_Q_MGR;
+impl<'b, O> OpenOption<'b, O> for QueueManagerName {
+    fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
+        mqod.ObjectQMgrName = self.0.into();
+        mqod.ObjectType = sys::MQOT_Q_MGR;
     }
 }
 
-impl<'b> MqiOption<OpenParamOption<'b, Self>> for MQOO {
+impl<'b> OpenOption<'b, Self> for MQOO {
     fn apply_param(self, param: &mut OpenParamOption<'b, Self>) {
-        param.1 |= self;
+        param.options |= self;
     }
 }
 
-impl<'b> MqiOption<OpenParamOption<'b, Self>> for MQPMO {
+impl<'b> OpenOption<'b, Self> for MQPMO {
     fn apply_param(self, param: &mut OpenParamOption<'b, Self>) {
-        param.1 |= self;
+        param.options |= self;
     }
 }
 
-impl<'b> MqiOption<OpenParamOption<'b, MQOO>> for AlternateUserId {
-    fn apply_param(self, (od, oo): &mut OpenParamOption<'_, MQOO>) {
-        *oo |= sys::MQOO_ALTERNATE_USER_AUTHORITY;
-        od.Version = cmp::max(sys::MQOD_VERSION_3, od.Version);
-        od.AlternateUserId = self.0.into();
+impl<'b> OpenOption<'b, MQOO> for AlternateUserId {
+    fn apply_param(self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQOO>) {
+        *options |= sys::MQOO_ALTERNATE_USER_AUTHORITY;
+        mqod.set_min_version(sys::MQOD_VERSION_3);
+        mqod.AlternateUserId = self.0.into();
     }
 }
 
-impl<'b> MqiOption<OpenParamOption<'b, MQPMO>> for AlternateUserId {
-    fn apply_param(self, (od, pmo): &mut OpenParamOption<'_, MQPMO>) {
-        *pmo |= sys::MQPMO_ALTERNATE_USER_AUTHORITY;
-        od.Version = cmp::max(sys::MQOD_VERSION_3, od.Version);
-        od.AlternateUserId = self.0.into();
+impl<'b> OpenOption<'b, MQPMO> for AlternateUserId {
+    fn apply_param(self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQPMO>) {
+        *options |= sys::MQPMO_ALTERNATE_USER_AUTHORITY;
+        mqod.set_min_version(sys::MQOD_VERSION_3);
+        mqod.AlternateUserId = self.0.into();
     }
 }
 
@@ -86,7 +121,7 @@ impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for Option<QueueName> {
     {
         open(param).map_completion(|state| {
             (
-                Some(QueueName(param.0.ResolvedQName.into())).filter(|queue_name| queue_name.has_value()),
+                Some(QueueName(param.mqod.ResolvedQName.into())).filter(|queue_name| queue_name.has_value()),
                 state,
             )
         })
@@ -98,8 +133,8 @@ impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for MQOT {
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
     {
-        param.0.Version = cmp::max(sys::MQOD_VERSION_4, param.0.Version);
-        open(param).map_completion(|state| (param.0.ObjectType.into(), state))
+        param.mqod.set_min_version(sys::MQOD_VERSION_4);
+        open(param).map_completion(|state| (param.mqod.ObjectType.into(), state))
     }
 }
 
@@ -124,7 +159,7 @@ impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<QueueManagerName> {
     {
         open(param).map_completion(|state| {
             (
-                Self::Some(QueueManagerName(param.0.ResolvedQMgrName.into())).filter(|queue_name| queue_name.has_value()),
+                Self::Some(QueueManagerName(param.mqod.ResolvedQMgrName.into())).filter(|queue_name| queue_name.has_value()),
                 state,
             )
         })
@@ -138,7 +173,7 @@ impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<ResObjectString> {
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
     {
-        let od = &mut param.0;
+        let od = &mut param.mqod;
         if od.ResObjectString.VSBufSize == 0 {
             od.ResObjectString.VSBufSize = DEFAULT_RESOBJECTSTRING_LENGTH;
         }
@@ -151,7 +186,7 @@ impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<ResObjectString> {
         od.ResObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
 
         open(param).map_completion(|state| {
-            let od = &mut param.0;
+            let od = &mut param.mqod;
             unsafe {
                 buffer.set_len(
                     od.ResObjectString
