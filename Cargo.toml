@@ -17,16 +17,25 @@ path = "src/lib.rs"
 crate-type = ["lib"]
 
 [features]
-default = ["link", "constantgen", "libmqm-sys/mqi_helpers", "bindgen"]
+default = [
+    "link",
+    "constantgen",
+    "runnable",
+    "bindgen",
+] # Default to generate code and compile time link
 docsrs = ["libmqm-sys/docsrs", "pcf", "mqai", "link", "dlopen2"]
-
-constantgen = ["libmqm-sys/mqi_helpers"]
-tracing = ["dep:tracing"]
-pcf = ["libmqm-sys/pcf"]
-mqai = ["libmqm-sys/mqai"]
-link = ["libmqm-sys/link"]
-dlopen2 = ["libmqm-sys/dlopen2"]
-bindgen = ["libmqm-sys/bindgen"]
+runnable = [ # Minimal features to make the code runnable
+    "libmqm-sys/mqi_helpers",
+]
+constantgen = [ # Generate the constants (default is to use pregenerated constants)
+    "runnable",
+]
+tracing = ["dep:tracing"] # Enable tracing in the MQI calls
+pcf = ["libmqm-sys/pcf"] # Enable the PCF API
+mqai = ["libmqm-sys/mqai"] # Enable the administrative API
+link = ["libmqm-sys/link"] # Compile time linking
+dlopen2 = ["libmqm-sys/dlopen2"] # Enable dlopen2 loading the MQI library
+bindgen = ["libmqm-sys/bindgen"] # Generate the MQI bindings
 
 [dependencies]
 phf = { default-features = false, version = "0.11.2" }
@@ -44,7 +53,7 @@ derive_more = { version = "1.0.0", features = [
     "display",
     "constructor",
     "add",
-    "add_assign"
+    "add_assign",
 ] }
 
 [build-dependencies]
@@ -66,7 +75,6 @@ all = { level = "deny", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 unwrap_used = "warn"
-similar_names = "allow"
 allow_attributes = "warn"
 
 # TODO - These should be removed and the underlying problem fixed
@@ -78,11 +86,26 @@ module_name_repetitions = "allow"
 features = ["docsrs"]
 no-default-features = true
 
-[[example]]
-name = "subscribe_managed"
-
+# development dependencies for examples
 [dev-dependencies]
-clap = { version = "4.5.16", features = [ "derive"] }
+clap = { version = "4.5.16", features = ["derive"] }
 anyhow = "1.0.87"
+tracing = "0.1.40"
 tracing-subscriber = "0.3"
 ctrlc = "3.4"
+
+[[example]]
+name = "subscribe_managed"
+required-features = ["link", "runnable"]
+
+[[example]]
+name = "readme"
+required-features = ["link", "runnable"]
+
+[[example]]
+name = "open_put"
+required-features = ["link", "runnable"]
+
+[[example]]
+name = "forward"
+required-features = ["link", "runnable"]

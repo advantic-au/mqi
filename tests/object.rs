@@ -1,11 +1,14 @@
+mod helpers;
+
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
 use std::thread;
 
+use helpers::{credentials_app, mq_library};
+
 use mqi::{prelude::*, ThreadNoBlock, ThreadNone};
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
-use mqi::connect_options::Credentials;
 use mqi::values::{self, CCSID};
 use mqi::open_options::SelectionString;
 use mqi::properties_options::{Attributes, Metadata, Name};
@@ -17,7 +20,7 @@ use mqi::{attribute, sys, Object};
 fn object() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let qm = mqi::connect::<ThreadNoBlock>(Credentials::user("app", "app"))
+    let qm = mqi::connect_lib::<ThreadNoBlock, _>(mq_library(), credentials_app())
         .warn_as_error()
         .expect("connection should be established");
 
@@ -39,7 +42,7 @@ fn object() {
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
     let sel = String::from("my_property = 'valuex2'");
-    let qm = mqi::connect::<ThreadNone>(Credentials::user("app", "app")).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
 
     let object = Object::open(
         &qm,
@@ -111,7 +114,8 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         },
         attribute::MQIA_COMMAND_LEVEL,
     ];
-    let connection = mqi::connect::<ThreadNone>(Credentials::user("app", "app")).discard_warning()?;
+
+    let connection = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
     let (object, qm) = Object::open_with::<Option<QueueManagerName>>(
         connection,
         (QueueManagerName(mqstr!("QM1")), values::MQOO(sys::MQOO_INQUIRE)),
@@ -143,7 +147,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 fn transaction() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    let connection = mqi::connect::<ThreadNone>(Credentials::user("app", "app")).warn_as_error()?;
+    let connection = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
     let object = Object::open(connection, (QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
 
     object.put_message((), "message").warn_as_error()?;

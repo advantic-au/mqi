@@ -1,6 +1,6 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 
-use crate::{define_mqvalue, impl_default_mqvalue, mapping, sys, ConstLookup};
+use crate::{define_mqvalue, define_mqmask, impl_default_mqvalue, mapping, sys, ConstLookup};
 
 define_mqvalue!(pub MQIND, mapping::MQIND_CONST, "Special Index Values");
 define_mqvalue!(pub MQQT, mapping::MQQT_CONST, "Queue Types and Extended Queue Types");
@@ -10,6 +10,7 @@ impl_default_mqvalue!(MQCMD, sys::MQCMD_NONE);
 define_mqvalue!(pub MQCFOP, mapping::MQCFOP_CONST, "Command format Filter Operators");
 define_mqvalue!(pub MqaiSelector, MqaiSelectorLookup, "Selectors including MQIA, MQCA, MQIACF, MQCACF, MQIACH, MQCACH, QIASY and MQHA");
 impl_default_mqvalue!(MQIND, sys::MQIND_NONE);
+define_mqmask!(pub MQCBO, mapping::MQCBO_CONST, "Create-Bag options mask for `mqCreateBag`");
 /*
 
 MQAI selector constant lookup is complex... thanks to this - no less than 8 different constant sets.

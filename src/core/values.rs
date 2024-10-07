@@ -23,7 +23,6 @@ impl_default_mqvalue!(MQGMO, sys::MQGMO_NONE);
 define_mqmask!(pub MQPMO, mapping::MQPMO_CONST, "Options mask to control the action of `MQPUT` and `MQPUT1`");
 impl_default_mqvalue!(MQPMO, sys::MQPMO_NONE);
 define_mqvalue!(pub MQSTAT, mapping::MQSTAT_CONST, "Value describing the MQSTAT outcome");
-define_mqmask!(pub MQCBO, mapping::MQCBO_CONST, "Create-Bag options mask for `mqCreateBag`");
 define_mqvalue!(pub MQCMHO, mapping::MQCMHO_CONST, "Create message handle options for `MQCRTMH`");
 impl_default_mqvalue!(MQCMHO, sys::MQCMHO_DEFAULT_VALIDATION);
 define_mqvalue!(pub MQSMPO, mapping::MQSMPO_CONST, "Set message property options");

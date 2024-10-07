@@ -1,10 +1,13 @@
 use libmqm_sys::link::LinkedMq;
 
 use super::{connect_options::ConnectOption, ConnectAttr, ConnectValue, Connection, Threading};
-use crate::{values::MQCBO, ResultComp};
+use crate::ResultComp;
 
 #[cfg(feature = "mqai")]
-use crate::admin::{Bag, Owned};
+use crate::{
+    admin::{Bag, Owned},
+    values::MQCBO,
+};
 
 /// Create a [`Connection`] to a queue manager using the compile time linked MQ library
 /// and type inferred [`ConnectValue`].

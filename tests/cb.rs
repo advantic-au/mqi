@@ -1,22 +1,17 @@
+mod helpers;
+
 use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
-use mqi::{
-    connect_options::{ApplName, Binding, Credentials},
-    core::ConnectionHandle,
-    prelude::*,
-    sys,
-    types::QueueName,
-    values::{MQCBCT, MQCBDO, MQCBF, MQCC, MQCS, MQOO, MQOP, MQRC, MQRD},
-    MqStruct, Object, ThreadBlock, ThreadNone, MQMD,
-};
+use helpers::{credentials_app, mq_library};
+use mqi::{core::ConnectionHandle, prelude::*, sys, types::QueueName, values, MqStruct, Object, ThreadBlock, ThreadNone, MQMD};
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
-    let mut qm = mqi::connect::<ThreadNone>(Credentials::user("app", "app")).warn_as_error()?;
+    let mut qm = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
 
     qm.register_event_handler(
-        MQCBDO(
+        values::MQCBDO(
             sys::MQCBDO_NONE
                 | sys::MQCBDO_MC_EVENT_CALL
                 | sys::MQCBDO_EVENT_CALL
@@ -26,12 +21,12 @@ fn qm() -> Result<(), Box<dyn Error>> {
         ),
         move |connection, options| {
             println!("{connection:?}");
-            println!("{}", MQCBCT(options.CallType));
-            println!("{}", MQCS(options.State));
-            println!("{}", MQCC(options.CompCode));
-            println!("{}", MQRC(options.Reason));
-            println!("{}", MQCBF(options.Flags));
-            println!("{}", MQRD(options.ReconnectDelay));
+            println!("{}", values::MQCBCT(options.CallType));
+            println!("{}", values::MQCS(options.State));
+            println!("{}", values::MQCC(options.CompCode));
+            println!("{}", values::MQRC(options.Reason));
+            println!("{}", values::MQCBF(options.Flags));
+            println!("{}", values::MQRD(options.ReconnectDelay));
         },
     )?;
 
@@ -44,29 +39,27 @@ fn qm() -> Result<(), Box<dyn Error>> {
 fn callback() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    fn register_cb<
+    fn register_cb<F, M>(cbd: &mut MqStruct<sys::MQCBD>, cb: F)
+    where
         F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>) + 'static,
         M: MQMD,
-    >(
-        cbd: &mut MqStruct<sys::MQCBD>,
-        cb: F,
-    ) {
+    {
         let data = Box::into_raw(Box::new(cb));
         cbd.CallbackArea = data.cast();
         cbd.CallbackFunction = call_closure::<F, M> as *mut _;
         cbd.CallbackType = sys::MQCBT_MESSAGE_CONSUMER;
     }
 
-    unsafe extern "C" fn call_closure<
-        F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>) + 'static,
-        M: MQMD,
-    >(
+    unsafe extern "C" fn call_closure<F, M>(
         conn: sys::MQHCONN,
         mqmd: sys::PMQVOID,
         gmo: sys::PMQVOID,
         buffer: sys::PMQVOID,
         cbc: *const sys::MQCBC,
-    ) {
+    ) where
+        F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>) + 'static,
+        M: MQMD,
+    {
         unsafe {
             if let Some(context) = cbc.cast::<MqStruct<sys::MQCBC>>().as_ref() {
                 let cb_ptr = context.CallbackArea.cast::<F>();
@@ -90,23 +83,10 @@ fn callback() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // Use the default binding which is controlled through the MQI usually using environment variables
-    // eg `MQSERVER = '...'``
-    // let connection_options = ConnectionOptions::default_binding()
-    //     .application_name(Some(mqstr!("readme_example")))
-    //     .credentials(Credentials::user("app", "app"));
-
-    // Connect to the default queue manager (None) with the provided `connection_options`
-    // Treat all MQCC_WARNING as an error
-    let qm = mqi::connect::<ThreadBlock>((
-        Binding::Default,
-        ApplName(mqstr!("readme_example")),
-        Credentials::user("app", "app"),
-    ))
-    .warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadBlock, _>(mq_library(), credentials_app()).warn_as_error()?;
 
     let qm = Arc::new(qm);
-    let object = Object::open(qm.clone(), (QUEUE, MQOO(sys::MQOO_INPUT_AS_Q_DEF))).warn_as_error()?;
+    let object = Object::open(qm.clone(), (QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF))).warn_as_error()?;
 
     let _ = thread::spawn(move || {
         println!("{:?}", object.handle());
@@ -123,7 +103,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
         qm.mq()
             .mqcb(
                 qm.handle(),
-                MQOP(sys::MQOP_REGISTER),
+                values::MQOP(sys::MQOP_REGISTER),
                 &cbd,
                 Some(object.handle()),
                 Some(&*mqmd),
@@ -134,7 +114,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
         let ctlo = MqStruct::<sys::MQCTLO>::default();
 
         qm.mq()
-            .mqctl(qm.handle(), MQOP(sys::MQOP_START_WAIT), &ctlo)
+            .mqctl(qm.handle(), values::MQOP(sys::MQOP_START_WAIT), &ctlo)
             .warn_as_error()
             .expect("mqctl should not fail");
 

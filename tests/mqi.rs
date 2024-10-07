@@ -1,3 +1,6 @@
+mod helpers;
+
+use helpers::mq_library;
 use mqi::{
     core::MqFunctions,
     prelude::*,
@@ -7,7 +10,7 @@ use mqi::{
 
 #[test]
 fn mqxcnvc() -> Result<(), Error> {
-    let mq = MqFunctions::linked();
+    let mq = MqFunctions(mq_library());
     let buffer: [u8; 1024] = [0; 1024];
     let mut target: [u8; 1024] = [0; 1024];
 

@@ -1,3 +1,5 @@
+#![cfg(feature = "dlopen2")]
+
 use std::{error::Error, rc::Rc};
 
 use ::dlopen2::wrapper::Container;

@@ -1,8 +1,10 @@
+mod helpers;
+
 use std::error::Error;
 
+use helpers::{credentials_app, mq_library};
 use mqi::{
     prelude::*,
-    connect_options::Credentials,
     properties_options::{self, Attributes},
     values, Properties, ThreadNone, StrCcsidOwned,
 };
@@ -11,7 +13,7 @@ use mqi::{
 fn message_handle() -> Result<(), Box<dyn Error>> {
     const PROPS: &[(&str, &str)] = &[("usr.b.x", "B"), ("usr.p.x", "A"), ("usr.c", "By"), ("usr.p.y", "C")];
 
-    let qm = mqi::connect::<ThreadNone>(Credentials::user("app", "app")).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
 
     let message = Properties::new(qm, values::MQCMHO::default())?;
 

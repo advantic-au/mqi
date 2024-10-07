@@ -163,7 +163,10 @@ where
 {
     type Error = GetStringError;
 
-    fn consume<F: FnOnce(&mut P) -> ResultComp<GetState<B>>>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error> {
+    fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+    {
         // TODO: set 1208 in MQMD?
         let get_result = get(param)?;
 
