@@ -542,7 +542,7 @@ impl<'b, S> MqiAttr<ConnectParam<'b>, S> for ConnectionId {
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
         param.set_min_version(sys::MQCNO_VERSION_5);
-        connect(param).map_completion(|state| (Self(param.ConnectionId), state))
+        connect(param).map_completion(|state| (Self(param.ConnectionId.into()), state))
     }
 }
 

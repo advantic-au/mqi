@@ -280,7 +280,7 @@ impl<S> MqiAttr<GetParam, S> for MessageId {
     where
         F: FnOnce(&mut GetParam) -> ResultComp<S>,
     {
-        get(param).map_completion(|state| (Self(param.md.MsgId), state))
+        get(param).map_completion(|state| (Self(param.md.MsgId.into()), state))
     }
 }
 

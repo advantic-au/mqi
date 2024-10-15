@@ -18,7 +18,7 @@ fn thread() {
         mqi::connect_lib_with::<(mqi::ConnTag, mqi::ConnectionId), ThreadNoBlock, _>(mq_library(), credentials_app())
             .discard_warning() // ignore warning
             .expect("connection should be established");
-    println!("{:?}", id.0);
+    println!("Connection ID: {id}");
     println!("{:?}", tag.0);
     thread::spawn(move || {
         let msg = Properties::new(qm.connection_ref(), values::MQCMHO::default()).expect("message created");
@@ -26,12 +26,12 @@ fn thread() {
             .warn_as_error()
             .expect("property set should not fail");
 
-        let msgid = qm
+        let msgid: MessageId = qm
             .connection_ref()
-            .put_message_with::<MessageId>(QUEUE, (), &("Hello", FORMAT_NONE))
+            .put_message_with(QUEUE, (), &("Hello", FORMAT_NONE))
             .warn_as_error()
             .expect("message put should not fail");
-        println!("{msgid:?}");
+        println!("Message ID: {msgid}");
     })
     .join()
     .expect("thread join should not fail");

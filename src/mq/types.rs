@@ -3,16 +3,16 @@ use crate::{
     headers::TextEnc,
     sys, MqStr,
 };
-use std::{mem, str};
+use std::{fmt::{Debug, Display}, mem, ptr, str};
 
 use super::{headers::fmt::MQFMT_NONE, MqStruct};
 
-#[derive(Debug, Clone, Copy)]
-pub struct CorrelationId(pub [u8; sys::MQ_CORREL_ID_LENGTH]);
-#[derive(Debug, Clone, Copy)]
-pub struct MessageId(pub [u8; sys::MQ_MSG_ID_LENGTH]);
-#[derive(Debug, Clone, Copy)]
-pub struct GroupId(pub [u8; sys::MQ_GROUP_ID_LENGTH]);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
+pub struct CorrelationId(pub Identifier<24>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
+pub struct MessageId(pub Identifier<24>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
+pub struct GroupId(pub Identifier<24>);
 #[derive(Debug, Clone, Copy)]
 pub struct MsgToken(pub [u8; sys::MQ_MSG_TOKEN_LENGTH]);
 
@@ -64,21 +64,41 @@ pub const FORMAT_NONE: MessageFormat = MessageFormat {
     fmt: TextEnc::Ascii(MQFMT_NONE),
 };
 
-impl From<MessageId> for CorrelationId {
-    #[inline]
-    fn from(value: MessageId) -> Self {
-        Self(value.0)
+#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From, derive_more::Deref)]
+#[repr(transparent)]
+pub struct Identifier<const N: usize>(pub [u8; N]);
+
+impl<const N: usize> Identifier<N> {
+    #[must_use]
+    pub const fn from_ref(source: &[u8; N]) -> &Self {
+        unsafe { &*ptr::from_ref(source).cast() }
+    }
+
+    fn hex_fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for byte in self.0 {
+            write!(fmt, "{byte:02x}")?;
+        }
+        Ok(())
+    }
+}
+
+impl<const N: usize> Display for Identifier<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "ID:")?;
+        self.hex_fmt(f)
+    }
+}
+
+impl<const N: usize> Debug for Identifier<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_tuple("Identifier").field(&format_args!("{self}")).finish()
     }
 }
 
 impl CorrelationId {
     #[must_use]
-    pub fn new(source: [u8; sys::MQ_CORREL_ID_LENGTH]) -> Option<Self> {
-        if source == sys::MQCI_NONE[..sys::MQ_CORREL_ID_LENGTH] {
-            None
-        } else {
-            Some(Self(source))
-        }
+    pub const fn from_ref(src: &[u8; sys::MQ_CORREL_ID_LENGTH]) -> &Self {
+        unsafe { &*ptr::from_ref(src).cast() }
     }
 }
 
@@ -122,3 +142,18 @@ impl_from_str!(CryptoHardware, MqStr<256>);
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct CertificateLabel(pub MqStr<64>);
 impl_from_str!(CertificateLabel, MqStr<64>);
+
+
+#[cfg(test)]
+mod tests {
+    use super::Identifier;
+
+    
+    #[test]
+    fn correlation_id() {
+        let cid = Identifier([0; 24]);
+        assert_eq!(format!("{cid}"), "ID:000000000000000000000000000000000000000000000000");
+        assert_eq!(format!("{cid:?}"), "CorrelationId(ID:000000000000000000000000000000000000000000000000)");
+
+    }
+}

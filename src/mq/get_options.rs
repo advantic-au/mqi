@@ -47,13 +47,13 @@ impl GetOption for MatchOptions<'_> {
     fn apply_param(self, param: &mut GetParam) {
         // Set up the MQMD
         if let Some(msg_id) = self.msg_id {
-            param.md.MsgId = msg_id.0;
+            param.md.MsgId = *msg_id.0;
         }
         if let Some(correl_id) = self.correl_id {
-            param.md.CorrelId = correl_id.0;
+            param.md.CorrelId = *correl_id.0;
         }
         if let Some(group_id) = self.group_id {
-            param.md.GroupId = group_id.0;
+            param.md.GroupId = *group_id.0;
         }
         param.md.MsgSeqNumber = self.seq_number.unwrap_or(0);
         param.md.Offset = self.offset.unwrap_or(0);
@@ -73,21 +73,21 @@ impl GetOption for MatchOptions<'_> {
 
 impl GetOption for types::CorrelationId {
     fn apply_param(self, param: &mut GetParam) {
-        param.md.CorrelId = self.0;
+        param.md.CorrelId = *self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_CORREL_ID;
     }
 }
 
 impl GetOption for types::MessageId {
     fn apply_param(self, param: &mut GetParam) {
-        param.md.MsgId = self.0;
+        param.md.MsgId = *self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_MSG_ID;
     }
 }
 
 impl GetOption for types::GroupId {
     fn apply_param(self, param: &mut GetParam) {
-        param.md.GroupId = self.0;
+        param.md.GroupId = *self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_GROUP_ID;
     }
 }

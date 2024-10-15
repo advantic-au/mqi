@@ -85,7 +85,7 @@ impl<'b, S> MqiAttr<PutParam<'b>, S> for types::MessageId {
     {
         put(param).map_completion(|state| {
             let (md, ..) = param;
-            (Self(md.MsgId), state)
+            (Self(md.MsgId.into()), state)
         })
     }
 }
@@ -98,7 +98,7 @@ impl<'b, S> MqiAttr<PutParam<'b>, S> for types::CorrelationId {
     {
         put(param).map_completion(|state| {
             let (md, ..) = param;
-            (Self(md.CorrelId), state)
+            (Self(md.CorrelId.into()), state)
         })
     }
 }

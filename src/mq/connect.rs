@@ -11,16 +11,16 @@ use crate::{sys, prelude::*, Error, MqiAttr, MqiValue};
 use crate::ResultComp;
 
 use super::connect_options::{self, ConnectOption, ConnectStructs};
-use super::types::QueueManagerName;
+use super::types::{Identifier, QueueManagerName};
 use super::MqStruct;
 
 #[cfg(feature = "link")]
 pub use super::link::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::DerefMut, derive_more::Deref)]
-pub struct ConnectionId(pub [sys::MQBYTE; 24]);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::DerefMut, derive_more::Deref)]
-pub struct ConnTag(pub [sys::MQBYTE; 128]);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref, derive_more::Display)]
+pub struct ConnectionId(pub Identifier<24>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
+pub struct ConnTag(pub [sys::MQBYTE; sys::MQ_CONN_TAG_LENGTH]);
 
 /// Associated connection handle and MQ library
 pub trait Conn {

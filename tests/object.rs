@@ -88,7 +88,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Property: {name} = {value}, {attr:?}, {meta:?}");
             }
             println!("Format: \"{}\"", format.fmt);
-            println!("MessageId: \"{msgid:?}\"");
+            println!("MessageId: \"{msgid}\"");
         }
         None => println!("No message!"),
     }
