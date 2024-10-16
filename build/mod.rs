@@ -1,4 +1,4 @@
-use std::{env, io, path::Path};
+use std::{env, io};
 
 #[cfg(feature = "constantgen")]
 mod constants {
@@ -7,7 +7,7 @@ mod constants {
 }
 
 fn main() -> Result<(), io::Error> {
-    let path = Path::new(&env::var("OUT_DIR").expect("OUT_DIR is mandatory for builds")).join("mqconstants.rs");
+    let path = std::path::Path::new(&env::var("OUT_DIR").expect("OUT_DIR is mandatory for builds")).join("mqconstants.rs");
     #[cfg(feature = "constantgen")]
     constants::generate::generate(&path);
 
