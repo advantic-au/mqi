@@ -30,6 +30,9 @@ runnable = [ # Minimal features to make the code runnable
 constantgen = [ # Generate the constants (default is to use pregenerated constants)
     "runnable",
 ]
+pregen = [ # Regenerate the pregenerated constants
+    "constantgen", "pcf", "mqai"
+]
 tracing = ["dep:tracing"] # Enable tracing in the MQI calls
 pcf = ["libmqm-sys/pcf"] # Enable the PCF API
 mqai = ["libmqm-sys/mqai"] # Enable the administrative API

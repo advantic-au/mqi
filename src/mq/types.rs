@@ -3,7 +3,10 @@ use crate::{
     headers::TextEnc,
     sys, MqStr,
 };
-use std::{fmt::{Debug, Display}, mem, ptr, str};
+use std::{
+    fmt::{Debug, Display},
+    mem, ptr, str,
+};
 
 use super::{headers::fmt::MQFMT_NONE, MqStruct};
 
@@ -143,17 +146,17 @@ impl_from_str!(CryptoHardware, MqStr<256>);
 pub struct CertificateLabel(pub MqStr<64>);
 impl_from_str!(CertificateLabel, MqStr<64>);
 
-
 #[cfg(test)]
 mod tests {
     use super::Identifier;
 
-    
     #[test]
     fn correlation_id() {
         let cid = Identifier([0; 24]);
         assert_eq!(format!("{cid}"), "ID:000000000000000000000000000000000000000000000000");
-        assert_eq!(format!("{cid:?}"), "CorrelationId(ID:000000000000000000000000000000000000000000000000)");
-
+        assert_eq!(
+            format!("{cid:?}"),
+            "CorrelationId(ID:000000000000000000000000000000000000000000000000)"
+        );
     }
 }

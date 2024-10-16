@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::CStr;
 use std::io::{BufWriter, Write};
 
-use std::{env, fs::File, path::Path, str};
+use std::{fs::File, path::Path, str};
 
 use libmqm_sys::lib as mqsys;
 
@@ -57,9 +57,8 @@ fn as_phf(by_value: &[&(mqsys::MQLONG, &str)]) -> String {
     phf_set.build().to_string()
 }
 
-pub fn generate() {
-    let path = Path::new(&env::var("OUT_DIR").expect("OUT_DIR is mandatory for builds")).join("mqconstants.rs");
-    let mut file = BufWriter::new(File::create(path).expect("Failure to create mqconstants.rs"));
+pub fn generate(target: impl AsRef<Path>) {
+    let mut file = BufWriter::new(File::create(target).expect("Failure to create MQ constants file: {target}"));
 
     let by_name_mqi = unsafe { mqsys::MQI_BY_NAME_STR };
     let by_name = by_name(&by_name_mqi);
