@@ -190,7 +190,12 @@ where
     R::consume(&mut structs.cno, |param| {
         param.Options |= H::MQCNO_HANDLE_SHARE;
         let mq = core::MqFunctions(lib);
-        mq.mqconnx(qm_name.as_ref().unwrap_or(&QueueManagerName::default()), param)
+        let qm_default = QueueManagerName::default(); // TODO: change to constant
+        let qm = match qm_name.as_ref() {
+            Some(qm) => qm,
+            None => &qm_default,
+        };
+        mq.mqconnx(qm, param)
             .map_completion(|handle| Connection {
                 mq,
                 handle,
