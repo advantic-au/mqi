@@ -13,9 +13,39 @@ env:
   RUSTFLAGS: -Dwarnings
 
 permissions:
-    checks: write # For the clippy action  
+  checks: write # For the clippy action  
 
 jobs:
+  pregen:
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - os: windows-latest
+            mq-version: 9.4.0.5
+          - os: ubuntu-latest
+            mq-version: 9.4.0.5
+          - os: macos-latest
+            mq-version: 9.4.0.0
+    runs-on: ${{ matrix.build.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: advantic-au/action-mq-client@stable
+        id: mq-client
+        with:
+          client-version: ${{ matrix.build.mq-version }}
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "build"
+      - name: Run build and refresh constants
+        run: cargo build --no-default-features --features pregen
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+      - name: Check for pregen changes
+        run: git diff --stat --exit-code src/constants/mapping/pregen
+
   rustfmt-clippy:
     runs-on: ubuntu-latest
     steps:
