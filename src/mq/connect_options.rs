@@ -289,9 +289,10 @@ impl<'pw> Tls<'pw> {
 
     pub fn certificate_label(&mut self, label: Option<&CertificateLabel>) -> &mut Self {
         self.0.set_min_version(sys::MQSCO_VERSION_5);
-        label
-            .unwrap_or(&CertificateLabel::default())
-            .copy_into_mqchar(&mut self.0.CertificateLabel);
+        match label {
+            Some(cl) => cl.copy_into_mqchar(&mut self.0.CertificateLabel),
+            None => CertificateLabel::default().copy_into_mqchar(&mut self.0.CertificateLabel),
+        }
         self
     }
 
