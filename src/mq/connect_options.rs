@@ -280,9 +280,10 @@ impl<'pw> Tls<'pw> {
     }
 
     pub fn crypto_hardware(&mut self, hardware: Option<&CryptoHardware>) -> &mut Self {
-        hardware
-            .unwrap_or(&CryptoHardware::default())
-            .copy_into_mqchar(&mut self.0.CryptoHardware);
+        match hardware {
+            Some(ch) => ch.copy_into_mqchar(&mut self.0.CryptoHardware),
+            None => CryptoHardware::default().copy_into_mqchar(&mut self.0.CryptoHardware),
+        }
         self
     }
 
