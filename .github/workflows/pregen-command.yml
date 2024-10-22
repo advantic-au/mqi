@@ -1,0 +1,44 @@
+name: pregen-command
+on:
+  repository_dispatch:
+    types: [pregen-command]
+jobs:
+  bindgen_pregen:
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        build:
+          - os: windows-latest
+            mq-version: 9.4.0.5
+          - os: ubuntu-latest
+            mq-version: 9.4.0.5
+          - os: macos-latest
+            mq-version: 9.4.0.0
+    runs-on: ${{ matrix.build.os }}
+    steps:
+      # Checkout the pull request branch
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SCD }}
+          repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.client_payload.pull_request.head.ref }}
+      - uses: advantic-au/action-mq-client@stable
+        id: mq-client
+        with:
+          client-version: ${{ matrix.build.mq-version }}
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "build"
+      - name: Run build and refresh constants
+        run: cargo build --no-default-features --features pregen
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+      - uses: qoomon/actions--setup-git@v1
+      - name: Modify pull request with refreshed pregen files
+        shell: bash
+        run: |
+          git commit -am 'pregen: MQ client ${{ matrix.build.mq-version }} ${{ runner.os }}' || true
+          git push
