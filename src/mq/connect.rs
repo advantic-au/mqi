@@ -195,12 +195,11 @@ where
             Some(qm) => qm,
             None => &qm_default,
         };
-        mq.mqconnx(qm, param)
-            .map_completion(|handle| Connection {
-                mq,
-                handle,
-                _share: PhantomData,
-            })
+        mq.mqconnx(qm, param).map_completion(|handle| Connection {
+            mq,
+            handle,
+            _share: PhantomData,
+        })
     })
 }
 
