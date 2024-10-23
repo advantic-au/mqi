@@ -16,6 +16,31 @@ permissions:
   checks: write # For the clippy action  
 
 jobs:
+  client_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        mq-version:
+          - 9.2.0.27
+          - 9.3.1.0
+          - 9.3.4.1
+          - 9.4.0.5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: advantic-au/action-mq-client@stable
+        id: mq-client
+        with:
+          client-version: ${{ matrix.mq-version }}
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "build"
+      - name: Test
+        run: cargo check --all-features
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
   pregen:
     strategy:
       fail-fast: false
