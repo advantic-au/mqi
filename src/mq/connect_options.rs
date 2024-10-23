@@ -280,17 +280,19 @@ impl<'pw> Tls<'pw> {
     }
 
     pub fn crypto_hardware(&mut self, hardware: Option<&CryptoHardware>) -> &mut Self {
-        hardware
-            .unwrap_or(&CryptoHardware::default())
-            .copy_into_mqchar(&mut self.0.CryptoHardware);
+        match hardware {
+            Some(ch) => ch.copy_into_mqchar(&mut self.0.CryptoHardware),
+            None => CryptoHardware::default().copy_into_mqchar(&mut self.0.CryptoHardware),
+        }
         self
     }
 
     pub fn certificate_label(&mut self, label: Option<&CertificateLabel>) -> &mut Self {
         self.0.set_min_version(sys::MQSCO_VERSION_5);
-        label
-            .unwrap_or(&CertificateLabel::default())
-            .copy_into_mqchar(&mut self.0.CertificateLabel);
+        match label {
+            Some(cl) => cl.copy_into_mqchar(&mut self.0.CertificateLabel),
+            None => CertificateLabel::default().copy_into_mqchar(&mut self.0.CertificateLabel),
+        }
         self
     }
 
