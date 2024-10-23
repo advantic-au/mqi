@@ -114,7 +114,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly # -Z option only available on nightly
       - run: cargo generate-lockfile -Z minimal-versions
       # Now verify that `cargo check` works with respect to the oldest possible
-      - uses: dtolnay/rust-toolchain@1.81
+      - uses: dtolnay/rust-toolchain@1.90
       - run: cargo check --locked --all-features
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
