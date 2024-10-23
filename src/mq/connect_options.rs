@@ -214,6 +214,7 @@ pub enum CredentialsSecret<'cred, S> {
     #[default]
     Default,
     User(&'cred str, S, Option<S>),
+    #[cfg(mqc_9_3_4_0)]
     Token(S, Option<S>),
 }
 
@@ -399,6 +400,7 @@ impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'c
                 structs.csp.attach_password(password);
                 structs.csp.attach_userid(user);
             }
+            #[cfg(mqc_9_3_4_0)]
             CredentialsSecret::Token(token, ..) => {
                 // JWT authentication
                 let token = token.expose_secret();
@@ -407,8 +409,16 @@ impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'c
             }
         }
 
-        // Populate the initial key
-        if let CredentialsSecret::User(.., Some(initial_key)) | CredentialsSecret::Token(.., Some(initial_key)) = self {
+        #[cfg(mqc_9_3_4_0)]
+        // Populate the initial key from token
+        if let CredentialsSecret::Token(.., Some(initial_key)
+        ) = self {
+            let initial_key = initial_key.expose_secret();
+            structs.csp.attach_initial_key(initial_key);
+        }
+
+        // Populate the initial key from user
+        if let CredentialsSecret::User(.., Some(initial_key)) = self {
             let initial_key = initial_key.expose_secret();
             structs.csp.attach_initial_key(initial_key);
         }
