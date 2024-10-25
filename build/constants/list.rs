@@ -372,4 +372,7 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQ_CERT_", mqsys::MQ_CERT_STR),
     ("MQ_MQTT_", mqsys::MQ_MQTT_STR),
     ("MQ_SUITE_", mqsys::MQ_SUITE_STR),
+    // MQ client 9.4.1.0
+    ("MQ_HTTPSCERTREV_", mqsys::MQ_HTTPSCERTREV_STR),
+    ("MQ_HTTPSCERTVAL_", mqsys::MQ_HTTPSCERTVAL_STR),
 ];
