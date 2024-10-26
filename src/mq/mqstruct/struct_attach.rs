@@ -56,6 +56,7 @@ impl<'ptr> MqStruct<'ptr, sys::MQCNO> {
         self.SSLConfigPtr = ptr::addr_of!(sco.struc).cast_mut();
     }
 
+    #[cfg(feature = "mqc_9_3_0_0")]
     pub fn attach_bno(&mut self, bno: &'ptr MqStruct<sys::MQBNO>) {
         self.set_min_version(sys::MQCNO_VERSION_8);
         self.BalanceParmsPtr = ptr::addr_of!(bno.struc).cast_mut();
@@ -91,6 +92,7 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
             .expect("User length should not exceed maximum positive MQLONG");
     }
 
+    #[cfg(feature = "mqc_9_3_4_0")]
     pub fn attach_token(&mut self, token: &'ptr str) {
         self.set_min_version(sys::MQCSP_VERSION_3);
         self.TokenPtr = mq_str_ptr(token);

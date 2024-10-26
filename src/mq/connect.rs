@@ -171,6 +171,7 @@ where
     let mut structs = ConnectStructs::default();
     let struct_mask = options.apply_param(&mut structs);
 
+    #[cfg(feature = "mqc_9_3_0_0")]
     if struct_mask & connect_options::HAS_BNO != 0 {
         structs.cno.attach_bno(&structs.bno);
     }

@@ -40,6 +40,10 @@ link = ["libmqm-sys/link"] # Compile time linking
 dlopen2 = ["libmqm-sys/dlopen2"] # Enable dlopen2 loading the MQI library
 bindgen = ["libmqm-sys/bindgen"] # Generate the MQI bindings
 
+mqc_9_3_0_0 = [ "libmqm-sys/mqc_9_3_0_0"]
+mqc_9_3_4_0 = [ "libmqm-sys/mqc_9_3_0_0"]
+mqc_9_4_1_0 = [ "libmqm-sys/mqc_9_4_1_0"]
+
 [dependencies]
 phf = { default-features = false, version = "0.11.2" }
 page_size = "0.6.0"
@@ -66,7 +70,8 @@ phf_codegen = "0.11.2"
 
 ## For development mode only
 [patch.crates-io]
-libmqm-sys = { git = 'https://github.com/advantic-au/libmqm-sys.git', branch = "develop" }
+# libmqm-sys = { git = 'https://github.com/advantic-au/libmqm-sys.git', branch = "develop" }
+libmqm-sys = { path = '../libmqm-sys'}
 
 ## Lints
 
