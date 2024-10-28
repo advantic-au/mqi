@@ -274,11 +274,10 @@ impl From<SuiteB> for [sys::MQLONG; 4] {
 }
 
 impl<'pw> Tls<'pw> {
-    pub fn new(repo: &KeyRepo, password: Option<&'pw str>, label: Option<&CertificateLabel>, cipher: &CipherSpec) -> Self {
+    pub fn new(repo: &KeyRepo, label: Option<&CertificateLabel>, cipher: &CipherSpec) -> Self {
         let mut tls = Self::default();
         tls.key_repo(repo);
         tls.certificate_label(label);
-        tls.key_repo_password(password);
         cipher.clone_into(&mut tls.1);
         tls
     }
@@ -328,6 +327,7 @@ impl<'pw> Tls<'pw> {
         self
     }
 
+    #[cfg(feature = "mqc_9_3_0_0")]
     pub fn key_repo_password(&mut self, password: Option<&'pw str>) -> &mut Self {
         self.0.attach_repo_password(password);
         self
@@ -413,6 +413,7 @@ impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'c
         }
 
         // Populate the initial key
+        #[cfg(feature = "mqc_9_3_0_0")]
         if let CredentialsSecret::User(.., Some(initial_key)) = &self {
             let initial_key = initial_key.expose_secret();
             structs.csp.attach_initial_key(initial_key);

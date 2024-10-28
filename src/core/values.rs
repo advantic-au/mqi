@@ -46,15 +46,9 @@ define_mqvalue!(pub MQXPT, mapping::MQXPT_CONST, "Transport Types");
 define_mqvalue!(pub MQOT, mapping::MQOT_CONST, "Object Types and Extended Object Types");
 
 #[cfg(feature = "mqc_9_4_1_0")]
-mod https_cert {
-    use crate::{define_mqvalue, mapping};
-
-    define_mqvalue!(pub MQ_HTTPSCERTREV, mapping::MQ_HTTPSCERTREV_CONST, "Level of certificate revocation check that is required for HTTPS connections");
-    define_mqvalue!(pub MQ_HTTPSCERTVAL, mapping::MQ_HTTPSCERTVAL_CONST, "Level of certificate validation that is required for HTTPS connections");
-}
+define_mqvalue!(pub MQ_HTTPSCERTREV, mapping::MQ_HTTPSCERTREV_CONST, "Level of certificate revocation check that is required for HTTPS connections");
 #[cfg(feature = "mqc_9_4_1_0")]
-pub use https_cert::*;
-
+define_mqvalue!(pub MQ_HTTPSCERTVAL, mapping::MQ_HTTPSCERTVAL_CONST, "Level of certificate validation that is required for HTTPS connections");
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
 pub struct CCSID(pub sys::MQLONG);

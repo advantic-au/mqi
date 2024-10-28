@@ -102,6 +102,7 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
             .expect("Token length should not exceed maximum positive MQLONG");
     }
 
+    #[cfg(feature = "mqc_9_3_0_0")]
     pub fn attach_initial_key(&mut self, initial_key: &'ptr str) {
         self.set_min_version(sys::MQCSP_VERSION_2);
         self.InitialKeyPtr = mq_str_ptr(initial_key);
@@ -114,6 +115,7 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
 
 // Functions to attach references to MQSCO
 impl<'ptr> MqStruct<'ptr, sys::MQSCO> {
+    #[cfg(feature = "mqc_9_3_0_0")]
     pub fn attach_repo_password(&mut self, password: Option<&'ptr str>) {
         self.set_min_version(sys::MQSCO_VERSION_6);
         if let Some(ps) = password {
