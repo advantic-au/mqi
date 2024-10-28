@@ -9,7 +9,6 @@ on:
       - develop
 
 env:
-  MQ_VERSION: 9.4.1.0
   RUSTFLAGS: -Dwarnings
 
 permissions:
@@ -20,25 +19,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mq-version:
-          - 9.2.0.27
-          - 9.3.1.0
-          - 9.3.4.1
-          - 9.4.1.0
+        version:
+          - client-version: 9.2.0.27
+            feature: mqc_9_2_0_27
+          - client-version: 9.3.1.0
+            feature: mqc_9_3_1_0
+          - client-version: 9.3.4.1
+            feature: mqc_9_3_4_1
+          - client-version: 9.4.1.0
+            feature: mqc_9_4_1_0
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: ${{ matrix.mq-version }}
+          client-version: ${{ matrix.version.client-version }}
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "build"
       - name: Test
-        run: cargo check --all-features
+        run: cargo check --features ${{ matrix.version.feature }},pcf,mqai,dlopen2
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
   pregen:
@@ -79,7 +82,7 @@ jobs:
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: ${{ env.MQ_VERSION }}
+          client-version: 9.4.1.0
 
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
@@ -108,13 +111,15 @@ jobs:
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: ${{ env.MQ_VERSION }}
+          client-version: 9.4.1.0
 
       # Re-resolve Cargo.lock with minimal versions
       - uses: dtolnay/rust-toolchain@nightly # -Z option only available on nightly
       - run: cargo generate-lockfile -Z minimal-versions
       # Now verify that `cargo check` works with respect to the oldest possible
-      - uses: dtolnay/rust-toolchain@1.81
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.81
       - run: cargo check --locked --all-features
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
