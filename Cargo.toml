@@ -24,15 +24,15 @@ default = [
     "bindgen",
 ] # Default to generate code and compile time link
 docsrs = ["libmqm-sys/docsrs", "pcf", "mqai", "link", "dlopen2"]
-runnable = [ # Minimal features to make the code runnable
+runnable = [ 
     "libmqm-sys/mqi_helpers",
-]
-constantgen = [ # Generate the constants (default is to use pregenerated constants)
+] # Minimal features to make the code runnable
+constantgen = [ 
     "runnable",
-]
-pregen = [ # Regenerate the pregenerated constants
+] # Generate the constants (default is to use pregenerated constants)
+pregen = [ 
     "constantgen", "pcf", "mqai"
-]
+] # Regenerate the pregenerated constants
 tracing = ["dep:tracing"] # Enable tracing in the MQI calls
 pcf = ["libmqm-sys/pcf"] # Enable the PCF API
 mqai = ["libmqm-sys/mqai"] # Enable the administrative API
@@ -40,10 +40,16 @@ link = ["libmqm-sys/link"] # Compile time linking
 dlopen2 = ["libmqm-sys/dlopen2"] # Enable dlopen2 loading the MQI library
 bindgen = ["libmqm-sys/bindgen"] # Generate the MQI bindings
 
+mqc_9_3_0_0 = [ "libmqm-sys/mqc_9_3_0_0"] # Minimum MQ client version 9.3.0.0
+mqc_9_3_1_0 = [ "libmqm-sys/mqc_9_3_1_0"] # Minimum MQ client version 9.3.1.0
+mqc_9_3_2_0 = [ "libmqm-sys/mqc_9_3_2_0"] # Minimum MQ client version 9.3.2.0
+mqc_9_3_4_0 = [ "libmqm-sys/mqc_9_3_4_0"] # Minimum MQ client version 9.3.4.0
+mqc_9_4_1_0 = [ "libmqm-sys/mqc_9_4_1_0"] # Minimum MQ client version 9.4.1.0
+
 [dependencies]
 phf = { default-features = false, version = "0.11.2" }
 page_size = "0.6.0"
-libmqm-sys = { version = "0.4.0", default-features = false }
+libmqm-sys = { version = "0.5.0", default-features = false }
 tracing = { version = "0.1.40", optional = true }
 dlopen2 = "0.7.0"
 regex-lite = "0.1.6"
@@ -60,13 +66,9 @@ derive_more = { version = "1.0.0", features = [
 ] }
 
 [build-dependencies]
-libmqm-sys = { version = "0.4.0", default-features = false }
+libmqm-sys = { version = "0.5.0", default-features = false }
 phf = { default-features = false, version = "0.11" }
 phf_codegen = "0.11.2"
-
-## For development mode only
-[patch.crates-io]
-libmqm-sys = { git = 'https://github.com/advantic-au/libmqm-sys.git', branch = "develop" }
 
 ## Lints
 

@@ -10,11 +10,11 @@ jobs:
       matrix:
         build:
           - os: windows-latest
-            mq-version: 9.4.0.5
+            mq-version: 9.4.1.0
           - os: ubuntu-latest
-            mq-version: 9.4.0.5
+            mq-version: 9.4.1.0
           - os: macos-latest
-            mq-version: 9.4.0.0
+            mq-version: 9.4.1.0
     runs-on: ${{ matrix.build.os }}
     steps:
       # Checkout the pull request branch

@@ -9,7 +9,7 @@ on:
       - develop
 
 env:
-  MQ_VERSION: 9.4.0.5
+  MQ_VERSION: 9.4.1.0
   RUSTFLAGS: -Dwarnings
 
 permissions:
@@ -24,7 +24,7 @@ jobs:
           - 9.2.0.27
           - 9.3.1.0
           - 9.3.4.1
-          - 9.4.0.5
+          - 9.4.1.0
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,11 +47,11 @@ jobs:
       matrix:
         build:
           - os: windows-latest
-            mq-version: 9.4.0.5
+            mq-version: 9.4.1.0
           - os: ubuntu-latest
-            mq-version: 9.4.0.5
+            mq-version: 9.4.1.0
           - os: macos-latest
-            mq-version: 9.4.0.0
+            mq-version: 9.4.1.0
     runs-on: ${{ matrix.build.os }}
     steps:
       - uses: actions/checkout@v4

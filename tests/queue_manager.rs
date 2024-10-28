@@ -56,7 +56,6 @@ fn connect() -> Result<(), Box<dyn Error>> {
 
     let tls = Tls::new(
         &KeyRepo(mqstr!("path")),
-        Some("password"),
         Some(&CertificateLabel(mqstr!("label"))),
         &CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")),
     );

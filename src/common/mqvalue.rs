@@ -17,7 +17,7 @@ macro_rules! define_mqvalue {
         #[allow(unused_imports)]
         use $crate::constants::HasMqNames as _;
 
-        #[allow(clippy::empty_docs)]
+        #[allow(clippy::empty_docs,non_camel_case_types)]
         #[doc = $lit]
         #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
         #[repr(transparent)]
