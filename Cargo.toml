@@ -42,11 +42,11 @@ dlopen2 = ["libmqm-sys/dlopen2"] # Enable dlopen2 loading the MQI library
 bindgen = ["libmqm-sys/bindgen"] # Generate the MQI bindings
 
 mqc_9_2_0_0 = [ "libmqm-sys/mqc_9_2_0_0"] # Minimum MQ client version 9.2.0.0
-mqc_9_3_0_0 = [ "libmqm-sys/mqc_9_3_0_0"] # Minimum MQ client version 9.3.0.0
-mqc_9_3_1_0 = [ "libmqm-sys/mqc_9_3_1_0"] # Minimum MQ client version 9.3.1.0
-mqc_9_3_2_0 = [ "libmqm-sys/mqc_9_3_2_0"] # Minimum MQ client version 9.3.2.0
-mqc_9_3_4_0 = [ "libmqm-sys/mqc_9_3_4_0"] # Minimum MQ client version 9.3.4.0
-mqc_9_4_1_0 = [ "libmqm-sys/mqc_9_4_1_0"] # Minimum MQ client version 9.4.1.0
+mqc_9_3_0_0 = [ "libmqm-sys/mqc_9_3_0_0", "mqc_9_2_0_0"] # Minimum MQ client version 9.3.0.0
+mqc_9_3_1_0 = [ "libmqm-sys/mqc_9_3_1_0", "mqc_9_3_0_0"] # Minimum MQ client version 9.3.1.0
+mqc_9_3_2_0 = [ "libmqm-sys/mqc_9_3_2_0", "mqc_9_3_1_0"] # Minimum MQ client version 9.3.2.0
+mqc_9_3_4_0 = [ "libmqm-sys/mqc_9_3_4_0", "mqc_9_3_2_0"] # Minimum MQ client version 9.3.4.0
+mqc_9_4_1_0 = [ "libmqm-sys/mqc_9_4_1_0", "mqc_9_3_4_0"] # Minimum MQ client version 9.4.1.0
 
 [dependencies]
 phf = { default-features = false, version = "0.11.2" }
