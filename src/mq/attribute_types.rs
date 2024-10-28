@@ -159,6 +159,7 @@ pub const MQCA_DEF_XMIT_Q_NAME: AttributeType = inqreq_str(sys::MQCA_DEF_XMIT_Q_
 pub const MQCA_DNS_GROUP: AttributeType = inqreq_str(sys::MQCA_DNS_GROUP, sys::MQ_DNS_GROUP_NAME_LENGTH);
 pub const MQCA_ENV_DATA: AttributeType = inqreq_str(sys::MQCA_ENV_DATA, sys::MQ_PROCESS_ENV_DATA_LENGTH);
 pub const MQCA_IGQ_USER_ID: AttributeType = inqreq_str(sys::MQCA_IGQ_USER_ID, sys::MQ_USER_ID_LENGTH);
+#[cfg(feature = "mqc_9_3_0_0")]
 pub const MQCA_INITIAL_KEY: AttributeType = inqreq_str(sys::MQCA_INITIAL_KEY, sys::MQ_INITIAL_KEY_LENGTH);
 pub const MQCA_INITIATION_Q_NAME: AttributeType = inqreq_str(sys::MQCA_INITIATION_Q_NAME, sys::MQ_Q_NAME_LENGTH);
 pub const MQCA_INSTALLATION_DESC: AttributeType = inqreq_str(sys::MQCA_INSTALLATION_DESC, sys::MQ_INSTALLATION_DESC_LENGTH);
@@ -182,6 +183,7 @@ pub const MQCA_REMOTE_Q_MGR_NAME: AttributeType = inqreq_str(sys::MQCA_REMOTE_Q_
 pub const MQCA_REMOTE_Q_NAME: AttributeType = inqreq_str(sys::MQCA_REMOTE_Q_NAME, sys::MQ_Q_NAME_LENGTH);
 pub const MQCA_REPOSITORY_NAME: AttributeType = inqreq_str(sys::MQCA_REPOSITORY_NAME, sys::MQ_CLUSTER_NAME_LENGTH);
 pub const MQCA_REPOSITORY_NAMELIST: AttributeType = inqreq_str(sys::MQCA_REPOSITORY_NAMELIST, sys::MQ_NAMELIST_NAME_LENGTH);
+#[cfg(feature = "mqc_9_3_0_0")]
 pub const MQCA_SSL_KEY_REPO_PASSWORD: AttributeType =
     inqreq_str(sys::MQCA_SSL_KEY_REPO_PASSWORD, sys::MQ_SSL_ENCRYP_KEY_REPO_PWD_LEN);
 pub const MQCA_STORAGE_CLASS: AttributeType = inqreq_str(sys::MQCA_STORAGE_CLASS, sys::MQ_STORAGE_CLASS_LENGTH);

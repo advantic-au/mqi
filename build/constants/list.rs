@@ -15,11 +15,13 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQADPCTX_", mqsys::MQADPCTX_STR),
     ("MQAIT_", mqsys::MQAIT_STR),
     ("MQAPPL_", mqsys::MQAPPL_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQAS_", mqsys::MQAS_STR),
     ("MQAT_", mqsys::MQAT_STR),
     ("MQAUTHENTICATE_", mqsys::MQAUTHENTICATE_STR),
     ("MQAUTHOPT_", mqsys::MQAUTHOPT_STR),
     ("MQAUTH_", mqsys::MQAUTH_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQAUTOCLUS_", mqsys::MQAUTOCLUS_STR),
     ("MQAUTO_", mqsys::MQAUTO_STR),
     ("MQBACF_", mqsys::MQBACF_STR),
@@ -28,8 +30,11 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQBL_", mqsys::MQBL_STR),
     ("MQBMHO_", mqsys::MQBMHO_STR),
     ("MQBND_", mqsys::MQBND_STR),
+    #[cfg(feature = "mqc_9_3_0_0")]
     ("MQBNO_BALTYPE_", mqsys::MQBNO_BALTYPE_STR),
+    #[cfg(feature = "mqc_9_3_0_0")]
     ("MQBNO_OPTIONS_", mqsys::MQBNO_OPTIONS_STR),
+    #[cfg(feature = "mqc_9_3_0_0")]
     ("MQBNO_TIMEOUT_", mqsys::MQBNO_TIMEOUT_STR),
     ("MQBO_", mqsys::MQBO_STR),
     ("MQBPLOCATION_", mqsys::MQBPLOCATION_STR),
@@ -52,9 +57,11 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQCCT_", mqsys::MQCCT_STR),
     ("MQCC_", mqsys::MQCC_STR),
     ("MQCDC_", mqsys::MQCDC_STR),
+    #[cfg(feature = "mqc_9_3_1_0")]
     ("MQCEX_", mqsys::MQCEX_STR),
     ("MQCFACCESS_", mqsys::MQCFACCESS_STR),
     ("MQCFCONLOS_", mqsys::MQCFCONLOS_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQCFC_", mqsys::MQCFC_STR),
     ("MQCFOFFLD_", mqsys::MQCFOFFLD_STR),
     ("MQCFOP_", mqsys::MQCFOP_STR),
@@ -131,7 +138,9 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQEXT_", mqsys::MQEXT_STR),
     ("MQFB_", mqsys::MQFB_STR),
     ("MQFC_", mqsys::MQFC_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQFSENC_", mqsys::MQFSENC_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQFS_", mqsys::MQFS_STR),
     ("MQFUN_", mqsys::MQFUN_STR),
     ("MQGACF_", mqsys::MQGACF_STR),
@@ -147,7 +156,9 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQIACH_", mqsys::MQIACH_STR),
     ("MQIAMO64_", mqsys::MQIAMO64_STR),
     ("MQIAMO_", mqsys::MQIAMO_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQIAMO_MONITOR_DATATYPE_", mqsys::MQIAMO_MONITOR_DATATYPE_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQIAMO_MONITOR_FLAGS_", mqsys::MQIAMO_MONITOR_FLAGS_STR),
     ("MQIASY_", mqsys::MQIASY_STR),
     ("MQIAV_", mqsys::MQIAV_STR),
@@ -170,6 +181,7 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQLDAPC_", mqsys::MQLDAPC_STR),
     ("MQLDAP_AUTHORMD_", mqsys::MQLDAP_AUTHORMD_STR),
     ("MQLDAP_NESTGRP_", mqsys::MQLDAP_NESTGRP_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQLOGTYPE_", mqsys::MQLOGTYPE_STR),
     ("MQLR_", mqsys::MQLR_STR),
     ("MQMASTER_", mqsys::MQMASTER_STR),
@@ -192,16 +204,22 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQMLP_TOLERATE_", mqsys::MQMLP_TOLERATE_STR),
     ("MQMMBI_", mqsys::MQMMBI_STR),
     ("MQMODE_", mqsys::MQMODE_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQMON_OVERRIDE_", mqsys::MQMON_OVERRIDE_STR),
     ("MQMON_", mqsys::MQMON_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQMON_AVAILABILITY_", mqsys::MQMON_AVAILABILITY_STR),
     ("MQMO_", mqsys::MQMO_STR),
     ("MQMT_", mqsys::MQMT_STR),
     ("MQMULC_", mqsys::MQMULC_STR),
     ("MQNC_", mqsys::MQNC_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQNHABACKLOG_", mqsys::MQNHABACKLOG_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQNHACONNACTV_", mqsys::MQNHACONNACTV_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQNHAINSYNC_", mqsys::MQNHAINSYNC_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQNHAROLE_", mqsys::MQNHAROLE_STR),
     ("MQNPMS_", mqsys::MQNPMS_STR),
     ("MQNPM_", mqsys::MQNPM_STR),
@@ -236,6 +254,7 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQQA_BACKOUT_", mqsys::MQQA_BACKOUT_STR),
     ("MQQA_GET_", mqsys::MQQA_GET_STR),
     ("MQQA_PUT_", mqsys::MQQA_PUT_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQQA_SHAREABLE_", mqsys::MQQA_SHAREABLE_STR),
     ("MQQDT_", mqsys::MQQDT_STR),
     ("MQQFS_", mqsys::MQQFS_STR),
@@ -268,6 +287,7 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQREORG_", mqsys::MQREORG_STR),
     ("MQRFH_", mqsys::MQRFH_STR),
     ("MQRL_", mqsys::MQRL_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQRMHF_", mqsys::MQRMHF_STR),
     ("MQROUTE_", mqsys::MQROUTE_STR),
     ("MQRO_", mqsys::MQRO_STR),
@@ -297,8 +317,10 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQSSL_", mqsys::MQSSL_STR),
     ("MQSTAT_", mqsys::MQSTAT_STR),
     ("MQSTDBY_", mqsys::MQSTDBY_STR),
+    #[cfg(feature = "mqc_9_3_0_0")]
     ("MQST_", mqsys::MQST_STR),
     ("MQSUBTYPE_", mqsys::MQSUBTYPE_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQSUB_DURABILITY_", mqsys::MQSUB_DURABILITY_STR),
     ("MQSUB_", mqsys::MQSUB_STR),
     ("MQSUS_", mqsys::MQSUS_STR),
@@ -361,9 +383,13 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQZAO_", mqsys::MQZAO_STR),
     ("MQZAT_", mqsys::MQZAT_STR),
     ("MQZCI_", mqsys::MQZCI_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQZID_AUTHORITY_", mqsys::MQZID_AUTHORITY_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQZID_NAME_", mqsys::MQZID_NAME_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQZID_USERID_", mqsys::MQZID_USERID_STR),
+    #[cfg(feature = "mqc_9_3_2_0")]
     ("MQZID_", mqsys::MQZID_STR),
     ("MQZIO_", mqsys::MQZIO_STR),
     ("MQZSE_", mqsys::MQZSE_STR),
@@ -372,4 +398,8 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQ_CERT_", mqsys::MQ_CERT_STR),
     ("MQ_MQTT_", mqsys::MQ_MQTT_STR),
     ("MQ_SUITE_", mqsys::MQ_SUITE_STR),
+    #[cfg(feature = "mqc_9_4_1_0")]
+    ("MQ_HTTPSCERTREV_", mqsys::MQ_HTTPSCERTREV_STR),
+    #[cfg(feature = "mqc_9_4_1_0")]
+    ("MQ_HTTPSCERTVAL_", mqsys::MQ_HTTPSCERTVAL_STR),
 ];

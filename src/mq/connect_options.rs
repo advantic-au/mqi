@@ -26,6 +26,7 @@ pub const HAS_CD: i32 = 0b00100;
 /// A [`MQSCSP`](sys::MQCSP) structure is required for the connection option
 pub const HAS_CSP: i32 = 0b01000;
 /// A [`MQBNO`](sys::MQBNO) structure is required for the connection option
+#[cfg(feature = "mqc_9_3_0_0")]
 pub const HAS_BNO: i32 = 0b10000;
 
 /// A collection of MQ structures used by MQ at connection time
@@ -35,6 +36,7 @@ pub struct ConnectStructs<'ptr> {
     pub sco: MqStruct<'ptr, sys::MQSCO>,
     pub csp: MqStruct<'ptr, sys::MQCSP>,
     pub cd: MqStruct<'ptr, sys::MQCD>,
+    #[cfg(feature = "mqc_9_3_0_0")]
     pub bno: MqStruct<'ptr, sys::MQBNO>,
 }
 
@@ -102,6 +104,7 @@ impl Default for ConnectStructs<'_> {
             sco: MqStruct::default(),
             csp: MqStruct::default(),
             cd: MqStruct::new(sys::MQCD::client_conn_default()),
+            #[cfg(feature = "mqc_9_3_0_0")]
             bno: MqStruct::default(),
         }
     }
@@ -214,6 +217,7 @@ pub enum CredentialsSecret<'cred, S> {
     #[default]
     Default,
     User(&'cred str, S, Option<S>),
+    #[cfg(feature = "mqc_9_3_4_0")]
     Token(S, Option<S>),
 }
 
@@ -270,11 +274,10 @@ impl From<SuiteB> for [sys::MQLONG; 4] {
 }
 
 impl<'pw> Tls<'pw> {
-    pub fn new(repo: &KeyRepo, password: Option<&'pw str>, label: Option<&CertificateLabel>, cipher: &CipherSpec) -> Self {
+    pub fn new(repo: &KeyRepo, label: Option<&CertificateLabel>, cipher: &CipherSpec) -> Self {
         let mut tls = Self::default();
         tls.key_repo(repo);
         tls.certificate_label(label);
-        tls.key_repo_password(password);
         cipher.clone_into(&mut tls.1);
         tls
     }
@@ -324,6 +327,7 @@ impl<'pw> Tls<'pw> {
         self
     }
 
+    #[cfg(feature = "mqc_9_3_0_0")]
     pub fn key_repo_password(&mut self, password: Option<&'pw str>) -> &mut Self {
         self.0.attach_repo_password(password);
         self
@@ -399,6 +403,7 @@ impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'c
                 structs.csp.attach_password(password);
                 structs.csp.attach_userid(user);
             }
+            #[cfg(feature = "mqc_9_3_4_0")]
             CredentialsSecret::Token(token, ..) => {
                 // JWT authentication
                 let token = token.expose_secret();
@@ -408,7 +413,14 @@ impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'c
         }
 
         // Populate the initial key
-        if let CredentialsSecret::User(.., Some(initial_key)) | CredentialsSecret::Token(.., Some(initial_key)) = self {
+        #[cfg(feature = "mqc_9_3_0_0")]
+        if let CredentialsSecret::User(.., Some(initial_key)) = &self {
+            let initial_key = initial_key.expose_secret();
+            structs.csp.attach_initial_key(initial_key);
+        }
+
+        #[cfg(feature = "mqc_9_3_4_0")]
+        if let CredentialsSecret::Token(.., Some(initial_key)) = &self {
             let initial_key = initial_key.expose_secret();
             structs.csp.attach_initial_key(initial_key);
         }
@@ -491,6 +503,7 @@ impl<'url> ConnectOption<'url> for Ccdt<'url> {
     }
 }
 
+#[cfg(feature = "mqc_9_3_0_0")]
 impl<'bno> ConnectOption<'bno> for MqStruct<'bno, sys::MQBNO> {
     fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
