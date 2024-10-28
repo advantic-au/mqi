@@ -21,11 +21,11 @@ jobs:
       matrix:
         version:
           - client-version: 9.2.0.27
-            feature: mqc_9_2_0_27
+            feature: mqc_9_2_0_0
           - client-version: 9.3.1.0
             feature: mqc_9_3_1_0
           - client-version: 9.3.4.1
-            feature: mqc_9_3_4_1
+            feature: mqc_9_3_4_0
           - client-version: 9.4.1.0
             feature: mqc_9_4_1_0
     runs-on: ubuntu-latest
