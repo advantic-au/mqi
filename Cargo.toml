@@ -22,6 +22,7 @@ default = [
     "constantgen",
     "runnable",
     "bindgen",
+    "mqc_9_2_0_0"
 ] # Default to generate code and compile time link
 docsrs = ["libmqm-sys/docsrs", "pcf", "mqai", "link", "dlopen2"]
 runnable = [ 
@@ -40,6 +41,7 @@ link = ["libmqm-sys/link"] # Compile time linking
 dlopen2 = ["libmqm-sys/dlopen2"] # Enable dlopen2 loading the MQI library
 bindgen = ["libmqm-sys/bindgen"] # Generate the MQI bindings
 
+mqc_9_2_0_0 = [ "libmqm-sys/mqc_9_2_0_0"] # Minimum MQ client version 9.2.0.0
 mqc_9_3_0_0 = [ "libmqm-sys/mqc_9_3_0_0"] # Minimum MQ client version 9.3.0.0
 mqc_9_3_1_0 = [ "libmqm-sys/mqc_9_3_1_0"] # Minimum MQ client version 9.3.1.0
 mqc_9_3_2_0 = [ "libmqm-sys/mqc_9_3_2_0"] # Minimum MQ client version 9.3.2.0
