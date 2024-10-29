@@ -26,11 +26,10 @@ Usage
 
 3. Set the MQ_HOME environment variable to the installed location.
 
-4. Add the following to your `Cargo.toml`
+4. Add the mqi crate to your project:
 
-    ```toml
-    [dependencies]
-    mqi = "0.1.0"
+    ```sh
+    cargo add mqi
     ```
 
 Example
