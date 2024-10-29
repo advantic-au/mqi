@@ -26,7 +26,7 @@ Usage
 
 3. Set the MQ_HOME environment variable to the installed location.
 
-4. Add the mqi crate to your project:
+4. Add the `mqi` crate to your project:
 
     ```sh
     cargo add mqi
@@ -35,7 +35,7 @@ Usage
 Example
 -------
 
-Connect to the default queue manager using the MQSERVER environment variable.
+Connect to the default queue manager using the `MQSERVER` environment variable.
 
 ```rust
 use std::error::Error;
@@ -77,7 +77,7 @@ Goals
 - Provide a simple layer over MQ to connect, send and receive MQ messages,
   whilst still allowing developers to tweak the advanced options that the MQI
   library provides.
-- Use Rust features such as lifetimes, safety guarantees, strong type system and
+- Utilise Rust features such as lifetimes, safety guarantees, strong type system and
   invariants for a robust API.
 
 Feature flags
@@ -91,6 +91,7 @@ Feature flags
 | mqai           | Expose the MQAI functions |
 | pcf            | Generate the PCF structures |
 | exits          | Generate the exit structures |
+| mqc_*          | Enable features of a specific MQI library version eg `mqc_9_4_1_0` |
 
 Status
 ------
