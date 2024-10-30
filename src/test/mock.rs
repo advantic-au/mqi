@@ -302,4 +302,17 @@ impl MockFunctions {
             *pReason = reason;
         }
     }
+
+    pub fn mqi_outcome_ok(pCompCode: sys::PMQLONG, pReason: sys::PMQLONG) {
+        Self::mqi_outcome(pCompCode, pReason, sys::MQCC_OK, sys::MQRC_NONE);
+    }
+}
+
+#[must_use]
+#[allow(dead_code)]
+pub fn connect_ok() -> MockFunctions {
+    let mut mock = MockFunctions::new();
+    mock.connx_outcome(0x0d0d, sys::MQCC_OK, sys::MQRC_NONE);
+    mock.disc_outcome(sys::MQCC_OK, sys::MQRC_NONE);
+    mock
 }
