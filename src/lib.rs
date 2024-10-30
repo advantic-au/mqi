@@ -29,3 +29,6 @@ pub mod sys {
 }
 
 pub mod prelude;
+
+#[cfg(test)]
+pub mod test;

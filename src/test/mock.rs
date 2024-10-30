@@ -1,11 +1,13 @@
+#![expect(clippy::allow_attributes)]
+
 use libmqm_sys::function;
-use mqi::sys;
+use libmqm_sys::lib as sys;
 
 mockall::mock! {
-    Library {}
+    pub Functions {}
 
     #[allow(non_snake_case)]
-    impl function::Mqi for Library {
+    impl function::Mqi for Functions {
         unsafe fn MQCONNX(
             &self,
             pQMgrName: sys::PMQCHAR,
@@ -269,5 +271,35 @@ mockall::mock! {
             pCompCode: sys::PMQLONG,
             pReason: sys::PMQLONG,
         ) ;
+    }
+}
+
+#[allow(dead_code)]
+#[expect(non_snake_case)]
+impl MockFunctions {
+    pub fn connx_outcome(&mut self, hconn: sys::MQHCONN, comp_code: sys::MQLONG, reason: sys::MQLONG) {
+        self.expect_MQCONNX().returning(
+            move |_, _, pHconn: sys::PMQHCONN, pCompCode: sys::PMQLONG, pReason: sys::PMQLONG| {
+                unsafe {
+                    *pHconn = hconn;
+                }
+                Self::mqi_outcome(pCompCode, pReason, comp_code, reason);
+            },
+        );
+    }
+
+    pub fn disc_outcome(&mut self, comp_code: sys::MQLONG, reason: sys::MQLONG) {
+        self.expect_MQDISC()
+            .returning(move |_, pCompCode: sys::PMQLONG, pReason: sys::PMQLONG| {
+                Self::mqi_outcome(pCompCode, pReason, comp_code, reason);
+            });
+    }
+
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    pub fn mqi_outcome(pCompCode: sys::PMQLONG, pReason: sys::PMQLONG, comp_code: sys::MQLONG, reason: sys::MQLONG) {
+        unsafe {
+            *pCompCode = comp_code;
+            *pReason = reason;
+        }
     }
 }

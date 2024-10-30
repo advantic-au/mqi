@@ -1,6 +1,20 @@
 #![allow(clippy::allow_attributes)]
 
-use mqi::connect_options::{Credentials, CredentialsSecret, ProtectedSecret};
+use mqi::{
+    connect_options::{Credentials, CredentialsSecret, ProtectedSecret},
+    core::Library,
+};
+
+#[path = "../../src/test/mock.rs"]
+pub mod mock;
+
+impl Library for mock::MockFunctions {
+    type MQ = Self;
+
+    fn lib(&self) -> &Self::MQ {
+        self
+    }
+}
 
 #[cfg(feature = "link")]
 pub const fn mq_library() -> libmqm_sys::link::LinkedMq {

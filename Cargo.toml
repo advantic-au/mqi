@@ -93,8 +93,11 @@ module_name_repetitions = "allow"
 features = ["docsrs"]
 no-default-features = true
 
-# development dependencies for examples
 [dev-dependencies]
+# Mocking
+mockall = "0.13.0"
+
+# development dependencies for examples
 clap = { version = "4.5.16", features = ["derive"] }
 anyhow = "1.0.87"
 tracing = "0.1.40"
@@ -116,3 +119,4 @@ required-features = ["link", "runnable"]
 [[example]]
 name = "forward"
 required-features = ["link", "runnable"]
+
