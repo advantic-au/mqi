@@ -6,7 +6,7 @@ use std::{any, ptr};
 use crate::{
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
-    sys, values, MqStr, MqiAttr,
+    sys, values, MqStr,
 };
 
 use super::{
@@ -550,9 +550,9 @@ impl<'cd> ConnectOption<'cd> for MqStruct<'cd, sys::MQCD> {
     }
 }
 
-impl<'b, S> MqiAttr<ConnectParam<'b>, S> for ConnectionId {
+impl<S> super::ConnectAttr<S> for ConnectionId {
     #[inline]
-    fn extract<F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
+    fn extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
     where
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
@@ -561,9 +561,9 @@ impl<'b, S> MqiAttr<ConnectParam<'b>, S> for ConnectionId {
     }
 }
 
-impl<'b, S> MqiAttr<ConnectParam<'b>, S> for ConnTag {
+impl<S> super::ConnectAttr<S>  for ConnTag {
     #[inline]
-    fn extract<F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
+    fn extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
     where
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
