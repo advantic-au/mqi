@@ -141,7 +141,7 @@ mod get_impl {
                 $($ty: GetAttr<B>),*
             {
                 type Error = $first::Error;
-    
+
                 fn consume<F>(param: &mut GetParam, mqi: F) -> ResultCompErr<Self, Self::Error>
                 where
                     F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
@@ -158,14 +158,14 @@ mod get_impl {
                         (a, $($ty),*)
                     })
                 }
-    
+
                 fn max_data_size() -> Option<std::num::NonZero<usize>> {
                     $first::max_data_size()
                 }
             }
         };
     }
-    
+
     macro_rules! impl_getattr {
         ([$first:ident, $($ty:ident),*]) => {
             #[expect(non_snake_case)]
@@ -196,7 +196,7 @@ mod get_impl {
     }
 
     super::all_multi_tuples!(impl_getvalue);
-    super::all_multi_tuples!(impl_getattr);    
+    super::all_multi_tuples!(impl_getattr);
 }
 
 impl<'a, B: Buffer<'a>> GetValue<B> for StrCcsidCow<'a> {

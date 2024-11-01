@@ -1,10 +1,10 @@
-use crate::{values, core::ObjectHandle, MqStruct, MqiAttr, MqiValue};
+use crate::{values, core::ObjectHandle, MqStruct};
 
 use crate::{
     core::{self, values::MQCO},
     Conn,
 };
-use crate::sys;
+use crate::{sys, Error, ResultCompErr};
 use crate::ResultComp;
 
 pub struct OpenParamOption<'a, T> {
@@ -29,10 +29,26 @@ pub struct Object<C: Conn> {
 pub trait OpenOption<'oo, T> {
     fn apply_param(self, param: &mut OpenParamOption<'oo, T>);
 }
-pub trait OpenValue<S>: for<'oo> MqiValue<OpenParam<'oo>, S> {}
-pub trait OpenAttr<S>: for<'oo> MqiAttr<OpenParam<'oo>, S> {}
 
-impl<S, T: for<'oo> MqiAttr<OpenParam<'oo>, S>> OpenAttr<S> for T {}
+pub trait OpenValue<S> {
+    type Error: From<Error> + std::fmt::Debug;
+
+    fn consume<'oo, F>(param: &mut OpenParam<'oo>, mqi: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut OpenParam<'oo>) -> ResultComp<S>,
+        Self: std::marker::Sized;
+}
+
+pub trait OpenAttr<S, O> {
+    fn extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
+    where
+        F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
+        Self: Sized;
+}
+
+// pub trait OpenAttr<S>: for<'oo> MqiAttr<OpenParam<'oo>, S> {}
+
+// impl<S, T: for<'oo> MqiAttr<OpenParam<'oo>, S>> OpenAttr<S> for T {}
 
 impl<C: Conn> Object<C> {
     #[must_use]

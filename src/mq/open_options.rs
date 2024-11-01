@@ -1,15 +1,87 @@
 use std::ptr;
 
 use crate::{
-    macros::all_multi_tuples,
     prelude::*,
     sys,
     types::{QueueManagerName, QueueName},
     values::{CCSID, MQOO, MQOT, MQPMO},
-    Conn, EncodedString, Error, MqStr, MqiAttr, MqiValue, ResultComp, StrCcsidOwned,
+    Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned,
+    macros::all_multi_tuples,
 };
 
-use super::{impl_mqstruct_min_version, types::impl_from_str, Object, OpenOption, OpenParam, OpenParamOption, OpenValue};
+use super::{impl_mqstruct_min_version, types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
+
+#[expect(unused_parens)]
+mod open_impl {
+    use crate::macros::all_multi_tuples;
+
+    use super::{OpenAttr, OpenParam, OpenParamOption, OpenValue};
+    use crate::{values::MQOO, ResultComp, ResultCompErr};
+    use crate::prelude::*;
+
+    macro_rules! impl_openvalue_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            impl<S, $first, $($ty),*> OpenValue<S> for ($first, $($ty),*)
+            where
+                $first: OpenValue<S>,
+                $($ty: OpenAttr<S, MQOO>),*
+            {
+                type Error = $first::Error;
+
+                #[expect(non_snake_case)]
+                #[inline]
+                fn consume<'a, F>(param: &mut OpenParam<'a>, mqi: F) -> ResultCompErr<Self, Self::Error>
+                where
+                    F: FnOnce(&mut OpenParam<'a>) -> ResultComp<S>,
+                {
+                    let mut rest_outer = None;
+                    $first::consume(param, |param| {
+                        <($($ty),*) as OpenAttr<S, MQOO>>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|a| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        (a, $($ty),*)
+                    })
+                }
+            }
+        }
+    }
+
+    macro_rules! impl_openattr_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            impl<S, O, $first, $($ty),*> OpenAttr<S, O> for ($first, $($ty),*)
+            where
+                $first: OpenAttr<S, O>,
+                $($ty: OpenAttr<S, O>),*
+            {
+                #[expect(non_snake_case)]
+                #[inline]
+                fn extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
+                where
+                    F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>
+                {
+                    let mut rest_outer = None;
+                    $first::extract(param, |param| {
+                        <($($ty),*) as OpenAttr<S, O>>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|(a, s)| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        ((a, $($ty),*), s)
+                    })
+                }
+            }
+        }
+    }
+
+    all_multi_tuples!(impl_openvalue_tuple);
+    all_multi_tuples!(impl_openattr_tuple);
+}
 
 impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
     fn apply_param(self, param: &mut OpenParamOption<'oo, O>) {
@@ -114,8 +186,8 @@ impl<'b> OpenOption<'b, MQPMO> for AlternateUserId {
     }
 }
 
-impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for Option<QueueName> {
-    fn extract<F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
+impl<S, O> OpenAttr<S, O> for Option<QueueName> {
+    fn extract<'b, F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
     {
@@ -128,8 +200,8 @@ impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for Option<QueueName> {
     }
 }
 
-impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for MQOT {
-    fn extract<F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
+impl<S, O> OpenAttr<S, O> for MQOT {
+    fn extract<'b, F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
     {
@@ -138,22 +210,19 @@ impl<'b, O, S> MqiAttr<OpenParamOption<'b, O>, S> for MQOT {
     }
 }
 
-// Blanket implementation of OpenValue
-impl<T, S> OpenValue<S> for T where for<'oo> Self: MqiValue<OpenParam<'oo>, S> {}
-
-impl<C: Conn, P> MqiValue<P, Self> for Object<C> {
+impl<C: Conn> OpenValue<Self> for Object<C> {
     type Error = Error;
 
-    fn consume<F>(param: &mut P, open: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn consume<'oo, F>(param: &mut OpenParam<'oo>, open: F) -> crate::ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut P) -> ResultComp<Self>,
+        F: FnOnce(&mut OpenParam<'oo>) -> ResultComp<Self>,
     {
         open(param)
     }
 }
 
-impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<QueueManagerName> {
-    fn extract<F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
+impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
+    fn extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
     {
@@ -168,8 +237,8 @@ impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<QueueManagerName> {
 
 const DEFAULT_RESOBJECTSTRING_LENGTH: sys::MQLONG = 4096;
 
-impl<'a, O, S> MqiAttr<OpenParamOption<'a, O>, S> for Option<ResObjectString> {
-    fn extract<F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
+impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
+    fn extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
     {

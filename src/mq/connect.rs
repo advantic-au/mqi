@@ -183,10 +183,10 @@ mod connect_impl {
                     })
                 }
             }
-    
+
         }
     }
-    
+
     macro_rules! impl_connectattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[expect(non_snake_case)]
@@ -215,9 +215,9 @@ mod connect_impl {
             }
         }
     }
-    
+
     all_multi_tuples!(impl_connectvalue_tuple);
-    all_multi_tuples!(impl_connectattr_tuple);    
+    all_multi_tuples!(impl_connectattr_tuple);
 }
 
 /// Create and return a [`Connection`] to a queue manager using a specified MQ [`Library`].

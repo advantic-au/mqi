@@ -561,7 +561,7 @@ impl<S> super::ConnectAttr<S> for ConnectionId {
     }
 }
 
-impl<S> super::ConnectAttr<S>  for ConnTag {
+impl<S> super::ConnectAttr<S> for ConnTag {
     #[inline]
     fn extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
     where
