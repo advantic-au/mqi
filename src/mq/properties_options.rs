@@ -10,8 +10,8 @@ use crate::macros::reverse_ident;
 use libmqm_sys::lib::MQTYPE_STRING;
 
 use crate::macros::all_multi_tuples;
-use crate::prelude::*;
-use crate::{sys, Completion, Error, MqStr, MqStruct, MqiAttr, MqiValue, ResultComp, StrCcsidOwned, StringCcsid};
+use crate::{prelude::*, ResultCompErr};
+use crate::{sys, Completion, Error, MqStr, MqStruct, ResultComp, StrCcsidOwned, StringCcsid};
 use crate::values::{self, CCSID, MQENC, MQTYPE};
 
 pub const INQUIRE_ALL: &str = "%";
@@ -31,11 +31,100 @@ pub struct PropertyParam<'p> {
     pub name_required: NameUsage,
 }
 
-pub trait PropertyValue: for<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>, Error: Into<Error>> {
+pub trait PropertyValue {
+    type Error: From<Error> + Into<Error> + std::fmt::Debug;
+
+    fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        Self: std::marker::Sized;
+
     #[must_use]
     fn max_value_size() -> Option<NonZero<usize>> {
         None
     }
+}
+
+pub trait PropertyAttr {
+    fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultComp<(Self, PropertyState<'s>)>
+    where
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        Self: Sized;
+}
+
+#[expect(unused_parens)]
+mod impl_property {
+    use super::{all_multi_tuples, PropertyAttr, PropertyParam, PropertyState, PropertyValue};
+    use crate::{ResultCompErr, ResultComp};
+    use crate::prelude::*;
+
+    macro_rules! impl_propertyvalue_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            impl<$first, $($ty),*> PropertyValue for ($first, $($ty),*)
+            where
+                $first: PropertyValue,
+                $($ty: PropertyAttr),*
+            {
+                type Error = $first::Error;
+
+                #[expect(non_snake_case)]
+                #[inline]
+                fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
+                where
+                    F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+                {
+                    let mut rest_outer = None;
+                    $first::consume(param, |param| {
+                        <($($ty),*) as PropertyAttr>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|a| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        (a, $($ty),*)
+                    })
+                }
+
+                fn max_value_size() -> Option<std::num::NonZero<usize>> {
+                    $first::max_value_size()
+                }
+            }
+
+        }
+    }
+
+    macro_rules! impl_propertyattr_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            impl<$first, $($ty),*> PropertyAttr for ($first, $($ty),*)
+            where
+                $first: PropertyAttr,
+                $($ty: PropertyAttr),*
+            {
+                #[expect(non_snake_case)]
+                #[inline]
+                fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultComp<(Self, PropertyState<'s>)>
+                where
+                    F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>
+                {
+                    let mut rest_outer = None;
+                    $first::extract(param, |param| {
+                        <($($ty),*) as PropertyAttr>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|(a, s)| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        ((a, $($ty),*), s)
+                    })
+                }
+            }
+        }
+    }
+
+    all_multi_tuples!(impl_propertyvalue_tuple);
+    all_multi_tuples!(impl_propertyattr_tuple);
 }
 
 pub trait SetProperty {
@@ -73,22 +162,6 @@ impl SetPropertyAttr for Attributes {
 }
 
 all_multi_tuples!(impl_setproperty_tuple);
-
-macro_rules! impl_propertyvalue_tuple {
-    ([$first:ident, $($ty:ident),*]) => {
-        impl<$first, $($ty),*> PropertyValue for ($first, $($ty),*)
-            where
-                $first: PropertyValue,
-                ($first, $($ty),*): for<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>, Error: Into<Error>>
-        {
-            fn max_value_size() -> Option<NonZero<usize>> {
-                $first::max_value_size()
-            }
-        }
-    };
-}
-
-all_multi_tuples!(impl_propertyvalue_tuple);
 
 #[derive(Debug, Clone, Default)]
 pub struct Attributes {
@@ -179,19 +252,19 @@ impl Metadata {
     }
 }
 
-impl<'p, 'a> MqiAttr<PropertyParam<'p>, PropertyState<'a>> for Metadata {
-    fn extract<F>(param: &mut PropertyParam<'p>, inqmp: F) -> ResultComp<(Self, PropertyState<'a>)>
+impl PropertyAttr for Metadata {
+    fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'a>>,
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        inqmp(param).map_completion(|state| (Self::new(state.value.len(), &param.impo, param.value_type), state))
+        mqinqmp(param).map_completion(|state| (Self::new(state.value.len(), &param.impo, param.value_type), state))
     }
 }
 
-impl<'p, S> MqiAttr<PropertyParam<'p>, S> for Attributes {
-    fn extract<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, S)>
+impl PropertyAttr for Attributes {
+    fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<S>,
+        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
         mqinqmp(param).map_completion(|state| {
             (
@@ -348,8 +421,8 @@ impl From<NameUsage> for Option<NonZero<usize>> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, derive_more::Deref, derive_more::DerefMut)]
 pub struct Name<T>(pub T);
 
-impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<String> {
-    fn extract<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+impl PropertyAttr for Name<String> {
+    fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
@@ -370,8 +443,8 @@ impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<String> {
     }
 }
 
-impl<'p, 's, const N: usize> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<MqStr<N>> {
-    fn extract<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+impl<const N: usize> PropertyAttr for Name<MqStr<N>> {
+    fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
@@ -392,8 +465,8 @@ impl<'p, 's, const N: usize> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for N
     }
 }
 
-impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwned> {
-    fn extract<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+impl PropertyAttr for Name<StrCcsidOwned> {
+    fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
@@ -412,12 +485,10 @@ impl<'p, 's> MqiAttr<PropertyParam<'p>, PropertyState<'s>> for Name<StrCcsidOwne
     }
 }
 
-impl PropertyValue for Value {}
-
-impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Value {
+impl PropertyValue for Value {
     type Error = Error;
 
-    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
+    fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
@@ -446,11 +517,10 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Value {
 macro_rules! impl_primitive_propertyvalue {
     ($type:ty, $mqtype:path) => {
         impl_as_primitive!($type);
-        impl PropertyValue for $type {}
-        impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for $type {
+        impl PropertyValue for $type {
             type Error = Error;
 
-            fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
+            fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
             where
                 F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
             {
@@ -488,15 +558,9 @@ impl_primitive_propertyvalue!(sys::MQLONG, sys::MQTYPE_INT32);
 impl_primitive_propertyvalue!(sys::MQINT64, sys::MQTYPE_INT64);
 
 impl PropertyValue for bool {
-    fn max_value_size() -> Option<NonZero<usize>> {
-        NonZero::new(mem::size_of::<Self>())
-    }
-}
-
-impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for bool {
     type Error = Error;
 
-    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
+    fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
@@ -504,12 +568,16 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for bool {
         param.impo.Options |= sys::MQIMPO_CONVERT_TYPE;
         mqinqmp(param).map_completion(|state| state.value[8] != 0)
     }
+
+    fn max_value_size() -> Option<NonZero<usize>> {
+        NonZero::new(mem::size_of::<Self>())
+    }
 }
 
-impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Vec<u8> {
+impl PropertyValue for Vec<u8> {
     type Error = Error;
 
-    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
@@ -520,15 +588,9 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Vec<u8> {
 }
 
 impl<const N: usize> PropertyValue for [u8; N] {
-    fn max_value_size() -> Option<NonZero<usize>> {
-        NonZero::new(N)
-    }
-}
-
-impl<'p, 's, const N: usize> MqiValue<PropertyParam<'p>, PropertyState<'s>> for [u8; N] {
     type Error = Error;
 
-    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
@@ -540,24 +602,26 @@ impl<'p, 's, const N: usize> MqiValue<PropertyParam<'p>, PropertyState<'s>> for 
             result
         })
     }
-}
 
-impl<const N: usize> PropertyValue for MqStr<N> {
     fn max_value_size() -> Option<NonZero<usize>> {
         NonZero::new(N)
     }
 }
 
-impl<'p, 's, const N: usize> MqiValue<PropertyParam<'p>, PropertyState<'s>> for MqStr<N> {
+impl<const N: usize> PropertyValue for MqStr<N> {
     type Error = Error;
 
-    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
         param.value_type = MQTYPE(sys::MQTYPE_BYTE_STRING);
         param.impo.Options |= sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
         mqinqmp(param).map_completion(|state| Self::from_bytes(&state.value).expect("buffer size should equal required length"))
+    }
+
+    fn max_value_size() -> Option<NonZero<usize>> {
+        NonZero::new(N)
     }
 }
 
@@ -571,12 +635,10 @@ impl<T: AsRef<[u8]>> SetProperty for Raw<T> {
     }
 }
 
-impl PropertyValue for Raw<Vec<u8>> {}
-
-impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Raw<Vec<u8>> {
+impl PropertyValue for Raw<Vec<u8>> {
     type Error = Error;
 
-    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
@@ -590,15 +652,9 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Raw<Vec<u8>> {
 }
 
 impl<const N: usize> PropertyValue for Raw<[u8; N]> {
-    fn max_value_size() -> Option<NonZero<usize>> {
-        NonZero::new(N)
-    }
-}
-
-impl<'p, 's, const N: usize> MqiValue<PropertyParam<'p>, PropertyState<'s>> for Raw<[u8; N]> {
     type Error = Error;
 
-    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
@@ -611,14 +667,16 @@ impl<'p, 's, const N: usize> MqiValue<PropertyParam<'p>, PropertyState<'s>> for 
             Self::new(data, Metadata::new(len, &param.impo, param.value_type))
         })
     }
+
+    fn max_value_size() -> Option<NonZero<usize>> {
+        NonZero::new(N)
+    }
 }
 
-impl PropertyValue for String {}
-
-impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for String {
+impl PropertyValue for String {
     type Error = Error;
 
-    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
@@ -635,11 +693,10 @@ impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for String {
     }
 }
 
-impl PropertyValue for StrCcsidOwned {}
-impl<'p, 's> MqiValue<PropertyParam<'p>, PropertyState<'s>> for StrCcsidOwned {
+impl PropertyValue for StrCcsidOwned {
     type Error = Error;
 
-    fn consume<F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
