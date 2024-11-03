@@ -1,7 +1,7 @@
 use crate::{
     core::{self, ObjectHandle},
     prelude::*,
-    sys, values, MqiAttr, MqiValue, ResultComp, ResultCompErr,
+    sys, values, Error, ResultComp, ResultCompErr,
 };
 
 use super::{Conn, MqStruct, Object};
@@ -46,8 +46,21 @@ impl<C: Conn> Drop for Subscription<C> {
     }
 }
 
-pub trait SubscribeValue<C: Conn>: for<'so> MqiValue<SubscribeParam<'so>, SubscribeState<C>> {}
-pub trait SubscribeAttr<C: Conn>: for<'so> MqiAttr<SubscribeParam<'so>, SubscribeState<C>> {}
+pub trait SubscribeValue<C: Conn> {
+    type Error: From<Error> + std::fmt::Debug;
+
+    fn consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
+        Self: std::marker::Sized;
+}
+
+pub trait SubscribeAttr<C: Conn> {
+    fn extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
+    where
+        F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
+        Self: Sized;
+}
 
 /// A trait that manipulates the parameters to the [`mqsub`](`crate::core::MqFunctions::mqsub`) function
 #[diagnostic::on_unimplemented(
@@ -58,9 +71,6 @@ pub trait SubscribeOption<'so> {
 }
 
 // Blanket implementation for SubscribeValue<C>
-impl<T, C: Conn> SubscribeValue<C> for T where for<'so> Self: MqiValue<SubscribeParam<'so>, SubscribeState<C>> {}
-impl<T, C: Conn> SubscribeAttr<C> for T where for<'so> Self: MqiAttr<SubscribeParam<'so>, SubscribeState<C>> {}
-
 impl<C: Conn + Clone> Subscription<C> {
     pub fn subscribe<'so>(connection: C, subscribe_option: impl SubscribeOption<'so>) -> ResultComp<Self> {
         Self::subscribe_as(connection, subscribe_option)
@@ -97,7 +107,7 @@ impl<C: Conn + Clone> Subscription<C> {
     pub(super) fn subscribe_as<'so, R>(
         connection: C,
         subscribe_option: impl SubscribeOption<'so>,
-    ) -> ResultCompErr<R, <R as MqiValue<SubscribeParam<'so>, SubscribeState<C>>>::Error>
+    ) -> ResultCompErr<R, <R as SubscribeValue<C>>::Error>
     where
         R: SubscribeValue<C>,
     {
