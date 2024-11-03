@@ -69,6 +69,76 @@ pub trait ConnectOption<'a> {
     }
 }
 
+#[expect(unused_parens)]
+mod connect_impl {
+    use crate::{ConnectValue, ConnectAttr, ConnectParam};
+    use crate::ResultComp;
+    use crate::prelude::*;
+    use crate::macros::all_multi_tuples;
+
+    macro_rules! impl_connectvalue_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            #[expect(non_snake_case)]
+            impl<S, $first, $($ty),*> ConnectValue<S> for ($first, $($ty),*)
+            where
+                $first: ConnectValue<S>,
+                $($ty: ConnectAttr<S>),*
+            {
+                #[inline]
+                fn consume<'a, F>(param: &mut ConnectParam<'a>, connect: F) -> ResultComp<Self>
+                where
+                    F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>,
+                {
+                    let mut rest_outer = None;
+                    $first::consume(param, |param| {
+                        <($($ty),*) as ConnectAttr<S>>::extract(param, connect).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|a| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by the extract closure");
+                        (a, $($ty),*)
+                    })
+                }
+            }
+
+        }
+    }
+
+    macro_rules! impl_connectattr_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            #[expect(non_snake_case)]
+            impl<S, $first, $($ty),*> ConnectAttr<S> for ($first, $($ty),*)
+            where
+                $first: ConnectAttr<S>,
+                $($ty: ConnectAttr<S>),*
+            {
+                #[inline]
+                fn extract<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<(Self, S)>
+                where
+                    F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>
+                {
+                    let mut rest_outer = None;
+                    $first::extract(param, |param| {
+                        <($($ty),*) as ConnectAttr<S>>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|(a, s)| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        ((a, $($ty),*), s)
+                    })
+                }
+            }
+        }
+    }
+
+    all_multi_tuples!(impl_connectvalue_tuple);
+    all_multi_tuples!(impl_connectattr_tuple);
+}
+
 // Accept a reference to a `ConnectOption`
 impl<'a, T: ConnectOption<'a> + Copy> ConnectOption<'a> for &T {
     #[inline]

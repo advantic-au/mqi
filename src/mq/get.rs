@@ -3,12 +3,10 @@ use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
 
 use crate::{
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
-    macros::all_multi_tuples,
     prelude::*,
     sys,
     types::{self, Fmt, MessageFormat, MessageId},
-    values::{self, CCSID},
-    Buffer, Completion, Conn, Error, MqStruct, Object, ResultComp, ResultCompErr, StrCcsidCow,
+    values, Buffer, Completion, Conn, Error, MqStruct, Object, ResultComp, ResultCompErr, StrCcsidCow,
 };
 
 #[derive(Clone, Debug)]
@@ -67,7 +65,7 @@ pub enum GetStringError {
     #[display("Message parsing error: {_0}")]
     Utf8Parse(Utf8Error, Option<types::Warning>),
     #[display("Unexpected format or CCSID. Message format = '{_0}', CCSID = {_1}")]
-    UnexpectedFormat(TextEnc<Fmt>, CCSID, Option<types::Warning>),
+    UnexpectedFormat(TextEnc<Fmt>, values::CCSID, Option<types::Warning>),
     #[from]
     MQ(Error),
 }
@@ -124,80 +122,6 @@ pub trait GetValue<B> {
     fn max_data_size() -> Option<NonZero<usize>> {
         None
     }
-}
-
-#[expect(unused_parens)]
-mod get_impl {
-    use super::{GetAttr, GetValue, GetParam, GetState};
-    use crate::prelude::*;
-    use crate::{ResultCompErr, ResultComp};
-
-    macro_rules! impl_getvalue {
-        ([$first:ident, $($ty:ident),*]) => {
-            #[expect(non_snake_case)]
-            impl<B, $first, $($ty),*> GetValue<B> for ($first, $($ty),*)
-            where
-                $first: GetValue<B>,
-                $($ty: GetAttr<B>),*
-            {
-                type Error = $first::Error;
-
-                #[inline]
-                fn consume<F>(param: &mut GetParam, mqi: F) -> ResultCompErr<Self, Self::Error>
-                where
-                    F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-                {
-                    let mut rest_outer = None;
-                    $first::consume(param, |param| {
-                        <($($ty),*) as GetAttr<B>>::extract(param, mqi).map_completion(|(rest, state)| {
-                            rest_outer = Some(rest);
-                            state
-                        })
-                    })
-                    .map_completion(|a| {
-                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by the extract closure");
-                        (a, $($ty),*)
-                    })
-                }
-
-                fn max_data_size() -> Option<std::num::NonZero<usize>> {
-                    $first::max_data_size()
-                }
-            }
-        };
-    }
-
-    macro_rules! impl_getattr {
-        ([$first:ident, $($ty:ident),*]) => {
-            #[expect(non_snake_case)]
-            impl<B, $first, $($ty),*> GetAttr<B> for ($first, $($ty),*)
-            where
-                $first: GetAttr<B>,
-                $($ty: GetAttr<B>),*
-            {
-                #[inline]
-                fn extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<(Self, GetState<B>)>
-                where
-                    F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>
-                {
-                    let mut rest_outer = None;
-                    $first::extract(param, |param| {
-                        <($($ty),*) as GetAttr<B>>::extract(param, mqi).map_completion(|(rest, state)| {
-                            rest_outer = Some(rest);
-                            state
-                        })
-                    })
-                    .map_completion(|(a, s)| {
-                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
-                        ((a, $($ty),*), s)
-                    })
-                }
-            }
-        }
-    }
-
-    super::all_multi_tuples!(impl_getvalue);
-    super::all_multi_tuples!(impl_getattr);
 }
 
 impl<'a, B: Buffer<'a>> GetValue<B> for StrCcsidCow<'a> {
@@ -454,7 +378,7 @@ impl<C: Conn> Object<C> {
                         .try_into()
                         .expect("message length should be within positive usize range"),
                     format: MessageFormat {
-                        ccsid: CCSID(param.md.CodedCharSetId),
+                        ccsid: values::CCSID(param.md.CodedCharSetId),
                         encoding: values::MQENC(param.md.Encoding),
                         fmt: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(param.md.Format) }),
                     },

@@ -6,6 +6,60 @@ use super::{
 };
 use crate::prelude::*;
 
+all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>);
+
+impl<'so, T: EncodedString + ?Sized> SubscribeOption<'so> for ObjectString<&'so T> {
+    #[inline]
+    fn apply_param(self, param: &mut SubscribeParam<'so>) {
+        param.sd.attach_object_string(self.0);
+    }
+}
+
+impl<C: Conn> SubscribeOption<'_> for &Object<C> {
+    #[inline]
+    fn apply_param(self, param: &mut SubscribeParam) {
+        param.provided_object = unsafe { self.handle.raw_handle() };
+    }
+}
+
+// Set the close options for the subscription when opening
+impl SubscribeOption<'_> for values::MQCO {
+    #[inline]
+    fn apply_param(self, param: &mut SubscribeParam) {
+        param.close_options |= self;
+    }
+}
+
+impl SubscribeOption<'_> for values::MQSO {
+    #[inline]
+    fn apply_param(self, param: &mut SubscribeParam) {
+        param.sd.Options |= self.value();
+    }
+}
+
+impl<C: Conn> SubscribeValue<C> for Subscription<C> {
+    type Error = Error;
+
+    #[inline]
+    fn consume<'so, F>(param: &mut SubscribeParam<'so>, subscribe: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
+    {
+        subscribe(param).map_completion(|state| state.subscription)
+    }
+}
+
+// Return the optional handle of a managed subscription
+impl<C: Conn> SubscribeAttr<C> for Option<Object<C>> {
+    #[inline]
+    fn extract<'so, F>(param: &mut SubscribeParam<'so>, subscribe: F) -> ResultComp<(Self, SubscribeState<C>)>
+    where
+        F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
+    {
+        subscribe(param).map_completion(|mut state| (state.object.take(), state))
+    }
+}
+
 #[expect(unused_parens)]
 mod impl_subscribe {
     use super::{SubscribeValue, SubscribeAttr, SubscribeState, SubscribeParam};
@@ -98,58 +152,4 @@ mod impl_subscribe {
 
     all_multi_tuples!(impl_subscribevalue_tuple);
     all_multi_tuples!(impl_subscribeattr_tuple);
-}
-
-all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>);
-
-impl<'so, T: EncodedString + ?Sized> SubscribeOption<'so> for ObjectString<&'so T> {
-    #[inline]
-    fn apply_param(self, param: &mut SubscribeParam<'so>) {
-        param.sd.attach_object_string(self.0);
-    }
-}
-
-impl<C: Conn> SubscribeOption<'_> for &Object<C> {
-    #[inline]
-    fn apply_param(self, param: &mut SubscribeParam) {
-        param.provided_object = unsafe { self.handle.raw_handle() };
-    }
-}
-
-// Set the close options for the subscription when opening
-impl SubscribeOption<'_> for values::MQCO {
-    #[inline]
-    fn apply_param(self, param: &mut SubscribeParam) {
-        param.close_options |= self;
-    }
-}
-
-impl SubscribeOption<'_> for values::MQSO {
-    #[inline]
-    fn apply_param(self, param: &mut SubscribeParam) {
-        param.sd.Options |= self.value();
-    }
-}
-
-impl<C: Conn> SubscribeValue<C> for Subscription<C> {
-    type Error = Error;
-
-    #[inline]
-    fn consume<'so, F>(param: &mut SubscribeParam<'so>, subscribe: F) -> ResultCompErr<Self, Self::Error>
-    where
-        F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
-    {
-        subscribe(param).map_completion(|state| state.subscription)
-    }
-}
-
-// Return the optional handle of a managed subscription
-impl<C: Conn> SubscribeAttr<C> for Option<Object<C>> {
-    #[inline]
-    fn extract<'so, F>(param: &mut SubscribeParam<'so>, subscribe: F) -> ResultComp<(Self, SubscribeState<C>)>
-    where
-        F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
-    {
-        subscribe(param).map_completion(|mut state| (state.object.take(), state))
-    }
 }

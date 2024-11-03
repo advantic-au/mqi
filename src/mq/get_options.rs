@@ -98,3 +98,78 @@ impl GetOption for types::MsgToken {
         param.gmo.MatchOptions |= sys::MQMO_MATCH_MSG_TOKEN;
     }
 }
+
+#[expect(unused_parens)]
+mod get_impl {
+    use crate::get::{GetAttr, GetValue, GetParam, GetState};
+    use crate::macros::all_multi_tuples;
+    use crate::prelude::*;
+    use crate::{ResultCompErr, ResultComp};
+
+    macro_rules! impl_getvalue {
+        ([$first:ident, $($ty:ident),*]) => {
+            #[expect(non_snake_case)]
+            impl<B, $first, $($ty),*> GetValue<B> for ($first, $($ty),*)
+            where
+                $first: GetValue<B>,
+                $($ty: GetAttr<B>),*
+            {
+                type Error = $first::Error;
+
+                #[inline]
+                fn consume<F>(param: &mut GetParam, mqi: F) -> ResultCompErr<Self, Self::Error>
+                where
+                    F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+                {
+                    let mut rest_outer = None;
+                    $first::consume(param, |param| {
+                        <($($ty),*) as GetAttr<B>>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|a| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by the extract closure");
+                        (a, $($ty),*)
+                    })
+                }
+
+                fn max_data_size() -> Option<std::num::NonZero<usize>> {
+                    $first::max_data_size()
+                }
+            }
+        };
+    }
+
+    macro_rules! impl_getattr {
+        ([$first:ident, $($ty:ident),*]) => {
+            #[expect(non_snake_case)]
+            impl<B, $first, $($ty),*> GetAttr<B> for ($first, $($ty),*)
+            where
+                $first: GetAttr<B>,
+                $($ty: GetAttr<B>),*
+            {
+                #[inline]
+                fn extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<(Self, GetState<B>)>
+                where
+                    F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>
+                {
+                    let mut rest_outer = None;
+                    $first::extract(param, |param| {
+                        <($($ty),*) as GetAttr<B>>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|(a, s)| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        ((a, $($ty),*), s)
+                    })
+                }
+            }
+        }
+    }
+
+    all_multi_tuples!(impl_getvalue);
+    all_multi_tuples!(impl_getattr);
+}

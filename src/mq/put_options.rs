@@ -17,57 +17,6 @@ pub enum PropertyAction<'handle, C: Conn> {
     Report(&'handle Properties<C>, &'handle mut Properties<C>),
 }
 
-#[expect(unused_parens)]
-mod impl_put {
-    use crate::macros::all_multi_tuples;
-
-    use crate::put::{PutAttr, PutParam};
-    use crate::ResultComp;
-    use crate::prelude::*;
-
-    macro_rules! impl_putattr_tuple {
-        ([$first:ident, $($ty:ident),*]) => {
-            impl<$first, $($ty),*> PutAttr for ($first, $($ty),*)
-            where
-                $first: PutAttr,
-                $($ty: PutAttr),*
-            {
-                #[expect(non_snake_case)]
-                #[inline]
-                fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
-                where
-                    F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>
-                {
-                    let mut rest_outer = None;
-                    $first::extract(param, |param| {
-                        <($($ty),*) as PutAttr>::extract(param, mqi).map_completion(|(rest, state)| {
-                            rest_outer = Some(rest);
-                            state
-                        })
-                    })
-                    .map_completion(|(a, s)| {
-                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
-                        ((a, $($ty),*), s)
-                    })
-                }
-            }
-        }
-    }
-
-    impl PutAttr for () {
-        #[inline]
-        fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
-        where
-            F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
-            Self: Sized,
-        {
-            mqi(param).map_completion(|()| ((), ()))
-        }
-    }
-
-    all_multi_tuples!(impl_putattr_tuple);
-}
-
 impl<C: Conn> PutOption for Context<&Object<C>> {
     fn apply_param(self, (.., pmo): &mut PutParam) {
         pmo.Context = unsafe { self.0.handle.raw_handle() };
@@ -165,4 +114,55 @@ impl PutAttr for Option<types::UserIdentifier> {
             (types::UserIdentifier::new(md.UserIdentifier), state)
         })
     }
+}
+
+#[expect(unused_parens)]
+mod impl_put {
+    use crate::macros::all_multi_tuples;
+
+    use crate::put::{PutAttr, PutParam};
+    use crate::ResultComp;
+    use crate::prelude::*;
+
+    macro_rules! impl_putattr_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            impl<$first, $($ty),*> PutAttr for ($first, $($ty),*)
+            where
+                $first: PutAttr,
+                $($ty: PutAttr),*
+            {
+                #[expect(non_snake_case)]
+                #[inline]
+                fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
+                where
+                    F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>
+                {
+                    let mut rest_outer = None;
+                    $first::extract(param, |param| {
+                        <($($ty),*) as PutAttr>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|(a, s)| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        ((a, $($ty),*), s)
+                    })
+                }
+            }
+        }
+    }
+
+    impl PutAttr for () {
+        #[inline]
+        fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
+        where
+            F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
+            Self: Sized,
+        {
+            mqi(param).map_completion(|()| ((), ()))
+        }
+    }
+
+    all_multi_tuples!(impl_putattr_tuple);
 }

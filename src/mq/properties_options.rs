@@ -52,81 +52,6 @@ pub trait PropertyAttr {
         Self: Sized;
 }
 
-#[expect(unused_parens)]
-mod impl_property {
-    use super::{all_multi_tuples, PropertyAttr, PropertyParam, PropertyState, PropertyValue};
-    use crate::{ResultCompErr, ResultComp};
-    use crate::prelude::*;
-
-    macro_rules! impl_propertyvalue_tuple {
-        ([$first:ident, $($ty:ident),*]) => {
-            impl<$first, $($ty),*> PropertyValue for ($first, $($ty),*)
-            where
-                $first: PropertyValue,
-                $($ty: PropertyAttr),*
-            {
-                type Error = $first::Error;
-
-                #[expect(non_snake_case)]
-                #[inline]
-                fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
-                where
-                    F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
-                {
-                    let mut rest_outer = None;
-                    $first::consume(param, |param| {
-                        <($($ty),*) as PropertyAttr>::extract(param, mqi).map_completion(|(rest, state)| {
-                            rest_outer = Some(rest);
-                            state
-                        })
-                    })
-                    .map_completion(|a| {
-                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
-                        (a, $($ty),*)
-                    })
-                }
-
-                fn max_value_size() -> Option<std::num::NonZero<usize>> {
-                    $first::max_value_size()
-                }
-            }
-
-        }
-    }
-
-    macro_rules! impl_propertyattr_tuple {
-        ([$first:ident, $($ty:ident),*]) => {
-            impl<$first, $($ty),*> PropertyAttr for ($first, $($ty),*)
-            where
-                $first: PropertyAttr,
-                $($ty: PropertyAttr),*
-            {
-                #[expect(non_snake_case)]
-                #[inline]
-                fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultComp<(Self, PropertyState<'s>)>
-                where
-                    F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>
-                {
-                    let mut rest_outer = None;
-                    $first::extract(param, |param| {
-                        <($($ty),*) as PropertyAttr>::extract(param, mqi).map_completion(|(rest, state)| {
-                            rest_outer = Some(rest);
-                            state
-                        })
-                    })
-                    .map_completion(|(a, s)| {
-                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
-                        ((a, $($ty),*), s)
-                    })
-                }
-            }
-        }
-    }
-
-    all_multi_tuples!(impl_propertyvalue_tuple);
-    all_multi_tuples!(impl_propertyattr_tuple);
-}
-
 pub trait SetProperty {
     type Data: std::fmt::Debug + ?Sized;
     fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE);
@@ -710,4 +635,79 @@ impl PropertyValue for StrCcsidOwned {
             le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
         })
     }
+}
+
+#[expect(unused_parens)]
+mod impl_property {
+    use super::{all_multi_tuples, PropertyAttr, PropertyParam, PropertyState, PropertyValue};
+    use crate::{ResultCompErr, ResultComp};
+    use crate::prelude::*;
+
+    macro_rules! impl_propertyvalue_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            impl<$first, $($ty),*> PropertyValue for ($first, $($ty),*)
+            where
+                $first: PropertyValue,
+                $($ty: PropertyAttr),*
+            {
+                type Error = $first::Error;
+
+                #[expect(non_snake_case)]
+                #[inline]
+                fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
+                where
+                    F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+                {
+                    let mut rest_outer = None;
+                    $first::consume(param, |param| {
+                        <($($ty),*) as PropertyAttr>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|a| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        (a, $($ty),*)
+                    })
+                }
+
+                fn max_value_size() -> Option<std::num::NonZero<usize>> {
+                    $first::max_value_size()
+                }
+            }
+
+        }
+    }
+
+    macro_rules! impl_propertyattr_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            impl<$first, $($ty),*> PropertyAttr for ($first, $($ty),*)
+            where
+                $first: PropertyAttr,
+                $($ty: PropertyAttr),*
+            {
+                #[expect(non_snake_case)]
+                #[inline]
+                fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultComp<(Self, PropertyState<'s>)>
+                where
+                    F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>
+                {
+                    let mut rest_outer = None;
+                    $first::extract(param, |param| {
+                        <($($ty),*) as PropertyAttr>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|(a, s)| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        ((a, $($ty),*), s)
+                    })
+                }
+            }
+        }
+    }
+
+    all_multi_tuples!(impl_propertyvalue_tuple);
+    all_multi_tuples!(impl_propertyattr_tuple);
 }

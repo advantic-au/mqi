@@ -11,78 +11,6 @@ use crate::{
 
 use super::{impl_mqstruct_min_version, types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
 
-#[expect(unused_parens)]
-mod open_impl {
-    use crate::macros::all_multi_tuples;
-
-    use super::{OpenAttr, OpenParam, OpenParamOption, OpenValue};
-    use crate::{values::MQOO, ResultComp, ResultCompErr};
-    use crate::prelude::*;
-
-    macro_rules! impl_openvalue_tuple {
-        ([$first:ident, $($ty:ident),*]) => {
-            impl<S, $first, $($ty),*> OpenValue<S> for ($first, $($ty),*)
-            where
-                $first: OpenValue<S>,
-                $($ty: OpenAttr<S, MQOO>),*
-            {
-                type Error = $first::Error;
-
-                #[expect(non_snake_case)]
-                #[inline]
-                fn consume<'a, F>(param: &mut OpenParam<'a>, mqi: F) -> ResultCompErr<Self, Self::Error>
-                where
-                    F: FnOnce(&mut OpenParam<'a>) -> ResultComp<S>,
-                {
-                    let mut rest_outer = None;
-                    $first::consume(param, |param| {
-                        <($($ty),*) as OpenAttr<S, MQOO>>::extract(param, mqi).map_completion(|(rest, state)| {
-                            rest_outer = Some(rest);
-                            state
-                        })
-                    })
-                    .map_completion(|a| {
-                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
-                        (a, $($ty),*)
-                    })
-                }
-            }
-        }
-    }
-
-    macro_rules! impl_openattr_tuple {
-        ([$first:ident, $($ty:ident),*]) => {
-            impl<S, O, $first, $($ty),*> OpenAttr<S, O> for ($first, $($ty),*)
-            where
-                $first: OpenAttr<S, O>,
-                $($ty: OpenAttr<S, O>),*
-            {
-                #[expect(non_snake_case)]
-                #[inline]
-                fn extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
-                where
-                    F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>
-                {
-                    let mut rest_outer = None;
-                    $first::extract(param, |param| {
-                        <($($ty),*) as OpenAttr<S, O>>::extract(param, mqi).map_completion(|(rest, state)| {
-                            rest_outer = Some(rest);
-                            state
-                        })
-                    })
-                    .map_completion(|(a, s)| {
-                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
-                        ((a, $($ty),*), s)
-                    })
-                }
-            }
-        }
-    }
-
-    all_multi_tuples!(impl_openvalue_tuple);
-    all_multi_tuples!(impl_openattr_tuple);
-}
-
 impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
     fn apply_param(self, param: &mut OpenParamOption<'oo, O>) {
         if let Some(value) = self {
@@ -281,4 +209,76 @@ impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
             )
         })
     }
+}
+
+#[expect(unused_parens)]
+mod open_impl {
+    use crate::macros::all_multi_tuples;
+
+    use super::{OpenAttr, OpenParam, OpenParamOption, OpenValue};
+    use crate::{values::MQOO, ResultComp, ResultCompErr};
+    use crate::prelude::*;
+
+    macro_rules! impl_openvalue_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            impl<S, $first, $($ty),*> OpenValue<S> for ($first, $($ty),*)
+            where
+                $first: OpenValue<S>,
+                $($ty: OpenAttr<S, MQOO>),*
+            {
+                type Error = $first::Error;
+
+                #[expect(non_snake_case)]
+                #[inline]
+                fn consume<'a, F>(param: &mut OpenParam<'a>, mqi: F) -> ResultCompErr<Self, Self::Error>
+                where
+                    F: FnOnce(&mut OpenParam<'a>) -> ResultComp<S>,
+                {
+                    let mut rest_outer = None;
+                    $first::consume(param, |param| {
+                        <($($ty),*) as OpenAttr<S, MQOO>>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|a| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        (a, $($ty),*)
+                    })
+                }
+            }
+        }
+    }
+
+    macro_rules! impl_openattr_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            impl<S, O, $first, $($ty),*> OpenAttr<S, O> for ($first, $($ty),*)
+            where
+                $first: OpenAttr<S, O>,
+                $($ty: OpenAttr<S, O>),*
+            {
+                #[expect(non_snake_case)]
+                #[inline]
+                fn extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
+                where
+                    F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>
+                {
+                    let mut rest_outer = None;
+                    $first::extract(param, |param| {
+                        <($($ty),*) as OpenAttr<S, O>>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|(a, s)| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        ((a, $($ty),*), s)
+                    })
+                }
+            }
+        }
+    }
+
+    all_multi_tuples!(impl_openvalue_tuple);
+    all_multi_tuples!(impl_openattr_tuple);
 }
