@@ -55,6 +55,7 @@ mod impl_put {
     }
 
     impl PutAttr for () {
+        #[inline]
         fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
         where
             F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,

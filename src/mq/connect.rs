@@ -126,6 +126,7 @@ impl<L: Library<MQ: function::Mqi>, H> Drop for Connection<L, H> {
 }
 
 impl<L: Library<MQ: function::Mqi>, H: Threading> ConnectValue<Self> for Connection<L, H> {
+    #[inline]
     fn consume<'a, F>(param: &mut ConnectParam<'a>, connect: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<Self>,

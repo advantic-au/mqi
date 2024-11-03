@@ -253,6 +253,7 @@ impl Metadata {
 }
 
 impl PropertyAttr for Metadata {
+    #[inline]
     fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
@@ -262,6 +263,7 @@ impl PropertyAttr for Metadata {
 }
 
 impl PropertyAttr for Attributes {
+    #[inline]
     fn extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,

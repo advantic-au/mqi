@@ -142,6 +142,7 @@ mod get_impl {
             {
                 type Error = $first::Error;
 
+                #[inline]
                 fn consume<F>(param: &mut GetParam, mqi: F) -> ResultCompErr<Self, Self::Error>
                 where
                     F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
@@ -259,6 +260,7 @@ where
 impl<'buffer, B: Buffer<'buffer>> GetValue<B> for Cow<'buffer, [u8]> {
     type Error = Error;
 
+    #[inline]
     fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
@@ -270,6 +272,7 @@ impl<'buffer, B: Buffer<'buffer>> GetValue<B> for Cow<'buffer, [u8]> {
 impl<'buffer, B: Buffer<'buffer>> GetValue<B> for Vec<u8> {
     type Error = Error;
 
+    #[inline]
     fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
@@ -320,6 +323,7 @@ impl<'a, B: Buffer<'a>> GetAttr<B> for Headers<'a> {
 }
 
 impl<B> GetAttr<B> for MessageFormat {
+    #[inline]
     fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
@@ -329,6 +333,7 @@ impl<B> GetAttr<B> for MessageFormat {
 }
 
 impl<B> GetAttr<B> for MqStruct<'static, sys::MQMD2> {
+    #[inline]
     fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
@@ -338,6 +343,7 @@ impl<B> GetAttr<B> for MqStruct<'static, sys::MQMD2> {
 }
 
 impl<B> GetAttr<B> for MessageId {
+    #[inline]
     fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,

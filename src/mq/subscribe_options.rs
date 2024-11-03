@@ -76,6 +76,7 @@ mod impl_subscribe {
     impl<C: Conn> SubscribeValue<C> for () {
         type Error = crate::Error;
 
+        #[inline]
         fn consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
         where
             F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
@@ -85,6 +86,7 @@ mod impl_subscribe {
     }
 
     impl<C: Conn> SubscribeAttr<C> for () {
+        #[inline]
         fn extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
         where
             F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
@@ -132,6 +134,7 @@ impl SubscribeOption<'_> for values::MQSO {
 impl<C: Conn> SubscribeValue<C> for Subscription<C> {
     type Error = Error;
 
+    #[inline]
     fn consume<'so, F>(param: &mut SubscribeParam<'so>, subscribe: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
