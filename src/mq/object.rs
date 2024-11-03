@@ -46,10 +46,6 @@ pub trait OpenAttr<S, O> {
         Self: Sized;
 }
 
-// pub trait OpenAttr<S>: for<'oo> MqiAttr<OpenParam<'oo>, S> {}
-
-// impl<S, T: for<'oo> MqiAttr<OpenParam<'oo>, S>> OpenAttr<S> for T {}
-
 impl<C: Conn> Object<C> {
     #[must_use]
     pub const fn handle(&self) -> &core::ObjectHandle {

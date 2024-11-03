@@ -1,7 +1,7 @@
-use crate::{macros::all_option_tuples, prelude::*, sys, types, values, Conn, MqStruct, MqiAttr, Properties, ResultComp};
+use crate::{macros::all_option_tuples, prelude::*, sys, types, values, Conn, MqStruct, Properties, ResultComp};
 
 use super::{
-    put::{PutOption, PutParam},
+    put::{PutAttr, PutOption, PutParam},
     Object,
 };
 
@@ -15,6 +15,55 @@ pub enum PropertyAction<'handle, C: Conn> {
     Reply(&'handle Properties<C>, &'handle mut Properties<C>),
     Forward(&'handle Properties<C>, &'handle mut Properties<C>),
     Report(&'handle Properties<C>, &'handle mut Properties<C>),
+}
+
+#[expect(unused_parens)]
+mod impl_put {
+    use crate::macros::all_multi_tuples;
+
+    use crate::put::{PutAttr, PutParam};
+    use crate::ResultComp;
+    use crate::prelude::*;
+
+    macro_rules! impl_putattr_tuple {
+        ([$first:ident, $($ty:ident),*]) => {
+            impl<$first, $($ty),*> PutAttr for ($first, $($ty),*)
+            where
+                $first: PutAttr,
+                $($ty: PutAttr),*
+            {
+                #[expect(non_snake_case)]
+                #[inline]
+                fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
+                where
+                    F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>
+                {
+                    let mut rest_outer = None;
+                    $first::extract(param, |param| {
+                        <($($ty),*) as PutAttr>::extract(param, mqi).map_completion(|(rest, state)| {
+                            rest_outer = Some(rest);
+                            state
+                        })
+                    })
+                    .map_completion(|(a, s)| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        ((a, $($ty),*), s)
+                    })
+                }
+            }
+        }
+    }
+
+    impl PutAttr for () {
+        fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
+        where
+            F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
+            Self: Sized {
+            mqi(param).map_completion(|()| ((), ()))
+        }
+    }
+
+    all_multi_tuples!(impl_putattr_tuple);
 }
 
 impl<C: Conn> PutOption for Context<&Object<C>> {
@@ -64,11 +113,11 @@ impl<'handle, C: Conn> PutOption for PropertyAction<'handle, C> {
     }
 }
 
-impl<'b, S> MqiAttr<PutParam<'b>, S> for MqStruct<'static, sys::MQMD2> {
+impl PutAttr for MqStruct<'static, sys::MQMD2> {
     #[inline]
-    fn extract<F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, S)>
+    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, ())>
     where
-        F: FnOnce(&mut PutParam<'b>) -> ResultComp<S>,
+        F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
         put(param).map_completion(|state| {
             let (md, ..) = param;
@@ -77,11 +126,11 @@ impl<'b, S> MqiAttr<PutParam<'b>, S> for MqStruct<'static, sys::MQMD2> {
     }
 }
 
-impl<'b, S> MqiAttr<PutParam<'b>, S> for types::MessageId {
+impl PutAttr for types::MessageId {
     #[inline]
-    fn extract<F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, S)>
+    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, ())>
     where
-        F: FnOnce(&mut PutParam<'b>) -> ResultComp<S>,
+        F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
         put(param).map_completion(|state| {
             let (md, ..) = param;
@@ -90,11 +139,11 @@ impl<'b, S> MqiAttr<PutParam<'b>, S> for types::MessageId {
     }
 }
 
-impl<'b, S> MqiAttr<PutParam<'b>, S> for types::CorrelationId {
+impl PutAttr for types::CorrelationId {
     #[inline]
-    fn extract<F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, S)>
+    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, ())>
     where
-        F: FnOnce(&mut PutParam<'b>) -> ResultComp<S>,
+        F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
         put(param).map_completion(|state| {
             let (md, ..) = param;
@@ -103,11 +152,11 @@ impl<'b, S> MqiAttr<PutParam<'b>, S> for types::CorrelationId {
     }
 }
 
-impl<'b, S> MqiAttr<PutParam<'b>, S> for Option<types::UserIdentifier> {
+impl PutAttr for Option<types::UserIdentifier> {
     #[inline]
-    fn extract<F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, S)>
+    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, ())>
     where
-        F: FnOnce(&mut PutParam<'b>) -> ResultComp<S>,
+        F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
         put(param).map_completion(|state| {
             let (md, ..) = param;
