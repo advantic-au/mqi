@@ -42,7 +42,7 @@ impl PutOption for MqStruct<'static, sys::MQMD2> {
     }
 }
 
-impl<'handle, C: Conn> PutOption for PropertyAction<'handle, C> {
+impl<C: Conn> PutOption for PropertyAction<'_, C> {
     fn apply_param(self, (.., pmo): &mut PutParam) {
         match self {
             PropertyAction::Reply(original, new) => {

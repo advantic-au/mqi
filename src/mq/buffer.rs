@@ -8,7 +8,7 @@ pub enum InqBuffer<'a, T> {
     Owned(Vec<T>),
 }
 
-impl<'a, T> InqBuffer<'a, T> {
+impl<T> InqBuffer<'_, T> {
     #[must_use]
     pub fn truncate(self, len: usize) -> Self {
         match self {
@@ -24,7 +24,7 @@ impl<'a, T> InqBuffer<'a, T> {
     }
 }
 
-impl<'a, T> AsRef<[T]> for InqBuffer<'a, T> {
+impl<T> AsRef<[T]> for InqBuffer<'_, T> {
     fn as_ref(&self) -> &[T] {
         match self {
             InqBuffer::Slice(s) => s,
@@ -33,7 +33,7 @@ impl<'a, T> AsRef<[T]> for InqBuffer<'a, T> {
     }
 }
 
-impl<'a, T> AsMut<[T]> for InqBuffer<'a, T> {
+impl<T> AsMut<[T]> for InqBuffer<'_, T> {
     fn as_mut(&mut self) -> &mut [T] {
         match self {
             InqBuffer::Slice(s) => s,

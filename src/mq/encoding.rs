@@ -877,7 +877,7 @@ const EBCDIC_ASCII7: [u8; 256] = [
     0x1A, // (no mapping)
 ];
 
-const CCSID_2K: [CcsidEntry; 2048] = ccsid_lookup_init(); // Efficient lookup for the first 2k
+static CCSID_2K: [CcsidEntry; 2048] = ccsid_lookup_init(); // Efficient lookup for the first 2k
 
 const fn convert<const N: usize>(input: &[u8; N], table: &[u8; 256]) -> [u8; N] {
     let mut result = [0; N];
