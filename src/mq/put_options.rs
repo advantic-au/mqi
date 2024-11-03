@@ -58,7 +58,8 @@ mod impl_put {
         fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
         where
             F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
-            Self: Sized {
+            Self: Sized,
+        {
             mqi(param).map_completion(|()| ((), ()))
         }
     }

@@ -1,5 +1,7 @@
 use crate::{
-    core::{self, ObjectHandle}, prelude::*, sys, values, Error, ResultComp, ResultCompErr
+    core::{self, ObjectHandle},
+    prelude::*,
+    sys, values, Error, ResultComp, ResultCompErr,
 };
 
 use super::{Conn, MqStruct, Object};

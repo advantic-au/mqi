@@ -1,6 +1,9 @@
 use crate::{macros::all_option_tuples, values, Error, ResultComp, ResultCompErr};
 
-use super::{open_options::ObjectString, Conn, EncodedString, Object, SubscribeAttr, SubscribeOption, SubscribeParam, SubscribeState, SubscribeValue, Subscription};
+use super::{
+    open_options::ObjectString, Conn, EncodedString, Object, SubscribeAttr, SubscribeOption, SubscribeParam, SubscribeState,
+    SubscribeValue, Subscription,
+};
 use crate::prelude::*;
 
 #[expect(unused_parens)]
@@ -18,7 +21,7 @@ mod impl_subscribe {
                 $($ty: SubscribeAttr<C>),*
             {
                 type Error = $first::Error;
-    
+
                 #[expect(non_snake_case)]
                 #[inline]
                 fn consume<'sp, F>(param: &mut SubscribeParam<'sp>, mqi: F) -> ResultCompErr<Self, Self::Error>
@@ -72,10 +75,11 @@ mod impl_subscribe {
 
     impl<C: Conn> SubscribeValue<C> for () {
         type Error = crate::Error;
-    
+
         fn consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
         where
-            F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>> {
+            F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
+        {
             mqi(param).map_completion(|_| ())
         }
     }
@@ -84,11 +88,12 @@ mod impl_subscribe {
         fn extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
         where
             F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
-            Self: Sized {
+            Self: Sized,
+        {
             mqi(param).map_completion(|state| ((), state))
         }
     }
-    
+
     all_multi_tuples!(impl_subscribevalue_tuple);
     all_multi_tuples!(impl_subscribeattr_tuple);
 }
