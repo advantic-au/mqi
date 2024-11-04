@@ -10,23 +10,11 @@ use mqi::{
     Properties, StrCcsidOwned, ThreadNone,
 };
 
-fn mock_properties_ok(mock: &mut MockFunctions) {
-    mock.expect_MQCRTMH().returning(|_, _, hmsg, comp_code, reason| {
-        unsafe {
-            *hmsg = 0x0a0a;
-        }
-        MockFunctions::mqi_outcome_ok(comp_code, reason);
-    });
-
-    mock.expect_MQDLTMH().returning(|_, _, _, comp_code, reason| {
-        MockFunctions::mqi_outcome_ok(comp_code, reason);
-    });
-}
-
 #[test]
 fn set_property() -> Result<(), Box<dyn Error>> {
     let mut mock_library = helpers::mock::connect_ok();
-    mock_properties_ok(&mut mock_library);
+    let mut seq = mockall::Sequence::new();
+    mock_library.properties_ok(0x0d0d, 1, &mut seq);
 
     mock_library
         .expect_MQSETMP()
@@ -52,7 +40,8 @@ fn set_property() -> Result<(), Box<dyn Error>> {
 #[test]
 fn inq_property() -> Result<(), Box<dyn Error>> {
     let mut mock_library = helpers::mock::connect_ok();
-    mock_properties_ok(&mut mock_library);
+    let mut seq = mockall::Sequence::new();
+    mock_library.properties_ok(0x0d0d, 1, &mut seq);
 
     mock_library
         .expect_MQINQMP()

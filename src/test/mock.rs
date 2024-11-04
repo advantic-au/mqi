@@ -306,6 +306,22 @@ impl MockFunctions {
     pub fn mqi_outcome_ok(pCompCode: sys::PMQLONG, pReason: sys::PMQLONG) {
         Self::mqi_outcome(pCompCode, pReason, sys::MQCC_OK, sys::MQRC_NONE);
     }
+
+    pub fn properties_ok(&mut self, hMsg: sys::MQHMSG, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+        self.expect_MQCRTMH().returning(move |_, _, hmsg, comp_code, reason| {
+            unsafe {
+                *hmsg = hMsg;
+            }
+            Self::mqi_outcome_ok(comp_code, reason);
+        })
+        .times(count)
+        .in_sequence(seq);
+    
+        self.expect_MQDLTMH().returning(|_, _, _, comp_code, reason| {
+            Self::mqi_outcome_ok(comp_code, reason);
+        });
+    }
+    
 }
 
 #[must_use]
