@@ -14,10 +14,10 @@ pub trait QueueManager {
     ///
     /// Type inference of the return value may not always work so you may have to explicitly state the return type using the
     /// `put_message_with::<Type>` syntax.
-    fn put_message_with<'oo, R>(
+    fn put_message_with<'po, 'oo, R>(
         &self,
         open_options: impl OpenOption<'oo, MQPMO>,
-        put_options: impl PutOption,
+        put_options: impl PutOption<'po>,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<R>
     where
@@ -25,10 +25,10 @@ pub trait QueueManager {
 
     /// Put a message to a queue or topic
     #[inline]
-    fn put_message<'oo>(
+    fn put_message<'po, 'oo>(
         &self,
         open_options: impl OpenOption<'oo, MQPMO>,
-        put_options: impl PutOption,
+        put_options: impl PutOption<'po>,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<()> {
         self.put_message_with(open_options, put_options, message)
@@ -41,10 +41,10 @@ pub trait QueueManager {
 
 impl<C: Conn> QueueManager for C {
     #[inline]
-    fn put_message_with<'oo, R>(
+    fn put_message_with<'po, 'oo, R>(
         &self,
         open_options: impl OpenOption<'oo, MQPMO>,
-        put_options: impl PutOption,
+        put_options: impl PutOption<'po>,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<R>
     where
