@@ -1,33 +1,33 @@
 mod helpers;
 
-use std::{env, error::Error, thread};
+use std::{env, error::Error, sync::Arc, thread};
 
-use helpers::{credentials_app, mq_library};
 use mqi::{
     connect_options::{Binding, MqServer, Tls},
     prelude::*,
     sys,
     types::{CertificateLabel, CipherSpec, KeyRepo, MessageId, QueueName, FORMAT_NONE},
-    values, Properties, ThreadNoBlock, ThreadNone,
+    values, Properties, ThreadNone,
 };
 
 #[test]
 fn thread() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let mock = helpers::mock::connect_ok();
     let (qm, (tag, id)) =
-        mqi::connect_lib_with::<(mqi::ConnTag, mqi::ConnectionId), ThreadNoBlock, _>(mq_library(), credentials_app())
+        mqi::connect_lib_with::<(mqi::ConnTag, mqi::ConnectionId), mqi::ThreadBlock, _>(mock, ())
             .discard_warning() // ignore warning
             .expect("connection should be established");
+    let qm = Arc::new(qm);
     println!("Connection ID: {id}");
     println!("{:?}", tag.0);
     thread::spawn(move || {
-        let msg = Properties::new(qm.connection_ref(), values::MQCMHO::default()).expect("message created");
+        let msg = Properties::new(qm.clone(), values::MQCMHO::default()).expect("message created");
         msg.set_property("wally", "test", values::MQSMPO::default())
             .warn_as_error()
             .expect("property set should not fail");
 
         let msgid: MessageId = qm
-            .connection_ref()
             .put_message_with(QUEUE, (), &("Hello", FORMAT_NONE))
             .warn_as_error()
             .expect("message put should not fail");
@@ -39,7 +39,8 @@ fn thread() {
 
 #[test]
 fn default_binding() -> Result<(), Box<dyn Error>> {
-    let qm = mqi::connect_lib::<ThreadNone, _>(mq_library(), (Binding::Default, credentials_app())).warn_as_error()?;
+    let mock = helpers::mock::connect_ok();
+    let qm = mqi::connect_lib::<ThreadNone, _>(mock, Binding::Default).warn_as_error()?;
 
     // Disconnect.
     qm.disconnect().warn_as_error()?;
@@ -50,6 +51,7 @@ fn default_binding() -> Result<(), Box<dyn Error>> {
 #[test]
 fn connect() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let mock = helpers::mock::connect_ok();
 
     let env = env::var("MQSERVER")?;
     let def = MqServer::try_from(&*env)?;
@@ -59,7 +61,7 @@ fn connect() -> Result<(), Box<dyn Error>> {
         Some(&CertificateLabel(mqstr!("label"))),
         &CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")),
     );
-    let qm = mqi::connect_lib::<ThreadNone, _>(mq_library(), (tls, def, credentials_app())).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(mock, (tls, def)).warn_as_error()?;
 
     qm.put_message(QUEUE, values::MQPMO(sys::MQPMO_SYNCPOINT), "Hello")
         .warn_as_error()?;

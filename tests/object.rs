@@ -3,11 +3,10 @@ mod helpers;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
+use std::sync::Arc;
 use std::thread;
 
-use helpers::{credentials_app, mq_library};
-
-use mqi::{prelude::*, ThreadNoBlock, ThreadNone};
+use mqi::{prelude::*, ThreadNone};
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::values::{self, CCSID};
 use mqi::open_options::SelectionString;
@@ -18,19 +17,21 @@ use mqi::{attribute, sys, Object};
 
 #[test]
 fn object() {
-    const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let mq = helpers::mock::connect_ok();
 
-    let qm = mqi::connect_lib::<ThreadNoBlock, _>(mq_library(), credentials_app())
-        .warn_as_error()
-        .expect("connection should be established");
+    let qm = Arc::new(
+        mqi::connect_lib::<mqi::ThreadBlock, _>(mq, ())
+            .warn_as_error()
+            .expect("connection should be established"),
+    );
 
     thread::spawn(move || {
-        let mut props = Properties::new(qm.connection_ref(), values::MQCMHO::default()).expect("property creation");
+        let mut props = Properties::new(qm.clone(), values::MQCMHO::default()).expect("property creation");
         props
             .set_property("my_property", "valuex2", values::MQSMPO::default())
             .warn_as_error()
             .expect("property set should not fail");
-        qm.put_message(QUEUE, &mut props, "Hello")
+        qm.put_message((), &mut props, "Hello")
             .warn_as_error()
             .expect("message put should not fail");
     })
@@ -41,8 +42,10 @@ fn object() {
 #[test]
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let mq = helpers::mock::connect_ok();
+
     let sel = String::from("my_property = 'valuex2'");
-    let qm = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(mq, ()).warn_as_error()?;
 
     let object = Object::open(
         &qm,
@@ -115,7 +118,9 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         attribute::MQIA_COMMAND_LEVEL,
     ];
 
-    let connection = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
+    let mq = helpers::mock::connect_ok();
+
+    let connection = mqi::connect_lib::<ThreadNone, _>(mq, ()).warn_as_error()?;
     let (object, qm) = Object::open_with::<Option<QueueManagerName>>(
         connection,
         (QueueManagerName(mqstr!("QM1")), values::MQOO(sys::MQOO_INQUIRE)),
@@ -146,8 +151,9 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn transaction() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let mq = helpers::mock::connect_ok();
 
-    let connection = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
+    let connection = mqi::connect_lib::<ThreadNone, _>(mq, ()).warn_as_error()?;
     let object = Object::open(connection, (QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
 
     object.put_message((), "message").warn_as_error()?;

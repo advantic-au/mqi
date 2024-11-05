@@ -16,23 +16,6 @@ impl Library for mock::MockFunctions {
     }
 }
 
-#[cfg(feature = "link")]
-pub const fn mq_library() -> libmqm_sys::link::LinkedMq {
-    libmqm_sys::link::LinkedMq
-}
-
-#[cfg(all(feature = "dlopen2", not(feature = "link")))]
-pub fn mq_library() -> std::sync::Arc<dl::DebugContainer> {
-    use std::sync::Arc;
-
-    use dlopen2::wrapper::Container;
-    use libmqm_sys::dlopen2::LoadMqm as _;
-
-    Arc::new(dl::DebugContainer(unsafe {
-        Container::load_mqm_default().expect("Loading of default MQM should work")
-    }))
-}
-
 #[allow(dead_code)]
 pub fn credentials_app() -> CredentialsSecret<'static, ProtectedSecret<&'static str>> {
     Credentials::user("app", "app")

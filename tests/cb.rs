@@ -3,12 +3,13 @@ mod helpers;
 use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
-use helpers::{credentials_app, mq_library};
-use mqi::{core::ConnectionHandle, prelude::*, sys, types::QueueName, values, MqStruct, Object, ThreadBlock, ThreadNone, MQMD};
+use mqi::{core::ConnectionHandle, sys, values, MqStruct, Object, ThreadBlock, ThreadNone, MQMD};
+use mqi::prelude::*;
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
-    let mut qm = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
+    let mock_library = helpers::mock::connect_ok();
+    let mut qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, ()).warn_as_error()?;
 
     qm.register_event_handler(
         values::MQCBDO(
@@ -19,8 +20,7 @@ fn qm() -> Result<(), Box<dyn Error>> {
                 | sys::MQCBDO_DEREGISTER_CALL, // | sys::MQCBDO_START_CALL
                                                // | sys::MQCBDO_STOP_CALL,
         ),
-        move |connection, options| {
-            println!("{connection:?}");
+        move |_, options| {
             println!("{}", values::MQCBCT(options.CallType));
             println!("{}", values::MQCS(options.State));
             println!("{}", values::MQCC(options.CompCode));
@@ -37,8 +37,6 @@ fn qm() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn callback() -> Result<(), Box<dyn Error>> {
-    const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
-
     fn register_cb<F, M>(cbd: &mut MqStruct<sys::MQCBD>, cb: F)
     where
         F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>) + 'static,
@@ -83,10 +81,11 @@ fn callback() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let qm = mqi::connect_lib::<ThreadBlock, _>(mq_library(), credentials_app()).warn_as_error()?;
+    let mock_library = helpers::mock::connect_ok();
+    let qm = mqi::connect_lib::<ThreadBlock, _>(mock_library, ()).warn_as_error()?;
 
     let qm = Arc::new(qm);
-    let object = Object::open(qm.clone(), (QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF))).warn_as_error()?;
+    let object = Object::open(qm.clone(), ()).warn_as_error()?;
 
     let _ = thread::spawn(move || {
         println!("{:?}", object.handle());

@@ -321,6 +321,21 @@ impl MockFunctions {
             Self::mqi_outcome_ok(comp_code, reason);
         });
     }
+
+    pub fn open_ok(&mut self, hObj: sys::MQHOBJ, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+        self.expect_MQOPEN().returning(move |_, _, _, hobj, comp_code, reason| {
+            unsafe {
+                *hobj = hObj;
+            }
+            Self::mqi_outcome_ok(comp_code, reason);
+        })
+        .times(count)
+        .in_sequence(seq);
+
+        self.expect_MQCLOSE().returning(|_, _, _, comp_code, reason| {
+            Self::mqi_outcome_ok(comp_code, reason);
+        });
+    }
     
 }
 
