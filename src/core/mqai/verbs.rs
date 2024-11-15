@@ -733,21 +733,21 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(feature = "link", feature = "dlopen2")))]
 mod tests {
     use std::error::Error;
 
-    use crate::ResultCompExt;
+    use crate::{test::mq_library, ResultCompExt};
 
     use super::*;
 
     #[test]
     fn create_bag() {
-        let linked = MqFunctions::linked();
-        let mut bag = linked
+        let mq_lib = MqFunctions(mq_library());
+        let mut bag = mq_lib
             .mq_create_bag(MQCBO(sys::MQCBO_COMMAND_BAG))
             .expect("creation of MQ bag should not fail");
-        linked
+        mq_lib
             .mq_delete_bag(&mut bag)
             .warn_as_error()
             .expect("deletion of MQ bag should not fail");
@@ -755,7 +755,7 @@ mod tests {
 
     #[test]
     fn add_bag() -> Result<(), Box<dyn Error>> {
-        let mq_lib = MqFunctions::linked();
+        let mq_lib = MqFunctions(mq_library());
         let mut bag = mq_lib.mq_create_bag(MQCBO(sys::MQCBO_GROUP_BAG))?;
         let bag_attached = mq_lib.mq_create_bag(MQCBO(sys::MQCBO_GROUP_BAG))?;
         let mut wally: [sys::MQCHAR; 3] = [1, 2, 3];

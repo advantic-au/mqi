@@ -10,11 +10,11 @@ use std::{
 
 use super::{headers::fmt::MQFMT_NONE, MqStruct};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
 pub struct CorrelationId(pub Identifier<24>);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
 pub struct MessageId(pub Identifier<24>);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
 pub struct GroupId(pub Identifier<24>);
 #[derive(Debug, Clone, Copy)]
 pub struct MsgToken(pub [u8; sys::MQ_MSG_TOKEN_LENGTH]);
@@ -105,6 +105,24 @@ impl CorrelationId {
     }
 }
 
+impl Debug for CorrelationId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("CorrelationId").field(&format_args!("{}", self.0)).finish()
+    }
+}
+
+impl Debug for MessageId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("MessageId").field(&format_args!("{}", self.0)).finish()
+    }
+}
+
+impl Debug for GroupId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("GroupId").field(&format_args!("{}", self.0)).finish()
+    }
+}
+
 impl UserIdentifier {
     #[must_use]
     pub fn new(source: [sys::MQCHAR; sys::MQ_USER_ID_LENGTH]) -> Option<Self> {
@@ -148,11 +166,13 @@ impl_from_str!(CertificateLabel, MqStr<64>);
 
 #[cfg(test)]
 mod tests {
+    use crate::types::CorrelationId;
+
     use super::Identifier;
 
     #[test]
     fn correlation_id() {
-        let cid = Identifier([0; 24]);
+        let cid = CorrelationId(Identifier([0; 24]));
         assert_eq!(format!("{cid}"), "ID:000000000000000000000000000000000000000000000000");
         assert_eq!(
             format!("{cid:?}"),
