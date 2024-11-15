@@ -57,7 +57,11 @@ impl<C: Conn> Object<C> {
         self.put_message_with(put_options, message)
     }
 
-    pub fn put_message_with<'po, R>(&self, put_options: impl PutOption<'po>, message: &(impl PutMessage + ?Sized)) -> ResultComp<R>
+    pub fn put_message_with<'po, R>(
+        &self,
+        put_options: impl PutOption<'po>,
+        message: &(impl PutMessage + ?Sized),
+    ) -> ResultComp<R>
     where
         R: PutAttr,
     {

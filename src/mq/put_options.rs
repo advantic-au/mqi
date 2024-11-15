@@ -8,7 +8,6 @@ use super::{
 #[derive(Debug, Clone, Copy)]
 pub struct Context<T>(pub T);
 
-
 macro_rules! impl_putoption_tuple {
     ([$first:ident, $($rest:ident),*]) => {
         #[expect(non_snake_case)]
@@ -28,12 +27,10 @@ macro_rules! impl_putoption_tuple {
 }
 
 impl PutOption<'_> for () {
-    fn apply_param(self, _: &mut PutParam<'_>) {
-    }
+    fn apply_param(self, _: &mut PutParam<'_>) {}
 }
 
 all_multi_tuples!(impl_putoption_tuple);
-
 
 #[derive(Debug)]
 pub enum PropertyAction<'handle, C: Conn, C2: Conn> {
@@ -203,13 +200,13 @@ mod test {
     use super::PropertyAction;
 
     #[test]
-    fn property_action() -> Result<(), Box<dyn Error>>{
+    fn property_action() -> Result<(), Box<dyn Error>> {
         let mut mock_library = mock::connect_ok();
         let mut seq = mockall::Sequence::new();
-        
+
         mock_library.properties_ok(0xf0f0, 1, &mut seq);
         mock_library.properties_ok(0x0e0e, 1, &mut seq);
-        
+
         let qm = connect_lib::<ThreadNone, _>(mock_library, ()).warn_as_error()?;
 
         let mut put_param = Default::default();
