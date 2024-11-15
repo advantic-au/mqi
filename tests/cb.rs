@@ -1,14 +1,20 @@
-mod helpers;
+#![cfg(feature = "mock")]
 
 use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
+use mqi::test::mock::{connect_ok, MockFunctions};
 use mqi::{core::ConnectionHandle, sys, values, MqStruct, Object, ThreadBlock, ThreadNone, MQMD};
 use mqi::prelude::*;
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
-    let mock_library = helpers::mock::connect_ok();
+    let mut mock_library = connect_ok();
+
+    mock_library.expect_MQCB().returning(|_, _, _, _, _, _, cc, rc| {
+        MockFunctions::mqi_outcome_ok(cc, rc);
+    });
+
     let mut qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, ()).warn_as_error()?;
 
     qm.register_event_handler(
@@ -81,7 +87,10 @@ fn callback() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let mock_library = helpers::mock::connect_ok();
+    let mut mock_library = mqi::test::mock::connect_ok();
+    let mut seq = mockall::Sequence::new();
+    mock_library.open_ok(0x0c0c, 1, &mut seq);
+
     let qm = mqi::connect_lib::<ThreadBlock, _>(mock_library, ()).warn_as_error()?;
 
     let qm = Arc::new(qm);

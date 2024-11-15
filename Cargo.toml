@@ -22,17 +22,20 @@ default = [
     "constantgen",
     "runnable",
     "bindgen",
-    "mqc_9_2_0_0"
+    "mqc_9_2_0_0",
 ] # Default to generate code and compile time link
 docsrs = ["libmqm-sys/docsrs", "pcf", "mqai", "link", "dlopen2", "mqc_9_4_1_0"]
-runnable = [ 
+runnable = [
     "libmqm-sys/mqi_helpers",
 ] # Minimal features to make the code runnable
-constantgen = [ 
+constantgen = [
     "runnable",
 ] # Generate the constants (default is to use pregenerated constants)
-pregen = [ 
-    "constantgen", "pcf", "mqai", "mqc_9_4_1_0"
+pregen = [
+    "constantgen",
+    "pcf",
+    "mqai",
+    "mqc_9_4_1_0",
 ] # Regenerate the pregenerated constants
 tracing = ["dep:tracing"] # Enable tracing in the MQI calls
 pcf = ["libmqm-sys/pcf"] # Enable the PCF API
@@ -40,13 +43,29 @@ mqai = ["libmqm-sys/mqai"] # Enable the administrative API
 link = ["libmqm-sys/link"] # Compile time linking
 dlopen2 = ["libmqm-sys/dlopen2"] # Enable dlopen2 loading the MQI library
 bindgen = ["libmqm-sys/bindgen"] # Generate the MQI bindings
+mock = ["dep:mockall"] # MQI function mocking for integration tests
 
-mqc_9_2_0_0 = [ "libmqm-sys/mqc_9_2_0_0"] # Minimum MQ client version 9.2.0.0
-mqc_9_3_0_0 = [ "libmqm-sys/mqc_9_3_0_0", "mqc_9_2_0_0"] # Minimum MQ client version 9.3.0.0
-mqc_9_3_1_0 = [ "libmqm-sys/mqc_9_3_1_0", "mqc_9_3_0_0"] # Minimum MQ client version 9.3.1.0
-mqc_9_3_2_0 = [ "libmqm-sys/mqc_9_3_2_0", "mqc_9_3_1_0"] # Minimum MQ client version 9.3.2.0
-mqc_9_3_4_0 = [ "libmqm-sys/mqc_9_3_4_0", "mqc_9_3_2_0"] # Minimum MQ client version 9.3.4.0
-mqc_9_4_1_0 = [ "libmqm-sys/mqc_9_4_1_0", "mqc_9_3_4_0"] # Minimum MQ client version 9.4.1.0
+mqc_9_2_0_0 = ["libmqm-sys/mqc_9_2_0_0"] # Minimum MQ client version 9.2.0.0
+mqc_9_3_0_0 = [
+    "libmqm-sys/mqc_9_3_0_0",
+    "mqc_9_2_0_0",
+] # Minimum MQ client version 9.3.0.0
+mqc_9_3_1_0 = [
+    "libmqm-sys/mqc_9_3_1_0",
+    "mqc_9_3_0_0",
+] # Minimum MQ client version 9.3.1.0
+mqc_9_3_2_0 = [
+    "libmqm-sys/mqc_9_3_2_0",
+    "mqc_9_3_1_0",
+] # Minimum MQ client version 9.3.2.0
+mqc_9_3_4_0 = [
+    "libmqm-sys/mqc_9_3_4_0",
+    "mqc_9_3_2_0",
+] # Minimum MQ client version 9.3.4.0
+mqc_9_4_1_0 = [
+    "libmqm-sys/mqc_9_4_1_0",
+    "mqc_9_3_4_0",
+] # Minimum MQ client version 9.4.1.0
 
 [dependencies]
 phf = { default-features = false, version = "0.11.2" }
@@ -66,6 +85,7 @@ derive_more = { version = "1.0.0", features = [
     "add",
     "add_assign",
 ] }
+mockall = { version = "0.13.0", optional = true }
 
 [build-dependencies]
 libmqm-sys = { version = "0.5.0", default-features = false }
@@ -119,4 +139,3 @@ required-features = ["link", "runnable"]
 [[example]]
 name = "forward"
 required-features = ["link", "runnable"]
-

@@ -1,18 +1,18 @@
-mod helpers;
+#![cfg(feature = "mock")]
 
 use std::error::Error;
 
-use helpers::mock::MockFunctions;
+use test::mock::MockFunctions;
 use mqi::{
     prelude::*,
-    sys,
+    sys, test,
     values::{self, MQIMPO},
     Properties, StrCcsidOwned, ThreadNone,
 };
 
 #[test]
 fn set_property() -> Result<(), Box<dyn Error>> {
-    let mut mock_library = helpers::mock::connect_ok();
+    let mut mock_library = test::mock::connect_ok();
     let mut seq = mockall::Sequence::new();
     mock_library.properties_ok(0x0d0d, 1, &mut seq);
 
@@ -39,7 +39,7 @@ fn set_property() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn inq_property() -> Result<(), Box<dyn Error>> {
-    let mut mock_library = helpers::mock::connect_ok();
+    let mut mock_library = test::mock::connect_ok();
     let mut seq = mockall::Sequence::new();
     mock_library.properties_ok(0x0d0d, 1, &mut seq);
 
