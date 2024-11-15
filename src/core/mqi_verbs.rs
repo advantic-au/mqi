@@ -106,7 +106,6 @@ impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
     }
 
     /// Puts one message on a queue, or distribution list, or to a topic
-    #[expect(clippy::similar_names)]
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
     pub fn mqput1<T: ?Sized>(
         &self,
