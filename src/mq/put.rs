@@ -6,7 +6,7 @@ use libmqm_sys::function;
 use crate::core::{ConnectionHandle, Library, MqFunctions};
 use crate::headers::{fmt, TextEnc};
 use crate::types::{Fmt, MessageFormat};
-use crate::{sys, Conn, MqStruct, Object, ResultComp, MqiAttr};
+use crate::{sys, Conn, MqStruct, Object, ResultComp};
 use crate::values;
 use crate::prelude::*;
 
@@ -75,9 +75,13 @@ impl<C: Conn> Object<C> {
 pub trait PutOption<'po> {
     fn apply_param(self, param: &mut PutParam<'po>);
 }
-pub trait PutAttr: for<'a> MqiAttr<PutParam<'a>, ()> {}
 
-impl<T> PutAttr for T where T: for<'a> MqiAttr<PutParam<'a>, ()> {}
+pub trait PutAttr {
+    fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
+    where
+        F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
+        Self: Sized;
+}
 
 pub(super) fn put_message_with<'po, 'oo, R, L>(
     functions: &MqFunctions<L>,
@@ -106,7 +110,7 @@ where
 
 fn put<'po, T, F>(options: impl PutOption<'po>, message: &(impl PutMessage + ?Sized), put: F) -> ResultComp<T>
 where
-    T: for<'a> MqiAttr<PutParam<'a>, ()>,
+    T: PutAttr,
     F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>,
 {
     let MessageFormat {

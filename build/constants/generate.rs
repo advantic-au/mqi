@@ -2,7 +2,7 @@ use super::list;
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::CStr;
-use std::io::{BufWriter, Write};
+use std::io::{self, BufWriter, Write as _};
 
 use std::{fs::File, path::Path, str};
 
@@ -57,8 +57,8 @@ fn as_phf(by_value: &[&(mqsys::MQLONG, &str)]) -> String {
     phf_set.build().to_string()
 }
 
-pub fn generate(target: impl AsRef<Path>) {
-    let mut file = BufWriter::new(File::create(target).expect("Failure to create MQ constants file: {target}"));
+pub fn generate(target: impl AsRef<Path>) -> Result<(), io::Error> {
+    let mut file = BufWriter::new(File::create(target)?);
 
     let by_name_mqi = unsafe { mqsys::MQI_BY_NAME_STR };
     let by_name = by_name(&by_name_mqi);
@@ -133,7 +133,7 @@ pub fn generate(target: impl AsRef<Path>) {
     // Pick a lookup type based on the size of the constants for a prefix
     // TODO: Determine best ranges for performance
     for (prefix, (primary, ref extra)) in prefix_constants {
-        write!(&mut file, "pub const {prefix}CONST: ").unwrap();
+        write!(&mut file, "pub const {prefix}CONST: ")?;
         match primary.len() {
             0..=63 => {
                 // Linear search array
@@ -142,8 +142,7 @@ pub fn generate(target: impl AsRef<Path>) {
                     "LinearSource = ConstSource(&{}, &{});",
                     as_array(primary),
                     as_array(extra)
-                )
-                .unwrap();
+                )?;
             }
             64..=255 => {
                 // Binary search array
@@ -152,8 +151,7 @@ pub fn generate(target: impl AsRef<Path>) {
                     "BinarySearchSource = ConstSource(BinarySearch(&{}), &{});",
                     as_array(primary),
                     as_array(extra)
-                )
-                .unwrap();
+                )?;
             }
             _ => {
                 // Perfect hash used for larger constant lists
@@ -162,8 +160,7 @@ pub fn generate(target: impl AsRef<Path>) {
                     "PhfSource = ConstSource(&{}, &{});",
                     as_phf(primary),
                     as_array(extra)
-                )
-                .unwrap();
+                )?;
             }
         }
     }
@@ -178,5 +175,4 @@ pub fn generate(target: impl AsRef<Path>) {
         "pub(crate) const MQI_BY_STRING: ::phf::Map<&'static str, ::libmqm_sys::lib::MQLONG> = {};",
         mqi_by_string.build()
     )
-    .unwrap();
 }

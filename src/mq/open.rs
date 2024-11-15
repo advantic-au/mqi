@@ -1,6 +1,6 @@
-use crate::{prelude::*, values, sys, MqiValue, ResultComp, ResultCompErr};
+use crate::{prelude::*, values, sys, ResultComp, ResultCompErr};
 
-use super::{Conn, MqStruct, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
+use super::{Conn, MqStruct, Object, OpenAttr, OpenOption, OpenParamOption, OpenValue};
 
 impl<C: Conn> Object<C> {
     /// Establish access and return an MQ object ([`Object`])
@@ -11,7 +11,7 @@ impl<C: Conn> Object<C> {
     /// Establish access and return an MQ object ([`Object`]) and type inferred [`OpenAttr`] in a tuple.
     pub fn open_with<'oo, A>(connection: C, open_option: impl OpenOption<'oo, values::MQOO>) -> ResultComp<(Self, A)>
     where
-        A: OpenAttr<Self>,
+        A: OpenAttr<Self, values::MQOO>,
     {
         Self::open_as(connection, open_option)
     }
@@ -20,7 +20,7 @@ impl<C: Conn> Object<C> {
     pub(super) fn open_as<'oo, R>(
         connection: C,
         open_option: impl OpenOption<'oo, values::MQOO>,
-    ) -> ResultCompErr<R, <R as MqiValue<OpenParam<'oo>, Self>>::Error>
+    ) -> ResultCompErr<R, <R as OpenValue<Self>>::Error>
     where
         R: OpenValue<Self>,
     {

@@ -1,11 +1,5 @@
-use crate::core::Library;
-
+mod library;
 pub mod mock;
 
-impl Library for mock::MockFunctions {
-    type MQ = Self;
-
-    fn lib(&self) -> &Self::MQ {
-        self
-    }
-}
+#[allow(clippy::allow_attributes, unused_imports)]
+pub use library::*;

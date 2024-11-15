@@ -3,12 +3,10 @@ use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
 
 use crate::{
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
-    macros::all_multi_tuples,
     prelude::*,
     sys,
     types::{self, Fmt, MessageFormat, MessageId},
-    values::{self, CCSID},
-    Buffer, Completion, Conn, Error, MqStruct, MqiAttr, MqiValue, Object, ResultComp, ResultCompErr, StrCcsidCow,
+    values, Buffer, Completion, Conn, Error, MqStruct, Object, ResultComp, ResultCompErr, StrCcsidCow,
 };
 
 #[derive(Clone, Debug)]
@@ -67,7 +65,7 @@ pub enum GetStringError {
     #[display("Message parsing error: {_0}")]
     Utf8Parse(Utf8Error, Option<types::Warning>),
     #[display("Unexpected format or CCSID. Message format = '{_0}', CCSID = {_1}")]
-    UnexpectedFormat(TextEnc<Fmt>, CCSID, Option<types::Warning>),
+    UnexpectedFormat(TextEnc<Fmt>, values::CCSID, Option<types::Warning>),
     #[from]
     MQ(Error),
 }
@@ -105,44 +103,33 @@ pub struct GetState<B> {
     pub format: MessageFormat,
 }
 
-pub trait GetAttr<B>: MqiAttr<GetParam, GetState<B>> {}
-impl<B, T: MqiAttr<GetParam, GetState<B>>> GetAttr<B> for T {}
+pub trait GetAttr<B> {
+    fn extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<(Self, GetState<B>)>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+        Self: Sized;
+}
 
-pub trait GetValue<B>: MqiValue<GetParam, GetState<B>> {
+pub trait GetValue<B> {
+    type Error: std::fmt::Debug;
+
+    fn consume<F>(param: &mut GetParam, mqi: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+        Self: std::marker::Sized;
+
     #[must_use]
     fn max_data_size() -> Option<NonZero<usize>> {
         None
     }
 }
 
-impl<B> GetValue<B> for () {}
-impl<'a, B: Buffer<'a>> GetValue<B> for StrCcsidCow<'a> {}
-impl<'a, B: Buffer<'a>> GetValue<B> for Cow<'a, str> {}
-impl<'a, B: Buffer<'a>> GetValue<B> for Cow<'a, [u8]> {}
-impl<'a, B: Buffer<'a>> GetValue<B> for Vec<u8> {}
-
-macro_rules! impl_getvalue {
-    ([$first:ident, $($ty:ident),*]) => {
-        impl<B, $first, $($ty),*> GetValue<B> for ($first, $($ty),*)
-        where
-            $first: GetValue<B>,
-            ($first, $($ty),*): MqiValue<GetParam, GetState<B>>
-        {
-            fn max_data_size() -> Option<NonZero<usize>> {
-                $first::max_data_size()
-            }
-        }
-    };
-}
-
-all_multi_tuples!(impl_getvalue);
-
-impl<'a, P, B: Buffer<'a>> MqiValue<P, GetState<B>> for StrCcsidCow<'a> {
+impl<'a, B: Buffer<'a>> GetValue<B> for StrCcsidCow<'a> {
     type Error = GetStringCcsidError;
 
-    fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
+    fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
     {
         let state = get(param)?;
         if state.format.fmt != TextEnc::Ascii(fmt::MQFMT_STRING) {
@@ -157,15 +144,15 @@ impl<'a, P, B: Buffer<'a>> MqiValue<P, GetState<B>> for StrCcsidCow<'a> {
     }
 }
 
-impl<'buffer, P, B> MqiValue<P, GetState<B>> for Cow<'buffer, str>
+impl<'buffer, B> GetValue<B> for Cow<'buffer, str>
 where
     B: Buffer<'buffer>,
 {
     type Error = GetStringError;
 
-    fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
+    fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
     {
         // TODO: set 1208 in MQMD?
         let get_result = get(param)?;
@@ -194,32 +181,34 @@ where
     }
 }
 
-impl<'buffer, P, B: Buffer<'buffer>> MqiValue<P, GetState<B>> for Cow<'buffer, [u8]> {
+impl<'buffer, B: Buffer<'buffer>> GetValue<B> for Cow<'buffer, [u8]> {
     type Error = Error;
 
-    fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
+    #[inline]
+    fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
     {
         get(param).map_completion(|state| state.buffer.truncate(state.data_length).into_cow())
     }
 }
 
-impl<'buffer, P, B: Buffer<'buffer>> MqiValue<P, GetState<B>> for Vec<u8> {
+impl<'buffer, B: Buffer<'buffer>> GetValue<B> for Vec<u8> {
     type Error = Error;
 
-    fn consume<F>(param: &mut P, get: F) -> ResultCompErr<Self, Self::Error>
+    #[inline]
+    fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
     {
         get(param).map_completion(|state| state.buffer.truncate(state.data_length).into_cow().into_owned())
     }
 }
 
-impl<'a, P, B: Buffer<'a>> MqiAttr<P, GetState<B>> for Headers<'a> {
-    fn extract<F>(param: &mut P, get: F) -> ResultComp<(Self, GetState<B>)>
+impl<'a, B: Buffer<'a>> GetAttr<B> for Headers<'a> {
+    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
-        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
     {
         let state = get(param)?;
 
@@ -257,28 +246,31 @@ impl<'a, P, B: Buffer<'a>> MqiAttr<P, GetState<B>> for Headers<'a> {
     }
 }
 
-impl<P, B> MqiAttr<P, GetState<B>> for MessageFormat {
-    fn extract<F>(param: &mut P, get: F) -> ResultComp<(Self, GetState<B>)>
+impl<B> GetAttr<B> for MessageFormat {
+    #[inline]
+    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
-        F: FnOnce(&mut P) -> ResultComp<GetState<B>>,
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
     {
         get(param).map_completion(|state| (state.format, state))
     }
 }
 
-impl<S> MqiAttr<GetParam, S> for MqStruct<'static, sys::MQMD2> {
-    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, S)>
+impl<B> GetAttr<B> for MqStruct<'static, sys::MQMD2> {
+    #[inline]
+    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<S>,
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
     {
         get(param).map_completion(|state| (param.md.clone(), state))
     }
 }
 
-impl<S> MqiAttr<GetParam, S> for MessageId {
-    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, S)>
+impl<B> GetAttr<B> for MessageId {
+    #[inline]
+    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<S>,
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
     {
         get(param).map_completion(|state| (Self(param.md.MsgId.into()), state))
     }
@@ -386,7 +378,7 @@ impl<C: Conn> Object<C> {
                         .try_into()
                         .expect("message length should be within positive usize range"),
                     format: MessageFormat {
-                        ccsid: CCSID(param.md.CodedCharSetId),
+                        ccsid: values::CCSID(param.md.CodedCharSetId),
                         encoding: values::MQENC(param.md.Encoding),
                         fmt: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(param.md.Format) }),
                     },

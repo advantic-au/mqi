@@ -1,23 +1,17 @@
-use helpers::{credentials_app, mq_library};
-use mqi::{open_options::ObjectString, prelude::*, sys, types::QueueName, values, Object, ThreadNone, Subscription};
+#![cfg(feature = "mock")]
 
-mod helpers;
-
-#[test]
-fn publish() -> Result<(), Box<dyn std::error::Error>> {
-    const TOPIC: ObjectString<&str> = ObjectString("dev/");
-    let qm = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
-    let object = Object::open(qm, (TOPIC, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
-    object.put_message((), "Hello").warn_as_error()?;
-    Ok(())
-}
+use mqi::{open_options::ObjectString, sys, values, Object, Subscription, ThreadNone};
+use mqi::{prelude::*, test};
 
 #[test]
 fn subscribe() -> Result<(), Box<dyn std::error::Error>> {
-    const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let mut mock = test::mock::connect_ok();
+    let mut seq = mockall::Sequence::new();
+    mock.open_ok(0x0101_0101, 1, &mut seq);
+    mock.subscribe_managed_ok(0x0505, 0x5b5b, 1, &mut seq);
 
-    let qm = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
-    let object = Object::open(qm.connection_ref(), (QUEUE, values::MQOO(sys::MQOO_INPUT_AS_Q_DEF))).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(&mock, ()).warn_as_error()?;
+    let object = Object::open(qm.connection_ref(), ()).warn_as_error()?;
     let (sub, obj) = Subscription::subscribe_managed(
         qm.connection_ref(),
         (
@@ -27,10 +21,6 @@ fn subscribe() -> Result<(), Box<dyn std::error::Error>> {
         ),
     )
     .warn_as_error()?;
-
-    println!("{sub:?}");
-    println!("{obj:?}");
-    println!("{object:?}");
 
     sub.close().warn_as_error()?;
     obj.close().warn_as_error()?;
