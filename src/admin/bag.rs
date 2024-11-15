@@ -156,14 +156,15 @@ impl<B: BagDrop, L: Library<MQ: function::Mqai>> Drop for Bag<B, L> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(feature = "link", feature = "dlopen2")))]
 mod tests {
     use super::*;
-    use crate::sys;
+    use crate::{sys, test::mq_library};
 
     #[test]
     fn add_items() {
-        let bag = Bag::new(MQCBO(sys::MQCBO_GROUP_BAG)).expect("creation of bag to not fail");
+        let mq_lib = mq_library();
+        let bag = Bag::new_lib(mq_lib, MQCBO(sys::MQCBO_GROUP_BAG)).expect("creation of bag to not fail");
         let property = bag
             .inquire::<sys::MQLONG>(MqaiSelector(0))
             .expect("retrieval of an item should not fail");

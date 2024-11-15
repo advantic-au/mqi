@@ -250,6 +250,12 @@ impl<const N: usize> PartialEq for TextEnc<[u8; N]> {
     }
 }
 
+impl<const N: usize> PartialEq<[u8; N]> for TextEnc<[u8; N]> {
+    fn eq(&self, other: &[u8; N]) -> bool {
+        self.as_ref() == other
+    }
+}
+
 impl<const N: usize> TextEnc<[u8; N]> {
     #[must_use]
     pub const fn into_ascii(self) -> Self {

@@ -29,3 +29,7 @@ pub mod sys {
 }
 
 pub mod prelude;
+
+#[cfg(any(test, feature = "mock"))]
+#[doc(hidden)]
+pub mod test;
