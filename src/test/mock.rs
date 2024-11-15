@@ -756,7 +756,6 @@ use libmqm_sys::Mqai as _;
 
 #[cfg(feature = "mqai")]
 impl MockFunctions {
-
     pub fn real_bag(&mut self, mqai: impl Library<MQ: function::Mqai> + Clone + Send + 'static) {
         unsafe {
             // TODO: Add more bag function passthroughs

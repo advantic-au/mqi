@@ -16,8 +16,9 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         // TODO: add some return data
         test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
     });
-    mock.expect_mqCountItems().returning(|_, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc));
-    
+    mock.expect_mqCountItems()
+        .returning(|_, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc));
+
     let admin_bag = Bag::new_lib(&mock, values::MQCBO(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
     admin_bag.add(values::MqaiSelector(sys::MQCA_Q_NAME), "*")?.discard_warning();
     admin_bag
