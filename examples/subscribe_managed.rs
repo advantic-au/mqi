@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
             .warn_as_error()
             .context("Unable to subscribe to topic")?;
 
-    let mut buffer: [u8; 20 * 1024] = [0; 20 * 1024]; // 20kb
+    let mut buffer = vec![0u8; 20 * 1024].into_boxed_slice(); // 20kb
 
     // Interrupt handler to stop the MQGET loop
     let running = Arc::new(atomic::AtomicBool::new(true));
@@ -62,7 +62,7 @@ fn main() -> anyhow::Result<()> {
 
     while running_check.load(atomic::Ordering::Relaxed) {
         if let Some((data, _format)) = queue
-            .get_data_with::<MessageFormat, _>(GetWait::Wait(500), buffer.as_mut_slice())
+            .get_data_with::<MessageFormat, _>(GetWait::Wait(500), &mut *buffer)
             .warn_as_error()
             .context("Unable to get message")?
         {

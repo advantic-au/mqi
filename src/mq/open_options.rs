@@ -72,14 +72,14 @@ impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString<&'a T>
     }
 }
 
-impl<'b, O> OpenOption<'b, O> for QueueName {
+impl<O> OpenOption<'_, O> for QueueName {
     fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
         mqod.ObjectName = self.0.into();
         mqod.ObjectType = sys::MQOT_Q;
     }
 }
 
-impl<'b, O> OpenOption<'b, O> for QueueManagerName {
+impl<O> OpenOption<'_, O> for QueueManagerName {
     fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
         mqod.ObjectQMgrName = self.0.into();
         mqod.ObjectType = sys::MQOT_Q_MGR;
@@ -98,7 +98,7 @@ impl<'b> OpenOption<'b, Self> for MQPMO {
     }
 }
 
-impl<'b> OpenOption<'b, MQOO> for AlternateUserId {
+impl OpenOption<'_, MQOO> for AlternateUserId {
     fn apply_param(self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQOO>) {
         *options |= sys::MQOO_ALTERNATE_USER_AUTHORITY;
         mqod.set_min_version(sys::MQOD_VERSION_3);
@@ -106,7 +106,7 @@ impl<'b> OpenOption<'b, MQOO> for AlternateUserId {
     }
 }
 
-impl<'b> OpenOption<'b, MQPMO> for AlternateUserId {
+impl OpenOption<'_, MQPMO> for AlternateUserId {
     fn apply_param(self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQPMO>) {
         *options |= sys::MQPMO_ALTERNATE_USER_AUTHORITY;
         mqod.set_min_version(sys::MQOD_VERSION_3);

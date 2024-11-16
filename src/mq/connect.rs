@@ -267,7 +267,7 @@ impl<L: Library<MQ: function::Mqi>, H> Conn for Connection<L, H> {
     }
 }
 
-impl<'handle, L: Library<MQ: function::Mqi>, H> Conn for ConnectionRef<'handle, L, H> {
+impl<L: Library<MQ: function::Mqi>, H> Conn for ConnectionRef<'_, L, H> {
     type Lib = L;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
