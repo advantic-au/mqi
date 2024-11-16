@@ -84,7 +84,7 @@ fn main() -> anyhow::Result<()> {
     .warn_as_error() // Fail on any warnings
     .context("Unable to open the object")?;
 
-    let mut buffer: [u8; 20 * 1024] = [0; 20 * 1024]; // 20kb
+    let mut buffer = vec![0u8; 20 * 1024].into_boxed_slice(); // 20kb
 
     let syncpoint = Syncpoint::new(qm_ref);
 
@@ -95,7 +95,7 @@ fn main() -> anyhow::Result<()> {
                 MQGMO(sys::MQGMO_SYNCPOINT), // Must use the syncpoint option
                 &mut properties,             // Retrieve the message properties
             ),
-            buffer.as_mut_slice(), // Provide a buffer for the message
+            &mut *buffer // Provide a buffer for the message
         )
         .warn_as_error() // Fail on any warnings
         .context("Unable to get a messsage")?;

@@ -1,36 +1,47 @@
-mod helpers;
+#![cfg(feature = "mock")]
 
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
+use std::sync::Arc;
 use std::thread;
 
-use helpers::{credentials_app, mq_library};
-
-use mqi::{prelude::*, ThreadNoBlock, ThreadNone};
+use mqi::headers::fmt;
+use mqi::{prelude::*, test, ThreadNone};
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::values::{self, CCSID};
-use mqi::open_options::SelectionString;
-use mqi::properties_options::{Attributes, Metadata, Name};
-use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
+use mqi::types::{MessageFormat, MessageId, QueueManagerName};
 use mqi::{get, Properties};
 use mqi::{attribute, sys, Object};
 
 #[test]
 fn object() {
-    const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let mut mock = test::mock::connect_ok();
+    let mut seq = mockall::Sequence::new();
+    mock.properties_ok(0x0c0c, 1, &mut seq);
 
-    let qm = mqi::connect_lib::<ThreadNoBlock, _>(mq_library(), credentials_app())
-        .warn_as_error()
-        .expect("connection should be established");
+    mock.expect_MQSETMP().returning(|_, _, _, _, _, _, _, _, cc, rc| {
+        // TODO: assert values set
+        test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+    });
+    mock.expect_MQPUT1().returning(|_, _, _, _, _, _, cc, rc| {
+        // TODO: assert values set
+        test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+    });
+
+    let qm = Arc::new(
+        mqi::connect_lib::<mqi::ThreadBlock, _>(mock, ())
+            .warn_as_error()
+            .expect("connection should be established"),
+    );
 
     thread::spawn(move || {
-        let mut props = Properties::new(qm.connection_ref(), values::MQCMHO::default()).expect("property creation");
+        let mut props = Properties::new(qm.clone(), values::MQCMHO::default()).expect("property creation");
         props
             .set_property("my_property", "valuex2", values::MQSMPO::default())
             .warn_as_error()
             .expect("property set should not fail");
-        qm.put_message(QUEUE, &mut props, "Hello")
+        qm.put_message((), &mut props, "Hello")
             .warn_as_error()
             .expect("message put should not fail");
     })
@@ -40,18 +51,14 @@ fn object() {
 
 #[test]
 fn get_message() -> Result<(), Box<dyn std::error::Error>> {
-    const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
-    let sel = String::from("my_property = 'valuex2'");
-    let qm = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
+    let mut mock = test::mock::connect_ok();
+    let mut seq = mockall::Sequence::new();
+    mock.open_ok(0x0c0c, 1, &mut seq);
+    mock.properties_ok(0x0d0d, 1, &mut seq);
+    mock.get_ok("test message", 1, &mut seq);
 
-    let object = Object::open(
-        &qm,
-        (
-            QUEUE,
-            SelectionString(&*sel),
-            values::MQOO(sys::MQOO_BROWSE | sys::MQOO_INPUT_AS_Q_DEF),
-        ),
-    )?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(mock, ()).warn_as_error()?;
+    let object = Object::open(&qm, ())?;
     let mut properties = Properties::new(&qm, values::MQCMHO::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
@@ -65,33 +72,13 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
         buffer,
     )?;
 
-    if let Some((rc, verb)) = msg.warning() {
-        println!("Warning: {rc} on {verb}");
-    }
-    let msg: Option<(Cow<[u8]>, MessageId, MessageFormat, get::Headers)> = msg.discard_warning();
+    let (msg, _msgid, format, headers): (Cow<[u8]>, MessageId, MessageFormat, get::Headers) =
+        msg.discard_warning().expect("Message to be present");
 
-    match &msg {
-        Some((_msg, msgid, format, headers)) => {
-            for header in headers.all_headers() {
-                println!("Header: {header:?}");
-            }
-            if let Some(header_error) = headers.error() {
-                println!("Header parsing error: {header_error}");
-            }
-
-            if let Some(rfh2) = headers.header::<sys::MQRFH2>().next() {
-                let nv: Cow<str> = rfh2.name_value_data().try_into()?;
-                println!("RFH2 name/value data: \"{nv}\"");
-            }
-            for v in properties.property_iter("%", values::MQIMPO::default()) {
-                let (value, Name(name), attr, meta): (String, Name<String>, Attributes, Metadata) = v.warn_as_error()?;
-                println!("Property: {name} = {value}, {attr:?}, {meta:?}");
-            }
-            println!("Format: \"{}\"", format.fmt);
-            println!("MessageId: \"{msgid}\"");
-        }
-        None => println!("No message!"),
-    }
+    assert!(headers.all_headers().next().is_none());
+    assert!(headers.error().is_none());
+    assert_eq!(String::from_utf8_lossy(&msg), "test message");
+    assert_eq!(format.fmt, fmt::MQFMT_STRING);
 
     Ok(())
 }
@@ -115,7 +102,15 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         attribute::MQIA_COMMAND_LEVEL,
     ];
 
-    let connection = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
+    let mut mock = test::mock::connect_ok();
+    let mut seq = mockall::Sequence::new();
+    mock.open_ok(0x0c0c, 1, &mut seq);
+    mock.expect_MQINQ().returning(|_, _, _, _, _, _, _, _, cc, rc| {
+        // TODO: Add some return data
+        test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+    });
+
+    let connection = mqi::connect_lib::<ThreadNone, _>(mock, ()).warn_as_error()?;
     let (object, qm) = Object::open_with::<Option<QueueManagerName>>(
         connection,
         (QueueManagerName(mqstr!("QM1")), values::MQOO(sys::MQOO_INQUIRE)),
@@ -144,11 +139,17 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn transaction() -> Result<(), Box<dyn Error>> {
-    const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+fn put_message() -> Result<(), Box<dyn Error>> {
+    let mut mock = test::mock::connect_ok();
+    let mut seq = mockall::Sequence::new();
+    mock.open_ok(0x0c0c, 1, &mut seq);
+    mock.expect_MQPUT().returning(|_, _, _, _, _, _, cc, rc| {
+        // TODO: add assertions here
+        test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+    });
 
-    let connection = mqi::connect_lib::<ThreadNone, _>(mq_library(), credentials_app()).warn_as_error()?;
-    let object = Object::open(connection, (QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
+    let connection = mqi::connect_lib::<ThreadNone, _>(mock, ()).warn_as_error()?;
+    let object = Object::open(connection, ()).warn_as_error()?;
 
     object.put_message((), "message").warn_as_error()?;
 

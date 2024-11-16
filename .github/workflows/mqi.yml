@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - develop
+  schedule: [cron: "40 4 * * 5" ]
 
 env:
   RUSTFLAGS: -Dwarnings
@@ -74,6 +75,33 @@ jobs:
       - name: Check for pregen changes
         run: git diff --stat --exit-code src/constants/mapping/pregen
 
+  test:
+    name: "Test rust ${{matrix.toolchain}}"
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [ nightly, beta, stable ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: advantic-au/action-mq-client@stable
+        id: mq-client
+        with:
+          client-version: 9.4.1.0
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{matrix.toolchain}}
+
+      - name: Enable type layout randomization
+        run: echo RUSTFLAGS=${RUSTFLAGS}\ -Zrandomize-layout >> $GITHUB_ENV
+        if: matrix.toolchain == 'nightly'
+      
+      - run: cargo test --all-features
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+
   rustfmt-clippy:
     runs-on: ubuntu-latest
     steps:
@@ -84,9 +112,9 @@ jobs:
         with:
           client-version: 9.4.1.0
 
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly
           components: rustfmt, clippy
       
       - uses: Swatinem/rust-cache@v2

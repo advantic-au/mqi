@@ -7,8 +7,9 @@ use std::sync::Arc;
 use libmqm_sys::function;
 
 use crate::core::{self, ConnectionHandle, Library, MqFunctions};
-use crate::{sys, prelude::*, Error, MqiAttr, MqiValue};
+use crate::sys;
 use crate::ResultComp;
+use crate::prelude::*;
 
 use super::connect_options::{self, ConnectOption, ConnectStructs};
 use super::types::{Identifier, QueueManagerName};
@@ -124,21 +125,31 @@ impl<L: Library<MQ: function::Mqi>, H> Drop for Connection<L, H> {
     }
 }
 
-impl<L: Library<MQ: function::Mqi>, H: Threading, P> MqiValue<P, Self> for Connection<L, H> {
-    type Error = Error;
-
-    fn consume<F>(param: &mut P, connect: F) -> ResultComp<Self>
+impl<L: Library<MQ: function::Mqi>, H: Threading> ConnectValue<Self> for Connection<L, H> {
+    #[inline]
+    fn consume<'a, F>(param: &mut ConnectParam<'a>, connect: F) -> ResultComp<Self>
     where
-        F: FnOnce(&mut P) -> ResultComp<Self>,
+        F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<Self>,
     {
         connect(param)
     }
 }
 
-pub trait ConnectValue<S>: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
-impl<S, T> ConnectValue<S> for T where T: for<'a> MqiValue<ConnectParam<'a>, S, Error = Error> {}
-pub trait ConnectAttr<S>: for<'a> MqiAttr<ConnectParam<'a>, S> {}
-impl<S, T> ConnectAttr<S> for T where T: for<'a> MqiAttr<ConnectParam<'a>, S> {}
+/// A trait that represents the value of an outcome of an MQ connection call
+pub trait ConnectValue<S> {
+    fn consume<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<Self>
+    where
+        F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>,
+        Self: std::marker::Sized;
+}
+
+/// A trait that represents an attribute of an outcome of an MQ connection call
+pub trait ConnectAttr<S> {
+    fn extract<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<(Self, S)>
+    where
+        F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>,
+        Self: std::marker::Sized;
+}
 
 /// Create and return a [`Connection`] to a queue manager using a specified MQ [`Library`].
 pub fn connect_lib<'co, H, L>(lib: L, options: impl ConnectOption<'co>) -> ResultComp<Connection<L, H>>
@@ -256,7 +267,7 @@ impl<L: Library<MQ: function::Mqi>, H> Conn for Connection<L, H> {
     }
 }
 
-impl<'handle, L: Library<MQ: function::Mqi>, H> Conn for ConnectionRef<'handle, L, H> {
+impl<L: Library<MQ: function::Mqi>, H> Conn for ConnectionRef<'_, L, H> {
     type Lib = L;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {

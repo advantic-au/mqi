@@ -1,8 +1,7 @@
-#![allow(clippy::allow_attributes)]
-
-use mqi::connect_options::{Credentials, CredentialsSecret, ProtectedSecret};
+#![allow(dead_code)]
 
 #[cfg(feature = "link")]
+#[must_use]
 pub const fn mq_library() -> libmqm_sys::link::LinkedMq {
     libmqm_sys::link::LinkedMq
 }
@@ -19,20 +18,15 @@ pub fn mq_library() -> std::sync::Arc<dl::DebugContainer> {
     }))
 }
 
-#[allow(dead_code)]
-pub fn credentials_app() -> CredentialsSecret<'static, ProtectedSecret<&'static str>> {
-    Credentials::user("app", "app")
-}
-
 #[cfg(feature = "dlopen2")]
 mod dl {
     use libmqm_sys::dlopen2::MqmContainer;
-    use mqi::core::Library;
+    use crate::core::Library;
 
     // dlopen2 Container doesn't implement Debug so create a wrapper
     pub struct DebugContainer(pub MqmContainer);
 
-    impl mqi::core::Library for DebugContainer {
+    impl Library for DebugContainer {
         type MQ = <MqmContainer as Library>::MQ;
 
         fn lib(&self) -> &Self::MQ {
