@@ -761,9 +761,11 @@ impl MockFunctions {
 
 #[cfg(feature = "mqai")]
 mod mqai {
-    use libmqm_sys::Mqai as _;
+    use libmqm_sys::{function, Mqai as _};
 
-    impl MockFunctions {
+    use crate::core::Library;
+
+    impl super::MockFunctions {
         pub fn real_bag(&mut self, mqai: impl Library<MQ: function::Mqai> + Clone + Send + 'static) {
             unsafe {
                 // TODO: Add more bag function passthroughs

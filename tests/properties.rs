@@ -4,6 +4,7 @@ use std::error::Error;
 
 use test::mock::MockFunctions;
 use mqi::{
+    connect_options::Credentials,
     prelude::*,
     sys, test,
     values::{self, MQIMPO},

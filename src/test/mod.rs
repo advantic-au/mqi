@@ -1,5 +1,5 @@
-mod library;
 mod credentials;
+mod library;
 
 pub use library::*;
 pub use credentials::*;

@@ -51,7 +51,7 @@ fn no_message() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn get_message() -> Result<(), Box<dyn std::error::Error>> {
+fn put_get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
     #[allow(clippy::allow_attributes, unused_mut)]
     let mut mq_lib;
@@ -60,8 +60,12 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
         mq_lib = test::mock::connect_ok();
         let mut seq = mockall::Sequence::new();
         mq_lib.open_ok(0x0c0c, 1, &mut seq);
+        mq_lib.expect_MQPUT().returning(|_, _, _, _, _, _, cc, rc| {
+            // TODO: add assertions here
+            test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+        });
         mq_lib.properties_ok(0x0d0d, 1, &mut seq);
-        mq_lib.get_ok("test message", 1, &mut seq);
+        mq_lib.get_ok("put_get_message test", 1, &mut seq);
     }
     #[cfg(not(feature = "mock"))]
     {
@@ -71,14 +75,19 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
     let qm = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
-    let object = Object::open(&qm, (QUEUE, values::MQOO(sys::MQOO_BROWSE)))?;
+    let object = Object::open(&qm, (QUEUE, values::MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
+
+    let mid = object
+        .put_message_with::<MessageId>((), "put_get_message test")
+        .warn_as_error()?;
+
     let mut properties = Properties::new(&qm, values::MQCMHO::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
     let msg = object.get_as(
         (
-            values::MQGMO(sys::MQGMO_BROWSE_FIRST), // Browse it
-            &mut properties,          // Get some properties
+            &mut properties, // Get some properties
+            mid,             // Only the message matching the output of put
         ),
         buffer,
     )?;
@@ -88,7 +97,7 @@ fn get_message() -> Result<(), Box<dyn std::error::Error>> {
 
     assert!(headers.all_headers().next().is_none());
     assert!(headers.error().is_none());
-    assert_eq!(String::from_utf8_lossy(&msg), "test message");
+    assert_eq!(String::from_utf8_lossy(&msg), "put_get_message test");
     assert_eq!(format.fmt, fmt::MQFMT_STRING);
 
     Ok(())
@@ -133,13 +142,8 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
     let connection = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
-    let (object, qm) = Object::open_with::<Option<QueueManagerName>>(
-        connection,
-        (QueueManagerName(mqstr!("QM1")), values::MQOO(sys::MQOO_INQUIRE)),
-    )
-    .warn_as_error()?;
+    let object = Object::open(connection, (QueueManagerName(mqstr!("")), values::MQOO(sys::MQOO_INQUIRE))).warn_as_error()?;
 
-    println!("{qm:?}");
     let result = object.inq(INQ)?;
     if let Some((rc, verb)) = result.warning() {
         eprintln!("MQRC warning: {verb} {rc}");
@@ -183,10 +187,7 @@ fn put_message() -> Result<(), Box<dyn Error>> {
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
     let connection = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
-    let object = Object::open(connection, (
-        QUEUE,
-        values::MQOO(sys::MQOO_OUTPUT),
-    )).warn_as_error()?;
+    let object = Object::open(connection, (QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
 
     object.put_message((), "message").warn_as_error()?;
 
