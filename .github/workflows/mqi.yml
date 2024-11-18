@@ -75,6 +75,25 @@ jobs:
       - name: Check for pregen changes
         run: git diff --stat --exit-code src/constants/mapping/pregen
 
+  test_server:
+    name: "Test with MQ server"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: advantic-au/action-mq-client@stable
+        id: mq-client
+        with:
+          client-version: 9.4.1.0
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - run: cargo test --features runnable,link,pcf,mqai,mqc_9_4_1_0 --no-default-features
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+
   test:
     name: "Test rust ${{matrix.toolchain}}"
     strategy:

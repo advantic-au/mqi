@@ -190,11 +190,13 @@ mod impl_put {
 }
 
 #[cfg(test)]
+#[cfg(feature = "mock")]
 mod test {
     use std::error::Error;
 
     use crate::put::PutOption;
-    use crate::{connect_lib, test::mock, values, Properties, ThreadNone};
+    use crate::test::mock;
+    use crate::{connect_lib, values, Properties, ThreadNone};
     use crate::prelude::*;
 
     use super::PropertyAction;

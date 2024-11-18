@@ -664,6 +664,13 @@ impl MockFunctions {
             });
     }
 
+    pub fn get_error(&mut self, mqrc: sys::MQLONG, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+        self.expect_MQGET()
+            .returning(move |_, _, _, _, _, _, _, cc, rc| Self::mqi_outcome(cc, rc, sys::MQCC_FAILED, mqrc))
+            .times(count)
+            .in_sequence(seq);
+    }
+
     pub fn get_ok(
         &mut self,
         message: &'static (impl PutMessage + ?Sized),
@@ -752,31 +759,33 @@ impl MockFunctions {
     }
 }
 
-use libmqm_sys::Mqai as _;
-
 #[cfg(feature = "mqai")]
-impl MockFunctions {
-    pub fn real_bag(&mut self, mqai: impl Library<MQ: function::Mqai> + Clone + Send + 'static) {
-        unsafe {
-            // TODO: Add more bag function passthroughs
-            let mq = mqai.clone();
-            self.expect_mqCreateBag()
-                .returning(move |option, bag, cc, rc| mq.lib().mqCreateBag(option, bag, cc, rc));
-            let mq = mqai.clone();
-            self.expect_mqDeleteBag()
-                .returning(move |bag, cc, rc| mq.lib().mqDeleteBag(bag, cc, rc));
-            let mq = mqai.clone();
-            self.expect_mqSetInteger()
-                .returning(move |a, b, c, d, e, f| mq.lib().mqSetInteger(a, b, c, d, e, f));
-            let mq = mqai.clone();
-            self.expect_mqAddInteger()
-                .returning(move |a, b, c, d, e| mq.lib().mqAddInteger(a, b, c, d, e));
-            let mq = mqai.clone();
-            self.expect_mqInquireInteger()
-                .returning(move |a, b, c, d, e, f| mq.lib().mqInquireInteger(a, b, c, d, e, f));
-            let mq = mqai;
-            self.expect_mqAddString()
-                .returning(move |a, b, c, d, e, f| mq.lib().mqAddString(a, b, c, d, e, f));
+mod mqai {
+    use libmqm_sys::Mqai as _;
+
+    impl MockFunctions {
+        pub fn real_bag(&mut self, mqai: impl Library<MQ: function::Mqai> + Clone + Send + 'static) {
+            unsafe {
+                // TODO: Add more bag function passthroughs
+                let mq = mqai.clone();
+                self.expect_mqCreateBag()
+                    .returning(move |option, bag, cc, rc| mq.lib().mqCreateBag(option, bag, cc, rc));
+                let mq = mqai.clone();
+                self.expect_mqDeleteBag()
+                    .returning(move |bag, cc, rc| mq.lib().mqDeleteBag(bag, cc, rc));
+                let mq = mqai.clone();
+                self.expect_mqSetInteger()
+                    .returning(move |a, b, c, d, e, f| mq.lib().mqSetInteger(a, b, c, d, e, f));
+                let mq = mqai.clone();
+                self.expect_mqAddInteger()
+                    .returning(move |a, b, c, d, e| mq.lib().mqAddInteger(a, b, c, d, e));
+                let mq = mqai.clone();
+                self.expect_mqInquireInteger()
+                    .returning(move |a, b, c, d, e, f| mq.lib().mqInquireInteger(a, b, c, d, e, f));
+                let mq = mqai;
+                self.expect_mqAddString()
+                    .returning(move |a, b, c, d, e, f| mq.lib().mqAddString(a, b, c, d, e, f));
+            }
         }
     }
 }

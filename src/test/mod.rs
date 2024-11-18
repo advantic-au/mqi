@@ -1,5 +1,8 @@
 mod library;
-pub mod mock;
+mod credentials;
 
-#[allow(clippy::allow_attributes, unused_imports)]
 pub use library::*;
+pub use credentials::*;
+
+#[cfg(feature = "mock")]
+pub mod mock;
