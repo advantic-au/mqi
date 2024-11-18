@@ -1,5 +1,9 @@
+mod credentials;
 mod library;
-pub mod mock;
 
-#[allow(clippy::allow_attributes, unused_imports)]
+#[cfg(any(feature = "link", feature = "dlopen2"))]
 pub use library::*;
+pub use credentials::*;
+
+#[cfg(feature = "mock")]
+pub mod mock;

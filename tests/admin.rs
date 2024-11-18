@@ -10,22 +10,24 @@ use mqi::test;
 
 #[test]
 fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
-    let mut mock = test::mock::connect_ok();
-    mock.real_bag(test::mq_library());
-    mock.expect_mqExecute().returning(|_, _, _, _, _, _, _, cc, rc| {
-        // TODO: add some return data
-        test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
-    });
-    mock.expect_mqCountItems()
-        .returning(|_, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc));
-
-    let admin_bag = Bag::new_lib(&mock, values::MQCBO(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
+    let mq_lib = {
+        let mut mock = test::mock::connect_ok();
+        mock.real_bag(test::mq_library());
+        mock.expect_mqExecute().returning(|_, _, _, _, _, _, _, cc, rc| {
+            // TODO: add some return data
+            test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+        });
+        mock.expect_mqCountItems()
+            .returning(|_, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc));
+        mock
+    };
+    let admin_bag = Bag::new_lib(&mq_lib, values::MQCBO(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
     admin_bag.add(values::MqaiSelector(sys::MQCA_Q_NAME), "*")?.discard_warning();
     admin_bag
         .add(values::MqaiSelector(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
         .discard_warning();
 
-    let qm = mqi::connect_lib::<ThreadNone, _>(&mock, ()).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(&mq_lib, ()).warn_as_error()?;
     let execute_result = qm.execute(&admin_bag, values::MQCMD(sys::MQCMD_INQUIRE_Q)).warn_as_error()?;
 
     for bag in execute_result
