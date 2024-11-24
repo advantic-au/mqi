@@ -4,7 +4,7 @@ use std::cmp;
 use std::slice::from_raw_parts_mut;
 use crate::core::Library;
 
-use libmqm_sys::function;
+use libmqm_sys::{Mqi, Mqai};
 use libmqm_sys::lib as sys;
 
 use crate::put::PutMessage;
@@ -13,7 +13,10 @@ mockall::mock! {
     pub Functions {}
 
     #[allow(non_snake_case)]
-    impl function::Mqi for Functions {
+    impl Mqi for Functions {
+
+        fn default_struc<T: Default + 'static>(&self) -> T;
+
         unsafe fn MQCONNX(
             &self,
             pQMgrName: sys::PMQCHAR,
@@ -281,7 +284,7 @@ mockall::mock! {
 
     #[allow(non_snake_case)]
     #[cfg(feature = "mqai")]
-    impl function::Mqai for Functions {
+    impl Mqai for Functions {
         unsafe fn mqCreateBag(
             &self,
             Options: sys::MQLONG,
@@ -761,12 +764,12 @@ impl MockFunctions {
 
 #[cfg(feature = "mqai")]
 mod mqai {
-    use libmqm_sys::{function, Mqai as _};
+    use libmqm_sys::Mqai;
 
     use crate::core::Library;
 
     impl super::MockFunctions {
-        pub fn real_bag(&mut self, mqai: impl Library<MQ: function::Mqai> + Clone + Send + 'static) {
+        pub fn real_bag(&mut self, mqai: impl Library<MQ: Mqai> + Clone + Send + 'static) {
             unsafe {
                 // TODO: Add more bag function passthroughs
                 let mq = mqai.clone();

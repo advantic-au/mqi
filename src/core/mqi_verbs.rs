@@ -5,7 +5,7 @@ use std::ptr;
 use super::values::{CCSID, MQCO, MQDCC, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
 use super::{ConnectionHandle, Library, MqFunctions, MqiOutcome, MqiOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle};
 use crate::{sys, Error, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
-use libmqm_sys::{function, Mqi};
+use libmqm_sys::Mqi;
 
 #[cfg(feature = "tracing")]
 use {
@@ -33,7 +33,7 @@ pub mod error {
     }
 }
 
-impl<L: Library<MQ: function::Mqi>> MqFunctions<L> {
+impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Connects an application program to a queue manager.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqconn(&self, qm_name: &MqStr<48>) -> ResultComp<ConnectionHandle> {

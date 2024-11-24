@@ -25,10 +25,7 @@ impl<C: Conn> Object<C> {
         R: OpenValue<Self>,
     {
         let mut oo = OpenParamOption {
-            mqod: MqStruct::new(sys::MQOD {
-                Version: sys::MQOD_VERSION_4,
-                ..sys::MQOD::default()
-            }),
+            mqod: MqStruct::default(),
             options: values::MQOO(sys::MQOO_BIND_AS_Q_DEF),
         };
         open_option.apply_param(&mut oo);

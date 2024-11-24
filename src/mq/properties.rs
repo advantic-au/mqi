@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, num::NonZero, ptr};
 
-use libmqm_sys::function;
+use libmqm_sys::Mqi;
 
 use crate::values::{MQRC, MQCC, MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::prelude::*;
@@ -31,7 +31,7 @@ impl<C: Conn> Drop for Properties<C> {
 }
 
 #[expect(clippy::too_many_arguments)]
-fn inqmp<'a, 'b, A: core::Library<MQ: function::Mqi>>(
+fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
     mq: &core::MqFunctions<A>,
     connection_handle: Option<core::ConnectionHandle>,
     message_handle: &core::MessageHandle,

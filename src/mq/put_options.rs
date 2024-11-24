@@ -1,9 +1,10 @@
 use crate::{macros::all_multi_tuples, prelude::*, sys, types, values, Conn, MqStruct, Properties, ResultComp};
 
 use super::{
-    put::{PutAttr, PutOption, PutParam},
-    Object,
+    impl_mqstruct_min_version, put::{PutAttr, PutOption, PutParam}, Object
 };
+
+impl_mqstruct_min_version!(sys::MQPMO);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Context<T>(pub T);
@@ -47,6 +48,7 @@ impl<'po, C: Conn> PutOption<'po> for Context<&Object<C>> {
 
 impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
     fn apply_param(self, (.., pmo): &mut PutParam<'po>) {
+        pmo.set_min_version(sys::MQPMO_VERSION_3);
         pmo.Action = sys::MQACTP_NEW;
         pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
     }
@@ -66,23 +68,15 @@ impl PutOption<'_> for MqStruct<'static, sys::MQMD2> {
 
 impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2> {
     fn apply_param(self, (.., pmo): &mut PutParam<'po>) {
-        match self {
-            PropertyAction::Reply(original, new) => {
-                pmo.Action = sys::MQACTP_REPLY;
-                pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
-                pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };
-            }
-            PropertyAction::Forward(original, new) => {
-                pmo.Action = sys::MQACTP_FORWARD;
-                pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
-                pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };
-            }
-            PropertyAction::Report(original, new) => {
-                pmo.Action = sys::MQACTP_REPORT;
-                pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
-                pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };
-            }
-        }
+        let (action, original, new) = match self {
+            PropertyAction::Reply(original, new) => (sys::MQACTP_REPLY, original, new),
+            PropertyAction::Forward(original, new) => (sys::MQACTP_FORWARD, original, new),
+            PropertyAction::Report(original, new) =>  (sys::MQACTP_REPORT, original, new)
+        };
+        pmo.set_min_version(sys::MQPMO_VERSION_3);
+        pmo.Action = action;
+        pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
+        pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };
     }
 }
 

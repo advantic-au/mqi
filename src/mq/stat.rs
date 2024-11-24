@@ -1,6 +1,6 @@
 use std::ptr;
 
-use libmqm_sys::function;
+use libmqm_sys::Mqi;
 
 use crate::{
     core::{ConnectionHandle, Library, MqFunctions},
@@ -108,7 +108,7 @@ impl ReconnectionErrorStat {
     }
 }
 
-pub fn stat_put<L: Library<MQ: function::Mqi>>(functions: &MqFunctions<L>, handle: ConnectionHandle) -> ResultComp<AsyncPutStat> {
+pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: ConnectionHandle) -> ResultComp<AsyncPutStat> {
     let mut sts = MqStruct::new(sys::MQSTS {
         Version: sys::MQSTS_VERSION_2,
         ..sys::MQSTS::default()
@@ -130,7 +130,7 @@ pub fn stat_put<L: Library<MQ: function::Mqi>>(functions: &MqFunctions<L>, handl
         .map_completion(|()| AsyncPutStat::new(&sts, buffer))
 }
 
-pub fn stat_reconnection<L: Library<MQ: function::Mqi>>(
+pub fn stat_reconnection<L: Library<MQ: Mqi>>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
 ) -> ResultComp<ReconnectionStat> {
@@ -140,7 +140,7 @@ pub fn stat_reconnection<L: Library<MQ: function::Mqi>>(
         .map_completion(|()| ReconnectionStat::new(&sts))
 }
 
-pub fn stat_reconnection_error<L: Library<MQ: function::Mqi>>(
+pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
 ) -> ResultComp<ReconnectionErrorStat> {

@@ -1,4 +1,4 @@
-use libmqm_sys::function;
+use libmqm_sys::Mqi;
 
 use crate::{
     core::{values::MQCBDO, Library, MqFunctions},
@@ -15,7 +15,7 @@ struct CallbackData<F, L> {
 
 fn event_callback<L, H, F>(hconn: sys::MQHCONN, _: sys::PMQVOID, _: sys::PMQVOID, _: sys::PMQVOID, cbc: *const sys::MQCBC)
 where
-    L: Library<MQ: function::Mqi> + Clone,
+    L: Library<MQ: Mqi> + Clone,
     F: FnMut(ConnectionRef<L, H>, &MqStruct<sys::MQCBC>),
 {
     unsafe {
@@ -38,7 +38,7 @@ where
 
 impl<L, H> Connection<L, H>
 where
-    L: Library<MQ: function::Mqi> + Clone,
+    L: Library<MQ: Mqi> + Clone,
 {
     pub fn register_event_handler<F>(&mut self, options: MQCBDO, closure: F) -> Result<(), Error>
     where

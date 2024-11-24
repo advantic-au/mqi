@@ -1,8 +1,10 @@
 use crate::{macros::all_option_tuples, sys, types, values, Conn, Properties};
 
-use super::get::{GetConvert, GetOption, GetParam, GetWait, MatchOptions};
+use super::{get::{GetConvert, GetOption, GetParam, GetWait, MatchOptions}, impl_mqstruct_min_version};
 
 all_option_tuples!(GetOption, GetParam);
+
+impl_mqstruct_min_version!(sys::MQGMO);
 
 impl GetOption for values::MQGMO {
     fn apply_param(self, param: &mut GetParam) {
@@ -38,6 +40,7 @@ impl GetOption for GetConvert {
 
 impl<C: Conn> GetOption for &mut Properties<C> {
     fn apply_param(self, param: &mut GetParam) {
+        param.gmo.set_min_version(sys::MQGMO_VERSION_4);
         param.gmo.Options |= sys::MQGMO_PROPERTIES_IN_HANDLE;
         param.gmo.MsgHandle = unsafe { self.handle().raw_handle() }
     }
@@ -60,8 +63,10 @@ impl GetOption for MatchOptions<'_> {
 
         // Set up the GMO
         if let Some(token) = self.token {
+            param.gmo.set_min_version(sys::MQGMO_VERSION_3);
             param.gmo.MsgToken = token.0;
         }
+        param.gmo.set_min_version(sys::MQGMO_VERSION_2);
         param.gmo.MatchOptions = self.correl_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_CORREL_ID)
             | self.msg_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_ID)
             | self.group_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_GROUP_ID)
