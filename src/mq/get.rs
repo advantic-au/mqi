@@ -1,6 +1,8 @@
 use core::str;
 use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
 
+use libmqm_default as default;
+
 use crate::{
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     prelude::*,
@@ -327,10 +329,10 @@ impl<C: Conn> Object<C> {
         B: Buffer<'b>,
     {
         let mut param = GetParam {
-            md: MqStruct::default(),
+            md: MqStruct::new(default::MQMD2_DEFAULT),
             gmo: MqStruct::new(sys::MQGMO {
                 Version: sys::MQGMO_VERSION_3, // Version 3 for ReturnedLength 
-                ..sys::MQGMO::default()
+                ..default::MQGMO_DEFAULT
             }),
         };
         let mut no_msg_available = false;

@@ -3,6 +3,8 @@
 
 use std::{any, ptr};
 
+use libmqm_default as default;
+
 use crate::{
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
@@ -170,12 +172,12 @@ impl<'a, O: ConnectOption<'a>> ConnectOption<'a> for Option<O> {
 impl Default for ConnectStructs<'_> {
     fn default() -> Self {
         Self {
-            cno: MqStruct::default(),
-            sco: MqStruct::default(),
-            csp: MqStruct::default(),
+            cno: MqStruct::new(default::MQCNO_DEFAULT),
+            sco: MqStruct::new(default::MQSCO_DEFAULT),
+            csp: MqStruct::new(default::MQCSP_DEFAULT),
             cd: MqStruct::new(sys::MQCD::client_conn_default()),
             #[cfg(feature = "mqc_9_3_0_0")]
-            bno: MqStruct::default(),
+            bno: MqStruct::new(default::MQBNO_DEFAULT),
         }
     }
 }
@@ -308,9 +310,15 @@ impl<T> ProtectedSecret<T> {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 #[must_use]
 pub struct Tls<'pw>(MqStruct<'pw, sys::MQSCO>, CipherSpec);
+
+impl Default for Tls<'_> {
+    fn default() -> Self {
+        Self(MqStruct::new(default::MQSCO_DEFAULT), CipherSpec::default())
+    }
+}
 
 pub enum SuiteB {
     None,

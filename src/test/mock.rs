@@ -15,8 +15,6 @@ mockall::mock! {
     #[allow(non_snake_case)]
     impl Mqi for Functions {
 
-        fn default_struc<T: Default + 'static>(&self) -> T;
-
         unsafe fn MQCONNX(
             &self,
             pQMgrName: sys::PMQCHAR,
@@ -610,6 +608,38 @@ mockall::mock! {
             ResponseBag: sys::MQHBAG,
             AdminQ: sys::MQHOBJ,
             ResponseQ: sys::MQHOBJ,
+            pCompCode: sys::PMQLONG,
+            pReason: sys::PMQLONG,
+        );
+
+        unsafe fn mqBagToBuffer(
+            &self,
+            OptionsBag: sys::MQHBAG,
+            DataBag: sys::MQHBAG,
+            BufferLength: sys::MQLONG,
+            pBuffer: sys::PMQVOID,
+            pDataLength: sys::PMQLONG,
+            pCompCode: sys::PMQLONG,
+            pReason: sys::PMQLONG,
+        );
+    
+        unsafe fn mqBufferToBag(
+            &self,
+            OptionsBag: sys::MQHBAG,
+            BufferLength: sys::MQLONG,
+            pBuffer: sys::PMQVOID,
+            DataBag: sys::MQHBAG,
+            pCompCode: sys::PMQLONG,
+            pReason: sys::PMQLONG,
+        );
+    
+        unsafe fn mqInquireItemInfo(
+            &self,
+            Bag: sys::MQHBAG,
+            Selector: sys::MQLONG,
+            ItemIndex: sys::MQLONG,
+            pOutSelector: sys::PMQLONG,
+            pItemType: sys::PMQLONG,
             pCompCode: sys::PMQLONG,
             pReason: sys::PMQLONG,
         );

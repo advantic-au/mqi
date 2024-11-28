@@ -191,9 +191,10 @@ mod test {
     use crate::put::PutOption;
     use crate::test::mock;
     use crate::{connect_lib, values, Properties, ThreadNone};
-    use crate::prelude::*;
 
-    use super::PropertyAction;
+    use super::*;
+
+    use libmqm_default as default;
 
     #[test]
     fn property_action() -> Result<(), Box<dyn Error>> {
@@ -205,7 +206,7 @@ mod test {
 
         let qm = connect_lib::<ThreadNone, _>(mock_library, ()).warn_as_error()?;
 
-        let mut put_param = Default::default();
+        let mut put_param = (MqStruct::new(default::MQMD2_DEFAULT), MqStruct::new(default::MQPMO_DEFAULT));
 
         let source = Properties::new(&qm, values::MQCMHO::default())?;
         let mut outcome = Properties::new(&qm, values::MQCMHO::default())?;

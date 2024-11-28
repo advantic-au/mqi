@@ -1,4 +1,5 @@
 use libmqm_sys::Mqi;
+use libmqm_default as default;
 
 use crate::{
     core::{values::MQCBDO, Library, MqFunctions},
@@ -49,7 +50,7 @@ where
             closure,
             mq: self.mq().clone(),
         }));
-        let mut cbd = MqStruct::<sys::MQCBD>::default();
+        let mut cbd = MqStruct::new(default::MQCBD_DEFAULT);
         cbd.CallbackArea = cb_data.cast();
         cbd.Options = (options | sys::MQCBDO_DEREGISTER_CALL).0; // Always register for the deregister call
         cbd.CallbackFunction = event_callback::<L, H, F> as *mut _;

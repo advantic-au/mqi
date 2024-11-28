@@ -163,12 +163,6 @@ mod tests {
     use crate::values::MQRC;
 
     #[test]
-    fn mqmd_new() {
-        let d = sys::MQMD2::default();
-        assert_eq!(d.Version, 2);
-    }
-
-    #[test]
     fn reason_code_display() {
         assert_eq!(MQRC::from(sys::MQRC_Q_MGR_ACTIVE).to_string(), "MQRC_Q_MGR_ACTIVE");
         assert_eq!(MQRC::from(sys::MQRC_NONE).to_string(), "MQRC_NONE");

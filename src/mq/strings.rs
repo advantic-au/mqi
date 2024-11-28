@@ -4,6 +4,8 @@ use crate::sys;
 
 use super::{values::CCSID, MqStruct};
 
+use libmqm_default as default;
+
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
     pub(crate) ccsid: CCSID,
@@ -154,7 +156,7 @@ impl<'a> MqStruct<'a, sys::MQCHARV> {
             VSLength: len,
             VSBufSize: len,
             VSCCSID: value.ccsid().0,
-            ..sys::MQCHARV::default()
+            ..default::MQCHARV_DEFAULT
         })
     }
 }
@@ -163,7 +165,7 @@ impl<T: Default> Default for StringCcsid<T> {
     fn default() -> Self {
         Self {
             ccsid: CCSID(1208),
-            data: Default::default(),
+            data: T::default(),
             le: NATIVE_IS_LE,
         }
     }

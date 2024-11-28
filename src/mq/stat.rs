@@ -1,6 +1,7 @@
 use std::ptr;
 
 use libmqm_sys::Mqi;
+use libmqm_default as default;
 
 use crate::{
     core::{ConnectionHandle, Library, MqFunctions},
@@ -111,7 +112,7 @@ impl ReconnectionErrorStat {
 pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: ConnectionHandle) -> ResultComp<AsyncPutStat> {
     let mut sts = MqStruct::new(sys::MQSTS {
         Version: sys::MQSTS_VERSION_2,
-        ..sys::MQSTS::default()
+        ..default::MQSTS_DEFAULT
     });
 
     if sts.ObjectString.VSBufSize == 0 {
@@ -134,7 +135,7 @@ pub fn stat_reconnection<L: Library<MQ: Mqi>>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
 ) -> ResultComp<ReconnectionStat> {
-    let mut sts = MqStruct::default();
+    let mut sts = MqStruct::new(default::MQSTS_DEFAULT);
     functions
         .mqstat(handle, values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION), &mut sts)
         .map_completion(|()| ReconnectionStat::new(&sts))
@@ -146,7 +147,7 @@ pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
 ) -> ResultComp<ReconnectionErrorStat> {
     let mut sts = MqStruct::new(sys::MQSTS {
         Version: sys::MQSTS_VERSION_2,
-        ..sys::MQSTS::default()
+        ..default::MQSTS_DEFAULT
     });
 
     sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
