@@ -1,7 +1,9 @@
 use crate::{macros::all_multi_tuples, prelude::*, sys, types, values, Conn, MqStruct, Properties, ResultComp};
 
 use super::{
-    impl_mqstruct_min_version, put::{PutAttr, PutOption, PutParam}, Object
+    impl_mqstruct_min_version,
+    put::{PutAttr, PutOption, PutParam},
+    Object,
 };
 
 impl_mqstruct_min_version!(sys::MQPMO);
@@ -71,7 +73,7 @@ impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2> {
         let (action, original, new) = match self {
             PropertyAction::Reply(original, new) => (sys::MQACTP_REPLY, original, new),
             PropertyAction::Forward(original, new) => (sys::MQACTP_FORWARD, original, new),
-            PropertyAction::Report(original, new) =>  (sys::MQACTP_REPORT, original, new)
+            PropertyAction::Report(original, new) => (sys::MQACTP_REPORT, original, new),
         };
         pmo.set_min_version(sys::MQPMO_VERSION_3);
         pmo.Action = action;

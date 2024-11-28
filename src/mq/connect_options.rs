@@ -175,7 +175,7 @@ impl Default for ConnectStructs<'_> {
             cno: MqStruct::new(default::MQCNO_DEFAULT),
             sco: MqStruct::new(default::MQSCO_DEFAULT),
             csp: MqStruct::new(default::MQCSP_DEFAULT),
-            cd: MqStruct::new(sys::MQCD::client_conn_default()),
+            cd: MqStruct::new(default::MQCD_CLIENT_CONN_DEFAULT),
             #[cfg(feature = "mqc_9_3_0_0")]
             bno: MqStruct::new(default::MQBNO_DEFAULT),
         }
@@ -699,7 +699,7 @@ pub enum MqServerSyntaxError {
 
 #[cfg(test)]
 mod tests {
-    use super::{MqServer, MqServerSyntaxError, ProtectedSecret, Secret as _};
+    use super::*;
 
     #[test]
     fn secret() {

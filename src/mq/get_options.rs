@@ -1,6 +1,9 @@
 use crate::{macros::all_option_tuples, sys, types, values, Conn, Properties};
 
-use super::{get::{GetConvert, GetOption, GetParam, GetWait, MatchOptions}, impl_mqstruct_min_version};
+use super::{
+    get::{GetConvert, GetOption, GetParam, GetWait, MatchOptions},
+    impl_mqstruct_min_version,
+};
 
 all_option_tuples!(GetOption, GetParam);
 

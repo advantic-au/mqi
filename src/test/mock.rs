@@ -622,7 +622,7 @@ mockall::mock! {
             pCompCode: sys::PMQLONG,
             pReason: sys::PMQLONG,
         );
-    
+
         unsafe fn mqBufferToBag(
             &self,
             OptionsBag: sys::MQHBAG,
@@ -632,7 +632,7 @@ mockall::mock! {
             pCompCode: sys::PMQLONG,
             pReason: sys::PMQLONG,
         );
-    
+
         unsafe fn mqInquireItemInfo(
             &self,
             Bag: sys::MQHBAG,

@@ -140,7 +140,7 @@ impl<T: AsRef<sys::MQLONG>> MqConstant for T {
 mod tests {
     use crate::ConstLookup;
 
-    use super::{ConstSource, LinearSource};
+    use super::*;
 
     const ZERO: LinearSource = ConstSource(&[], &[]);
     const ONE: LinearSource = ConstSource(&[(1, "ONE")], &[]);

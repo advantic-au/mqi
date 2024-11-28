@@ -331,7 +331,7 @@ impl<C: Conn> Object<C> {
         let mut param = GetParam {
             md: MqStruct::new(default::MQMD2_DEFAULT),
             gmo: MqStruct::new(sys::MQGMO {
-                Version: sys::MQGMO_VERSION_3, // Version 3 for ReturnedLength 
+                Version: sys::MQGMO_VERSION_3, // Version 3 for ReturnedLength
                 ..default::MQGMO_DEFAULT
             }),
         };

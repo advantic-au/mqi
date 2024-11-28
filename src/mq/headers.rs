@@ -662,7 +662,7 @@ mod tests {
         values::{self, CCSID},
     };
 
-    use super::{fmt, next_header, ChainedHeader, TextEnc};
+    use super::*;
 
     use libmqm_default as default;
 
