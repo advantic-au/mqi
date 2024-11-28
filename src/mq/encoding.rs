@@ -929,7 +929,7 @@ pub fn ccsid_lookup(ccsid: i32) -> Option<&'static CcsidEntry> {
 
 #[must_use]
 pub fn is_ebcdic(ccsid: i32) -> Option<bool> {
-    ccsid_lookup(ccsid).map(|&(_, encoding, _)| encoding == 1)
+    ccsid_lookup(ccsid).map(|(_, encoding, _)| *encoding == 1)
 }
 
 #[cfg(test)]

@@ -152,7 +152,7 @@ pub(crate) fn masked_list<'a>(
     let mut mask_list = Vec::new();
     let residual = source
         .into_iter()
-        .filter(|&(value, name)| value != 0 && !name.ends_with("_MASK"))
+        .filter(|(value, name)| *value != 0 && !name.ends_with("_MASK"))
         .fold(value, |acc, item @ (val, ..)| {
             let masked = value & val;
             if masked == val {
