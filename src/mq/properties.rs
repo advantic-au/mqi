@@ -214,15 +214,17 @@ impl<C: Conn> Properties<C> {
                     })
                 }
             };
-            param.impo.ReturnedName = inq_name_buffer.as_mut().map_or_else(Default::default, |name| sys::MQCHARV {
-                VSPtr: ptr::from_mut(&mut *name).cast(),
-                VSBufSize: name
-                    .as_ref()
-                    .len()
-                    .try_into()
-                    .expect("length of buffer should fit within MQLONG range"),
-                ..default::MQCHARV_DEFAULT
-            });
+            param.impo.ReturnedName = inq_name_buffer
+                .as_mut()
+                .map_or(default::MQCHARV_DEFAULT, |name| sys::MQCHARV {
+                    VSPtr: ptr::from_mut(&mut *name).cast(),
+                    VSBufSize: name
+                        .as_ref()
+                        .len()
+                        .try_into()
+                        .expect("length of buffer should fit within MQLONG range"),
+                    ..default::MQCHARV_DEFAULT
+                });
 
             let mqi_inqmp = inqmp(
                 self.connection.mq(),

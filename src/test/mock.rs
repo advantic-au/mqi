@@ -4,7 +4,7 @@ use std::cmp;
 use std::slice::from_raw_parts_mut;
 use crate::core::Library;
 
-use libmqm_sys::{Mqi, Mqai};
+use libmqm_sys::Mqi;
 use libmqm_sys::lib as sys;
 
 use crate::put::PutMessage;
@@ -282,7 +282,7 @@ mockall::mock! {
 
     #[allow(non_snake_case)]
     #[cfg(feature = "mqai")]
-    impl Mqai for Functions {
+    impl libmqm_sys::Mqai for Functions {
         unsafe fn mqCreateBag(
             &self,
             Options: sys::MQLONG,
