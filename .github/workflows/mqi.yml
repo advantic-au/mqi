@@ -83,6 +83,7 @@ jobs:
       mq:
         image: icr.io/ibm-messaging/mq:latest
         env:
+          MQ_ENABLE_EMBEDDED_WEB_SERVER: false
           LICENSE: accept
           MQ_APP_PASSWORD: app
         ports:
