@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use libmqm_sys::function;
+use libmqm_sys::Mqai;
 
 use crate::values::{MqaiSelector, MQIND, MQCC, MQRC};
 use crate::core::Library;
@@ -14,7 +14,7 @@ use super::{Bag, BagDrop, BagItemGet, Embedded};
 pub struct BagItem<'bag, T, B, L>
 where
     B: BagDrop,
-    L: Library<MQ: function::Mqai>,
+    L: Library<MQ: Mqai>,
 {
     selector: MqaiSelector,
     index: sys::MQLONG,
@@ -27,7 +27,7 @@ impl<T, B, L> Iterator for BagItem<'_, T, B, L>
 where
     T: BagItemGet<L>,
     B: BagDrop,
-    L: Library<MQ: function::Mqai>,
+    L: Library<MQ: Mqai>,
 {
     type Item = ResultCompErr<T, T::Error>;
 
@@ -58,7 +58,7 @@ where
 impl<B, L> Bag<B, L>
 where
     B: BagDrop,
-    L: Library<MQ: function::Mqai> + Clone,
+    L: Library<MQ: Mqai> + Clone,
 {
     pub fn try_iter<T: BagItemGet<L>>(&self, selector: MqaiSelector) -> ResultComp<BagItem<T, B, L>> {
         self.mq.mq_count_items(self, selector).map_completion(|count| BagItem {

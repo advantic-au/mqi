@@ -56,12 +56,12 @@ pub struct CCSID(pub sys::MQLONG);
 impl CCSID {
     #[must_use]
     pub fn name(self) -> Option<&'static str> {
-        encoding::ccsid_lookup(self.0).map(|&(.., name)| name)
+        encoding::ccsid_lookup(self.0).map(|(.., name)| *name)
     }
 
     #[must_use]
     pub fn is_ebcdic(self) -> Option<bool> {
-        encoding::ccsid_lookup(self.0).map(|&(_, encoding, _)| encoding == 1)
+        encoding::ccsid_lookup(self.0).map(|(_, encoding, _)| *encoding == 1)
     }
 }
 

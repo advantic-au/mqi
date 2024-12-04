@@ -23,7 +23,7 @@ pub struct PropertyState<'s> {
     pub value: Cow<'s, [u8]>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct PropertyParam<'p> {
     pub value_type: MQTYPE,
     pub impo: MqStruct<'p, sys::MQIMPO>,
@@ -88,7 +88,7 @@ impl SetPropertyAttr for Attributes {
 
 all_multi_tuples!(impl_setproperty_tuple);
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Attributes {
     mqpd: MqStruct<'static, sys::MQPD>,
 }

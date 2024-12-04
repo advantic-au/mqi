@@ -43,7 +43,7 @@ jobs:
         with:
           shared-key: "build"
       - name: Test
-        run: cargo check --features ${{ matrix.version.feature }},pcf,mqai,dlopen2
+        run: cargo check --features ${{ matrix.version.feature }},mqai,dlopen2
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
   pregen:
@@ -100,7 +100,7 @@ jobs:
         with:
           toolchain: stable
 
-      - run: cargo test --features runnable,link,pcf,mqai,mqc_9_4_1_0 --no-default-features
+      - run: cargo test --features runnable,link,mqai,mqc_9_4_1_0 --no-default-features
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
           MQSERVER: DEV.APP.SVRCONN/TCP/localhost(1414)

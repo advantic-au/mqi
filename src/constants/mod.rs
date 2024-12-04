@@ -65,7 +65,7 @@ impl<P: ConstLookup, S: ConstLookup> ConstLookup for ConstSource<P, S> {
 impl ConstLookup for BinarySearch<'_> {
     fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &str> {
         let Self(list) = self;
-        list.binary_search_by_key(&value, |&(value, ..)| value)
+        list.binary_search_by_key(&value, |(value, ..)| *value)
             .map(|index| list[index].1)
             .into_iter()
     }
@@ -103,12 +103,12 @@ impl ConstLookup for &::phf::Map<sys::MQLONG, &str> {
 impl ConstLookup for &[ConstantItem<'_>] {
     fn by_value(&self, value: sys::MQLONG) -> impl Iterator<Item = &str> {
         self.iter()
-            .take_while(move |&(v, ..)| *v <= value)
-            .filter_map(move |&(v, name)| (v == value).then_some(name))
+            .take_while(move |(v, ..)| *v <= value)
+            .filter_map(move |(v, name)| (*v == value).then_some(*name))
     }
 
     fn by_name(&self, name: &str) -> Option<sys::MQLONG> {
-        self.iter().find_map(|&(value, n)| (n == name).then_some(value))
+        self.iter().find_map(|(value, n)| (*n == name).then_some(*value))
     }
 
     fn all(&self) -> impl Iterator<Item = ConstantItem> {
@@ -140,7 +140,7 @@ impl<T: AsRef<sys::MQLONG>> MqConstant for T {
 mod tests {
     use crate::ConstLookup;
 
-    use super::{ConstSource, LinearSource};
+    use super::*;
 
     const ZERO: LinearSource = ConstSource(&[], &[]);
     const ONE: LinearSource = ConstSource(&[(1, "ONE")], &[]);

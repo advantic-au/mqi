@@ -120,7 +120,7 @@ pub fn generate(target: impl AsRef<Path>) -> Result<(), io::Error> {
             let extra: Vec<_> = unassigned_constants
                 .iter()
                 .filter(|(.., name)| {
-                    name.starts_with(prefix) && !similar.iter().any(|&other_prefix| name.starts_with(other_prefix))
+                    name.starts_with(prefix) && !similar.iter().any(|other_prefix| name.starts_with(other_prefix))
                 })
                 .copied()
                 .collect();
@@ -128,7 +128,7 @@ pub fn generate(target: impl AsRef<Path>) -> Result<(), io::Error> {
         })
         .collect::<Vec<_>>();
 
-    prefix_constants.sort_by_key(|&(prefix, ..)| prefix);
+    prefix_constants.sort_by_key(|(prefix, ..)| *prefix);
 
     // Pick a lookup type based on the size of the constants for a prefix
     // TODO: Determine best ranges for performance

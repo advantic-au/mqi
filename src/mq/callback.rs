@@ -1,4 +1,5 @@
-use libmqm_sys::function;
+use libmqm_sys::Mqi;
+use libmqm_default as default;
 
 use crate::{
     core::{values::MQCBDO, Library, MqFunctions},
@@ -15,7 +16,7 @@ struct CallbackData<F, L> {
 
 fn event_callback<L, H, F>(hconn: sys::MQHCONN, _: sys::PMQVOID, _: sys::PMQVOID, _: sys::PMQVOID, cbc: *const sys::MQCBC)
 where
-    L: Library<MQ: function::Mqi> + Clone,
+    L: Library<MQ: Mqi> + Clone,
     F: FnMut(ConnectionRef<L, H>, &MqStruct<sys::MQCBC>),
 {
     unsafe {
@@ -38,7 +39,7 @@ where
 
 impl<L, H> Connection<L, H>
 where
-    L: Library<MQ: function::Mqi> + Clone,
+    L: Library<MQ: Mqi> + Clone,
 {
     pub fn register_event_handler<F>(&mut self, options: MQCBDO, closure: F) -> Result<(), Error>
     where
@@ -49,7 +50,7 @@ where
             closure,
             mq: self.mq().clone(),
         }));
-        let mut cbd = MqStruct::<sys::MQCBD>::default();
+        let mut cbd = MqStruct::new(default::MQCBD_DEFAULT);
         cbd.CallbackArea = cb_data.cast();
         cbd.Options = (options | sys::MQCBDO_DEREGISTER_CALL).0; // Always register for the deregister call
         cbd.CallbackFunction = event_callback::<L, H, F> as *mut _;

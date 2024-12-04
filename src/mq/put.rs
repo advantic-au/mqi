@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 use std::mem;
 
-use libmqm_sys::function;
+use libmqm_default as default;
+use libmqm_sys::Mqi;
 
 use crate::core::{ConnectionHandle, Library, MqFunctions};
 use crate::headers::{fmt, TextEnc};
@@ -96,13 +97,10 @@ pub(super) fn put_message_with<'po, 'oo, R, L>(
 ) -> ResultComp<R>
 where
     R: PutAttr,
-    L: Library<MQ: function::Mqi>,
+    L: Library<MQ: Mqi>,
 {
     let mut open_params = OpenParamOption {
-        mqod: MqStruct::new(sys::MQOD {
-            Version: sys::MQOD_VERSION_4,
-            ..sys::MQOD::default()
-        }),
+        mqod: MqStruct::new(default::MQOD_DEFAULT),
         options: values::MQPMO::default(),
     };
     open_options.apply_param(&mut open_params);
@@ -126,12 +124,9 @@ where
         CodedCharSetId: ccsid,
         Encoding: encoding.value(),
         Format: unsafe { mem::transmute::<Fmt, [i8; 8]>(fmt.into_ascii().into()) },
-        ..sys::MQMD2::default()
+        ..default::MQMD2_DEFAULT
     });
-    let mqpmo = MqStruct::new(sys::MQPMO {
-        Version: sys::MQPMO_VERSION_3,
-        ..sys::MQPMO::default()
-    });
+    let mqpmo = MqStruct::new(default::MQPMO_DEFAULT);
 
     let mut put_param = (md, mqpmo);
 

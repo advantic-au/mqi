@@ -662,7 +662,9 @@ mod tests {
         values::{self, CCSID},
     };
 
-    use super::{fmt, next_header, ChainedHeader, TextEnc};
+    use super::*;
+
+    use libmqm_default as default;
 
     const NEXT_DEAD: MessageFormat = MessageFormat {
         ccsid: CCSID(1208),
@@ -696,7 +698,7 @@ mod tests {
 
     #[test]
     pub fn dlh() {
-        let dlh = unsafe { transmute::<sys::MQDLH, [u8; sys::MQDLH_LENGTH_1]>(sys::MQDLH::default()) };
+        let dlh = unsafe { transmute::<sys::MQDLH, [u8; sys::MQDLH_LENGTH_1]>(default::MQDLH_DEFAULT) };
         let header = next_header(dlh.as_slice(), &NEXT_DEAD);
 
         assert!(matches!(header, Ok(Some((Header::Dlh(_), ..)))));
@@ -704,7 +706,7 @@ mod tests {
 
     #[test]
     pub fn rfh2() {
-        let rfh2 = sys::MQRFH2::default();
+        let rfh2 = default::MQRFH2_DEFAULT;
         let rfh2_data = unsafe { transmute::<sys::MQRFH2, [u8; sys::MQRFH2_CURRENT_LENGTH]>(rfh2) };
         let header = next_header(rfh2_data.as_slice(), &NEXT_RFH2);
 
@@ -715,8 +717,8 @@ mod tests {
     pub fn header_iter() {
         const TOTAL_LENGTH: usize = sys::MQDLH_LENGTH_1 + sys::MQRFH2_LENGTH_2;
         let mut data: [u8; TOTAL_LENGTH] = [0; TOTAL_LENGTH];
-        let mut dlh = sys::MQDLH::default();
-        let rfh2 = sys::MQRFH2::default();
+        let mut dlh = default::MQDLH_DEFAULT;
+        let rfh2 = default::MQRFH2_DEFAULT;
         dlh.Format = unsafe { transmute::<Fmt, [i8; 8]>(sys::MQRFH2::FMT_ASCII) };
         dlh.CodedCharSetId = 1208;
         dlh.Encoding = sys::MQENC_NATIVE;

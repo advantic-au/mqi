@@ -151,7 +151,7 @@ impl Default for MessageHandle {
 
 #[cfg(test)]
 mod tests {
-    use super::{ConnectionHandle, MessageHandle, ObjectHandle};
+    use super::*;
     use crate::sys;
 
     #[test]

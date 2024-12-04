@@ -1,4 +1,4 @@
-use libmqm_sys::{function, Mqai};
+use libmqm_sys::Mqai;
 
 use crate::core::mqai::BagHandle;
 use crate::core::ObjectHandle;
@@ -72,7 +72,7 @@ pub trait QueueManagerAdmin: Conn<Lib: Library<MQ: Mqai>> {
 
 impl<C> QueueManagerAdmin for C
 where
-    C: Conn<Lib: Library<MQ: function::Mqai> + Clone>, // A clonable connnection that supports MQAI functions
+    C: Conn<Lib: Library<MQ: Mqai> + Clone>, // A clonable connnection that supports MQAI functions
 {
     fn execute<'a>(
         &self,
