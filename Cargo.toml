@@ -21,10 +21,10 @@ default = [
     "link",
     "constantgen",
     "runnable",
-    "bindgen",
+    "mqmgen",
     "mqc_9_2_0_0",
 ] # Default to generate code and compile time link
-docsrs = ["libmqm-sys/docsrs", "pcf", "mqai", "link", "dlopen2", "mqc_9_4_1_0"]
+docsrs = ["libmqm-sys/docsrs", "mqai", "link", "dlopen2", "mqc_9_4_1_0"]
 runnable = [
     "libmqm-sys/mqi_helpers",
 ] # Minimal features to make the code runnable
@@ -33,16 +33,15 @@ constantgen = [
 ] # Generate the constants (default is to use pregenerated constants)
 pregen = [
     "constantgen",
-    "pcf",
     "mqai",
     "mqc_9_4_1_0",
 ] # Regenerate the pregenerated constants
+
 tracing = ["dep:tracing"] # Enable tracing in the MQI calls
-pcf = ["libmqm-sys/pcf"] # Enable the PCF API
 mqai = ["libmqm-sys/mqai"] # Enable the administrative API
 link = ["libmqm-sys/link"] # Compile time linking
 dlopen2 = ["libmqm-sys/dlopen2"] # Enable dlopen2 loading the MQI library
-bindgen = ["libmqm-sys/bindgen"] # Generate the MQI bindings
+mqmgen = ["libmqm-sys/bindgen", "libmqm-default/defaultgen"] # Generate the MQI bindings and defaults
 mock = ["dep:mockall"] # MQI function mocking for integration tests
 
 mqc_9_2_0_0 = ["libmqm-sys/mqc_9_2_0_0"] # Minimum MQ client version 9.2.0.0
@@ -53,6 +52,7 @@ mqc_9_3_0_0 = [
 ] # Minimum MQ client version 9.3.0.0
 mqc_9_3_1_0 = [
     "libmqm-sys/mqc_9_3_1_0",
+    "libmqm-default/mqc_9_3_1_0",
     "mqc_9_3_0_0",
 ] # Minimum MQ client version 9.3.1.0
 mqc_9_3_2_0 = [
@@ -141,4 +141,3 @@ required-features = ["link", "runnable"]
 [[example]]
 name = "forward"
 required-features = ["link", "runnable"]
-
