@@ -24,4 +24,4 @@ jobs:
       - name: Execute miri tests
         env:
           MIRIFLAGS: -Zmiri-strict-provenance
-        run: cargo nextest miri run --no-fail-fast --no-default-features --features mock,mqai,mqc_9_4_1_0
+        run: cargo +nightly miri nextest run --no-fail-fast --no-default-features --features mock,mqai,mqc_9_4_1_0
