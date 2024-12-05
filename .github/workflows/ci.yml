@@ -8,7 +8,7 @@ on:
   pull_request:
     branches:
       - develop
-  schedule: [cron: "40 4 * * 5" ]
+  schedule: [cron: "40 4 * * 5"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,7 +19,7 @@ env:
   CARGO_TERM_COLOR: always
 
 permissions:
-  checks: write # For the clippy action  
+  checks: write # For the clippy action
 
 jobs:
   client_check:
@@ -35,7 +35,7 @@ jobs:
             feature: mqc_9_3_4_0
           - client-version: 9.4.1.0
             feature: mqc_9_4_1_0
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: advantic-au/action-mq-client@stable
@@ -47,10 +47,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "build"
-      - name: Test
+      - name: Check
         run: cargo check --features ${{ matrix.version.feature }},mqai,dlopen2
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+
   pregen:
     strategy:
       fail-fast: false
@@ -58,7 +59,7 @@ jobs:
         build:
           - os: windows-latest
             mq-version: 9.4.1.0
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             mq-version: 9.4.1.0
           - os: macos-latest
             mq-version: 9.4.1.0
@@ -78,12 +79,14 @@ jobs:
         run: cargo build --no-default-features --features pregen
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
-      - name: Check for pregen changes
-        run: git diff --stat --exit-code src/constants/mapping/pregen
+      - name: Detect pregenerated changes
+        run: |
+          git add -N src/constants/mapping/pregen
+          git diff --stat --exit-code src/constants/mapping/pregen
 
   test_server:
     name: "Test with MQ server"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       mq:
         image: icr.io/ibm-messaging/mq:latest
@@ -95,17 +98,16 @@ jobs:
           - 1414:1414
     steps:
       - uses: actions/checkout@v4
-      
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
           client-version: 9.4.1.0
-
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-
-      - run: cargo test --features runnable,link,mqai,mqc_9_4_1_0 --no-default-features
+      - uses: taiki-e/install-action@nextest
+      - name: Test
+        run: cargo nextest run --profile ci --no-default-features --features runnable,link,mqai,mqc_9_4_1_0
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
           MQSERVER: DEV.APP.SVRCONN/TCP/localhost(1414)
@@ -117,49 +119,43 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [ nightly, beta, stable ]
-    runs-on: ubuntu-latest
+        toolchain: [nightly, beta, stable]
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
           client-version: 9.4.1.0
-
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{matrix.toolchain}}
-
       - name: Enable type layout randomization
         run: echo RUSTFLAGS=${RUSTFLAGS}\ -Zrandomize-layout >> $GITHUB_ENV
         if: matrix.toolchain == 'nightly'
-      
-      - run: cargo test --all-features
+      - uses: taiki-e/install-action@nextest
+      - name: Test
+        run: cargo nextest run --profile ci --all-features
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
   rustfmt-clippy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
           client-version: 9.4.1.0
-
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
           components: rustfmt, clippy
-      
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "build"
       - name: Run rustfmt
         run: cargo fmt -- --check
-
       - name: Run clippy
         uses: auguwu/clippy-action@1.4.0
         env:
@@ -169,15 +165,13 @@ jobs:
           token: ${{secrets.GITHUB_TOKEN}}
 
   minimum:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
           client-version: 9.4.1.0
-
       # Re-resolve Cargo.lock with minimal versions
       - uses: dtolnay/rust-toolchain@nightly # -Z option only available on nightly
       - run: cargo generate-lockfile -Z minimal-versions
@@ -190,7 +184,7 @@ jobs:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:

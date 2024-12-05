@@ -6,7 +6,7 @@ on:
   pull_request:
     branches:
       - develop
-  schedule: [cron: "40 4 * * 6" ]
+  schedule: [cron: "40 4 * * 6"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,7 +17,7 @@ env:
 
 jobs:
   miri:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master

@@ -21,7 +21,7 @@ fn main() -> Result<(), io::Error> {
             &path,
             path::PathBuf::from("./src/constants/mapping/pregen").join(format!(
                 "{}-{}-mqconstants.rs",
-                if env_consts::OS == "macOS" { "any" } else { env_consts::ARCH },
+                if env_consts::OS == "macos" { "any" } else { env_consts::ARCH },
                 env_consts::OS
             )),
         )?;
