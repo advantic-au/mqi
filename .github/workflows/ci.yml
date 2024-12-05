@@ -94,6 +94,8 @@ jobs:
           MQ_ENABLE_EMBEDDED_WEB_SERVER: false
           LICENSE: accept
           MQ_APP_PASSWORD: app
+        ports:
+          - 1414:1414
     steps:
       - uses: actions/checkout@v4
       - uses: advantic-au/action-mq-client@stable
@@ -108,7 +110,7 @@ jobs:
         run: cargo nextest run --profile ci --no-default-features --features runnable,link,mqai,mqc_9_4_1_0
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
-          MQSERVER: DEV.APP.SVRCONN/TCP/mq(1414)
+          MQSERVER: DEV.APP.SVRCONN/TCP/localhost(1414)
           MQ_USER: app
           MQ_PASSWORD: app
 

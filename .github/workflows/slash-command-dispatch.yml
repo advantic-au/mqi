@@ -9,12 +9,12 @@ permissions:
 
 jobs:
   slash_command_dispatch:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Slash Command Dispatch
         uses: peter-evans/slash-command-dispatch@v4
         with:
-          token: ${{ secrets.SCD }} 
+          token: ${{ secrets.SCD }}
           issue-type: pull-request
           commands: |
             pregen
