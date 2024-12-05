@@ -1,4 +1,4 @@
-name: mqi
+name: Continuous Integration
 
 on:
   workflow_dispatch:
