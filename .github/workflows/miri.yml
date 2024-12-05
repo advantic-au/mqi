@@ -1,0 +1,27 @@
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+  schedule: [cron: "40 4 * * 6" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  miri:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: miri
+      - uses: taiki-e/install-action@nextest
+      - name: Execute miri tests
+        env:
+          MIRIFLAGS: -Zmiri-strict-provenance
+        run: cargo nextest miri run --no-fail-fast --no-default-features --features mock,mqai,mqc_9_4_1_0
