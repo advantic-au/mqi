@@ -1,3 +1,5 @@
+name: Miri Testing
+
 on:
   workflow_dispatch:
   push:
