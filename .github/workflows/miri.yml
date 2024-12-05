@@ -8,6 +8,10 @@ on:
       - develop
   schedule: [cron: "40 4 * * 6" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -20,6 +24,9 @@ jobs:
         with:
           toolchain: nightly
           components: miri
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "build"
       - uses: taiki-e/install-action@nextest
       - name: Execute miri tests
         env:
