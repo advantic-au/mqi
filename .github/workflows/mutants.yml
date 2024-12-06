@@ -1,21 +1,12 @@
-name: Incremental Mutant Testing
+name: Full Mutant Testing
 on:
-  push:
-    branches:
-      - develop
-  pull_request:
-    branches:
-      - develop
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  incremental_mutants:
+  mutants:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -28,20 +19,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - name: Relative diff
-        run: |
-          git branch -av
-          git diff origin/${{ github.base_ref }}.. > git.diff
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-mutants
       - name: Mutant testing
         run: |
-          cargo mutants --no-shuffle -vV --in-diff git.diff --all-features
-      - name: Artefact mutants-incremental.out
+          cargo mutants -vV --in-place --all-features
+      - name: Artefact mutants.out
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: mutants-incremental.out
+          name: mutants-out
           path: mutants.out
