@@ -26,6 +26,8 @@ jobs:
       - name: Mutant testing
         run: |
           cargo mutants -vV --in-place --all-features
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
       - name: Artefact mutants.out
         uses: actions/upload-artifact@v4
         if: always()

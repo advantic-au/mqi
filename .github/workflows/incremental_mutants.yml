@@ -17,6 +17,7 @@ env:
 jobs:
   incremental_mutants:
     runs-on: ubuntu-24.04
+    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,6 +40,8 @@ jobs:
       - name: Mutant testing
         run: |
           cargo mutants --no-shuffle -vV --in-diff git.diff --all-features
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
       - name: Artefact mutants-incremental.out
         uses: actions/upload-artifact@v4
         if: always()
