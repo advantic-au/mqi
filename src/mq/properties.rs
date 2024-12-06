@@ -1,6 +1,7 @@
 use std::{marker::PhantomData, num::NonZero, ptr};
 
-use libmqm_sys::function;
+use libmqm_sys::Mqi;
+use libmqm_default as default;
 
 use crate::values::{MQRC, MQCC, MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::prelude::*;
@@ -19,7 +20,7 @@ pub struct Properties<C: Conn> {
 
 impl<C: Conn> Drop for Properties<C> {
     fn drop(&mut self) {
-        let mqdmho = sys::MQDMHO::default();
+        let mqdmho = default::MQDMHO_DEFAULT;
 
         if self.handle.is_deleteable() {
             let _ = self
@@ -31,7 +32,7 @@ impl<C: Conn> Drop for Properties<C> {
 }
 
 #[expect(clippy::too_many_arguments)]
-fn inqmp<'a, 'b, A: core::Library<MQ: function::Mqi>>(
+fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
     mq: &core::MqFunctions<A>,
     connection_handle: Option<core::ConnectionHandle>,
     message_handle: &core::MessageHandle,
@@ -150,7 +151,7 @@ impl<C: Conn> Properties<C> {
     pub fn new(connection: C, options: MQCMHO) -> ResultErr<Self> {
         let mqcmho = sys::MQCMHO {
             Options: options.value(),
-            ..sys::MQCMHO::default()
+            ..default::MQCMHO_DEFAULT
         };
         connection
             .mq()
@@ -188,9 +189,11 @@ impl<C: Conn> Properties<C> {
         let mut param = PropertyParam {
             impo: MqStruct::new(sys::MQIMPO {
                 Options: options.value(),
-                ..sys::MQIMPO::default()
+                ..default::MQIMPO_DEFAULT
             }),
-            ..PropertyParam::default()
+            value_type: MQTYPE::default(),
+            mqpd: MqStruct::new(default::MQPD_DEFAULT),
+            name_required: NameUsage::default(),
         };
 
         let mut inq_value_buffer = InqBuffer::Slice(val_return_buffer.as_mut_slice());
@@ -211,15 +214,17 @@ impl<C: Conn> Properties<C> {
                     })
                 }
             };
-            param.impo.ReturnedName = inq_name_buffer.as_mut().map_or_else(Default::default, |name| sys::MQCHARV {
-                VSPtr: ptr::from_mut(&mut *name).cast(),
-                VSBufSize: name
-                    .as_ref()
-                    .len()
-                    .try_into()
-                    .expect("length of buffer should fit within MQLONG range"),
-                ..sys::MQCHARV::default()
-            });
+            param.impo.ReturnedName = inq_name_buffer
+                .as_mut()
+                .map_or(default::MQCHARV_DEFAULT, |name| sys::MQCHARV {
+                    VSPtr: ptr::from_mut(&mut *name).cast(),
+                    VSBufSize: name
+                        .as_ref()
+                        .len()
+                        .try_into()
+                        .expect("length of buffer should fit within MQLONG range"),
+                    ..default::MQCHARV_DEFAULT
+                });
 
             let mqi_inqmp = inqmp(
                 self.connection.mq(),
@@ -255,7 +260,7 @@ impl<C: Conn> Properties<C> {
     }
 
     pub fn delete_property(&self, name: &(impl EncodedString + ?Sized), options: MQDMPO) -> ResultComp<()> {
-        let mut mqdmpo = MqStruct::<sys::MQDMPO>::default();
+        let mut mqdmpo = MqStruct::new(default::MQDMPO_DEFAULT);
         mqdmpo.Options = options.value();
 
         let name_mqcharv = MqStruct::from_encoded_str(name);
@@ -271,8 +276,8 @@ impl<C: Conn> Properties<C> {
         value: &(impl SetProperty + ?Sized),
         location: MQSMPO,
     ) -> ResultComp<()> {
-        let mut mqpd = MqStruct::<sys::MQPD>::default();
-        let mut mqsmpo = MqStruct::<sys::MQSMPO>::default();
+        let mut mqpd = MqStruct::new(default::MQPD_DEFAULT);
+        let mut mqsmpo = MqStruct::new(default::MQSMPO_DEFAULT);
         mqsmpo.Options = location.value();
         let (data, value_type) = value.apply_mqsetmp(&mut mqpd, &mut mqsmpo);
 
@@ -290,7 +295,7 @@ impl<C: Conn> Properties<C> {
 
     pub fn close(self) -> ResultErr<()> {
         let mut s = self;
-        let mqdmho = sys::MQDMHO::default();
+        let mqdmho = default::MQDMHO_DEFAULT;
         s.connection.mq().mqdltmh(Some(s.connection.handle()), &mut s.handle, &mqdmho)
     }
 }

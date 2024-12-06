@@ -3,7 +3,7 @@ on:
   repository_dispatch:
     types: [pregen-command]
 jobs:
-  bindgen_pregen:
+  pregen:
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -11,7 +11,7 @@ jobs:
         build:
           - os: windows-latest
             mq-version: 9.4.1.0
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             mq-version: 9.4.1.0
           - os: macos-latest
             mq-version: 9.4.1.0
@@ -40,5 +40,6 @@ jobs:
       - name: Modify pull request with refreshed pregen files
         shell: bash
         run: |
-          git commit -am 'pregen: MQ client ${{ matrix.build.mq-version }} ${{ runner.os }}' || true
+          git add src/constants/mapping/pregen
+          git commit -m 'pregen: MQ client ${{ matrix.build.mq-version }} ${{ runner.os }}' || true
           git push

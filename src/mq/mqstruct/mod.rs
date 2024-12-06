@@ -9,7 +9,7 @@ use std::{
 };
 
 /// MQ structure holding a `T` with an associated lifetime for pointer fields
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct MqStruct<'ptr, T> {
     struc: T,

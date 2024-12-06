@@ -87,10 +87,9 @@ Feature flags
 |----------------|-------------|
 | link (default) | Support linking the MQ library at compile-time |
 | tracing        | Add tracing to the MQI and MQAI calls using the tracing crate |
+| mqmgen         | Ensure the dependent MQM bindings are refreshed from the C library |
 | dlopen2        | Support loading the MQ library at run-time using [`dlopen2`](https://crates.io/crates/dlopen2) |
 | mqai           | Expose the MQAI functions |
-| pcf            | Generate the PCF structures |
-| exits          | Generate the exit structures |
 | mqc_*          | Enable features of a specific MQI library version eg `mqc_9_4_1_0` |
 
 Status

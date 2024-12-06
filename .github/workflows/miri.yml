@@ -1,0 +1,36 @@
+name: Miri Testing
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+  schedule: [cron: "40 4 * * 6"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  miri:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: miri
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "build"
+      - uses: taiki-e/install-action@nextest
+      - name: Execute miri tests
+        env:
+          MIRIFLAGS: -Zmiri-strict-provenance
+        run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,mqc_9_4_1_0

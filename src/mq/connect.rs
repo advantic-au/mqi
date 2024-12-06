@@ -4,7 +4,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use libmqm_sys::function;
+use libmqm_sys::Mqi;
 
 use crate::core::{self, ConnectionHandle, Library, MqFunctions};
 use crate::sys;
@@ -25,21 +25,21 @@ pub struct ConnTag(pub [sys::MQBYTE; sys::MQ_CONN_TAG_LENGTH]);
 
 /// Associated connection handle and MQ library
 pub trait Conn {
-    type Lib: Library<MQ: function::Mqi>;
+    type Lib: Library<MQ: Mqi>;
     fn mq(&self) -> &MqFunctions<Self::Lib>;
     fn handle(&self) -> core::ConnectionHandle;
 }
 
 /// A connection to an IBM MQ queue manager
 #[derive(Debug)]
-pub struct Connection<L: Library<MQ: function::Mqi>, H> {
+pub struct Connection<L: Library<MQ: Mqi>, H> {
     handle: core::ConnectionHandle,
     mq: core::MqFunctions<L>,
     _share: PhantomData<H>, // Send and Sync control
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ConnectionRef<'conn, L: Library<MQ: function::Mqi>, H> {
+pub struct ConnectionRef<'conn, L: Library<MQ: Mqi>, H> {
     handle: core::ConnectionHandle,
     mq: core::MqFunctions<L>,
     _share: PhantomData<H>,       // Send and Sync control
@@ -65,7 +65,7 @@ pub trait Threading: Sealed {
 
 impl<L, H> Connection<L, H>
 where
-    L: Library<MQ: function::Mqi> + Clone,
+    L: Library<MQ: Mqi> + Clone,
 {
     #[inline]
     pub fn connection_ref(&self) -> ConnectionRef<L, H> {
@@ -75,7 +75,7 @@ where
 
 impl<L, H> ConnectionRef<'_, L, H>
 where
-    L: Library<MQ: function::Mqi>,
+    L: Library<MQ: Mqi>,
 {
     pub const fn from_parts(handle: ConnectionHandle, mq: MqFunctions<L>) -> Self {
         Self {
@@ -119,13 +119,13 @@ impl Threading for ThreadNoBlock {
     const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_NO_BLOCK;
 }
 
-impl<L: Library<MQ: function::Mqi>, H> Drop for Connection<L, H> {
+impl<L: Library<MQ: Mqi>, H> Drop for Connection<L, H> {
     fn drop(&mut self) {
         let _ = self.mq.mqdisc(&mut self.handle);
     }
 }
 
-impl<L: Library<MQ: function::Mqi>, H: Threading> ConnectValue<Self> for Connection<L, H> {
+impl<L: Library<MQ: Mqi>, H: Threading> ConnectValue<Self> for Connection<L, H> {
     #[inline]
     fn consume<'a, F>(param: &mut ConnectParam<'a>, connect: F) -> ResultComp<Self>
     where
@@ -155,7 +155,7 @@ pub trait ConnectAttr<S> {
 pub fn connect_lib<'co, H, L>(lib: L, options: impl ConnectOption<'co>) -> ResultComp<Connection<L, H>>
 where
     H: Threading,
-    L: Library<MQ: function::Mqi>,
+    L: Library<MQ: Mqi>,
 {
     connect_lib_as(lib, options)
 }
@@ -165,7 +165,7 @@ pub fn connect_lib_with<'co, A, H, L>(lib: L, options: impl ConnectOption<'co>) 
 where
     A: ConnectAttr<Connection<L, H>>,
     H: Threading,
-    L: Library<MQ: function::Mqi>,
+    L: Library<MQ: Mqi>,
 {
     connect_lib_as(lib, options)
 }
@@ -175,7 +175,7 @@ pub(super) fn connect_lib_as<'co, R, H, L>(lib: L, options: impl ConnectOption<'
 where
     R: ConnectValue<Connection<L, H>>,
     H: Threading,
-    L: Library<MQ: function::Mqi>,
+    L: Library<MQ: Mqi>,
 {
     let qm_name = options.queue_manager_name().copied();
 
@@ -212,14 +212,14 @@ where
     })
 }
 
-impl<L: Library<MQ: function::Mqi>, H> Connection<L, H> {
+impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
     pub fn disconnect(self) -> ResultComp<()> {
         let mut s = self;
         s.mq.mqdisc(&mut s.handle)
     }
 }
 
-impl<L: Library<MQ: function::Mqi>, H> Conn for Arc<Connection<L, H>> {
+impl<L: Library<MQ: Mqi>, H> Conn for Arc<Connection<L, H>> {
     type Lib = L;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
@@ -231,7 +231,7 @@ impl<L: Library<MQ: function::Mqi>, H> Conn for Arc<Connection<L, H>> {
     }
 }
 
-impl<L: Library<MQ: function::Mqi>, H> Conn for Rc<Connection<L, H>> {
+impl<L: Library<MQ: Mqi>, H> Conn for Rc<Connection<L, H>> {
     type Lib = L;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
@@ -243,7 +243,7 @@ impl<L: Library<MQ: function::Mqi>, H> Conn for Rc<Connection<L, H>> {
     }
 }
 
-impl<L: Library<MQ: function::Mqi>, H> Conn for &Connection<L, H> {
+impl<L: Library<MQ: Mqi>, H> Conn for &Connection<L, H> {
     type Lib = L;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
@@ -255,7 +255,7 @@ impl<L: Library<MQ: function::Mqi>, H> Conn for &Connection<L, H> {
     }
 }
 
-impl<L: Library<MQ: function::Mqi>, H> Conn for Connection<L, H> {
+impl<L: Library<MQ: Mqi>, H> Conn for Connection<L, H> {
     type Lib = L;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
@@ -267,7 +267,7 @@ impl<L: Library<MQ: function::Mqi>, H> Conn for Connection<L, H> {
     }
 }
 
-impl<L: Library<MQ: function::Mqi>, H> Conn for ConnectionRef<'_, L, H> {
+impl<L: Library<MQ: Mqi>, H> Conn for ConnectionRef<'_, L, H> {
     type Lib = L;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {

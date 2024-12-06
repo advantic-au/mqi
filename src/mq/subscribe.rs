@@ -6,6 +6,8 @@ use crate::{
 
 use super::{Conn, MqStruct, Object};
 
+use libmqm_default as default;
+
 #[derive(Debug)]
 pub struct Subscription<C: Conn> {
     handle: core::SubscriptionHandle,
@@ -113,7 +115,7 @@ impl<C: Conn + Clone> Subscription<C> {
     {
         let mut so = SubscribeParam {
             close_options: values::MQCO::default(),
-            sd: MqStruct::default(),
+            sd: MqStruct::new(default::MQSD_DEFAULT),
             provided_object: sys::MQHO_NONE,
         };
 

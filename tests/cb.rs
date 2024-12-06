@@ -7,6 +7,8 @@ use mqi::test::mock::{connect_ok, MockFunctions};
 use mqi::{core::ConnectionHandle, sys, values, MqStruct, Object, ThreadBlock, ThreadNone, MQMD};
 use mqi::prelude::*;
 
+use libmqm_default as default;
+
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
     let mut mock_library = connect_ok();
@@ -100,9 +102,9 @@ fn callback() -> Result<(), Box<dyn Error>> {
         println!("{:?}", object.handle());
         let b = 2;
 
-        let mut cbd = MqStruct::<sys::MQCBD>::default();
-        let mqmd = MqStruct::<sys::MQMD>::default();
-        let mut gmo = MqStruct::<sys::MQGMO>::default();
+        let mut cbd = MqStruct::new(default::MQCBD_DEFAULT);
+        let mqmd = MqStruct::new(default::MQMD2_DEFAULT);
+        let mut gmo = MqStruct::new(default::MQGMO_DEFAULT);
         register_cb(&mut cbd, move |_a, _b: Option<&sys::MQMD2>, _c, _d, _e| {
             println!("{b}");
         });
@@ -119,7 +121,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
             )
             .expect("mqcb should not fail");
 
-        let ctlo = MqStruct::<sys::MQCTLO>::default();
+        let ctlo = MqStruct::new(default::MQCTLO_DEFAULT);
 
         qm.mq()
             .mqctl(qm.handle(), values::MQOP(sys::MQOP_START_WAIT), &ctlo)

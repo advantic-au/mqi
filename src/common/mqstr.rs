@@ -124,7 +124,7 @@ impl<const N: usize> MqStr<N> {
     #[must_use]
     pub fn value(&self) -> &[u8] {
         let mut last = N;
-        for _ in self.data.iter().rev().take_while(|&c| *c == b' ' || *c == 0) {
+        for _ in self.data.iter().rev().take_while(|c| **c == b' ' || **c == 0) {
             last -= 1;
         }
         &self.data[..last]
@@ -132,12 +132,12 @@ impl<const N: usize> MqStr<N> {
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.data.iter().all(|&c| c == b' ' || c == 0)
+        self.data.iter().all(|c| *c == b' ' || *c == 0)
     }
 
     #[must_use]
     pub fn has_value(&self) -> bool {
-        self.data.iter().any(|&c| c != b' ' && c != 0)
+        self.data.iter().any(|c| *c != b' ' && *c != 0)
     }
 }
 

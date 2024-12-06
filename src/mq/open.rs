@@ -2,6 +2,8 @@ use crate::{prelude::*, values, sys, ResultComp, ResultCompErr};
 
 use super::{Conn, MqStruct, Object, OpenAttr, OpenOption, OpenParamOption, OpenValue};
 
+use libmqm_default as default;
+
 impl<C: Conn> Object<C> {
     /// Establish access and return an MQ object ([`Object`])
     pub fn open<'oo>(connection: C, open_option: impl OpenOption<'oo, values::MQOO>) -> ResultComp<Self> {
@@ -25,10 +27,7 @@ impl<C: Conn> Object<C> {
         R: OpenValue<Self>,
     {
         let mut oo = OpenParamOption {
-            mqod: MqStruct::new(sys::MQOD {
-                Version: sys::MQOD_VERSION_4,
-                ..sys::MQOD::default()
-            }),
+            mqod: MqStruct::new(default::MQOD_DEFAULT),
             options: values::MQOO(sys::MQOO_BIND_AS_Q_DEF),
         };
         open_option.apply_param(&mut oo);

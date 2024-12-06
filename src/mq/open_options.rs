@@ -66,7 +66,6 @@ impl_mqstruct_min_version!(sys::MQOD);
 
 impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString<&'a T> {
     fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
-        mqod.set_min_version(sys::MQOD_VERSION_4);
         mqod.ObjectType = sys::MQOT_TOPIC;
         mqod.attach_object_string(self.0);
     }
@@ -120,6 +119,7 @@ impl<S, O> OpenAttr<S, O> for Option<QueueName> {
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
     {
+        param.mqod.set_min_version(sys::MQOD_VERSION_3); // For ResolvedQName
         open(param).map_completion(|state| {
             (
                 Some(QueueName(param.mqod.ResolvedQName.into())).filter(|queue_name| queue_name.has_value()),
@@ -136,7 +136,7 @@ impl<S, O> OpenAttr<S, O> for MQOT {
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
     {
         param.mqod.set_min_version(sys::MQOD_VERSION_4);
-        open(param).map_completion(|state| (param.mqod.ObjectType.into(), state))
+        open(param).map_completion(|state| (param.mqod.ResolvedType.into(), state))
     }
 }
 
@@ -158,6 +158,7 @@ impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
     {
+        param.mqod.set_min_version(sys::MQOD_VERSION_3); // For ResolvedQMgrName
         open(param).map_completion(|state| {
             (
                 Self::Some(QueueManagerName(param.mqod.ResolvedQMgrName.into())).filter(|queue_name| queue_name.has_value()),

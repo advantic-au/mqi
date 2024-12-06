@@ -4,7 +4,7 @@ use std::cmp;
 use std::slice::from_raw_parts_mut;
 use crate::core::Library;
 
-use libmqm_sys::function;
+use libmqm_sys::Mqi;
 use libmqm_sys::lib as sys;
 
 use crate::put::PutMessage;
@@ -13,7 +13,8 @@ mockall::mock! {
     pub Functions {}
 
     #[allow(non_snake_case)]
-    impl function::Mqi for Functions {
+    impl Mqi for Functions {
+
         unsafe fn MQCONNX(
             &self,
             pQMgrName: sys::PMQCHAR,
@@ -281,7 +282,7 @@ mockall::mock! {
 
     #[allow(non_snake_case)]
     #[cfg(feature = "mqai")]
-    impl function::Mqai for Functions {
+    impl libmqm_sys::Mqai for Functions {
         unsafe fn mqCreateBag(
             &self,
             Options: sys::MQLONG,
@@ -610,6 +611,38 @@ mockall::mock! {
             pCompCode: sys::PMQLONG,
             pReason: sys::PMQLONG,
         );
+
+        unsafe fn mqBagToBuffer(
+            &self,
+            OptionsBag: sys::MQHBAG,
+            DataBag: sys::MQHBAG,
+            BufferLength: sys::MQLONG,
+            pBuffer: sys::PMQVOID,
+            pDataLength: sys::PMQLONG,
+            pCompCode: sys::PMQLONG,
+            pReason: sys::PMQLONG,
+        );
+
+        unsafe fn mqBufferToBag(
+            &self,
+            OptionsBag: sys::MQHBAG,
+            BufferLength: sys::MQLONG,
+            pBuffer: sys::PMQVOID,
+            DataBag: sys::MQHBAG,
+            pCompCode: sys::PMQLONG,
+            pReason: sys::PMQLONG,
+        );
+
+        unsafe fn mqInquireItemInfo(
+            &self,
+            Bag: sys::MQHBAG,
+            Selector: sys::MQLONG,
+            ItemIndex: sys::MQLONG,
+            pOutSelector: sys::PMQLONG,
+            pItemType: sys::PMQLONG,
+            pCompCode: sys::PMQLONG,
+            pReason: sys::PMQLONG,
+        );
     }
 }
 
@@ -662,6 +695,13 @@ impl MockFunctions {
             .returning(|_, _, _, comp_code, reason| {
                 Self::mqi_outcome_ok(comp_code, reason);
             });
+    }
+
+    pub fn get_error(&mut self, mqrc: sys::MQLONG, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+        self.expect_MQGET()
+            .returning(move |_, _, _, _, _, _, _, cc, rc| Self::mqi_outcome(cc, rc, sys::MQCC_FAILED, mqrc))
+            .times(count)
+            .in_sequence(seq);
     }
 
     pub fn get_ok(
@@ -752,31 +792,35 @@ impl MockFunctions {
     }
 }
 
-use libmqm_sys::Mqai as _;
-
 #[cfg(feature = "mqai")]
-impl MockFunctions {
-    pub fn real_bag(&mut self, mqai: impl Library<MQ: function::Mqai> + Clone + Send + 'static) {
-        unsafe {
-            // TODO: Add more bag function passthroughs
-            let mq = mqai.clone();
-            self.expect_mqCreateBag()
-                .returning(move |option, bag, cc, rc| mq.lib().mqCreateBag(option, bag, cc, rc));
-            let mq = mqai.clone();
-            self.expect_mqDeleteBag()
-                .returning(move |bag, cc, rc| mq.lib().mqDeleteBag(bag, cc, rc));
-            let mq = mqai.clone();
-            self.expect_mqSetInteger()
-                .returning(move |a, b, c, d, e, f| mq.lib().mqSetInteger(a, b, c, d, e, f));
-            let mq = mqai.clone();
-            self.expect_mqAddInteger()
-                .returning(move |a, b, c, d, e| mq.lib().mqAddInteger(a, b, c, d, e));
-            let mq = mqai.clone();
-            self.expect_mqInquireInteger()
-                .returning(move |a, b, c, d, e, f| mq.lib().mqInquireInteger(a, b, c, d, e, f));
-            let mq = mqai;
-            self.expect_mqAddString()
-                .returning(move |a, b, c, d, e, f| mq.lib().mqAddString(a, b, c, d, e, f));
+mod mqai {
+    use libmqm_sys::Mqai;
+
+    use crate::core::Library;
+
+    impl super::MockFunctions {
+        pub fn real_bag(&mut self, mqai: impl Library<MQ: Mqai> + Clone + Send + 'static) {
+            unsafe {
+                // TODO: Add more bag function passthroughs
+                let mq = mqai.clone();
+                self.expect_mqCreateBag()
+                    .returning(move |option, bag, cc, rc| mq.lib().mqCreateBag(option, bag, cc, rc));
+                let mq = mqai.clone();
+                self.expect_mqDeleteBag()
+                    .returning(move |bag, cc, rc| mq.lib().mqDeleteBag(bag, cc, rc));
+                let mq = mqai.clone();
+                self.expect_mqSetInteger()
+                    .returning(move |a, b, c, d, e, f| mq.lib().mqSetInteger(a, b, c, d, e, f));
+                let mq = mqai.clone();
+                self.expect_mqAddInteger()
+                    .returning(move |a, b, c, d, e| mq.lib().mqAddInteger(a, b, c, d, e));
+                let mq = mqai.clone();
+                self.expect_mqInquireInteger()
+                    .returning(move |a, b, c, d, e, f| mq.lib().mqInquireInteger(a, b, c, d, e, f));
+                let mq = mqai;
+                self.expect_mqAddString()
+                    .returning(move |a, b, c, d, e, f| mq.lib().mqAddString(a, b, c, d, e, f));
+            }
         }
     }
 }
