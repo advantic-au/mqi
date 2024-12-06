@@ -1,0 +1,34 @@
+name: Full Mutant Testing
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  mutants:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: advantic-au/action-mq-client@stable
+        id: mq-client
+        with:
+          client-version: 9.4.1.0
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+      - name: Mutant testing
+        run: |
+          cargo mutants -vV --in-place --all-features
+      - name: Artefact mutants.out
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutants-out
+          path: mutants.out
