@@ -23,50 +23,69 @@ default = [
     "runnable",
     "mqmgen",
     "mqc_9_2_0_0",
-] # Default to generate code and compile time link
+]
+
 docsrs = ["libmqm-sys/docsrs", "mqai", "link", "dlopen2", "mqc_9_4_1_0"]
+
+## Minimal features to make the code runnable
 runnable = [
     "libmqm-sys/mqi_helpers",
-] # Minimal features to make the code runnable
+]
+
+## Generate the constants (default is to use pregenerated constants)
 constantgen = [
     "runnable",
-] # Generate the constants (default is to use pregenerated constants)
+]
+
+## Generate the constants and save them in the src folder
 pregen = [
     "constantgen",
     "mqai",
     "mqc_9_4_1_0",
-] # Regenerate the pregenerated constants
+]
 
-tracing = ["dep:tracing"] # Enable tracing in the MQI calls
-mqai = ["libmqm-sys/mqai"] # Enable the administrative API
-link = ["libmqm-sys/link"] # Compile time linking
-dlopen2 = ["libmqm-sys/dlopen2"] # Enable dlopen2 loading the MQI library
-mqmgen = ["libmqm-sys/bindgen", "libmqm-default/defaultgen"] # Generate the MQI bindings and defaults
-mock = ["dep:mockall"] # MQI function mocking for integration tests
+## Enable tracing in the MQI calls
+tracing = ["dep:tracing"]
+## Enable the administrative API
+mqai = ["libmqm-sys/mqai"]
+## [`Link`](link) the MQI library at compile time
+link = ["libmqm-sys/link"]
+## Enable runtime loading of the MQI library using [`dlopen2`](dlopen2)
+dlopen2 = ["libmqm-sys/dlopen2"]
+## Generate the MQI bindings and defaults
+mqmgen = ["libmqm-sys/bindgen", "libmqm-default/defaultgen"]
+## MQI and MQAI function mocking for unit and integration tests
+mock = ["dep:mockall"]
 
-mqc_9_2_0_0 = ["libmqm-sys/mqc_9_2_0_0"] # Minimum MQ client version 9.2.0.0
+## Minimum MQ client version 9.2.0.0
+mqc_9_2_0_0 = ["libmqm-sys/mqc_9_2_0_0"]
+## Minimum MQ client version 9.3.0.0
 mqc_9_3_0_0 = [
     "libmqm-sys/mqc_9_3_0_0",
     "libmqm-default/mqc_9_3_0_0",
     "mqc_9_2_0_0",
-] # Minimum MQ client version 9.3.0.0
+]
+## Minimum MQ client version 9.3.1.0
 mqc_9_3_1_0 = [
     "libmqm-sys/mqc_9_3_1_0",
     "libmqm-default/mqc_9_3_1_0",
     "mqc_9_3_0_0",
-] # Minimum MQ client version 9.3.1.0
+]
+## Minimum MQ client version 9.3.2.0
 mqc_9_3_2_0 = [
     "libmqm-sys/mqc_9_3_2_0",
     "mqc_9_3_1_0",
-] # Minimum MQ client version 9.3.2.0
+]
+## Minimum MQ client version 9.3.4.0
 mqc_9_3_4_0 = [
     "libmqm-sys/mqc_9_3_4_0",
     "mqc_9_3_2_0",
-] # Minimum MQ client version 9.3.4.0
+]
+## Minimum MQ client version 9.4.1.0
 mqc_9_4_1_0 = [
     "libmqm-sys/mqc_9_4_1_0",
     "mqc_9_3_4_0",
-] # Minimum MQ client version 9.4.1.0
+]
 
 [dependencies]
 phf = { default-features = false, version = "0.11.2" }
@@ -88,13 +107,12 @@ derive_more = { version = "1.0.0", features = [
     "add_assign",
 ] }
 mockall = { version = "0.13.0", optional = true }
+document-features = "0.2"
 
 [build-dependencies]
 libmqm-sys = { version = "0.6.0", default-features = false }
 phf = { default-features = false, version = "0.11" }
 phf_codegen = "0.11.2"
-
-## Lints
 
 [lints.rust]
 unsafe_op_in_unsafe_fn = "warn"

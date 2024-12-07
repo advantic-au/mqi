@@ -11,6 +11,12 @@
 //! connectivity to MQ queue managers. The underlying connection uses the IBM supplied MQ libraries,
 //! offering proven stability and performance.
 //!
+//!
+//! ## Features
+//!
+
+#![doc = document_features::document_features!()]
+
 mod common;
 mod constants;
 mod mq;
