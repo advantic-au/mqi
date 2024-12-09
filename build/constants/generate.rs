@@ -7,12 +7,7 @@ use std::io::{self, BufWriter, Write as _};
 use std::{fs::File, path::Path, str};
 
 use libmqm_sys::lib as mqsys;
-
-pub fn name_filter(value: mqsys::MQLONG, name: &str, str_fn: list::MqCStrFn) -> bool {
-    unsafe { str::from_utf8_unchecked(std::ffi::CStr::from_ptr(str_fn(value)).to_bytes()) == name }
-}
-
-/// Load the `MQI_BY_NAME_STR` into a Vec
+// Load the `MQI_BY_NAME_STR` into a Vec
 fn by_name(by_name_mqi: &[mqsys::MQI_BY_NAME_STR]) -> Vec<(&str, i32)> {
     by_name_mqi
         .iter()
@@ -69,16 +64,21 @@ pub fn generate(target: impl AsRef<Path>) -> Result<(), io::Error> {
     // Gather the list of constants for each prefix by using
     // the _STR c functions and CONSTANTS which was derived from
     // the header file
-    let primary_constants = list::CONSTANTS
-        .iter()
+    let primary_constants = list::all_constants()
         .map(|(prefix, check)| {
             let mut by_value_set: Vec<_> = by_value
                 .iter()
-                .filter(|(value, name)| name_filter(*value, name, *check))
+                .filter(|(value, name)| unsafe { str::from_utf8_unchecked(check(*value).to_bytes()) == *name })
                 .collect();
             by_value_set.sort_by_key(|(k, ..)| *k);
-            (*prefix, by_value_set)
+            (prefix, by_value_set)
         })
+        .chain(list::PREFIX_CONSTANTS.iter().map(|prefix| {
+            (
+                *prefix,
+                by_value.iter().filter(|(_, name)| name.starts_with(prefix)).collect(),
+            )
+        }))
         .collect::<HashMap<_, _>>();
 
     // Collect a list of constants that are assigned to a prefix
@@ -102,6 +102,12 @@ pub fn generate(target: impl AsRef<Path>) -> Result<(), io::Error> {
                 && !name.ends_with("_LAST_USED")
         })
         .collect::<Vec<_>>();
+
+    // Show the unassigned constants without a _str function
+    // dbg!(unassigned_constants.iter().filter(|(_, name)| {
+    //     !all_constants().any(|(prefix, _)| name.starts_with(prefix))
+    // }).collect::<Vec<_>>());
+    // panic!();
 
     // Create a map of primary and extra constants
     let mut prefix_constants = primary_constants
@@ -129,6 +135,12 @@ pub fn generate(target: impl AsRef<Path>) -> Result<(), io::Error> {
         .collect::<Vec<_>>();
 
     prefix_constants.sort_by_key(|(prefix, ..)| *prefix);
+
+    writeln!(
+        &mut file,
+        "/* Generated with MQ client version {} */",
+        libmqm_sys::version::CLIENT_BUILD_VERSION
+    )?;
 
     // Pick a lookup type based on the size of the constants for a prefix
     // TODO: Determine best ranges for performance

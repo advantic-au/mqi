@@ -7,7 +7,7 @@ use crate::core::{Library, MqFunctions, MqiOutcome, MqiOutcomeVoid};
 use crate::{core, MQMD};
 use crate::{sys, ResultComp};
 
-use crate::values::{MqaiSelector, CCSID, MQCBO, MQCFOP, MQCMD, MQIND};
+use crate::values::{MqaiSelector, CCSID, MQCBO, MQCFOP, MQCMD, MQIND, MQITEM};
 use super::{BagHandle, Filter};
 
 #[cfg(feature = "tracing")]
@@ -705,7 +705,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         outcome.into()
     }
 
-    // Converts the contents of the specified bag into a PCF message and sends the message to the specified queue.
+    /// Converts the contents of the specified bag into a PCF message and sends the message to the specified queue.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_put_bag(
         &self,
@@ -723,6 +723,76 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 ptr::from_mut(mqmd).cast(),
                 ptr::from_mut(pmo).cast(),
                 bag.raw_handle(),
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
+            );
+        }
+        #[cfg(feature = "tracing")]
+        tracing_outcome(&outcome);
+        outcome.into()
+    }
+
+    /// Convert the bag into a PCF message in the supplied buffer
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, buffer)))]
+    pub fn mq_bag_to_buffer<T>(&self, options_bag: &BagHandle, data_bag: &BagHandle, buffer: &mut T) -> ResultComp<sys::MQLONG> {
+        let mut outcome = MqiOutcome::with_verb("mqBagToBuffer");
+
+        unsafe {
+            self.0.lib().mqBagToBuffer(
+                options_bag.raw_handle(),
+                data_bag.raw_handle(),
+                size_of_val(buffer)
+                    .try_into()
+                    .expect("buffer length should not exceed maximum positive MQLONG"),
+                ptr::from_mut(buffer).cast(),
+                &mut outcome.value,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
+            );
+        }
+        #[cfg(feature = "tracing")]
+        tracing_outcome(&outcome);
+        outcome.into()
+    }
+
+    /// Convert the supplied buffer into bag form
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, buffer)))]
+    pub fn mq_buffer_to_bag<T>(&self, options_bag: &BagHandle, buffer: &T, data_bag: &mut BagHandle) -> ResultComp<()> {
+        let mut outcome = MqiOutcomeVoid::with_verb("mqBufferToBag");
+        unsafe {
+            self.0.lib().mqBufferToBag(
+                options_bag.raw_handle(),
+                size_of_val(buffer)
+                    .try_into()
+                    .expect("buffer length should not exceed maximum positive MQLONG"),
+                ptr::from_ref(buffer).cast_mut().cast(),
+                data_bag.raw_handle(),
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
+            );
+        }
+        #[cfg(feature = "tracing")]
+        tracing_outcome(&outcome);
+        outcome.into()
+    }
+
+    /// Return information about a specified item in a bag
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
+    pub fn mq_inquire_item_info(
+        &self,
+        bag: &BagHandle,
+        selector: MqaiSelector,
+        index: MQIND,
+    ) -> ResultComp<(MqaiSelector, MQITEM)> {
+        let mut outcome = MqiOutcome::new("mqInquireItemInfo", (MqaiSelector(-1), MQITEM(-1)));
+
+        unsafe {
+            self.0.lib().mqInquireItemInfo(
+                bag.raw_handle(),
+                selector.0,
+                index.0,
+                &mut outcome.value.0 .0,
+                &mut outcome.value.1 .0,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
