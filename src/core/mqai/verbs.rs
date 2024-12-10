@@ -812,11 +812,48 @@ mod tests {
     use super::*;
 
     #[test]
-    fn create_bag() {
+    fn inquire_integer() {
         let mq_lib = MqFunctions(mq_library());
         let mut bag = mq_lib
             .mq_create_bag(MQCBO(sys::MQCBO_COMMAND_BAG))
+            .warn_as_error()
             .expect("creation of MQ bag should not fail");
+
+        // MQIASY_BAG_OPTIONS, index 0 should exist
+        let options = mq_lib
+            .mq_inquire_integer(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(0))
+            .warn_as_error()
+            .expect("options retrieval should not fail");
+        assert_eq!(MQCBO(options), MQCBO(sys::MQCBO_COMMAND_BAG));
+
+        // MQIASY_BAG_OPTIONS, index 1 should not exist
+        mq_lib
+            .mq_inquire_integer(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(1))
+            .warn_as_error()
+            .expect_err("options retrieval should fail");
+
+        mq_lib
+            .mq_delete_bag(&mut bag)
+            .warn_as_error()
+            .expect("deletion of MQ bag should not fail");
+    }
+
+    #[test]
+    fn inquire_item_info() {
+        let mq_lib = MqFunctions(mq_library());
+        let mut bag = mq_lib
+            .mq_create_bag(MQCBO(sys::MQCBO_COMMAND_BAG))
+            .warn_as_error()
+            .expect("creation of MQ bag should not fail");
+        let (sel, item) = mq_lib
+            .mq_inquire_item_info(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(0))
+            .warn_as_error()
+            .expect("info of item should not fail");
+        assert_eq!(item, MQITEM(sys::MQITEM_INTEGER));
+        assert_eq!(sel, MqaiSelector(sys::MQIASY_BAG_OPTIONS));
+        mq_lib
+            .mq_inquire_item_info(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(1))
+            .expect_err("index 1 should not exist");
         mq_lib
             .mq_delete_bag(&mut bag)
             .warn_as_error()
