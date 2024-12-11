@@ -7,7 +7,7 @@ use crate::core::{Library, MqFunctions, MqiOutcome, MqiOutcomeVoid};
 use crate::{core, MQMD};
 use crate::{sys, ResultComp};
 
-use crate::values::{MqaiSelector, CCSID, MQCBO, MQCFOP, MQCMD, MQIND};
+use crate::values::{MqaiSelector, CCSID, MQCBO, MQCFOP, MQCMD, MQIND, MQITEM};
 use super::{BagHandle, Filter};
 
 #[cfg(feature = "tracing")]
@@ -705,7 +705,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         outcome.into()
     }
 
-    // Converts the contents of the specified bag into a PCF message and sends the message to the specified queue.
+    /// Converts the contents of the specified bag into a PCF message and sends the message to the specified queue.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_put_bag(
         &self,
@@ -731,6 +731,87 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         tracing_outcome(&outcome);
         outcome.into()
     }
+
+    /// Convert the bag into a PCF message in the supplied buffer
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, buffer)))]
+    pub fn mq_bag_to_buffer<T: ?Sized>(
+        &self,
+        options_bag: &BagHandle,
+        data_bag: &BagHandle,
+        buffer: Option<&mut T>,
+    ) -> ResultComp<sys::MQLONG> {
+        let mut outcome = MqiOutcome::with_verb("mqBagToBuffer");
+
+        let (buf, len) = buffer.map_or((ptr::null_mut(), 0), |buffer| {
+            (
+                ptr::from_mut(buffer).cast(),
+                size_of_val(buffer)
+                    .try_into()
+                    .expect("buffer length should not exceed maximum positive MQLONG"),
+            )
+        });
+        unsafe {
+            self.0.lib().mqBagToBuffer(
+                options_bag.raw_handle(),
+                data_bag.raw_handle(),
+                len,
+                buf,
+                &mut outcome.value,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
+            );
+        }
+        #[cfg(feature = "tracing")]
+        tracing_outcome(&outcome);
+        outcome.into()
+    }
+
+    /// Convert the supplied buffer into bag form
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, buffer)))]
+    pub fn mq_buffer_to_bag<T: ?Sized>(&self, options_bag: &BagHandle, buffer: &T, data_bag: &mut BagHandle) -> ResultComp<()> {
+        let mut outcome = MqiOutcomeVoid::with_verb("mqBufferToBag");
+        unsafe {
+            self.0.lib().mqBufferToBag(
+                options_bag.raw_handle(),
+                size_of_val(buffer)
+                    .try_into()
+                    .expect("buffer length should not exceed maximum positive MQLONG"),
+                ptr::from_ref(buffer).cast_mut().cast(),
+                data_bag.raw_handle(),
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
+            );
+        }
+        #[cfg(feature = "tracing")]
+        tracing_outcome(&outcome);
+        outcome.into()
+    }
+
+    /// Return information about a specified item in a bag
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
+    pub fn mq_inquire_item_info(
+        &self,
+        bag: &BagHandle,
+        selector: MqaiSelector,
+        index: MQIND,
+    ) -> ResultComp<(MqaiSelector, MQITEM)> {
+        let mut outcome = MqiOutcome::new("mqInquireItemInfo", (MqaiSelector(-1), MQITEM(-1)));
+
+        unsafe {
+            self.0.lib().mqInquireItemInfo(
+                bag.raw_handle(),
+                selector.0,
+                index.0,
+                &mut outcome.value.0 .0,
+                &mut outcome.value.1 .0,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
+            );
+        }
+        #[cfg(feature = "tracing")]
+        tracing_outcome(&outcome);
+        outcome.into()
+    }
 }
 
 #[cfg(all(test, any(feature = "link", feature = "dlopen2")))]
@@ -742,15 +823,89 @@ mod tests {
     use super::*;
 
     #[test]
-    fn create_bag() {
+    fn inquire_integer() {
         let mq_lib = MqFunctions(mq_library());
         let mut bag = mq_lib
             .mq_create_bag(MQCBO(sys::MQCBO_COMMAND_BAG))
+            .warn_as_error()
             .expect("creation of MQ bag should not fail");
+
+        // MQIASY_BAG_OPTIONS, index 0 should exist
+        let options = mq_lib
+            .mq_inquire_integer(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(0))
+            .warn_as_error()
+            .expect("options retrieval should not fail");
+        assert_eq!(MQCBO(options), MQCBO(sys::MQCBO_COMMAND_BAG));
+
+        // MQIASY_BAG_OPTIONS, index 1 should not exist
+        mq_lib
+            .mq_inquire_integer(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(1))
+            .warn_as_error()
+            .expect_err("options retrieval should fail");
+
         mq_lib
             .mq_delete_bag(&mut bag)
             .warn_as_error()
             .expect("deletion of MQ bag should not fail");
+    }
+
+    #[test]
+    fn inquire_item_info() {
+        let mq_lib = MqFunctions(mq_library());
+        let mut bag = mq_lib
+            .mq_create_bag(MQCBO(sys::MQCBO_COMMAND_BAG))
+            .warn_as_error()
+            .expect("creation of MQ bag should not fail");
+        let (sel, item) = mq_lib
+            .mq_inquire_item_info(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(0))
+            .warn_as_error()
+            .expect("info of item should not fail");
+        assert_eq!(item, MQITEM(sys::MQITEM_INTEGER));
+        assert_eq!(sel, MqaiSelector(sys::MQIASY_BAG_OPTIONS));
+        mq_lib
+            .mq_inquire_item_info(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(1))
+            .expect_err("index 1 should not exist");
+        mq_lib
+            .mq_delete_bag(&mut bag)
+            .warn_as_error()
+            .expect("deletion of MQ bag should not fail");
+    }
+
+    #[test]
+    fn bag_buffer() {
+        let mq_lib = MqFunctions(mq_library());
+        let mut bag = mq_lib
+            .mq_create_bag(MQCBO(sys::MQCBO_NONE))
+            .warn_as_error()
+            .expect("creation of MQ bag should not fail");
+        let mut buffer = vec![0u8; 2 * 1024 * 1024]; // 2Mb buffer
+        mq_lib
+            .mq_add_integer(&bag, MqaiSelector(1), 99)
+            .warn_as_error()
+            .expect("mq_set_integer should succeed");
+        let length = mq_lib
+            .mq_bag_to_buffer(&BagHandle::from(sys::MQHB_NONE), &bag, Some(buffer.as_mut_slice()))
+            .warn_as_error()
+            .expect("mqBagToBuffer should succeed");
+        let bag_buffer = &buffer[..length.try_into().expect("returned length should convert to usize")];
+        let mut bag_target = mq_lib
+            .mq_create_bag(MQCBO(sys::MQCBO_NONE))
+            .warn_as_error()
+            .expect("creation of MQ bag should succeed");
+        mq_lib
+            .mq_buffer_to_bag(&BagHandle::from(sys::MQHB_NONE), bag_buffer, &mut bag_target)
+            .warn_as_error()
+            .expect("mqBufferToBag should succeed");
+        let target_int = mq_lib
+            .mq_inquire_integer(&bag_target, MqaiSelector(1), MQIND(0))
+            .warn_as_error()
+            .expect("options retrieval should succeed");
+        assert_eq!(target_int, 99);
+
+        mq_lib
+            .mq_delete_bag(&mut bag)
+            .warn_as_error()
+            .expect("deletion of MQ bag should succeed");
     }
 
     #[test]
@@ -762,7 +917,7 @@ mod tests {
         mq_lib
             .mq_add_bag(&bag, MqaiSelector(0), &bag_attached)
             .warn_as_error()
-            .expect("adding to a bag should not fail");
+            .expect("adding to a bag should succeed");
         dbg!(mq_lib.mq_inquire_bag(&bag, MqaiSelector(0), MQIND(0))).warn_as_error()?;
         dbg!(mq_lib.mq_add_integer(&bag_attached, MqaiSelector(0), 999)).warn_as_error()?;
         dbg!(mq_lib.mq_add_string(&bag_attached, MqaiSelector(1), &wally)).warn_as_error()?;
