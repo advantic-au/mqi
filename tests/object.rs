@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
+use std::slice;
 
 use mqi::connect_options::Credentials;
 use mqi::test;
@@ -129,10 +130,17 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         mq_lib = test::mock::connect_ok();
         let mut seq = mockall::Sequence::new();
         mq_lib.open_ok(0x0c0c, 1, &mut seq);
-        mq_lib.expect_MQINQ().returning(|_, _, _, _, _, _, _, _, cc, rc| {
-            // TODO: Add some return data
-            test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
-        });
+        mq_lib
+            .expect_MQINQ()
+            .returning(|_, _, _, _, int_len, ints, char_len, chars, cc, rc| {
+                let char_slice =
+                    unsafe { slice::from_raw_parts_mut(chars, char_len.try_into().expect("char_len should be positive")) };
+                char_slice.fill(32);
+                let int_slice =
+                    unsafe { slice::from_raw_parts_mut(ints, int_len.try_into().expect("int_len should be positive")) };
+                int_slice.fill(0);
+                test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+            });
     }
     #[cfg(not(feature = "mock"))]
     {
