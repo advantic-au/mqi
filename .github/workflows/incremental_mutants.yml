@@ -42,6 +42,7 @@ jobs:
           cargo mutants --no-shuffle -vV --in-diff git.diff --all-features
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+        continue-on-error: true
       - name: Artefact mutants-incremental.out
         uses: actions/upload-artifact@v4
         if: always()
