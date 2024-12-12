@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
-use std::slice;
 
 use mqi::connect_options::Credentials;
 use mqi::test;
@@ -133,6 +132,8 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         mq_lib
             .expect_MQINQ()
             .returning(|_, _, _, _, int_len, ints, char_len, chars, cc, rc| {
+                use std::slice;
+
                 let char_slice =
                     unsafe { slice::from_raw_parts_mut(chars, char_len.try_into().expect("char_len should be positive")) };
                 char_slice.fill(32);
