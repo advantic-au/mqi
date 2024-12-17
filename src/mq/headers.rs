@@ -290,7 +290,6 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
         raw_header: unsafe { &*((*data).as_ptr().cast()) },
         tail: &[],
     };
-    //let header = EncodedHeader::<T>::new(next_ccsid, next_encoding, &data[..struc_len]);
 
     if !header.struc_matches() {
         Err(HeaderError::UnexpectedStruc(T::raw_struc_id(header.raw_header)))?;

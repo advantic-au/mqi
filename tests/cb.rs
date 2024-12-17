@@ -25,10 +25,11 @@ fn qm() -> Result<(), Box<dyn Error>> {
                 | sys::MQCBDO_MC_EVENT_CALL
                 | sys::MQCBDO_EVENT_CALL
                 | sys::MQCBDO_REGISTER_CALL
-                | sys::MQCBDO_DEREGISTER_CALL, // | sys::MQCBDO_START_CALL
-                                               // | sys::MQCBDO_STOP_CALL,
+                | sys::MQCBDO_DEREGISTER_CALL,
+            // | sys::MQCBDO_START_CALL
+            // | sys::MQCBDO_STOP_CALL,
         ),
-        move |_, options| {
+        |_, options| {
             println!("{}", values::MQCBCT(options.CallType));
             println!("{}", values::MQCS(options.State));
             println!("{}", values::MQCC(options.CompCode));

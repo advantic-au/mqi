@@ -112,6 +112,13 @@ pub trait GetAttr<B> {
         Self: Sized;
 }
 
+pub trait GetBagAttr {
+    fn extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<Self>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<()>,
+        Self: Sized;
+}
+
 pub trait GetValue<B> {
     type Error: std::fmt::Debug;
 
@@ -278,10 +285,78 @@ impl<B> GetAttr<B> for MessageId {
     }
 }
 
+impl GetBagAttr for () {
+    fn extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<Self>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<()>,
+    {
+        mqi(param) // No extra data to retrieve
+    }
+}
+
 /// A trait that manipulates the parameters to the [`mqget`](`crate::core::MqFunctions::mqget`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get")]
 pub trait GetOption {
     fn apply_param(self, param: &mut GetParam);
+}
+
+#[cfg(feature = "mqai")]
+mod mqai {
+    use crate::{
+        prelude::*,
+        admin::{Bag, Owned},
+        sys, values, Completion, Conn, Error, MqStruct, Object, ResultComp,
+    };
+    use libmqm_default as default;
+
+    use super::{GetBagAttr, GetOption, GetParam};
+
+    impl<C: Conn> Object<C>
+    where
+        C::Lib: crate::core::Library<MQ: libmqm_sys::Mqai>,
+    {
+        pub fn get_bag_with<R: GetBagAttr>(
+            &self,
+            options: impl GetOption,
+            bag: &mut Bag<Owned, C::Lib>,
+        ) -> ResultComp<Option<R>> {
+            let mut param = GetParam {
+                md: MqStruct::new(default::MQMD2_DEFAULT),
+                gmo: MqStruct::new(default::MQGMO_DEFAULT),
+            };
+            let mut no_msg_available = false;
+
+            options.apply_param(&mut param);
+
+            let result = R::extract(&mut param, |param| {
+                let connection = self.connection();
+                let mqi_get_bag = connection.mq().mq_get_bag(
+                    connection.handle(),
+                    self.handle(),
+                    &mut *param.md,
+                    &mut param.gmo,
+                    Some(&*bag),
+                );
+                no_msg_available = mqi_get_bag.as_ref().is_err_and(|err| {
+                    matches!(
+                        err,
+                        &Error(values::MQCC(sys::MQCC_FAILED), _, values::MQRC(sys::MQRC_NO_MSG_AVAILABLE))
+                    )
+                });
+                mqi_get_bag
+            });
+
+            if no_msg_available {
+                Ok(Completion::new(None))
+            } else {
+                result.map_completion(Some)
+            }
+        }
+
+        pub fn get_bag(&self, options: impl GetOption, bag: &mut Bag<Owned, C::Lib>) -> ResultComp<bool> {
+            self.get_bag_with::<()>(options, bag).map_completion(|o| o.is_some())
+        }
+    }
 }
 
 impl<C: Conn> Object<C> {

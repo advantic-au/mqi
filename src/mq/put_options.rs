@@ -84,52 +84,52 @@ impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2> {
 
 impl PutAttr for MqStruct<'static, sys::MQMD2> {
     #[inline]
-    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, ())>
+    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
-        put(param).map_completion(|state| {
+        put(param).map_completion(|()| {
             let (md, ..) = param;
-            (md.clone(), state)
+            md.clone()
         })
     }
 }
 
 impl PutAttr for types::MessageId {
     #[inline]
-    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, ())>
+    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
-        put(param).map_completion(|state| {
+        put(param).map_completion(|()| {
             let (md, ..) = param;
-            (Self(md.MsgId.into()), state)
+            Self(md.MsgId.into())
         })
     }
 }
 
 impl PutAttr for types::CorrelationId {
     #[inline]
-    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, ())>
+    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
-        put(param).map_completion(|state| {
+        put(param).map_completion(|()| {
             let (md, ..) = param;
-            (Self(md.CorrelId.into()), state)
+            Self(md.CorrelId.into())
         })
     }
 }
 
 impl PutAttr for Option<types::UserIdentifier> {
     #[inline]
-    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<(Self, ())>
+    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
-        put(param).map_completion(|state| {
+        put(param).map_completion(|()| {
             let (md, ..) = param;
-            (types::UserIdentifier::new(md.UserIdentifier), state)
+            types::UserIdentifier::new(md.UserIdentifier)
         })
     }
 }
@@ -151,20 +151,19 @@ mod impl_put {
             {
                 #[expect(non_snake_case)]
                 #[inline]
-                fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
+                fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
                 where
                     F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>
                 {
                     let mut rest_outer = None;
                     $first::extract(param, |param| {
-                        <($($ty),*) as PutAttr>::extract(param, mqi).map_completion(|(rest, state)| {
+                        <($($ty),*) as PutAttr>::extract(param, mqi).map_completion(|rest| {
                             rest_outer = Some(rest);
-                            state
                         })
                     })
-                    .map_completion(|(a, s)| {
+                    .map_completion(|a| {
                         let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
-                        ((a, $($ty),*), s)
+                        (a, $($ty),*)
                     })
                 }
             }
@@ -173,12 +172,12 @@ mod impl_put {
 
     impl PutAttr for () {
         #[inline]
-        fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
+        fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
         where
             F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
             Self: Sized,
         {
-            mqi(param).map_completion(|()| ((), ()))
+            mqi(param)
         }
     }
 
