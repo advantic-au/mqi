@@ -130,8 +130,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{matrix.toolchain}}
-      - name: Enable type layout randomization
-        run: echo RUSTFLAGS=${RUSTFLAGS}\ -Zrandomize-layout >> $GITHUB_ENV
+      - name: Enable type layout randomization and sanitization features
+        run: echo RUSTFLAGS=${RUSTFLAGS}\ -Zrandomize-layout -Zsanitizer=address -Zsanitizer=thread >> $GITHUB_ENV
         if: matrix.toolchain == 'nightly'
       - uses: taiki-e/install-action@nextest
       - name: Test
