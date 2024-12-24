@@ -1,3 +1,5 @@
+use crate::{sys, MqChar};
+
 /// `(CCSID, encoding, short description)`
 pub type CcsidEntry = (i32, u8, &'static str);
 
@@ -879,23 +881,30 @@ const EBCDIC_ASCII7: [u8; 256] = [
 
 static CCSID_2K: [CcsidEntry; 2048] = ccsid_lookup_init(); // Efficient lookup for the first 2k
 
-const fn convert<const N: usize>(input: &[u8; N], table: &[u8; 256]) -> [u8; N] {
+const fn convert<const N: usize>(input: &MqChar<N>, table: &[u8; 256]) -> MqChar<N> {
     let mut result = [0; N];
     let mut i = 0;
+    #[expect(
+        clippy::cast_possible_wrap,
+        clippy::cast_sign_loss,
+        reason = "Treating MQCHAR as always positive is desired here"
+    )]
     while i < N {
-        result[i] = table[input[i] as usize];
+        result[i] = table[input[i] as usize] as sys::MQCHAR;
         i += 1;
     }
     result
 }
 
 #[must_use]
-pub const fn ebcdic_ascii7<const N: usize>(ebcdic: &[u8; N]) -> [u8; N] {
+#[inline]
+pub const fn ebcdic_ascii7<const N: usize>(ebcdic: &MqChar<N>) -> MqChar<N> {
     convert(ebcdic, &EBCDIC_ASCII7)
 }
 
 #[must_use]
-pub const fn ascii7_ebcdic<const N: usize>(ascii: &[u8; N]) -> [u8; N] {
+#[inline]
+pub const fn ascii7_ebcdic<const N: usize>(ascii: &MqChar<N>) -> MqChar<N> {
     convert(ascii, &ASCII7_EBCDIC)
 }
 

@@ -7,6 +7,8 @@ mod result;
 pub use mqstr::*;
 pub use result::*;
 
+pub mod conversion;
+
 #[macro_export]
 macro_rules! impl_default_mqvalue {
     ($t:path, $source:path) => {

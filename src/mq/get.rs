@@ -1,9 +1,10 @@
 use core::str;
-use std::{borrow::Cow, cmp, mem::transmute, num::NonZero, str::Utf8Error};
+use std::{borrow::Cow, cmp, num::NonZero, str::Utf8Error};
 
 use libmqm_default as default;
 
 use crate::{
+    conversion,
     headers::{fmt, ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     prelude::*,
     sys,
@@ -126,7 +127,10 @@ pub trait GetValue<B> {
     }
 }
 
-impl<'a, B: Buffer<'a>> GetValue<B> for StrCcsidCow<'a> {
+impl<'a, B> GetValue<B> for StrCcsidCow<'a>
+where
+    B: Buffer<'a, u8>,
+{
     type Error = GetStringCcsidError;
 
     fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
@@ -140,7 +144,7 @@ impl<'a, B: Buffer<'a>> GetValue<B> for StrCcsidCow<'a> {
 
         Ok(state.map(|state| Self {
             ccsid: state.format.ccsid,
-            data: state.buffer.truncate(state.data_length).into_cow(),
+            data: conversion::bytes_to_cow_mqchar(state.buffer.truncate(state.data_length).into_cow()),
             le: (state.format.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
         }))
     }
@@ -148,7 +152,7 @@ impl<'a, B: Buffer<'a>> GetValue<B> for StrCcsidCow<'a> {
 
 impl<'buffer, B> GetValue<B> for Cow<'buffer, str>
 where
-    B: Buffer<'buffer>,
+    B: Buffer<'buffer, u8>,
 {
     type Error = GetStringError;
 
@@ -183,7 +187,11 @@ where
     }
 }
 
-impl<'buffer, B: Buffer<'buffer>> GetValue<B> for Cow<'buffer, [u8]> {
+impl<'buffer, B, T> GetValue<B> for Cow<'buffer, [T]>
+where
+    B: Buffer<'buffer, T>,
+    [T]: ToOwned,
+{
     type Error = Error;
 
     #[inline]
@@ -195,7 +203,10 @@ impl<'buffer, B: Buffer<'buffer>> GetValue<B> for Cow<'buffer, [u8]> {
     }
 }
 
-impl<'buffer, B: Buffer<'buffer>> GetValue<B> for Vec<u8> {
+impl<'buffer, B> GetValue<B> for Vec<sys::MQBYTE>
+where
+    B: Buffer<'buffer, u8>,
+{
     type Error = Error;
 
     #[inline]
@@ -207,7 +218,10 @@ impl<'buffer, B: Buffer<'buffer>> GetValue<B> for Vec<u8> {
     }
 }
 
-impl<'a, B: Buffer<'a>> GetAttr<B> for Headers<'a> {
+impl<'a, B> GetAttr<B> for Headers<'a>
+where
+    B: Buffer<'a, u8>,
+{
     fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
@@ -287,7 +301,7 @@ pub trait GetOption {
 impl<C: Conn> Object<C> {
     pub fn get_data<'b, B>(&self, options: impl GetOption, buffer: B) -> ResultComp<Option<Cow<'b, [u8]>>>
     where
-        B: Buffer<'b>,
+        B: Buffer<'b, u8>,
     {
         self.get_as(options, buffer)
     }
@@ -295,7 +309,7 @@ impl<C: Conn> Object<C> {
     pub fn get_data_with<'b, A, B>(&self, options: impl GetOption, buffer: B) -> ResultComp<Option<(Cow<'b, [u8]>, A)>>
     where
         A: GetAttr<B>,
-        B: Buffer<'b>,
+        B: Buffer<'b, u8>,
     {
         self.get_as(options, buffer)
     }
@@ -306,7 +320,7 @@ impl<C: Conn> Object<C> {
         buffer: B,
     ) -> ResultCompErr<Option<StrCcsidCow<'b>>, GetStringCcsidError>
     where
-        B: Buffer<'b>,
+        B: Buffer<'b, u8>,
     {
         self.get_as(options, buffer)
     }
@@ -318,7 +332,7 @@ impl<C: Conn> Object<C> {
     ) -> ResultCompErr<Option<(StrCcsidCow<'b>, A)>, GetStringCcsidError>
     where
         A: GetAttr<B>,
-        B: Buffer<'b>,
+        B: Buffer<'b, u8>,
     {
         self.get_as(options, buffer)
     }
@@ -326,7 +340,7 @@ impl<C: Conn> Object<C> {
     pub fn get_as<'b, R, B>(&self, options: impl GetOption, buffer: B) -> ResultCompErr<Option<R>, R::Error>
     where
         R: GetValue<B>,
-        B: Buffer<'b>,
+        B: Buffer<'b, u8>,
     {
         let mut param = GetParam {
             md: MqStruct::new(default::MQMD2_DEFAULT),
@@ -382,7 +396,7 @@ impl<C: Conn> Object<C> {
                     format: MessageFormat {
                         ccsid: values::CCSID(param.md.CodedCharSetId),
                         encoding: values::MQENC(param.md.Encoding),
-                        fmt: TextEnc::Ascii(unsafe { transmute::<[i8; 8], Fmt>(param.md.Format) }),
+                        fmt: TextEnc::Ascii(param.md.Format),
                     },
                 });
             no_msg_available = mqi_get.as_ref().is_err_and(|e| {

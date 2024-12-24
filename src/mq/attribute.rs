@@ -111,7 +111,6 @@ impl<'a> Iterator for MultiItemIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let selector = *self.selectors.next()?;
-        // let val = attribute.value();
         if selector.is_int() {
             Some(InqResItem::Long(unsafe {
                 IntItem::new_unchecked(selector, *self.int_attr.next()?)

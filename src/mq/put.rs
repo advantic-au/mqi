@@ -1,12 +1,11 @@
 use std::borrow::Cow;
-use std::mem;
 
 use libmqm_default as default;
 use libmqm_sys::Mqi;
 
 use crate::core::{ConnectionHandle, Library, MqFunctions};
 use crate::headers::{fmt, TextEnc};
-use crate::types::{Fmt, MessageFormat};
+use crate::types::MessageFormat;
 use crate::{sys, Conn, MqStruct, Object, ResultComp};
 use crate::values;
 use crate::prelude::*;
@@ -123,7 +122,7 @@ where
     let md = MqStruct::new(sys::MQMD2 {
         CodedCharSetId: ccsid,
         Encoding: encoding.value(),
-        Format: unsafe { mem::transmute::<Fmt, [i8; 8]>(fmt.into_ascii().into()) },
+        Format: *fmt.into_ascii().as_ref(),
         ..default::MQMD2_DEFAULT
     });
     let mqpmo = MqStruct::new(default::MQPMO_DEFAULT);
