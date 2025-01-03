@@ -79,7 +79,7 @@ fn main() -> anyhow::Result<()> {
     let qm_ref = qm.connection_ref();
     let obj = Object::open(
         qm_ref,
-        (source_queue, MQOO(sys::MQOO_INPUT_AS_Q_DEF | sys::MQOO_SAVE_ALL_CONTEXT)),
+        &(source_queue, MQOO(sys::MQOO_INPUT_AS_Q_DEF | sys::MQOO_SAVE_ALL_CONTEXT)),
     )
     .warn_as_error() // Fail on any warnings
     .context("Unable to open the object")?;
@@ -106,7 +106,7 @@ fn main() -> anyhow::Result<()> {
         qm_ref
             .put_message(
                 // Equivalent to MQPUT1
-                (
+                &(
                     // Options used when opening the queue
                     MQPMO(sys::MQPMO_SYNCPOINT), // Syncpoint - final execution on commit.
                     MQPMO(match args.context {

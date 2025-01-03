@@ -109,7 +109,7 @@ fn main() -> anyhow::Result<()> {
         .context("Unable to connect to the queue manager")?;
 
     // Open the queue or topic with MQOO_OUTPUT option
-    let object = Object::open(qm, (target_queue, target_qm, target_topic, oo))
+    let object = Object::open(qm, &(target_queue, target_qm, target_topic, oo))
         .warn_as_error()
         .context("Unable to open the object")?;
 

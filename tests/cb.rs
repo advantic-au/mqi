@@ -96,7 +96,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
     let qm = mqi::connect_lib::<ThreadBlock, _>(mock_library, ()).warn_as_error()?;
 
     let qm = Arc::new(qm);
-    let object = Object::open(qm.clone(), ()).warn_as_error()?;
+    let object = Object::open(qm.clone(), &()).warn_as_error()?;
 
     let _ = thread::spawn(move || {
         println!("{:?}", object.handle());

@@ -91,7 +91,7 @@ pub trait PutAttr {
 pub(super) fn put_message_with<'po, 'oo, R, L>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
-    open_options: impl OpenOption<'oo, MQPMO>,
+    open_options: &impl OpenOption<'oo, MQPMO>,
     put_options: impl PutOption<'po>,
     message: &(impl PutMessage + ?Sized),
 ) -> ResultComp<R>

@@ -38,7 +38,7 @@ fn thread() {
             .expect("property set should not fail");
 
         let msgid: MessageId = qm
-            .put_message_with(QUEUE, (), &("Hello", FORMAT_NONE))
+            .put_message_with(&QUEUE, (), &("Hello", FORMAT_NONE))
             .warn_as_error()
             .expect("message put should not fail");
         println!("Message ID: {msgid}");

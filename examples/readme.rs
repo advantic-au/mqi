@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let queue_manager = mqi::connect::<ThreadNone>(connect_options).warn_as_error()?;
 
     // Put a single string message on the target queue. Discard any warnings.
-    queue_manager.put_message(TARGET, (), "Hello").discard_warning()?;
+    queue_manager.put_message(&TARGET, (), "Hello").discard_warning()?;
 
     // Queue manager disconnect - this also happens automatically on Drop.
     queue_manager.disconnect().discard_warning()?;

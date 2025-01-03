@@ -16,7 +16,7 @@ pub trait QueueManager {
     /// `put_message_with::<Type>` syntax.
     fn put_message_with<'po, 'oo, R>(
         &self,
-        open_options: impl OpenOption<'oo, MQPMO>,
+        open_options: &impl OpenOption<'oo, MQPMO>,
         put_options: impl PutOption<'po>,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<R>
@@ -27,7 +27,7 @@ pub trait QueueManager {
     #[inline]
     fn put_message<'po, 'oo>(
         &self,
-        open_options: impl OpenOption<'oo, MQPMO>,
+        open_options: &impl OpenOption<'oo, MQPMO>,
         put_options: impl PutOption<'po>,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<()> {
@@ -43,7 +43,7 @@ impl<C: Conn> QueueManager for C {
     #[inline]
     fn put_message_with<'po, 'oo, R>(
         &self,
-        open_options: impl OpenOption<'oo, MQPMO>,
+        open_options: &impl OpenOption<'oo, MQPMO>,
         put_options: impl PutOption<'po>,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<R>

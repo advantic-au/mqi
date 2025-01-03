@@ -34,7 +34,7 @@ fn no_message() -> Result<(), Box<dyn std::error::Error>> {
     let qm = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
     let object = Object::open(
         &qm,
-        (
+        &(
             QUEUE,
             values::MQOO(sys::MQOO_INPUT_AS_Q_DEF),
             SelectionString("Root.MQMD.CorrelId = 0x0c0c0c0c"), // This should not exist
@@ -75,7 +75,7 @@ fn put_get_message() -> Result<(), Box<dyn std::error::Error>> {
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
     let qm = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
-    let object = Object::open(&qm, (QUEUE, values::MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
+    let object = Object::open(&qm, &(QUEUE, values::MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
 
     let mid = object
         .put_message_with::<MessageId>((), "put_get_message test")
@@ -142,7 +142,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
     let connection = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
-    let object = Object::open(connection, (QueueManagerName(mqstr!("")), values::MQOO(sys::MQOO_INQUIRE))).warn_as_error()?;
+    let object = Object::open(connection, &(QueueManagerName(mqstr!("")), values::MQOO(sys::MQOO_INQUIRE))).warn_as_error()?;
 
     let result = object.inq(INQ)?;
     if let Some((rc, verb)) = result.warning() {
@@ -187,7 +187,7 @@ fn put_message() -> Result<(), Box<dyn Error>> {
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
     let connection = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
-    let object = Object::open(connection, (QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
+    let object = Object::open(connection, &(QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
 
     object.put_message((), "message").warn_as_error()?;
 

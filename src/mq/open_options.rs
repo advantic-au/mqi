@@ -6,13 +6,13 @@ use crate::{
     types::{QueueManagerName, QueueName},
     values::{CCSID, MQOO, MQOT, MQPMO},
     Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned,
-    macros::all_multi_tuples,
+    macros::{all_multi_tuples, reverse_ident},
 };
 
 use super::{impl_mqstruct_min_version, types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
 
 impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
-    fn apply_param(self, param: &mut OpenParamOption<'oo, O>) {
+    fn apply_param(&self, param: &mut OpenParamOption<'oo, O>) {
         if let Some(value) = self {
             value.apply_param(param);
         }
@@ -20,7 +20,7 @@ impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
 }
 
 impl<'oo, O> OpenOption<'oo, O> for () {
-    fn apply_param(self, _param: &mut OpenParamOption<'oo, O>) {}
+    fn apply_param(&self, _param: &mut OpenParamOption<'oo, O>) {}
 }
 
 macro_rules! impl_openoption_tuple {
@@ -32,10 +32,10 @@ macro_rules! impl_openoption_tuple {
             $($rest: OpenOption<'oo, O> ),*
         {
             #[inline]
-            fn apply_param(self,param: &mut OpenParamOption<'oo, O>){
-                let($first, $($rest),*) = self;
-                ($($rest),*).apply_param(param);
+            fn apply_param(&self,param: &mut OpenParamOption<'oo, O>){
+                let reverse_ident!($first, $($rest),*) = self;
                 $first.apply_param(param);
+                $($rest.apply_param(param);)*
             }
         }
     };
@@ -57,7 +57,7 @@ impl_from_str!(AlternateUserId, MqStr<12>);
 pub struct ResObjectString(pub StrCcsidOwned);
 
 impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for SelectionString<&'a T> {
-    fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
+    fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
         mqod.attach_selection_string(self.0);
     }
 }
@@ -65,40 +65,40 @@ impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for SelectionString<&'a
 impl_mqstruct_min_version!(sys::MQOD);
 
 impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString<&'a T> {
-    fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
+    fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
         mqod.ObjectType = sys::MQOT_TOPIC;
         mqod.attach_object_string(self.0);
     }
 }
 
 impl<O> OpenOption<'_, O> for QueueName {
-    fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
+    fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
         mqod.ObjectName = self.0.into();
         mqod.ObjectType = sys::MQOT_Q;
     }
 }
 
 impl<O> OpenOption<'_, O> for QueueManagerName {
-    fn apply_param(self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
+    fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
         mqod.ObjectQMgrName = self.0.into();
         mqod.ObjectType = sys::MQOT_Q_MGR;
     }
 }
 
 impl<'b> OpenOption<'b, Self> for MQOO {
-    fn apply_param(self, param: &mut OpenParamOption<'b, Self>) {
-        param.options |= self;
+    fn apply_param(&self, param: &mut OpenParamOption<'b, Self>) {
+        param.options |= *self;
     }
 }
 
 impl<'b> OpenOption<'b, Self> for MQPMO {
-    fn apply_param(self, param: &mut OpenParamOption<'b, Self>) {
-        param.options |= self;
+    fn apply_param(&self, param: &mut OpenParamOption<'b, Self>) {
+        param.options |= *self;
     }
 }
 
 impl OpenOption<'_, MQOO> for AlternateUserId {
-    fn apply_param(self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQOO>) {
+    fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQOO>) {
         *options |= sys::MQOO_ALTERNATE_USER_AUTHORITY;
         mqod.set_min_version(sys::MQOD_VERSION_3);
         mqod.AlternateUserId = self.0.into();
@@ -106,7 +106,7 @@ impl OpenOption<'_, MQOO> for AlternateUserId {
 }
 
 impl OpenOption<'_, MQPMO> for AlternateUserId {
-    fn apply_param(self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQPMO>) {
+    fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQPMO>) {
         *options |= sys::MQPMO_ALTERNATE_USER_AUTHORITY;
         mqod.set_min_version(sys::MQOD_VERSION_3);
         mqod.AlternateUserId = self.0.into();
