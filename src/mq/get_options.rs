@@ -1,8 +1,16 @@
-use crate::{macros::all_option_tuples, sys, types, values, Conn, Properties};
+use std::borrow::Cow;
+
+use crate::{
+    conversion, macros::all_option_tuples, sys, types, values, Completion, Conn, Error, Properties, ResultComp, ResultCompErr,
+    prelude::*,
+};
 
 use super::{
-    get::{GetConvert, GetOption, GetParam, GetWait, MatchOptions},
-    impl_mqstruct_min_version,
+    get::{
+        GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait, Headers,
+        MatchOptions,
+    },
+    headers, impl_mqstruct_min_version, Buffer, MqStruct, StrCcsidCow,
 };
 
 all_option_tuples!(GetOption, GetParam);
@@ -180,4 +188,202 @@ mod get_impl {
 
     all_multi_tuples!(impl_getvalue);
     all_multi_tuples!(impl_getattr);
+}
+
+impl<'a, B> GetValue<B> for StrCcsidCow<'a>
+where
+    B: Buffer<'a, u8>,
+{
+    type Error = GetStringCcsidError;
+
+    fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+    {
+        let state = get(param)?;
+        if state.format.fmt != headers::TextEnc::Ascii(headers::fmt::MQFMT_STRING) {
+            return Err(GetStringCcsidError::UnexpectedFormat(state.format.fmt, state.warning()));
+        }
+
+        Ok(state.map(|state| Self {
+            ccsid: state.format.ccsid,
+            data: conversion::bytes_to_cow_mqchar(state.buffer.truncate(state.data_length).into_cow()),
+            le: (state.format.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
+        }))
+    }
+}
+
+impl<'buffer, B> GetValue<B> for Cow<'buffer, str>
+where
+    B: Buffer<'buffer, u8>,
+{
+    type Error = GetStringError;
+
+    fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+    {
+        // TODO: set 1208 in MQMD?
+        let get_result = get(param)?;
+
+        if get_result.format.fmt != headers::TextEnc::Ascii(headers::fmt::MQFMT_STRING) || get_result.format.ccsid != 1208 {
+            return Err(GetStringError::UnexpectedFormat(
+                get_result.format.fmt,
+                get_result.format.ccsid,
+                get_result.warning(),
+            ));
+        }
+
+        match get_result.map(|state| state.buffer.truncate(state.data_length).into_cow()) {
+            Completion(_, Some((rc @ values::MQRC(sys::MQRC_NOT_CONVERTED), verb))) => {
+                Err(Error(values::MQCC(sys::MQCC_WARNING), verb, rc).into())
+            }
+            Completion(Cow::Borrowed(bytes), warning) => Ok(Completion(
+                Cow::Borrowed(std::str::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e, warning))?),
+                warning,
+            )),
+            Completion(Cow::Owned(bytes), warning) => Ok(Completion(
+                Cow::Owned(String::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e.utf8_error(), warning))?),
+                warning,
+            )),
+        }
+    }
+}
+
+impl<'buffer, B, T> GetValue<B> for Cow<'buffer, [T]>
+where
+    B: Buffer<'buffer, T>,
+    [T]: ToOwned,
+{
+    type Error = Error;
+
+    #[inline]
+    fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+    {
+        get(param).map_completion(|state| state.buffer.truncate(state.data_length).into_cow())
+    }
+}
+
+impl<'buffer, B> GetValue<B> for Vec<sys::MQBYTE>
+where
+    B: Buffer<'buffer, u8>,
+{
+    type Error = Error;
+
+    #[inline]
+    fn consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+    {
+        get(param).map_completion(|state| state.buffer.truncate(state.data_length).into_cow().into_owned())
+    }
+}
+
+impl<'a, B> GetAttr<B> for Headers<'a>
+where
+    B: Buffer<'a, u8>,
+{
+    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+    {
+        let state = get(param)?;
+
+        let data = &state.buffer.as_ref()[..state.data_length];
+        let mut header_length = 0;
+        let mut final_format = state.format;
+        let mut error = None;
+        for result in headers::Header::iter(data, state.format) {
+            match result {
+                Ok((.., header_size, message_format)) => {
+                    header_length += header_size;
+                    final_format = message_format;
+                }
+                Err(e) => error = Some(e),
+            }
+        }
+
+        Ok(state.map(|state| {
+            let (headers, tail) = state.buffer.split_at(header_length);
+            (
+                Self::new(state.message_length, state.format, headers.into_cow(), error),
+                GetState {
+                    buffer: tail,
+                    data_length: state.data_length - header_length,
+                    message_length: state.message_length - header_length,
+                    format: final_format,
+                },
+            )
+        }))
+    }
+}
+
+impl<B> GetAttr<B> for types::MessageFormat {
+    #[inline]
+    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+    {
+        get(param).map_completion(|state| (state.format, state))
+    }
+}
+
+impl<B> GetAttr<B> for MqStruct<'static, sys::MQMD2> {
+    #[inline]
+    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+    {
+        get(param).map_completion(|state| (param.md.clone(), state))
+    }
+}
+
+impl<B> GetAttr<B> for types::MessageId {
+    #[inline]
+    fn extract<F>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+    {
+        get(param).map_completion(|state| (Self(param.md.MsgId.into()), state))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use libmqm_default as default;
+
+    #[expect(clippy::unnecessary_wraps)]
+    fn empty_string(_: &mut GetParam) -> ResultComp<GetState<&'static mut [u8]>> {
+        Ok(Completion::new(GetState {
+            buffer: &mut [],
+            data_length: 0,
+            message_length: 0,
+            format: types::MessageFormat {
+                ccsid: values::CCSID(1208),
+                encoding: values::MQENC(sys::MQENC_NATIVE),
+                fmt: headers::TextEnc::Ascii(headers::fmt::MQFMT_STRING),
+            },
+        }))
+    }
+
+    fn default_getparam() -> GetParam {
+        GetParam {
+            md: MqStruct::new(default::MQMD2_DEFAULT),
+            gmo: MqStruct::new(default::MQGMO_DEFAULT),
+        }
+    }
+
+    #[test]
+    pub fn get_value_strccsdcow() -> Result<(), Box<dyn std::error::Error>> {
+        let mut params = default_getparam();
+
+        let result: StrCcsidCow = GetValue::consume(&mut params, empty_string).discard_warning()?;
+        assert_eq!(result.ccsid, values::CCSID(1208));
+        assert_eq!(result.data, Cow::from(&[]));
+
+        Ok(())
+    }
 }

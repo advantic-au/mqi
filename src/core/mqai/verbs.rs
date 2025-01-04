@@ -823,7 +823,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
 mod tests {
     use std::error::Error;
 
-    use crate::{test::mq_library, MqChar, ResultCompExt};
+    use crate::{test::mq_library, MqChar, prelude::*};
 
     use super::*;
 
