@@ -62,7 +62,7 @@ fn main() -> anyhow::Result<()> {
 
     while running_check.load(atomic::Ordering::Relaxed) {
         if let Some((data, _format)) = queue
-            .get_data_with::<MessageFormat, _>(GetWait::Wait(500), &mut *buffer)
+            .get_data_with::<MessageFormat>(GetWait::Wait(500), &mut *buffer)
             .warn_as_error()
             .context("Unable to get message")?
         {
