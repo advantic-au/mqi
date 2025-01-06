@@ -18,25 +18,25 @@ all_option_tuples!(GetOption, GetParam);
 impl_mqstruct_min_version!(sys::MQGMO);
 
 impl GetOption for values::MQGMO {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.gmo.Options |= self.value();
     }
 }
 
 impl GetOption for GetWait {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         match self {
             Self::NoWait => param.gmo.Options |= sys::MQGMO_NO_WAIT,
             Self::Wait(interval) => {
                 param.gmo.Options |= sys::MQGMO_WAIT;
-                param.gmo.WaitInterval = interval;
+                param.gmo.WaitInterval = *interval;
             }
         }
     }
 }
 
 impl GetOption for GetConvert {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         match self {
             Self::NoConvert => {}
             Self::Convert => param.gmo.Options |= sys::MQGMO_CONVERT,
@@ -50,7 +50,7 @@ impl GetOption for GetConvert {
 }
 
 impl<C: Conn> GetOption for &mut Properties<C> {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.gmo.set_min_version(sys::MQGMO_VERSION_4);
         param.gmo.Options |= sys::MQGMO_PROPERTIES_IN_HANDLE;
         param.gmo.MsgHandle = unsafe { self.handle().raw_handle() }
@@ -58,7 +58,7 @@ impl<C: Conn> GetOption for &mut Properties<C> {
 }
 
 impl GetOption for MatchOptions<'_> {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         // Set up the MQMD
         if let Some(msg_id) = self.msg_id {
             param.md.MsgId = *msg_id.0;
@@ -88,28 +88,28 @@ impl GetOption for MatchOptions<'_> {
 }
 
 impl GetOption for types::CorrelationId {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.md.CorrelId = *self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_CORREL_ID;
     }
 }
 
 impl GetOption for types::MessageId {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.md.MsgId = *self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_MSG_ID;
     }
 }
 
 impl GetOption for types::GroupId {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.md.GroupId = *self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_GROUP_ID;
     }
 }
 
 impl GetOption for types::MsgToken {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.gmo.MsgToken = self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_MSG_TOKEN;
     }

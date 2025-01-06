@@ -69,16 +69,16 @@ pub trait SubscribeAttr<C: Conn> {
     message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
 )]
 pub trait SubscribeOption<'so> {
-    fn apply_param(self, param: &mut SubscribeParam<'so>);
+    fn apply_param(&self, param: &mut SubscribeParam<'so>);
 }
 
 // Blanket implementation for SubscribeValue<C>
 impl<C: Conn + Clone> Subscription<C> {
-    pub fn subscribe<'so>(connection: C, subscribe_option: impl SubscribeOption<'so>) -> ResultComp<Self> {
+    pub fn subscribe<'so>(connection: C, subscribe_option: &impl SubscribeOption<'so>) -> ResultComp<Self> {
         Self::subscribe_as(connection, subscribe_option)
     }
 
-    pub fn subscribe_with<'so, A>(connection: C, subscribe_option: impl SubscribeOption<'so>) -> ResultComp<(Self, A)>
+    pub fn subscribe_with<'so, A>(connection: C, subscribe_option: &impl SubscribeOption<'so>) -> ResultComp<(Self, A)>
     where
         A: SubscribeAttr<C>,
     {
@@ -92,7 +92,7 @@ impl<C: Conn + Clone> Subscription<C> {
     where
         A: SubscribeAttr<C>,
     {
-        Self::subscribe_as::<(Self, Option<Object<C>>, A)>(connection, (values::MQSO(sys::MQSO_MANAGED), subscribe_option))
+        Self::subscribe_as::<(Self, Option<Object<C>>, A)>(connection, &(values::MQSO(sys::MQSO_MANAGED), subscribe_option))
             .map_completion(|(qm, queue, attr)| {
                 (
                     qm,
@@ -108,7 +108,7 @@ impl<C: Conn + Clone> Subscription<C> {
 
     pub(super) fn subscribe_as<'so, R>(
         connection: C,
-        subscribe_option: impl SubscribeOption<'so>,
+        subscribe_option: &impl SubscribeOption<'so>,
     ) -> ResultCompErr<R, <R as SubscribeValue<C>>::Error>
     where
         R: SubscribeValue<C>,

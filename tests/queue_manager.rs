@@ -25,7 +25,7 @@ fn thread() {
         test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
     });
 
-    let (qm, (tag, id)) = mqi::connect_lib_with::<(mqi::ConnTag, mqi::ConnectionId), mqi::ThreadBlock, _>(mock, ())
+    let (qm, (tag, id)) = mqi::connect_lib_with::<(mqi::ConnTag, mqi::ConnectionId), mqi::ThreadBlock, _>(mock, &())
         .discard_warning() // ignore warning
         .expect("connection should be established");
     let qm = Arc::new(qm);
@@ -38,7 +38,7 @@ fn thread() {
             .expect("property set should not fail");
 
         let msgid: MessageId = qm
-            .put_message_with(&QUEUE, (), &("Hello", FORMAT_NONE))
+            .put_message_with(&QUEUE, &(), &("Hello", FORMAT_NONE))
             .warn_as_error()
             .expect("message put should not fail");
         println!("Message ID: {msgid}");
@@ -50,7 +50,7 @@ fn thread() {
 #[test]
 fn default_binding() -> Result<(), Box<dyn Error>> {
     let mock = test::mock::connect_ok();
-    let qm = mqi::connect_lib::<ThreadNone, _>(mock, Binding::Default).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(mock, &Binding::Default).warn_as_error()?;
 
     // Disconnect.
     qm.disconnect().warn_as_error()?;
@@ -68,7 +68,7 @@ fn connect() -> Result<(), Box<dyn Error>> {
         Some(&CertificateLabel(mqstr!("label"))),
         &CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")),
     );
-    let _qm = mqi::connect_lib::<ThreadNone, _>(mock, (tls, def)).warn_as_error()?;
+    let _qm = mqi::connect_lib::<ThreadNone, _>(mock, &(tls, def)).warn_as_error()?;
 
     Ok(())
 }

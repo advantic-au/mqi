@@ -31,7 +31,7 @@ fn no_message() -> Result<(), Box<dyn std::error::Error>> {
     }
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
-    let qm = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(mq_lib, &cred_options).warn_as_error()?;
     let object = Object::open(
         &qm,
         &(
@@ -42,7 +42,7 @@ fn no_message() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
-    let msg = object.get_data((), buffer)?;
+    let msg = object.get_data(&(), buffer)?;
 
     assert_eq!(msg.warning(), None);
     assert_eq!(msg.discard_warning(), None);
@@ -74,18 +74,18 @@ fn put_get_message() -> Result<(), Box<dyn std::error::Error>> {
 
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
-    let qm = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(mq_lib, &cred_options).warn_as_error()?;
     let object = Object::open(&qm, &(QUEUE, values::MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
 
     let mid = object
-        .put_message_with::<MessageId>((), "put_get_message test")
+        .put_message_with::<MessageId>(&(), "put_get_message test")
         .warn_as_error()?;
 
     let mut properties = Properties::new(&qm, values::MQCMHO::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
     let msg = object.get_as(
-        (
+        &(
             &mut properties, // Get some properties
             mid,             // Only the message matching the output of put
         ),
@@ -150,7 +150,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
-    let connection = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
+    let connection = mqi::connect_lib::<ThreadNone, _>(mq_lib, &cred_options).warn_as_error()?;
     let object = Object::open(connection, &(QueueManagerName(mqstr!("")), values::MQOO(sys::MQOO_INQUIRE))).warn_as_error()?;
 
     let result = object.inq(INQ)?;
@@ -195,10 +195,10 @@ fn put_message() -> Result<(), Box<dyn Error>> {
 
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
-    let connection = mqi::connect_lib::<ThreadNone, _>(mq_lib, cred_options).warn_as_error()?;
+    let connection = mqi::connect_lib::<ThreadNone, _>(mq_lib, &cred_options).warn_as_error()?;
     let object = Object::open(connection, &(QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
 
-    object.put_message((), "message").warn_as_error()?;
+    object.put_message(&(), "message").warn_as_error()?;
 
     Ok(())
 }

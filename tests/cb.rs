@@ -12,7 +12,7 @@ use libmqm_default as default;
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
     let mock_library = MockFunctions::connect_ok_event_cb();
-    let mut qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, ()).warn_as_error()?;
+    let mut qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, &()).warn_as_error()?;
 
     qm.register_event_handler(
         values::MQCBDO(
@@ -91,7 +91,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
         MockFunctions::mqi_outcome_ok(cc, rc);
     });
 
-    let qm = mqi::connect_lib::<ThreadBlock, _>(mock_library, ()).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadBlock, _>(mock_library, &()).warn_as_error()?;
 
     let qm = Arc::new(qm);
     let object = Object::open(qm.clone(), &()).warn_as_error()?;

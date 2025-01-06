@@ -53,13 +53,13 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
 }
 
 impl<C: Conn> Object<C> {
-    pub fn put_message<'po>(&self, put_options: impl PutOption<'po>, message: &(impl PutMessage + ?Sized)) -> ResultComp<()> {
+    pub fn put_message<'po>(&self, put_options: &impl PutOption<'po>, message: &(impl PutMessage + ?Sized)) -> ResultComp<()> {
         self.put_message_with(put_options, message)
     }
 
     pub fn put_message_with<'po, R>(
         &self,
-        put_options: impl PutOption<'po>,
+        put_options: &impl PutOption<'po>,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<R>
     where
@@ -77,7 +77,7 @@ impl<C: Conn> Object<C> {
 /// A trait that manipulates the parameters to the [`mqput`](`crate::core::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put")]
 pub trait PutOption<'po> {
-    fn apply_param(self, param: &mut PutParam<'po>);
+    fn apply_param(&self, param: &mut PutParam<'po>);
 }
 
 pub trait PutAttr {
@@ -91,7 +91,7 @@ pub(super) fn put_message_with<'po, 'oo, R, L>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
     open_options: &impl OpenOption<'oo, MQPMO>,
-    put_options: impl PutOption<'po>,
+    put_options: &impl PutOption<'po>,
     message: &(impl PutMessage + ?Sized),
 ) -> ResultComp<R>
 where
@@ -109,7 +109,7 @@ where
     })
 }
 
-fn put<'po, T, F>(options: impl PutOption<'po>, message: &(impl PutMessage + ?Sized), put: F) -> ResultComp<T>
+fn put<'po, T, F>(options: &impl PutOption<'po>, message: &(impl PutMessage + ?Sized), put: F) -> ResultComp<T>
 where
     T: PutAttr,
     F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>,

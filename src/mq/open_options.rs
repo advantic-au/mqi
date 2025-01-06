@@ -24,17 +24,15 @@ impl<'oo, O> OpenOption<'oo, O> for () {
 }
 
 macro_rules! impl_openoption_tuple {
-    ([$first:ident, $($rest:ident),*]) => {
+    ([$($rest:ident),*]) => {
         #[expect(non_snake_case)]
-        impl <'oo, O, $first, $($rest),*> OpenOption<'oo, O> for ($first, $($rest),*)
+        impl <'oo, O, $($rest),*> OpenOption<'oo, O> for ($($rest),*)
         where
-            $first: OpenOption<'oo, O>,
             $($rest: OpenOption<'oo, O> ),*
         {
             #[inline]
             fn apply_param(&self,param: &mut OpenParamOption<'oo, O>){
-                let reverse_ident!($first, $($rest),*) = self;
-                $first.apply_param(param);
+                let reverse_ident!($($rest),*) = self;
                 $($rest.apply_param(param);)*
             }
         }
