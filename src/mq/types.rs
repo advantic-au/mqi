@@ -1,11 +1,12 @@
 use crate::{
-    values::{MQRC, MQENC, CCSID},
     headers::TextEnc,
-    sys, MqStr,
+    sys,
+    values::{CCSID, MQENC, MQRC},
+    MqChar, MqStr,
 };
 use std::{
     fmt::{Debug, Display},
-    mem, ptr, str,
+    ptr, str,
 };
 
 use super::{headers::fmt::MQFMT_NONE, MqStruct};
@@ -38,12 +39,12 @@ pub(crate) use impl_from_str;
 pub struct UserIdentifier(pub MqStr<12>);
 impl_from_str!(UserIdentifier, MqStr<12>);
 
-pub type StrucId = [u8; 4];
-pub type Fmt = [u8; 8];
+pub type StrucId = MqChar<4>;
+pub type Fmt = MqChar<8>;
 
 pub type Warning = (MQRC, &'static str);
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MessageFormat {
     pub ccsid: CCSID,
     pub encoding: MQENC,
@@ -56,7 +57,7 @@ impl MessageFormat {
         Self {
             ccsid: CCSID(md.CodedCharSetId),
             encoding: MQENC(md.Encoding),
-            fmt: TextEnc::Ascii(unsafe { mem::transmute::<[sys::MQCHAR; 8], [u8; 8]>(md.Format) }),
+            fmt: TextEnc::Ascii(md.Format),
         }
     }
 }
@@ -69,11 +70,11 @@ pub const FORMAT_NONE: MessageFormat = MessageFormat {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From, derive_more::Deref)]
 #[repr(transparent)]
-pub struct Identifier<const N: usize>(pub [u8; N]);
+pub struct Identifier<const N: usize>(pub [sys::MQBYTE; N]);
 
 impl<const N: usize> Identifier<N> {
     #[must_use]
-    pub const fn from_ref(source: &[u8; N]) -> &Self {
+    pub const fn from_ref(source: &[sys::MQBYTE; N]) -> &Self {
         unsafe { &*ptr::from_ref(source).cast() }
     }
 
@@ -100,7 +101,7 @@ impl<const N: usize> Debug for Identifier<N> {
 
 impl CorrelationId {
     #[must_use]
-    pub const fn from_ref(src: &[u8; sys::MQ_CORREL_ID_LENGTH]) -> &Self {
+    pub const fn from_ref(src: &[sys::MQBYTE; sys::MQ_CORREL_ID_LENGTH]) -> &Self {
         unsafe { &*ptr::from_ref(src).cast() }
     }
 }

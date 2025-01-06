@@ -5,6 +5,7 @@ use std::ops::Deref as _;
 use std::{mem, ptr, slice};
 use std::{borrow::Cow, num::NonZero};
 
+use crate::conversion;
 use crate::macros::reverse_ident;
 
 use libmqm_sys::lib::MQTYPE_STRING;
@@ -19,7 +20,7 @@ pub const INQUIRE_ALL_USR: &str = "usr.%";
 
 #[derive(Debug, Clone)]
 pub struct PropertyState<'s> {
-    pub name: Option<Cow<'s, [u8]>>,
+    pub name: Option<Cow<'s, [sys::MQCHAR]>>,
     pub value: Cow<'s, [u8]>,
 }
 
@@ -135,7 +136,7 @@ pub enum Value {
     Int64(i64),
     Float32(f32),
     Float64(f64),
-    ByteString(Vec<u8>),
+    ByteString(Vec<sys::MQBYTE>),
     String(StrCcsidOwned),
     Null,
 }
@@ -269,8 +270,8 @@ impl SetProperty for String {
     }
 }
 
-impl<T: AsRef<[u8]>> SetProperty for StringCcsid<T> {
-    type Data = [u8];
+impl<T: AsRef<[sys::MQCHAR]>> SetProperty for StringCcsid<T> {
+    type Data = [sys::MQCHAR];
 
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
         let CCSID(ccsid) = self.ccsid;
@@ -279,8 +280,8 @@ impl<T: AsRef<[u8]>> SetProperty for StringCcsid<T> {
     }
 }
 
-impl SetProperty for Vec<u8> {
-    type Data = <[u8] as SetProperty>::Data;
+impl SetProperty for Vec<sys::MQBYTE> {
+    type Data = <[sys::MQBYTE] as SetProperty>::Data;
     fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
         self.deref().apply_mqsetmp(pd, smpo)
     }
@@ -295,7 +296,7 @@ impl<const N: usize> SetProperty for MqStr<N> {
     }
 }
 
-impl SetProperty for [u8] {
+impl SetProperty for [sys::MQBYTE] {
     type Data = Self;
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, _smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
         (self, MQTYPE(sys::MQTYPE_BYTE_STRING))
@@ -362,9 +363,9 @@ impl PropertyAttr for Name<String> {
             other => Ok(other.map(|state| {
                 // SAFETY: The bytes coming from the MQI library should be correct as there
                 // is no conversion error
-                // The unwrap will succeed as the Option is always some if this code is executed
-                let name = state.name.as_ref().expect("Name should not be None");
-                (Self(unsafe { str::from_utf8_unchecked(name).to_string() }), state)
+                // The unwrap will succeed as the Option is always `Some` if this code is executed
+                let name = conversion::vec_mqchar_to_byte(state.name.clone().expect("Name should not be None").into_owned());
+                (Self(unsafe { String::from_utf8_unchecked(name) }), state)
             })),
         }
     }
@@ -384,7 +385,7 @@ impl<const N: usize> PropertyAttr for Name<MqStr<N>> {
             other => Ok(other.map(|state| {
                 let name = state.name.as_ref().expect("Name should not be None");
                 (
-                    Self(MqStr::from_bytes(name).expect("buffer size should equal required length")),
+                    Self(MqStr::from_mqchar_slice(name).expect("buffer size should equal required length")),
                     state,
                 )
             })),
@@ -425,7 +426,7 @@ impl PropertyValue for Value {
             sys::MQTYPE_BOOLEAN => Self::Boolean(state.value[8] != 0),
             sys::MQTYPE_STRING => Self::String(StringCcsid {
                 ccsid: CCSID(param.impo.ReturnedCCSID),
-                data: state.value.into_owned(),
+                data: conversion::bytes_to_cow_mqchar(state.value).into_owned(),
                 le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
             }),
             sys::MQTYPE_BYTE_STRING => Self::ByteString(state.value.into()),
@@ -501,7 +502,7 @@ impl PropertyValue for bool {
     }
 }
 
-impl PropertyValue for Vec<u8> {
+impl PropertyValue for Vec<sys::MQBYTE> {
     type Error = Error;
 
     fn consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
@@ -544,7 +545,8 @@ impl<const N: usize> PropertyValue for MqStr<N> {
     {
         param.value_type = MQTYPE(sys::MQTYPE_BYTE_STRING);
         param.impo.Options |= sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
-        mqinqmp(param).map_completion(|state| Self::from_bytes(&state.value).expect("buffer size should equal required length"))
+        mqinqmp(param)
+            .map_completion(|state| Self::from_byte_slice(&state.value).expect("buffer size should equal required length"))
     }
 
     fn max_value_size() -> Option<NonZero<usize>> {
@@ -631,7 +633,7 @@ impl PropertyValue for StrCcsidOwned {
         param.impo.Options |= sys::MQIMPO_CONVERT_TYPE;
         mqinqmp(param).map_completion(|state| Self {
             ccsid: CCSID(param.impo.ReturnedCCSID),
-            data: state.value.into_owned(),
+            data: conversion::bytes_to_cow_mqchar(state.value).into_owned(),
             le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
         })
     }

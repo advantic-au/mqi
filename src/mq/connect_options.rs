@@ -1,11 +1,12 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 #![allow(non_snake_case)]
 
-use std::{any, ptr};
+use std::any;
 
 use libmqm_default as default;
 
 use crate::{
+    conversion,
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
     sys, values, MqStr,
@@ -239,11 +240,15 @@ impl<'m> ConnectOption<'m> for MqServer<'m> {
     where
         'm: 'ptr,
     {
-        cd.ChannelName = [32; 20];
-        cd.ChannelName[..self.channel_name.len()].copy_from_slice(unsafe { &*(ptr::from_ref(self.channel_name) as *const [i8]) });
-        cd.ConnectionName = [32; 264];
-        cd.ConnectionName[..self.connection_name.len()]
-            .copy_from_slice(unsafe { &*(ptr::from_ref(self.connection_name) as *const [i8]) });
+        assert!(MqStr::assign(
+            cd.ChannelName.as_mut(),
+            conversion::slice_byte_to_mqchar(self.channel_name.as_bytes())
+        ));
+
+        assert!(MqStr::assign(
+            cd.ConnectionName.as_mut(),
+            conversion::slice_byte_to_mqchar(self.connection_name.as_bytes())
+        ));
         cd.TransportType = self.transport.value();
         cno.Options &= !sys::MQCNO_LOCAL_BINDING;
         cno.Options |= sys::MQCNO_CLIENT_BINDING;
@@ -363,8 +368,8 @@ impl<'pw> Tls<'pw> {
 
     pub fn crypto_hardware(&mut self, hardware: Option<&CryptoHardware>) -> &mut Self {
         match hardware {
-            Some(ch) => ch.copy_into_mqchar(&mut self.0.CryptoHardware),
-            None => CryptoHardware::default().copy_into_mqchar(&mut self.0.CryptoHardware),
+            Some(ch) => ch.as_mqchar().clone_into(&mut self.0.CryptoHardware),
+            None => MqStr::empty().as_mqchar().clone_into(&mut self.0.CryptoHardware),
         }
         self
     }
@@ -372,8 +377,8 @@ impl<'pw> Tls<'pw> {
     pub fn certificate_label(&mut self, label: Option<&CertificateLabel>) -> &mut Self {
         self.0.set_min_version(sys::MQSCO_VERSION_5);
         match label {
-            Some(cl) => cl.copy_into_mqchar(&mut self.0.CertificateLabel),
-            None => CertificateLabel::default().copy_into_mqchar(&mut self.0.CertificateLabel),
+            Some(cl) => cl.as_mqchar().clone_into(&mut self.0.CertificateLabel),
+            None => MqStr::empty().as_mqchar().clone_into(&mut self.0.CertificateLabel),
         }
         self
     }
@@ -413,7 +418,7 @@ impl<'pw> Tls<'pw> {
     }
 
     pub fn key_repo(&mut self, repo: &KeyRepo) -> &mut Self {
-        repo.copy_into_mqchar(&mut self.0.KeyRepository);
+        repo.as_mqchar().clone_into(&mut self.0.KeyRepository);
         self
     }
 }
@@ -424,7 +429,7 @@ impl ConnectOption<'_> for CipherSpec {
         'static: 'ptr,
     {
         structs.cd.set_min_version(sys::MQCD_VERSION_7);
-        self.copy_into_mqchar(&mut structs.cd.SSLCipherSpec);
+        self.as_mqchar().clone_into(&mut structs.cd.SSLCipherSpec);
         HAS_CD
     }
 }
@@ -564,7 +569,7 @@ impl ConnectOption<'_> for ApplName {
         'static: 'ptr,
     {
         structs.cno.set_min_version(sys::MQCNO_VERSION_7);
-        self.0.copy_into_mqchar(&mut structs.cno.ApplName);
+        self.0.as_mqchar().clone_into(&mut structs.cno.ApplName);
         HAS_CNO
     }
 }

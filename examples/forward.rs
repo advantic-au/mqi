@@ -90,12 +90,12 @@ fn main() -> anyhow::Result<()> {
 
     let mut properties = Properties::new(&qm, MQCMHO::default())?;
     let message = obj
-        .get_data_with::<MqStruct<sys::MQMD2> /* MQMD2 */, _ /* buffer */>(
+        .get_data_with::<MqStruct<sys::MQMD2>>(
             (
                 MQGMO(sys::MQGMO_SYNCPOINT), // Must use the syncpoint option
                 &mut properties,             // Retrieve the message properties
             ),
-            &mut *buffer // Provide a buffer for the message
+            &mut *buffer, // Provide a buffer for the message
         )
         .warn_as_error() // Fail on any warnings
         .context("Unable to get a messsage")?;

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ptr};
 
-use crate::sys;
+use crate::{conversion, sys};
 
 use super::{values::CCSID, MqStruct};
 
@@ -19,9 +19,9 @@ impl<T> StringCcsid<T> {
     }
 }
 
-pub type StrCcsid<'a> = StringCcsid<&'a [u8]>;
-pub type StrCcsidOwned = StringCcsid<Vec<u8>>;
-pub type StrCcsidCow<'a> = StringCcsid<Cow<'a, [u8]>>;
+pub type StrCcsid<'a> = StringCcsid<&'a [sys::MQCHAR]>;
+pub type StrCcsidOwned = StringCcsid<Vec<sys::MQCHAR>>;
+pub type StrCcsidCow<'a> = StringCcsid<Cow<'a, [sys::MQCHAR]>>;
 
 pub const NATIVE_IS_LE: bool = (sys::MQENC_NATIVE & sys::MQENC_INTEGER_REVERSED) != 0;
 
@@ -39,7 +39,7 @@ pub struct CcsidError {
 
 impl StrCcsidOwned {
     #[must_use]
-    pub const fn from_vec(data: Vec<u8>, ccsid: CCSID) -> Self {
+    pub const fn from_vec(data: Vec<sys::MQCHAR>, ccsid: CCSID) -> Self {
         Self {
             ccsid,
             le: NATIVE_IS_LE,
@@ -52,7 +52,7 @@ impl<'a> From<&'a str> for StrCcsid<'a> {
     fn from(value: &'a str) -> Self {
         Self {
             ccsid: CCSID(1208),
-            data: value.as_bytes(),
+            data: conversion::slice_byte_to_mqchar(value.as_bytes()),
             le: NATIVE_IS_LE,
         }
     }
@@ -63,8 +63,8 @@ impl<'a, T: Into<Cow<'a, str>>> From<T> for StrCcsidCow<'a> {
         Self {
             ccsid: CCSID(1208),
             data: match value.into() {
-                Cow::Borrowed(str_val) => Cow::Borrowed(str_val.as_bytes()),
-                Cow::Owned(str_val) => Cow::Owned(str_val.into()),
+                Cow::Borrowed(str_val) => Cow::Borrowed(conversion::slice_byte_to_mqchar(str_val.as_bytes())),
+                Cow::Owned(str_val) => Cow::Owned(conversion::vec_byte_to_mqchar(str_val.into_bytes())),
             },
             le: NATIVE_IS_LE,
         }
@@ -75,13 +75,13 @@ impl<T: ToString> From<T> for StrCcsidOwned {
     fn from(value: T) -> Self {
         Self {
             ccsid: CCSID(1208),
-            data: value.to_string().into_bytes(),
+            data: conversion::vec_byte_to_mqchar(value.to_string().into_bytes()),
             le: NATIVE_IS_LE,
         }
     }
 }
 
-impl<T: Into<Vec<u8>>> TryFrom<StringCcsid<T>> for String {
+impl<T: Into<Vec<sys::MQCHAR>>> TryFrom<StringCcsid<T>> for String {
     type Error = FromStringCcsidError;
 
     fn try_from(value: StringCcsid<T>) -> Result<Self, Self::Error> {
@@ -94,11 +94,12 @@ impl<T: Into<Vec<u8>>> TryFrom<StringCcsid<T>> for String {
                 },
             }));
         }
-        Self::from_utf8(value.data.into()).map_err(|e| FromStringCcsidError::Utf8Convert(e.utf8_error()))
+        Self::from_utf8(conversion::vec_mqchar_to_byte(value.data.into()))
+            .map_err(|e| FromStringCcsidError::Utf8Convert(e.utf8_error()))
     }
 }
 
-impl<'a, T: Into<Cow<'a, [u8]>>> TryFrom<StringCcsid<T>> for Cow<'a, str> {
+impl<'a, T: Into<Cow<'a, [sys::MQCHAR]>>> TryFrom<StringCcsid<T>> for Cow<'a, str> {
     type Error = FromStringCcsidError;
 
     fn try_from(value: StringCcsid<T>) -> Result<Self, Self::Error> {
@@ -113,8 +114,10 @@ impl<'a, T: Into<Cow<'a, [u8]>>> TryFrom<StringCcsid<T>> for Cow<'a, str> {
         }
 
         Ok(match value.data.into() {
-            Cow::Borrowed(bytes) => Cow::Borrowed(std::str::from_utf8(bytes)?),
-            Cow::Owned(bytes) => Cow::Owned(String::from_utf8(bytes).map_err(|e| e.utf8_error())?),
+            Cow::Borrowed(chars) => Cow::Borrowed(std::str::from_utf8(conversion::slice_mqchar_to_byte(chars))?),
+            Cow::Owned(chars) => {
+                Cow::Owned(String::from_utf8(conversion::vec_mqchar_to_byte(chars)).map_err(|e| e.utf8_error())?)
+            }
         })
     }
 }
@@ -173,15 +176,15 @@ impl<T: Default> Default for StringCcsid<T> {
 
 #[cfg(test)]
 mod test {
-    use std::borrow::Cow;
+    use std::{borrow::Cow, mem};
 
-    use crate::{values::CCSID, StrCcsid, StrCcsidCow, StringCcsid};
+    use crate::{sys, values::CCSID, StrCcsid, StrCcsidCow, StringCcsid};
 
     use super::NATIVE_IS_LE;
 
     const NON_UTF8_COW: StrCcsidCow = StrCcsidCow {
         ccsid: CCSID(450),
-        data: Cow::Borrowed(b"Hello".as_slice()),
+        data: Cow::Borrowed(unsafe { mem::transmute::<&[u8], &[sys::MQCHAR]>(b"Hello".as_slice()) }),
         le: NATIVE_IS_LE,
     };
 

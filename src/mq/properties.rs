@@ -42,9 +42,9 @@ fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
     value_type: &mut MQTYPE,
     mut value: InqBuffer<'a, u8>,
     max_value_size: Option<NonZero<usize>>,
-    mut returned_name: Option<InqBuffer<'b, u8>>,
+    mut returned_name: Option<InqBuffer<'b, sys::MQCHAR>>,
     max_name_size: Option<NonZero<usize>>,
-) -> ResultCompErr<(InqBuffer<'a, u8>, Option<InqBuffer<'b, u8>>), core::MqInqError> {
+) -> ResultCompErr<(InqBuffer<'a, u8>, Option<InqBuffer<'b, sys::MQCHAR>>), core::MqInqError> {
     if let Some(rn) = returned_name.as_mut() {
         let rn_ref = rn.as_mut();
         mqimpo.ReturnedName.VSPtr = rn_ref.as_mut_ptr().cast();
