@@ -234,9 +234,6 @@ impl<'b> GetValue<'b> for Cow<'b, str> {
         }
 
         match get_result.map(|state| state.buffer.truncate(state.data_length).into_cow()) {
-            Completion(_, Some((rc @ values::MQRC(sys::MQRC_NOT_CONVERTED), verb))) => {
-                Err(Error(values::MQCC(sys::MQCC_WARNING), verb, rc).into())
-            }
             Completion(Cow::Borrowed(bytes), warning) => Ok(Completion(
                 Cow::Borrowed(std::str::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e, warning))?),
                 warning,
@@ -366,14 +363,16 @@ mod test {
         move |_| Err(Error(values::MQCC(sys::MQCC_FAILED), "MQGET", rc))
     }
 
-    fn mock_get_empty_message(
+    fn mock_get_message<'b, B: Buffer<'b, u8>>(
+        buffer: B,
         fmt: types::MessageFormat,
-    ) -> impl FnOnce(&mut GetParam) -> ResultComp<GetState<&'static mut [u8]>> {
+    ) -> impl FnOnce(&mut GetParam) -> ResultComp<GetState<B>> {
+        let len = buffer.len();
         move |_| {
             Ok(Completion::new(GetState {
-                buffer: &mut [],
-                data_length: 0,
-                message_length: 0,
+                buffer,
+                data_length: len,
+                message_length: len,
                 format: fmt,
             }))
         }
@@ -389,13 +388,16 @@ mod test {
     #[test]
     pub fn get_value_cow_bytes() -> Result<(), Box<dyn std::error::Error>> {
         // Empty string
+        let empty: &mut [u8] = &mut [];
         let mut params = default_getparam();
-        let empty_result: Cow<[u8]> = GetValue::get_consume(&mut params, mock_get_empty_message(FMT_STRING)).discard_warning()?;
+        let empty_result: Cow<[u8]> =
+            GetValue::get_consume(&mut params, mock_get_message(empty, FMT_STRING)).discard_warning()?;
         assert_eq!(empty_result, Cow::from(&[]));
 
         // Empty bytes
+        let empty: &mut [u8] = &mut [];
         let mut params = default_getparam();
-        let empty_result: Cow<[u8]> = GetValue::get_consume(&mut params, mock_get_empty_message(FMT_BYTES)).discard_warning()?;
+        let empty_result: Cow<[u8]> = GetValue::get_consume(&mut params, mock_get_message(empty, FMT_BYTES)).discard_warning()?;
         assert_eq!(empty_result, Cow::from(&[]));
 
         // Failure should be passed through
@@ -409,16 +411,18 @@ mod test {
 
     #[test]
     pub fn get_value_strccsdcow() -> Result<(), Box<dyn std::error::Error>> {
+        let mut empty: [u8; 0] = [];
         // Empty string
         let mut params = default_getparam();
         let empty_result: StrCcsidCow =
-            GetValue::get_consume(&mut params, mock_get_empty_message(FMT_STRING)).discard_warning()?;
+            GetValue::get_consume(&mut params, mock_get_message(empty.as_mut_slice(), FMT_STRING)).discard_warning()?;
         assert_eq!(empty_result.ccsid, values::CCSID(1208));
         assert_eq!(empty_result.data, Cow::from(&[]));
 
         // Empty bytes message should fail
         let mut params = default_getparam();
-        let empty_bytes: ResultCompErr<StrCcsidCow, _> = GetValue::get_consume(&mut params, mock_get_empty_message(FMT_BYTES));
+        let empty_bytes: ResultCompErr<StrCcsidCow, _> =
+            GetValue::get_consume(&mut params, mock_get_message(empty.as_mut_slice(), FMT_BYTES));
         assert!(matches!(
             empty_bytes,
             Err(GetStringCcsidError::UnexpectedFormat(
@@ -441,14 +445,17 @@ mod test {
 
     #[test]
     pub fn get_value_cow_str() -> Result<(), Box<dyn std::error::Error>> {
+        let mut empty: [u8; 0] = [];
         // Empty string
         let mut params = default_getparam();
-        let empty_result: Cow<str> = GetValue::get_consume(&mut params, mock_get_empty_message(FMT_STRING)).discard_warning()?;
+        let empty_result: Cow<str> =
+            GetValue::get_consume(&mut params, mock_get_message(empty.as_mut_slice(), FMT_STRING)).discard_warning()?;
         assert_eq!(empty_result, Cow::from(""));
 
         // Empty bytes message should fail
         let mut params = default_getparam();
-        let empty_bytes: ResultCompErr<Cow<str>, _> = GetValue::get_consume(&mut params, mock_get_empty_message(FMT_BYTES));
+        let empty_bytes: ResultCompErr<Cow<str>, _> =
+            GetValue::get_consume(&mut params, mock_get_message(empty.as_mut_slice(), FMT_BYTES));
         assert!(matches!(
             empty_bytes,
             Err(GetStringError::UnexpectedFormat(
@@ -457,6 +464,19 @@ mod test {
                 None
             ))
         ));
+
+        // Empty string with owned (Vec) origin
+        let mut params = default_getparam();
+        let empty_result: Cow<str> =
+            GetValue::get_consume(&mut params, mock_get_message(Vec::new(), FMT_STRING)).discard_warning()?;
+        assert_eq!(empty_result, Cow::from(""));
+
+        // invalid UTF-8
+        let mut invalid: [u8; 2] = [0xa0, 0xa1];
+        let mut params = default_getparam();
+        let failure: ResultCompErr<Cow<str>, _> =
+            GetValue::get_consume(&mut params, mock_get_message(invalid.as_mut_slice(), FMT_STRING));
+        assert!(matches!(failure, Err(GetStringError::Utf8Parse(_, None))));
 
         // Failure should be passed through
         let mut params = default_getparam();
