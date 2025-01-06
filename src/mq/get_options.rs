@@ -559,7 +559,9 @@ mod test {
         });
         let mut get_param = default_getparam();
         get_param.gmo.MatchOptions = !0;
-        test_get_option(&mut get_param, &types::MsgToken(TOKEN), |p| assert_eq!(p.gmo.MatchOptions, !0));
+        test_get_option(&mut get_param, &types::MsgToken(TOKEN), |p| {
+            assert_eq!(p.gmo.MatchOptions, !0)
+        });
     }
 
     #[test]
@@ -574,6 +576,5 @@ mod test {
             assert_ne!(p.gmo.Options & sys::MQGMO_WAIT, 0);
             assert_eq!(p.gmo.WaitInterval, 50);
         });
-
     }
 }
