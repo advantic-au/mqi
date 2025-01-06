@@ -9,6 +9,8 @@ use libmqm_sys::lib as sys;
 
 use crate::put::PutMessage;
 
+mod callback;
+
 mockall::mock! {
     pub Functions {}
 

@@ -4,9 +4,12 @@ use std::{
     mem, ptr,
 };
 
+use maybe_owned::MaybeOwned;
+
 use crate::{
-    values::{MQENC, CCSID},
-    sys,
+    conversion, sys,
+    values::{CCSID, MQENC},
+    MqChar,
 };
 
 use super::{
@@ -16,12 +19,13 @@ use super::{
 };
 
 /// Copy a Cstr to an array of length N (const)
-const fn cstr_array<const N: usize>(mqi: &CStr) -> [u8; N] {
+const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
     let mut i = 0;
     let bytes = mqi.to_bytes();
     let mut result = [0; N];
+    #[expect(clippy::cast_possible_wrap, reason = "Treating MQCHAR as always positive is desired here")]
     while i < N {
-        result[i] = bytes[i];
+        result[i] = bytes[i] as sys::MQCHAR;
         i += 1;
     }
     result
@@ -75,11 +79,11 @@ pub enum Header<'a> {
 
 pub type NextHeader<'a> = (Header<'a>, &'a [u8], usize, MessageFormat);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct EncodedHeader<'a, T: ChainedHeader> {
     pub ccsid: CCSID,
     pub encoding: MQENC,
-    pub raw_header: &'a T,
+    pub raw_header: MaybeOwned<'a, T>,
     pub tail: &'a [u8],
 }
 
@@ -96,7 +100,7 @@ impl Header<'_> {
 impl<T: ChainedHeader> EncodedHeader<'_, T> {
     #[must_use]
     pub fn next_ccsid(&self) -> CCSID {
-        let next_ccsid = self.native_mqlong(T::next_raw_ccsid(self.raw_header));
+        let next_ccsid = self.native_mqlong(T::next_raw_ccsid(&self.raw_header));
         if next_ccsid == 0 {
             self.ccsid
         } else {
@@ -106,7 +110,7 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
 
     #[must_use]
     pub fn next_encoding(&self) -> MQENC {
-        let next_encoding = self.native_mqlong(T::next_raw_encoding(self.raw_header)).into();
+        let next_encoding = self.native_mqlong(T::next_raw_encoding(&self.raw_header)).into();
         if next_encoding == 0 {
             self.encoding
         } else {
@@ -117,15 +121,15 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     #[must_use]
     pub fn next_format(&self) -> TextEnc<Fmt> {
         if self.ccsid.is_ebcdic().unwrap_or(false) {
-            TextEnc::Ebcdic(T::next_raw_format(self.raw_header))
+            TextEnc::Ebcdic(T::next_raw_format(&self.raw_header))
         } else {
-            TextEnc::Ascii(T::next_raw_format(self.raw_header))
+            TextEnc::Ascii(T::next_raw_format(&self.raw_header))
         }
     }
 
     #[expect(clippy::len_without_is_empty)]
     pub fn len(&self) -> Result<usize, HeaderError> {
-        T::raw_struc_length(self.raw_header).map_or(Ok(mem::size_of::<T>()), |length| {
+        T::raw_struc_length(&self.raw_header).map_or(Ok(mem::size_of::<T>()), |length| {
             let ln = self.native_mqlong(length);
             T::validate_length(ln)?;
             ln.try_into().map_err(|_| HeaderError::MalformedLength(ln))
@@ -134,8 +138,8 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
 
     #[must_use]
     fn struc_matches(&self) -> bool {
-        swap_to_native(T::raw_version(self.raw_header), (self.encoding & INTEGER_NATIVE_MASK) != 0) == T::VERSION && {
-            let struc_id = T::raw_struc_id(self.raw_header);
+        swap_to_native(T::raw_version(&self.raw_header), (self.encoding & INTEGER_NATIVE_MASK) != 0) == T::VERSION && {
+            let struc_id = T::raw_struc_id(&self.raw_header);
             let ebcdic = self.ccsid.is_ebcdic().unwrap_or(false);
             (ebcdic && struc_id == T::STRUC_ID_EBCDIC) || (!ebcdic && struc_id == T::STRUC_ID_ASCII)
         }
@@ -198,28 +202,30 @@ pub enum TextEnc<T> {
     Ebcdic(T),
 }
 
-impl<const N: usize> Debug for TextEnc<[u8; N]> {
+impl<const N: usize> Debug for TextEnc<MqChar<N>> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Ascii(fmt) => f
+            Self::Ascii(ascii) => f
                 .debug_tuple("Ascii")
-                .field(&String::from_utf8_lossy(fmt.as_slice()))
+                .field(&String::from_utf8_lossy(conversion::slice_mqchar_to_byte(ascii)))
                 .finish(),
-            Self::Ebcdic(fmt) => {
-                let ascii = ebcdic_ascii7(fmt);
-                f.debug_tuple("Ebcdic").field(&String::from_utf8_lossy(&ascii)).finish()
+            Self::Ebcdic(ebcdic) => {
+                let ascii = ebcdic_ascii7(ebcdic);
+                f.debug_tuple("Ebcdic")
+                    .field(&String::from_utf8_lossy(conversion::slice_mqchar_to_byte(&ascii)))
+                    .finish()
             }
         }
     }
 }
 
-impl<const N: usize> Display for TextEnc<[u8; N]> {
+impl<const N: usize> Display for TextEnc<MqChar<N>> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Self::Ascii(fmt) => std::fmt::Display::fmt(&String::from_utf8_lossy(fmt.as_slice()), f),
-            Self::Ebcdic(fmt) => {
-                let ascii = ebcdic_ascii7(fmt);
-                std::fmt::Display::fmt(&String::from_utf8_lossy(&ascii), f)
+            Self::Ascii(ascii) => std::fmt::Display::fmt(&String::from_utf8_lossy(conversion::slice_mqchar_to_byte(ascii)), f),
+            Self::Ebcdic(ebcdic) => {
+                let ascii = ebcdic_ascii7(ebcdic);
+                std::fmt::Display::fmt(&String::from_utf8_lossy(conversion::slice_mqchar_to_byte(&ascii)), f)
             }
         }
     }
@@ -233,15 +239,15 @@ impl<T> AsRef<T> for TextEnc<T> {
     }
 }
 
-impl<const N: usize> From<TextEnc<[u8; N]>> for [u8; N] {
-    fn from(value: TextEnc<[u8; N]>) -> Self {
+impl<const N: usize> From<TextEnc<Self>> for MqChar<N> {
+    fn from(value: TextEnc<Self>) -> Self {
         match value {
             TextEnc::Ascii(fmt) | TextEnc::Ebcdic(fmt) => fmt,
         }
     }
 }
 
-impl<const N: usize> PartialEq for TextEnc<[u8; N]> {
+impl<const N: usize> PartialEq for TextEnc<MqChar<N>> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Ascii(a), Self::Ascii(a2)) | (Self::Ebcdic(a), Self::Ebcdic(a2)) => a == a2,
@@ -250,13 +256,13 @@ impl<const N: usize> PartialEq for TextEnc<[u8; N]> {
     }
 }
 
-impl<const N: usize> PartialEq<[u8; N]> for TextEnc<[u8; N]> {
-    fn eq(&self, other: &[u8; N]) -> bool {
+impl<const N: usize> PartialEq<MqChar<N>> for TextEnc<MqChar<N>> {
+    fn eq(&self, other: &MqChar<N>) -> bool {
         self.as_ref() == other
     }
 }
 
-impl<const N: usize> TextEnc<[u8; N]> {
+impl<const N: usize> TextEnc<MqChar<N>> {
     #[must_use]
     pub const fn into_ascii(self) -> Self {
         match self {
@@ -284,16 +290,21 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
         Err(HeaderError::DataTruncated(struc_len, data.len()))?;
     }
 
+    let (unaligned, _, _) = unsafe { data.align_to::<T>() };
+
     let header = EncodedHeader::<T> {
         ccsid: next_ccsid,
         encoding: next_encoding,
-        raw_header: unsafe { &*((*data).as_ptr().cast()) },
+        raw_header: if unaligned.is_empty() {
+            MaybeOwned::Borrowed(unsafe { &*data.as_ptr().cast() })
+        } else {
+            MaybeOwned::Owned(unsafe { ptr::read_unaligned(data.as_ptr().cast()) })
+        },
         tail: &[],
     };
-    //let header = EncodedHeader::<T>::new(next_ccsid, next_encoding, &data[..struc_len]);
 
     if !header.struc_matches() {
-        Err(HeaderError::UnexpectedStruc(T::raw_struc_id(header.raw_header)))?;
+        Err(HeaderError::UnexpectedStruc(T::raw_struc_id(&header.raw_header)))?;
     }
 
     let total_len = header.len()?;
@@ -546,7 +557,7 @@ impl<'a> EncodedHeader<'a, sys::MQRFH2> {
     #[must_use]
     pub fn name_value_data(&self) -> StrCcsid<'a> {
         StringCcsid::new(
-            &self.tail[4..], // Exclude 4 bytes for the length prelude
+            conversion::slice_byte_to_mqchar(&self.tail[4..]), // Exclude 4 bytes for the length prelude
             CCSID(self.native_mqlong(self.raw_header.NameValueCCSID)),
             (self.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
         )
@@ -599,7 +610,11 @@ impl ChainedHeader for sys::MQRFH {
 impl<'a> EncodedHeader<'a, sys::MQRFH> {
     #[must_use]
     pub fn name_value_data(&self) -> StrCcsid<'a> {
-        StringCcsid::new(self.tail, self.ccsid, (self.encoding & sys::MQENC_INTEGER_REVERSED) != 0)
+        StringCcsid::new(
+            conversion::slice_byte_to_mqchar(self.tail),
+            self.ccsid,
+            (self.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
+        )
     }
 }
 
@@ -658,7 +673,7 @@ mod tests {
     use crate::{
         headers::{EncodedHeader, Header, HeaderError},
         sys,
-        types::{Fmt, MessageFormat},
+        types::MessageFormat,
         values::{self, CCSID},
     };
 
@@ -669,7 +684,7 @@ mod tests {
     const NEXT_DEAD: MessageFormat = MessageFormat {
         ccsid: CCSID(1208),
         encoding: values::MQENC(sys::MQENC_NATIVE),
-        fmt: TextEnc::Ebcdic(sys::MQDLH::FMT_EBCDIC),
+        fmt: TextEnc::Ascii(sys::MQDLH::FMT_ASCII),
     };
 
     const NEXT_RFH2: MessageFormat = MessageFormat {
@@ -719,7 +734,7 @@ mod tests {
         let mut data: [u8; TOTAL_LENGTH] = [0; TOTAL_LENGTH];
         let mut dlh = default::MQDLH_DEFAULT;
         let rfh2 = default::MQRFH2_DEFAULT;
-        dlh.Format = unsafe { transmute::<Fmt, [i8; 8]>(sys::MQRFH2::FMT_ASCII) };
+        dlh.Format = sys::MQRFH2::FMT_ASCII;
         dlh.CodedCharSetId = 1208;
         dlh.Encoding = sys::MQENC_NATIVE;
         data[..sys::MQDLH_LENGTH_1].copy_from_slice(unsafe { from_raw_parts(ptr::from_ref(&dlh).cast(), sys::MQDLH_LENGTH_1) });
@@ -737,10 +752,7 @@ mod tests {
         let headers_vec: Vec<_> = headers.collect();
 
         assert!(matches!(headers_vec[0], Ok((Header::Dlh(_), ..))));
-        assert!(matches!(
-            headers_vec[1],
-            Ok((Header::Rfh2(EncodedHeader { raw_header: &_, .. }), ..))
-        ));
+        assert!(matches!(headers_vec[1], Ok((Header::Rfh2(EncodedHeader { .. }), ..))));
         assert_eq!(headers_vec.len(), 2);
     }
 }

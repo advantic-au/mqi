@@ -100,7 +100,7 @@ fn main() -> anyhow::Result<()> {
     let msg_fmt = MessageFormat {
         ccsid: CCSID(1208),
         encoding: MQENC::default(),
-        fmt: TextEnc::Ascii(*fmt.as_bytes()),
+        fmt: TextEnc::Ascii(*fmt.as_mqchar()),
     };
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
