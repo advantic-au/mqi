@@ -677,7 +677,7 @@ mod tests {
     const NEXT_DEAD: MessageFormat = MessageFormat {
         ccsid: CCSID(1208),
         encoding: values::MQENC(sys::MQENC_NATIVE),
-        fmt: TextEnc::Ebcdic(sys::MQDLH::FMT_EBCDIC),
+        fmt: TextEnc::Ascii(sys::MQDLH::FMT_ASCII),
     };
 
     const NEXT_RFH2: MessageFormat = MessageFormat {
