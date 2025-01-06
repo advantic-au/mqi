@@ -44,7 +44,7 @@ pub type Fmt = MqChar<8>;
 
 pub type Warning = (MQRC, &'static str);
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MessageFormat {
     pub ccsid: CCSID,
     pub encoding: MQENC,

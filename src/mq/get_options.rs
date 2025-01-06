@@ -346,6 +346,7 @@ impl<'b> GetAttr<'b> for types::MessageId {
 mod test {
     use super::*;
     use libmqm_default as default;
+    use types::MessageFormat;
 
     const FMT_STRING: types::MessageFormat = types::MessageFormat {
         ccsid: values::CCSID(1208),
@@ -486,6 +487,18 @@ mod test {
             failure,
             Err(GetStringError::MQ(Error(_, _, values::MQRC(sys::MQRC_NOT_AUTHORIZED))))
         ));
+
+        Ok(())
+    }
+
+    #[test]
+    pub fn get_value_tuple() -> Result<(), Box<dyn std::error::Error>> {
+        let mut empty: [u8; 0] = [];
+        let mut params = default_getparam();
+        let (data, fmt): (Cow<[u8]>, MessageFormat) =
+            GetValue::get_consume(&mut params, mock_get_message(empty.as_mut_slice(), FMT_BYTES)).discard_warning()?;
+        assert_eq!(data, Cow::from(&[]));
+        assert_eq!(fmt, FMT_BYTES);
 
         Ok(())
     }
