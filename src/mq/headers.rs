@@ -4,6 +4,8 @@ use std::{
     mem, ptr,
 };
 
+use maybe_owned::MaybeOwned;
+
 use crate::{
     values::{MQENC, CCSID},
     sys,
@@ -75,11 +77,11 @@ pub enum Header<'a> {
 
 pub type NextHeader<'a> = (Header<'a>, &'a [u8], usize, MessageFormat);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct EncodedHeader<'a, T: ChainedHeader> {
     pub ccsid: CCSID,
     pub encoding: MQENC,
-    pub raw_header: &'a T,
+    pub raw_header: MaybeOwned<'a, T>,
     pub tail: &'a [u8],
 }
 
@@ -96,7 +98,7 @@ impl Header<'_> {
 impl<T: ChainedHeader> EncodedHeader<'_, T> {
     #[must_use]
     pub fn next_ccsid(&self) -> CCSID {
-        let next_ccsid = self.native_mqlong(T::next_raw_ccsid(self.raw_header));
+        let next_ccsid = self.native_mqlong(T::next_raw_ccsid(&self.raw_header));
         if next_ccsid == 0 {
             self.ccsid
         } else {
@@ -106,7 +108,7 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
 
     #[must_use]
     pub fn next_encoding(&self) -> MQENC {
-        let next_encoding = self.native_mqlong(T::next_raw_encoding(self.raw_header)).into();
+        let next_encoding = self.native_mqlong(T::next_raw_encoding(&self.raw_header)).into();
         if next_encoding == 0 {
             self.encoding
         } else {
@@ -117,15 +119,15 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     #[must_use]
     pub fn next_format(&self) -> TextEnc<Fmt> {
         if self.ccsid.is_ebcdic().unwrap_or(false) {
-            TextEnc::Ebcdic(T::next_raw_format(self.raw_header))
+            TextEnc::Ebcdic(T::next_raw_format(&self.raw_header))
         } else {
-            TextEnc::Ascii(T::next_raw_format(self.raw_header))
+            TextEnc::Ascii(T::next_raw_format(&self.raw_header))
         }
     }
 
     #[expect(clippy::len_without_is_empty)]
     pub fn len(&self) -> Result<usize, HeaderError> {
-        T::raw_struc_length(self.raw_header).map_or(Ok(mem::size_of::<T>()), |length| {
+        T::raw_struc_length(&self.raw_header).map_or(Ok(mem::size_of::<T>()), |length| {
             let ln = self.native_mqlong(length);
             T::validate_length(ln)?;
             ln.try_into().map_err(|_| HeaderError::MalformedLength(ln))
@@ -134,8 +136,8 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
 
     #[must_use]
     fn struc_matches(&self) -> bool {
-        swap_to_native(T::raw_version(self.raw_header), (self.encoding & INTEGER_NATIVE_MASK) != 0) == T::VERSION && {
-            let struc_id = T::raw_struc_id(self.raw_header);
+        swap_to_native(T::raw_version(&self.raw_header), (self.encoding & INTEGER_NATIVE_MASK) != 0) == T::VERSION && {
+            let struc_id = T::raw_struc_id(&self.raw_header);
             let ebcdic = self.ccsid.is_ebcdic().unwrap_or(false);
             (ebcdic && struc_id == T::STRUC_ID_EBCDIC) || (!ebcdic && struc_id == T::STRUC_ID_ASCII)
         }
@@ -284,16 +286,22 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
         Err(HeaderError::DataTruncated(struc_len, data.len()))?;
     }
 
+    let (unaligned, _, _) = unsafe { data.align_to::<T>() };
+
     let header = EncodedHeader::<T> {
         ccsid: next_ccsid,
         encoding: next_encoding,
-        raw_header: unsafe { &*((*data).as_ptr().cast()) },
+        raw_header: if unaligned.is_empty() {
+            MaybeOwned::Borrowed(unsafe { &*data.as_ptr().cast() })
+        } else {
+            MaybeOwned::Owned(unsafe { ptr::read_unaligned(data.as_ptr().cast()) })
+        },
         tail: &[],
     };
     //let header = EncodedHeader::<T>::new(next_ccsid, next_encoding, &data[..struc_len]);
 
     if !header.struc_matches() {
-        Err(HeaderError::UnexpectedStruc(T::raw_struc_id(header.raw_header)))?;
+        Err(HeaderError::UnexpectedStruc(T::raw_struc_id(&header.raw_header)))?;
     }
 
     let total_len = header.len()?;
@@ -737,10 +745,7 @@ mod tests {
         let headers_vec: Vec<_> = headers.collect();
 
         assert!(matches!(headers_vec[0], Ok((Header::Dlh(_), ..))));
-        assert!(matches!(
-            headers_vec[1],
-            Ok((Header::Rfh2(EncodedHeader { raw_header: &_, .. }), ..))
-        ));
+        assert!(matches!(headers_vec[1], Ok((Header::Rfh2(EncodedHeader { .. }), ..))));
         assert_eq!(headers_vec.len(), 2);
     }
 }
