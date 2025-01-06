@@ -6,12 +6,12 @@ use libmqm_default as default;
 
 impl<C: Conn> Object<C> {
     /// Establish access and return an MQ object ([`Object`])
-    pub fn open<'oo>(connection: C, open_option: impl OpenOption<'oo, values::MQOO>) -> ResultComp<Self> {
+    pub fn open<'oo>(connection: C, open_option: &impl OpenOption<'oo, values::MQOO>) -> ResultComp<Self> {
         Self::open_as(connection, open_option)
     }
 
     /// Establish access and return an MQ object ([`Object`]) and type inferred [`OpenAttr`] in a tuple.
-    pub fn open_with<'oo, A>(connection: C, open_option: impl OpenOption<'oo, values::MQOO>) -> ResultComp<(Self, A)>
+    pub fn open_with<'oo, A>(connection: C, open_option: &impl OpenOption<'oo, values::MQOO>) -> ResultComp<(Self, A)>
     where
         A: OpenAttr<Self, values::MQOO>,
     {
@@ -21,7 +21,7 @@ impl<C: Conn> Object<C> {
     /// Establish access and return a type inferred value of [`OpenValue`]
     pub(super) fn open_as<'oo, R>(
         connection: C,
-        open_option: impl OpenOption<'oo, values::MQOO>,
+        open_option: &impl OpenOption<'oo, values::MQOO>,
     ) -> ResultCompErr<R, <R as OpenValue<Self>>::Error>
     where
         R: OpenValue<Self>,

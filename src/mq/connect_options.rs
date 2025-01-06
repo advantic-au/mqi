@@ -63,10 +63,9 @@ pub trait ConnectOption<'a> {
     ///
     /// Returns a mask indicating which structures are used by the type.
     #[inline]
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'a: 'ptr,
-        Self: std::marker::Sized,
     {
         HAS_CNO
     }
@@ -142,31 +141,16 @@ mod connect_impl {
     all_multi_tuples!(impl_connectattr_tuple);
 }
 
-// Accept a reference to a `ConnectOption`
-impl<'a, T: ConnectOption<'a> + Copy> ConnectOption<'a> for &T {
-    #[inline]
-    fn queue_manager_name(&self) -> Option<&QueueManagerName> {
-        T::queue_manager_name(self)
-    }
-
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
-    where
-        'a: 'ptr,
-    {
-        T::apply_param(*self, structs)
-    }
-}
-
 impl<'a, O: ConnectOption<'a>> ConnectOption<'a> for Option<O> {
     fn queue_manager_name(&self) -> Option<&QueueManagerName> {
         self.as_ref().and_then(|o| o.queue_manager_name())
     }
 
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'a: 'ptr,
     {
-        self.map_or(0, |o| o.apply_param(structs))
+        self.as_ref().map_or(0, |o| o.apply_param(structs))
     }
 }
 
@@ -236,7 +220,7 @@ impl<'m> TryFrom<&'m str> for MqServer<'m> {
 }
 
 impl<'m> ConnectOption<'m> for MqServer<'m> {
-    fn apply_param<'ptr>(self, ConnectStructs { cno, cd, .. }: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, ConnectStructs { cno, cd, .. }: &mut ConnectStructs<'ptr>) -> i32
     where
         'm: 'ptr,
     {
@@ -269,7 +253,7 @@ pub enum Binding {
 }
 
 impl ConnectOption<'_> for Binding {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'static: 'ptr,
     {
@@ -424,7 +408,7 @@ impl<'pw> Tls<'pw> {
 }
 
 impl ConnectOption<'_> for CipherSpec {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'static: 'ptr,
     {
@@ -435,7 +419,7 @@ impl ConnectOption<'_> for CipherSpec {
 }
 
 impl<'tls> ConnectOption<'tls> for Tls<'tls> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'tls: 'ptr,
     {
@@ -471,7 +455,7 @@ impl<T> From<T> for ProtectedSecret<T> {
 }
 
 impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'cred, S> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'cred: 'ptr,
     {
@@ -514,7 +498,7 @@ impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'c
 }
 
 impl ConnectOption<'_> for values::MQCNO {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'static: 'ptr,
     {
@@ -526,20 +510,15 @@ impl ConnectOption<'_> for values::MQCNO {
 impl ConnectOption<'_> for () {}
 
 macro_rules! impl_connectoptions {
-    ([$first:ident, $($ty:ident),*]) => {
+    ([$($ty:ident),*]) => {
         // reverse_ident macro is used to ensure right to left application of options
         #[allow(non_snake_case,unused_variables)]
-        impl<'r, $first $(, $ty)*> ConnectOption<'r> for ($first $(, $ty)*)
+        impl<'r, $($ty),*> ConnectOption<'r> for ($($ty),*)
         where
-            $first: ConnectOption<'r>,
             $($ty: ConnectOption<'r>),*
         {
             fn queue_manager_name(&self) -> Option<&QueueManagerName> {
-                let ( $first, $($ty),*) = self;
-                if let name @ Some(_) = $first.queue_manager_name() {
-                    return name;
-                }
-
+                let ($($ty),*) = self;
                 $(
                     if let name @ Some(_) = $ty.queue_manager_name() {
                         return name;
@@ -550,12 +529,12 @@ macro_rules! impl_connectoptions {
             }
 
             #[inline]
-            fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+            fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
             where
                 'r: 'ptr,
             {
-                let reverse_ident!($first, $($ty),*) = self; // first is last, last is first
-                $first.apply_param(structs) | $($ty.apply_param(structs))|*
+                let reverse_ident!($($ty),*) = self; // first is last, last is first
+                $($ty.apply_param(structs))|*
             }
         }
     }
@@ -564,7 +543,7 @@ macro_rules! impl_connectoptions {
 all_multi_tuples!(impl_connectoptions);
 
 impl ConnectOption<'_> for ApplName {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'static: 'ptr,
     {
@@ -575,7 +554,7 @@ impl ConnectOption<'_> for ApplName {
 }
 
 impl<'url> ConnectOption<'url> for Ccdt<'url> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'url: 'ptr,
     {
@@ -589,7 +568,7 @@ impl<'url> ConnectOption<'url> for Ccdt<'url> {
 
 #[cfg(feature = "mqc_9_3_0_0")]
 impl<'bno> ConnectOption<'bno> for MqStruct<'bno, sys::MQBNO> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'bno: 'ptr,
     {
@@ -600,7 +579,7 @@ impl<'bno> ConnectOption<'bno> for MqStruct<'bno, sys::MQBNO> {
 }
 
 impl<'csp> ConnectOption<'csp> for MqStruct<'csp, sys::MQCSP> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'csp: 'ptr,
     {
@@ -611,7 +590,7 @@ impl<'csp> ConnectOption<'csp> for MqStruct<'csp, sys::MQCSP> {
 }
 
 impl<'sco> ConnectOption<'sco> for MqStruct<'sco, sys::MQSCO> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'sco: 'ptr,
     {
@@ -622,7 +601,7 @@ impl<'sco> ConnectOption<'sco> for MqStruct<'sco, sys::MQSCO> {
 }
 
 impl<'cd> ConnectOption<'cd> for MqStruct<'cd, sys::MQCD> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'cd: 'ptr,
     {

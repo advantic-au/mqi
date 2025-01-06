@@ -73,13 +73,13 @@ fn main() -> anyhow::Result<()> {
         .context("Target queue manager name is invalid")?;
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = mqi::connect::<ThreadNone>((APP_NAME, qm_name, creds, cno, client_method))
+    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, qm_name, creds, cno, client_method))
         .warn_as_error()
         .context("Unable to connect to the queue manager")?;
     let qm_ref = qm.connection_ref();
     let obj = Object::open(
         qm_ref,
-        (source_queue, MQOO(sys::MQOO_INPUT_AS_Q_DEF | sys::MQOO_SAVE_ALL_CONTEXT)),
+        &(source_queue, MQOO(sys::MQOO_INPUT_AS_Q_DEF | sys::MQOO_SAVE_ALL_CONTEXT)),
     )
     .warn_as_error() // Fail on any warnings
     .context("Unable to open the object")?;
@@ -91,7 +91,7 @@ fn main() -> anyhow::Result<()> {
     let mut properties = Properties::new(&qm, MQCMHO::default())?;
     let message = obj
         .get_data_with::<MqStruct<sys::MQMD2>>(
-            (
+            &(
                 MQGMO(sys::MQGMO_SYNCPOINT), // Must use the syncpoint option
                 &mut properties,             // Retrieve the message properties
             ),
@@ -106,7 +106,7 @@ fn main() -> anyhow::Result<()> {
         qm_ref
             .put_message(
                 // Equivalent to MQPUT1
-                (
+                &(
                     // Options used when opening the queue
                     MQPMO(sys::MQPMO_SYNCPOINT), // Syncpoint - final execution on commit.
                     MQPMO(match args.context {
@@ -118,7 +118,7 @@ fn main() -> anyhow::Result<()> {
                     target_qm,    // Target queue manager
                     target_queue, // Target queue
                 ),
-                (
+                &(
                     // Options used when putting to the queue
                     md,                                                           // Original MQMD2
                     Context(&obj),                                                // Source object as context

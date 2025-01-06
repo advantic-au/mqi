@@ -42,7 +42,7 @@ fn main() -> anyhow::Result<()> {
     let cno = args.connection.cno().context("MQCNO options are invalid")?;
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = mqi::connect::<ThreadNone>((APP_NAME, qm_name, creds, cno, client_method))
+    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, qm_name, creds, cno, client_method))
         .warn_as_error()
         .context("Unable to connect to the queue manager")?;
 
@@ -62,7 +62,7 @@ fn main() -> anyhow::Result<()> {
 
     while running_check.load(atomic::Ordering::Relaxed) {
         if let Some((data, _format)) = queue
-            .get_data_with::<MessageFormat>(GetWait::Wait(500), &mut *buffer)
+            .get_data_with::<MessageFormat>(&GetWait::Wait(500), &mut *buffer)
             .warn_as_error()
             .context("Unable to get message")?
         {

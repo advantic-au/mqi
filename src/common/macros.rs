@@ -18,42 +18,38 @@ macro_rules! reverse_ident {
         ($($r),*)
     };
     ($($t:ident),*) => {
-        reverse_ident!([], [$($t),*])
+        $crate::macros::reverse_ident!([], [$($t),*])
     };
     ([$($r:ident),*], [$h:ident $(, $t:ident)*]) => {
-        reverse_ident!([$h $(,$r)*], [$($t),*])
+        $crate::macros::reverse_ident!([$h $(,$r)*], [$($t),*])
     };
 }
 
 macro_rules! impl_option_tuple {
-    ($trait:ident, $ty:ty, [$first:ident, $($gen:ident),*]) => {
+    ($trait:ident, $ty:ty, [$($gen:ident),*]) => {
         #[expect(non_snake_case)]
-        impl<$first, $($gen, )*> $trait for ($first, $($gen, )*)
+        impl<$($gen, )*> $trait for ($($gen, )*)
         where
-            $first: $trait,
             $($gen: $trait),*
         {
             #[inline]
-            fn apply_param(self, param: &mut $ty) {
-                let ($first, $($gen, )*) = self;
-                ($($gen),*).apply_param(param);
-                $first.apply_param(param);
+            fn apply_param(&self, param: &mut $ty) {
+                let $crate::macros::reverse_ident!($($gen),*) = self;
+                $($gen.apply_param(param);)*
             }
         }
     };
 
-    ($lt:lifetime, $trait:ident, $ty:ty, [$first:ident, $($gen:ident),*]) => {
+    ($lt:lifetime, $trait:ident, $ty:ty, [$($gen:ident),*]) => {
         #[expect(non_snake_case)]
-        impl<$lt, $first, $($gen, )*> $trait<$lt> for ($first, $($gen, )*)
+        impl<$lt, $($gen, )*> $trait<$lt> for ($($gen, )*)
         where
-            $first: $trait<$lt>,
             $($gen: $trait<$lt>),*
         {
             #[inline]
-            fn apply_param(self, param: &mut $ty) {
-                let ($first, $($gen, )*) = self;
-                ($($gen),*).apply_param(param);
-                $first.apply_param(param);
+            fn apply_param(&self, param: &mut $ty) {
+                let crate::macros::reverse_ident!($($gen),*) = self;
+                $($gen.apply_param(param);)*
             }
         }
     }
@@ -62,14 +58,14 @@ macro_rules! impl_option_tuple {
 macro_rules! all_option_tuples {
     ($trait:ident, $ty:ty) => {
         impl<T: $trait> $trait for Option<T> {
-            fn apply_param(self, param: &mut $ty) {
+            fn apply_param(&self, param: &mut $ty) {
                 if let Some(value) = self {
                     value.apply_param(param);
                 }
             }
         }
         impl $trait for () {
-            fn apply_param(self, _param: &mut $ty) {}
+            fn apply_param(&self, _param: &mut $ty) {}
         }
 
         $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2]);
@@ -82,14 +78,14 @@ macro_rules! all_option_tuples {
     };
     ($lt:lifetime, $trait:ident, $ty:ty) => {
         impl<$lt, T: $trait<$lt>> $trait<$lt> for Option<T> {
-            fn apply_param(self, param: &mut $ty) {
+            fn apply_param(&self, param: &mut $ty) {
                 if let Some(value) = self {
                     value.apply_param(param);
                 }
             }
         }
         impl<$lt> $trait<$lt> for () {
-            fn apply_param(self, _param: &mut $ty) {}
+            fn apply_param(&self, _param: &mut $ty) {}
         }
 
         $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2]);

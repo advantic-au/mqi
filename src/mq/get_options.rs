@@ -18,27 +18,31 @@ all_option_tuples!(GetOption, GetParam);
 impl_mqstruct_min_version!(sys::MQGMO);
 
 impl GetOption for values::MQGMO {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.gmo.Options |= self.value();
     }
 }
 
 impl GetOption for GetWait {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         match self {
-            Self::NoWait => param.gmo.Options |= sys::MQGMO_NO_WAIT,
+            Self::NoWait => {
+                param.gmo.Options &= !sys::MQGMO_WAIT;
+                param.gmo.Options |= sys::MQGMO_NO_WAIT;
+            }
             Self::Wait(interval) => {
+                param.gmo.Options &= !sys::MQGMO_NO_WAIT;
                 param.gmo.Options |= sys::MQGMO_WAIT;
-                param.gmo.WaitInterval = interval;
+                param.gmo.WaitInterval = *interval;
             }
         }
     }
 }
 
 impl GetOption for GetConvert {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         match self {
-            Self::NoConvert => {}
+            Self::NoConvert => param.gmo.Options &= !sys::MQGMO_CONVERT,
             Self::Convert => param.gmo.Options |= sys::MQGMO_CONVERT,
             Self::ConvertTo(ccsid, encoding) => {
                 param.gmo.Options |= sys::MQGMO_CONVERT;
@@ -50,7 +54,7 @@ impl GetOption for GetConvert {
 }
 
 impl<C: Conn> GetOption for &mut Properties<C> {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.gmo.set_min_version(sys::MQGMO_VERSION_4);
         param.gmo.Options |= sys::MQGMO_PROPERTIES_IN_HANDLE;
         param.gmo.MsgHandle = unsafe { self.handle().raw_handle() }
@@ -58,7 +62,7 @@ impl<C: Conn> GetOption for &mut Properties<C> {
 }
 
 impl GetOption for MatchOptions<'_> {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         // Set up the MQMD
         if let Some(msg_id) = self.msg_id {
             param.md.MsgId = *msg_id.0;
@@ -88,28 +92,28 @@ impl GetOption for MatchOptions<'_> {
 }
 
 impl GetOption for types::CorrelationId {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.md.CorrelId = *self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_CORREL_ID;
     }
 }
 
 impl GetOption for types::MessageId {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.md.MsgId = *self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_MSG_ID;
     }
 }
 
 impl GetOption for types::GroupId {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.md.GroupId = *self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_GROUP_ID;
     }
 }
 
 impl GetOption for types::MsgToken {
-    fn apply_param(self, param: &mut GetParam) {
+    fn apply_param(&self, param: &mut GetParam) {
         param.gmo.MsgToken = self.0;
         param.gmo.MatchOptions |= sys::MQMO_MATCH_MSG_TOKEN;
     }
@@ -346,7 +350,7 @@ impl<'b> GetAttr<'b> for types::MessageId {
 mod test {
     use super::*;
     use libmqm_default as default;
-    use types::MessageFormat;
+    use types::{CorrelationId, Identifier, MessageFormat};
 
     const FMT_STRING: types::MessageFormat = types::MessageFormat {
         ccsid: values::CCSID(1208),
@@ -384,6 +388,14 @@ mod test {
             md: MqStruct::new(default::MQMD2_DEFAULT),
             gmo: MqStruct::new(default::MQGMO_DEFAULT),
         }
+    }
+
+    fn test_get_option<F>(params: &mut GetParam, option: &impl GetOption, f: F)
+    where
+        F: FnOnce(&GetParam),
+    {
+        option.apply_param(params);
+        f(params);
     }
 
     #[test]
@@ -501,5 +513,68 @@ mod test {
         assert_eq!(fmt, FMT_BYTES);
 
         Ok(())
+    }
+
+    #[test]
+    pub fn get_option_correlationid() {
+        const ID: Identifier<24> = Identifier([0xC; 24]);
+        test_get_option(&mut default_getparam(), &CorrelationId(ID), |p| {
+            assert_eq!(p.md.CorrelId, ID.0);
+            assert_ne!(p.gmo.MatchOptions & sys::MQMO_MATCH_CORREL_ID, 0);
+        });
+        let mut get_param = default_getparam();
+        get_param.gmo.MatchOptions = !0;
+        test_get_option(&mut get_param, &CorrelationId(ID), |p| assert_eq!(p.gmo.MatchOptions, !0));
+    }
+
+    #[test]
+    pub fn get_option_messageid() {
+        const ID: Identifier<24> = Identifier([0xC; 24]);
+        test_get_option(&mut default_getparam(), &types::MessageId(ID), |p| {
+            assert_eq!(p.md.MsgId, ID.0);
+            assert_ne!(p.gmo.MatchOptions & sys::MQMO_MATCH_MSG_ID, 0);
+        });
+        let mut get_param = default_getparam();
+        get_param.gmo.MatchOptions = !0;
+        test_get_option(&mut get_param, &types::MessageId(ID), |p| assert_eq!(p.gmo.MatchOptions, !0));
+    }
+    #[test]
+    pub fn get_option_groupid() {
+        const ID: Identifier<24> = Identifier([0xC; 24]);
+        test_get_option(&mut default_getparam(), &types::GroupId(ID), |p| {
+            assert_eq!(p.md.GroupId, ID.0);
+            assert_ne!(p.gmo.MatchOptions & sys::MQMO_MATCH_GROUP_ID, 0);
+        });
+        let mut get_param = default_getparam();
+        get_param.gmo.MatchOptions = !0;
+        test_get_option(&mut get_param, &types::GroupId(ID), |p| assert_eq!(p.gmo.MatchOptions, !0));
+    }
+
+    #[test]
+    pub fn get_option_msgtoken() {
+        const TOKEN: [u8; 16] = [0xa; 16];
+        test_get_option(&mut default_getparam(), &types::MsgToken(TOKEN), |p| {
+            assert_eq!(p.gmo.MsgToken, TOKEN);
+            assert_ne!(p.gmo.MatchOptions & sys::MQMO_MATCH_MSG_TOKEN, 0);
+        });
+        let mut get_param = default_getparam();
+        get_param.gmo.MatchOptions = !0;
+        test_get_option(&mut get_param, &types::MsgToken(TOKEN), |p| {
+            assert_eq!(p.gmo.MatchOptions, !0);
+        });
+    }
+
+    #[test]
+    pub fn get_option_get_wait() {
+        let mut get_param = default_getparam();
+        get_param.gmo.MatchOptions = !0;
+        test_get_option(&mut get_param, &GetWait::NoWait, |p| {
+            assert_eq!(p.gmo.Options & sys::MQGMO_WAIT, 0);
+        });
+        get_param.gmo.MatchOptions = !0;
+        test_get_option(&mut get_param, &GetWait::Wait(50), |p| {
+            assert_ne!(p.gmo.Options & sys::MQGMO_WAIT, 0);
+            assert_eq!(p.gmo.WaitInterval, 50);
+        });
     }
 }

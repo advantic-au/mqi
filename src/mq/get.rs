@@ -165,17 +165,17 @@ pub trait GetValue<'b>: std::marker::Sized {
 /// A trait that manipulates the parameters to the [`mqget`](`crate::core::MqFunctions::mqget`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get")]
 pub trait GetOption {
-    fn apply_param(self, param: &mut GetParam);
+    fn apply_param(&self, param: &mut GetParam);
 }
 
 impl<C: Conn> Object<C> {
-    pub fn get_data<'b>(&self, options: impl GetOption, buffer: impl Buffer<'b, u8>) -> ResultComp<Option<Cow<'b, [u8]>>> {
+    pub fn get_data<'b>(&self, options: &impl GetOption, buffer: impl Buffer<'b, u8>) -> ResultComp<Option<Cow<'b, [u8]>>> {
         self.get_as(options, buffer)
     }
 
     pub fn get_data_with<'b, A>(
         &self,
-        options: impl GetOption,
+        options: &impl GetOption,
         buffer: impl Buffer<'b, u8>,
     ) -> ResultComp<Option<(Cow<'b, [u8]>, A)>>
     where
@@ -186,7 +186,7 @@ impl<C: Conn> Object<C> {
 
     pub fn get_string<'b>(
         &self,
-        options: impl GetOption,
+        options: &impl GetOption,
         buffer: impl Buffer<'b, u8>,
     ) -> ResultCompErr<Option<StrCcsidCow<'b>>, GetStringCcsidError> {
         self.get_as(options, buffer)
@@ -194,7 +194,7 @@ impl<C: Conn> Object<C> {
 
     pub fn get_string_with<'b, A>(
         &self,
-        options: impl GetOption,
+        options: &impl GetOption,
         buffer: impl Buffer<'b, u8>,
     ) -> ResultCompErr<Option<(StrCcsidCow<'b>, A)>, GetStringCcsidError>
     where
@@ -203,7 +203,7 @@ impl<C: Conn> Object<C> {
         self.get_as(options, buffer)
     }
 
-    pub fn get_as<'b, R>(&self, options: impl GetOption, buffer: impl Buffer<'b, u8>) -> ResultCompErr<Option<R>, R::Error>
+    pub fn get_as<'b, R>(&self, options: &impl GetOption, buffer: impl Buffer<'b, u8>) -> ResultCompErr<Option<R>, R::Error>
     where
         R: GetValue<'b>,
     {
