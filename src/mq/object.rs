@@ -93,6 +93,7 @@ impl<C: Conn> Drop for Object<C> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use crate::values::MQCO;
     use crate::sys;

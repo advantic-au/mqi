@@ -942,6 +942,7 @@ pub fn is_ebcdic(ccsid: i32) -> Option<bool> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use crate::encoding::{ccsid_lookup, is_ebcdic};
 

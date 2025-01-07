@@ -11,16 +11,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: 0
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.47.7
         with:
           tool: cargo-mutants
       - name: Mutant testing

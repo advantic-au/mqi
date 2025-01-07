@@ -667,6 +667,7 @@ fn next_header<'a>(data: &'a [u8], next_format: &MessageFormat) -> Result<Option
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use std::{mem::transmute, ptr, slice::from_raw_parts};
 

@@ -99,6 +99,7 @@ phf_codegen = "0.11.2"
 
 [lints.rust]
 unsafe_op_in_unsafe_fn = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
 
 [lints.clippy]
 all = { level = "deny", priority = -1 }

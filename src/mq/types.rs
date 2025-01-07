@@ -166,6 +166,7 @@ pub struct CertificateLabel(pub MqStr<64>);
 impl_from_str!(CertificateLabel, MqStr<64>);
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use crate::types::CorrelationId;
 

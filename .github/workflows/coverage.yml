@@ -20,15 +20,18 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
-      - uses: taiki-e/install-action@nextest
-      - uses: taiki-e/install-action@cargo-llvm-cov
+          toolchain: nightly
+      - uses: taiki-e/install-action@v2.47.7
+        with:
+          tool: nextest, cargo-llvm-cov
       - uses: Swatinem/rust-cache@v2
       - name: Generate code coverage
         run: |

@@ -185,6 +185,7 @@ mod impl_put {
 
 #[cfg(test)]
 #[cfg(feature = "mock")]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use std::error::Error;
 
