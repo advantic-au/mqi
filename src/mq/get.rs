@@ -115,7 +115,7 @@ pub trait GetAttr<'b> {
 }
 
 pub trait GetBagAttr {
-    fn extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<Self>
+    fn get_bag_extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<()>,
         Self: Sized;
@@ -169,15 +169,6 @@ pub trait GetValue<'b>: std::marker::Sized {
     }
 }
 
-impl GetBagAttr for () {
-    fn extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<Self>
-    where
-        F: FnOnce(&mut GetParam) -> ResultComp<()>,
-    {
-        mqi(param) // No extra data to retrieve
-    }
-}
-
 /// A trait that manipulates the parameters to the [`mqget`](`crate::core::MqFunctions::mqget`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get")]
 pub trait GetOption {
@@ -212,7 +203,7 @@ mod mqai {
 
             options.apply_param(&mut param);
 
-            let result = R::extract(&mut param, |param| {
+            let result = R::get_bag_extract(&mut param, |param| {
                 let connection = self.connection();
                 let mqi_get_bag = connection.mq().mq_get_bag(
                     connection.handle(),
