@@ -20,6 +20,7 @@ pub trait PutMessage {
 }
 
 /// A trait that provides a bag handle and message format for the [`mq_put_bag`](`crate::core::MqFunctions::mq_put_bag`) function
+#[cfg(feature = "mqai")]
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutBag` so it can't be used as a bag for MQI mq_put_bag")]
 pub trait PutBag {
     fn bag(&self) -> &crate::core::mqai::BagHandle;
