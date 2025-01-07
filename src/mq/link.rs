@@ -29,7 +29,7 @@ where
 /// use mqi::{ThreadNone, connect_options::Credentials};
 ///
 /// // Connect to the default queue manager with the provided credentials
-/// let connection = mqi::connect::<ThreadNone>(Credentials::user("app", "app"))?;
+/// let connection = mqi::connect::<ThreadNone>(&Credentials::user("app", "app"))?;
 ///
 /// // connection is wrapped in a Completion. Discard the completion with a `discard_warning`
 /// let connection = connection.discard_warning();
