@@ -5,8 +5,8 @@ mqi
 [![Documentation](https://docs.rs/mqi/badge.svg)](https://docs.rs/mqi)
 ![License](https://img.shields.io/crates/l/mqi.svg)
 [![Codecov](https://img.shields.io/codecov/c/github/advantic-au/mqi)](https://app.codecov.io/gh/advantic-au/mqi)
-![Continuous Integration](https://github.com/advantic-au/mqi/actions/workflows/ci.yml/badge.svg)
-![MIRI](https://github.com/advantic-au/mqi/actions/workflows/miri.yml/badge.svg)
+[![Continuous Integration](https://github.com/advantic-au/mqi/actions/workflows/ci.yml/badge.svg)](https://github.com/advantic-au/mqi/actions/workflows/ci.yml?query=branch%3Adevelop+event%3Apush)
+[![MIRI](https://github.com/advantic-au/mqi/actions/workflows/miri.yml/badge.svg)](https://github.com/advantic-au/mqi/actions/workflows/miri.yml?query=branch%3Adevelop+event%3Apush)
 
 Idiomatic Rust API's to the IBM® MQ Interface (MQI) and MQ Administration Interface (MQAI).
 
