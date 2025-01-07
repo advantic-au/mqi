@@ -20,7 +20,7 @@ const fn inqreq_long(mqca: sys::MQLONG) -> AttributeType {
 }
 
 // All MQIA_* and MQCA_* constants (excluding MQCA_NAMES) supported by MQINQ as documented at
-// https://www.ibm.com/docs/en/ibm-mq/9.4?topic=calls-mqinq-inquire-object-attributes
+// https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-mqinq-inquire-object-attributes
 
 // MQIA constants
 pub const MQIA_ACCOUNTING_CONN_OVERRIDE: AttributeType = inqreq_long(sys::MQIA_ACCOUNTING_CONN_OVERRIDE);
@@ -193,6 +193,6 @@ pub const MQCA_USER_DATA: AttributeType = inqreq_str(sys::MQCA_USER_DATA, sys::M
 pub const MQCA_XMIT_Q_NAME: AttributeType = inqreq_str(sys::MQCA_XMIT_Q_NAME, sys::MQ_Q_NAME_LENGTH);
 
 // TODO: Add some further constants supported as per
-// https://www.ibm.com/docs/en/ibm-mq/9.4?topic=formats-mqcmd-inquire-q-inquire-queue
-// https://www.ibm.com/docs/en/ibm-mq/9.4?topic=formats-mqcmd-inquire-q-mgr-inquire-queue-manager
+// https://www.ibm.com/docs/en/ibm-mq/latest?topic=formats-mqcmd-inquire-q-inquire-queue
+// https://www.ibm.com/docs/en/ibm-mq/latest?topic=formats-mqcmd-inquire-q-mgr-inquire-queue-manager
 // ..etc
