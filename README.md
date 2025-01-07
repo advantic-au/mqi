@@ -4,9 +4,8 @@ mqi
 [![Latest version](https://img.shields.io/crates/v/mqi.svg)](https://crates.io/crates/mqi)
 [![Documentation](https://docs.rs/mqi/badge.svg)](https://docs.rs/mqi)
 ![License](https://img.shields.io/crates/l/mqi.svg)
-[![Codecov](https://img.shields.io/codecov/c/github/advantic-au/mqi)](https://app.codecov.io/gh/advantic-au/mqi)
+[![codecov](https://codecov.io/gh/advantic-au/mqi/graph/badge.svg?token=KP8423VRNZ)](https://codecov.io/gh/advantic-au/mqi)
 [![Continuous Integration](https://github.com/advantic-au/mqi/actions/workflows/ci.yml/badge.svg)](https://github.com/advantic-au/mqi/actions/workflows/ci.yml?query=branch%3Adevelop+event%3Apush)
-[![MIRI](https://github.com/advantic-au/mqi/actions/workflows/miri.yml/badge.svg)](https://github.com/advantic-au/mqi/actions/workflows/miri.yml?query=branch%3Adevelop+event%3Apush)
 
 Introduction
 ------------
