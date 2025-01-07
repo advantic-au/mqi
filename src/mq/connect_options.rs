@@ -1,11 +1,12 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 #![allow(non_snake_case)]
 
-use std::{any, ptr};
+use std::any;
 
 use libmqm_default as default;
 
 use crate::{
+    conversion,
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
     sys, values, MqStr,
@@ -62,10 +63,9 @@ pub trait ConnectOption<'a> {
     ///
     /// Returns a mask indicating which structures are used by the type.
     #[inline]
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'a: 'ptr,
-        Self: std::marker::Sized,
     {
         HAS_CNO
     }
@@ -141,31 +141,16 @@ mod connect_impl {
     all_multi_tuples!(impl_connectattr_tuple);
 }
 
-// Accept a reference to a `ConnectOption`
-impl<'a, T: ConnectOption<'a> + Copy> ConnectOption<'a> for &T {
-    #[inline]
-    fn queue_manager_name(&self) -> Option<&QueueManagerName> {
-        T::queue_manager_name(self)
-    }
-
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
-    where
-        'a: 'ptr,
-    {
-        T::apply_param(*self, structs)
-    }
-}
-
 impl<'a, O: ConnectOption<'a>> ConnectOption<'a> for Option<O> {
     fn queue_manager_name(&self) -> Option<&QueueManagerName> {
         self.as_ref().and_then(|o| o.queue_manager_name())
     }
 
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'a: 'ptr,
     {
-        self.map_or(0, |o| o.apply_param(structs))
+        self.as_ref().map_or(0, |o| o.apply_param(structs))
     }
 }
 
@@ -235,15 +220,19 @@ impl<'m> TryFrom<&'m str> for MqServer<'m> {
 }
 
 impl<'m> ConnectOption<'m> for MqServer<'m> {
-    fn apply_param<'ptr>(self, ConnectStructs { cno, cd, .. }: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, ConnectStructs { cno, cd, .. }: &mut ConnectStructs<'ptr>) -> i32
     where
         'm: 'ptr,
     {
-        cd.ChannelName = [32; 20];
-        cd.ChannelName[..self.channel_name.len()].copy_from_slice(unsafe { &*(ptr::from_ref(self.channel_name) as *const [i8]) });
-        cd.ConnectionName = [32; 264];
-        cd.ConnectionName[..self.connection_name.len()]
-            .copy_from_slice(unsafe { &*(ptr::from_ref(self.connection_name) as *const [i8]) });
+        assert!(MqStr::assign(
+            cd.ChannelName.as_mut(),
+            conversion::slice_byte_to_mqchar(self.channel_name.as_bytes())
+        ));
+
+        assert!(MqStr::assign(
+            cd.ConnectionName.as_mut(),
+            conversion::slice_byte_to_mqchar(self.connection_name.as_bytes())
+        ));
         cd.TransportType = self.transport.value();
         cno.Options &= !sys::MQCNO_LOCAL_BINDING;
         cno.Options |= sys::MQCNO_CLIENT_BINDING;
@@ -264,7 +253,7 @@ pub enum Binding {
 }
 
 impl ConnectOption<'_> for Binding {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'static: 'ptr,
     {
@@ -363,8 +352,8 @@ impl<'pw> Tls<'pw> {
 
     pub fn crypto_hardware(&mut self, hardware: Option<&CryptoHardware>) -> &mut Self {
         match hardware {
-            Some(ch) => ch.copy_into_mqchar(&mut self.0.CryptoHardware),
-            None => CryptoHardware::default().copy_into_mqchar(&mut self.0.CryptoHardware),
+            Some(ch) => ch.as_mqchar().clone_into(&mut self.0.CryptoHardware),
+            None => MqStr::empty().as_mqchar().clone_into(&mut self.0.CryptoHardware),
         }
         self
     }
@@ -372,8 +361,8 @@ impl<'pw> Tls<'pw> {
     pub fn certificate_label(&mut self, label: Option<&CertificateLabel>) -> &mut Self {
         self.0.set_min_version(sys::MQSCO_VERSION_5);
         match label {
-            Some(cl) => cl.copy_into_mqchar(&mut self.0.CertificateLabel),
-            None => CertificateLabel::default().copy_into_mqchar(&mut self.0.CertificateLabel),
+            Some(cl) => cl.as_mqchar().clone_into(&mut self.0.CertificateLabel),
+            None => MqStr::empty().as_mqchar().clone_into(&mut self.0.CertificateLabel),
         }
         self
     }
@@ -413,24 +402,24 @@ impl<'pw> Tls<'pw> {
     }
 
     pub fn key_repo(&mut self, repo: &KeyRepo) -> &mut Self {
-        repo.copy_into_mqchar(&mut self.0.KeyRepository);
+        repo.as_mqchar().clone_into(&mut self.0.KeyRepository);
         self
     }
 }
 
 impl ConnectOption<'_> for CipherSpec {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'static: 'ptr,
     {
         structs.cd.set_min_version(sys::MQCD_VERSION_7);
-        self.copy_into_mqchar(&mut structs.cd.SSLCipherSpec);
+        self.as_mqchar().clone_into(&mut structs.cd.SSLCipherSpec);
         HAS_CD
     }
 }
 
 impl<'tls> ConnectOption<'tls> for Tls<'tls> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'tls: 'ptr,
     {
@@ -466,7 +455,7 @@ impl<T> From<T> for ProtectedSecret<T> {
 }
 
 impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'cred, S> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'cred: 'ptr,
     {
@@ -509,7 +498,7 @@ impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'c
 }
 
 impl ConnectOption<'_> for values::MQCNO {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'static: 'ptr,
     {
@@ -521,20 +510,15 @@ impl ConnectOption<'_> for values::MQCNO {
 impl ConnectOption<'_> for () {}
 
 macro_rules! impl_connectoptions {
-    ([$first:ident, $($ty:ident),*]) => {
+    ([$($ty:ident),*]) => {
         // reverse_ident macro is used to ensure right to left application of options
         #[allow(non_snake_case,unused_variables)]
-        impl<'r, $first $(, $ty)*> ConnectOption<'r> for ($first $(, $ty)*)
+        impl<'r, $($ty),*> ConnectOption<'r> for ($($ty),*)
         where
-            $first: ConnectOption<'r>,
             $($ty: ConnectOption<'r>),*
         {
             fn queue_manager_name(&self) -> Option<&QueueManagerName> {
-                let ( $first, $($ty),*) = self;
-                if let name @ Some(_) = $first.queue_manager_name() {
-                    return name;
-                }
-
+                let ($($ty),*) = self;
                 $(
                     if let name @ Some(_) = $ty.queue_manager_name() {
                         return name;
@@ -545,12 +529,12 @@ macro_rules! impl_connectoptions {
             }
 
             #[inline]
-            fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+            fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
             where
                 'r: 'ptr,
             {
-                let reverse_ident!($first, $($ty),*) = self; // first is last, last is first
-                $first.apply_param(structs) | $($ty.apply_param(structs))|*
+                let reverse_ident!($($ty),*) = self; // first is last, last is first
+                $($ty.apply_param(structs))|*
             }
         }
     }
@@ -559,18 +543,18 @@ macro_rules! impl_connectoptions {
 all_multi_tuples!(impl_connectoptions);
 
 impl ConnectOption<'_> for ApplName {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'static: 'ptr,
     {
         structs.cno.set_min_version(sys::MQCNO_VERSION_7);
-        self.0.copy_into_mqchar(&mut structs.cno.ApplName);
+        self.0.as_mqchar().clone_into(&mut structs.cno.ApplName);
         HAS_CNO
     }
 }
 
 impl<'url> ConnectOption<'url> for Ccdt<'url> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'url: 'ptr,
     {
@@ -584,7 +568,7 @@ impl<'url> ConnectOption<'url> for Ccdt<'url> {
 
 #[cfg(feature = "mqc_9_3_0_0")]
 impl<'bno> ConnectOption<'bno> for MqStruct<'bno, sys::MQBNO> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'bno: 'ptr,
     {
@@ -595,7 +579,7 @@ impl<'bno> ConnectOption<'bno> for MqStruct<'bno, sys::MQBNO> {
 }
 
 impl<'csp> ConnectOption<'csp> for MqStruct<'csp, sys::MQCSP> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'csp: 'ptr,
     {
@@ -606,7 +590,7 @@ impl<'csp> ConnectOption<'csp> for MqStruct<'csp, sys::MQCSP> {
 }
 
 impl<'sco> ConnectOption<'sco> for MqStruct<'sco, sys::MQSCO> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'sco: 'ptr,
     {
@@ -617,7 +601,7 @@ impl<'sco> ConnectOption<'sco> for MqStruct<'sco, sys::MQSCO> {
 }
 
 impl<'cd> ConnectOption<'cd> for MqStruct<'cd, sys::MQCD> {
-    fn apply_param<'ptr>(self, structs: &mut ConnectStructs<'ptr>) -> i32
+    fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'cd: 'ptr,
     {
@@ -698,6 +682,7 @@ pub enum MqServerSyntaxError {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 

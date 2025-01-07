@@ -12,7 +12,7 @@ use crate::{
 /// Create a [`Connection`] to a queue manager using the compile time linked MQ library
 /// and type inferred [`ConnectValue`].
 #[inline]
-pub fn connect_as<'co, R, H>(options: impl ConnectOption<'co>) -> ResultComp<R>
+pub fn connect_as<'co, R, H>(options: &impl ConnectOption<'co>) -> ResultComp<R>
 where
     R: ConnectValue<Connection<LinkedMq, H>>,
     H: Threading,
@@ -38,7 +38,7 @@ where
 /// ```
 ///
 #[inline]
-pub fn connect<'co, H>(options: impl ConnectOption<'co>) -> ResultComp<Connection<LinkedMq, H>>
+pub fn connect<'co, H>(options: &impl ConnectOption<'co>) -> ResultComp<Connection<LinkedMq, H>>
 where
     H: Threading,
 {
@@ -48,7 +48,7 @@ where
 /// Create and return a [`Connection`] and a type inferred [`ConnectAttr`] in tuple
 /// using the compile time linked MQ library.
 #[inline]
-pub fn connect_with<'co, A, H>(options: impl ConnectOption<'co>) -> ResultComp<(Connection<LinkedMq, H>, A)>
+pub fn connect_with<'co, A, H>(options: &impl ConnectOption<'co>) -> ResultComp<(Connection<LinkedMq, H>, A)>
 where
     A: ConnectAttr<Connection<LinkedMq, H>>,
     H: Threading,

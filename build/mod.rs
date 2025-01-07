@@ -7,8 +7,9 @@ mod constants {
 }
 
 #[expect(clippy::allow_attributes)]
+#[allow(clippy::unnecessary_wraps, reason = "when no features are enabled")]
 fn main() -> Result<(), io::Error> {
-    #[allow(unused_variables, reason = "Triggers when constantgen and pregen are not enabled")]
+    #[allow(unused_variables, reason = "when constantgen and pregen are not enabled")]
     let path = std::path::Path::new(&env::var("OUT_DIR").expect("OUT_DIR is mandatory for builds")).join("mqconstants.rs");
     #[cfg(feature = "constantgen")]
     constants::generate::generate(&path)?;

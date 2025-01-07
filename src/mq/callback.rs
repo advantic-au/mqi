@@ -14,8 +14,13 @@ struct CallbackData<F, L> {
     mq: MqFunctions<L>,
 }
 
-fn event_callback<L, H, F>(hconn: sys::MQHCONN, _: sys::PMQVOID, _: sys::PMQVOID, _: sys::PMQVOID, cbc: *const sys::MQCBC)
-where
+extern "C" fn event_callback<L, H, F>(
+    hconn: sys::MQHCONN,
+    _: sys::PMQVOID,
+    _: sys::PMQVOID,
+    _: sys::PMQVOID,
+    cbc: *const sys::MQCBC,
+) where
     L: Library<MQ: Mqi> + Clone,
     F: FnMut(ConnectionRef<L, H>, &MqStruct<sys::MQCBC>),
 {

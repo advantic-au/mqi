@@ -8,9 +8,11 @@ define_mqvalue!(pub MQAT, mapping::MQAT_CONST, "Put Application Types");
 define_mqvalue!(pub MQCMD, mapping::MQCMD_CONST, "Command Codes");
 impl_default_mqvalue!(MQCMD, sys::MQCMD_NONE);
 define_mqvalue!(pub MQCFOP, mapping::MQCFOP_CONST, "Command format Filter Operators");
-define_mqvalue!(pub MqaiSelector, MqaiSelectorLookup, "Selectors including MQIA, MQCA, MQIACF, MQCACF, MQIACH, MQCACH, QIASY and MQHA");
+define_mqvalue!(pub MqaiSelector, MqaiSelectorLookup, "Selectors including `MQIA`, `MQCA`, `MQIACF`, `MQCACF`, `MQIACH`, `MQCACH`, `QIASY` and `MQHA`");
 impl_default_mqvalue!(MQIND, sys::MQIND_NONE);
 define_mqmask!(pub MQCBO, mapping::MQCBO_CONST, "Create-Bag options mask for `mqCreateBag`");
+define_mqvalue!(pub MQITEM, mapping::MQITEM_CONST, "Item Type for `mqInquireItemInfo`");
+
 /*
 
 MQAI selector constant lookup is complex... thanks to this - no less than 8 different constant sets.

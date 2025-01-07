@@ -100,16 +100,16 @@ fn main() -> anyhow::Result<()> {
     let msg_fmt = MessageFormat {
         ccsid: CCSID(1208),
         encoding: MQENC::default(),
-        fmt: TextEnc::Ascii(*fmt.as_bytes()),
+        fmt: TextEnc::Ascii(*fmt.as_mqchar()),
     };
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = mqi::connect::<ThreadNone>((APP_NAME, qm_name, creds, cno, client_method))
+    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, qm_name, creds, cno, client_method))
         .warn_as_error()
         .context("Unable to connect to the queue manager")?;
 
     // Open the queue or topic with MQOO_OUTPUT option
-    let object = Object::open(qm, (target_queue, target_qm, target_topic, oo))
+    let object = Object::open(qm, &(target_queue, target_qm, target_topic, oo))
         .warn_as_error()
         .context("Unable to open the object")?;
 
@@ -120,7 +120,7 @@ fn main() -> anyhow::Result<()> {
 
     // Put a message to the object from the data from stdin
     object
-        .put_message(pmo, &(message, msg_fmt))
+        .put_message(&pmo, &(message, msg_fmt))
         .warn_as_error()
         .context("Unable to put the message")?;
 

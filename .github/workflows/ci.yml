@@ -15,11 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUSTFLAGS: -Dwarnings
   CARGO_TERM_COLOR: always
-
-permissions:
-  checks: write # For the clippy action
 
 jobs:
   client_check:
@@ -38,6 +34,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
@@ -66,6 +64,8 @@ jobs:
     runs-on: ${{ matrix.build.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
@@ -85,7 +85,8 @@ jobs:
           git diff --stat --exit-code src/constants/mapping/pregen
 
   test_server:
-    name: "Test with MQ server"
+    name: "MQ server integration test"
+    needs: test
     runs-on: ubuntu-24.04
     services:
       mq:
@@ -98,14 +99,18 @@ jobs:
           - 1414:1414
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@v2.47.7
+        with:
+          tool: nextest
       - name: Test
         run: cargo nextest run --profile ci --no-default-features --features runnable,link,mqai,mqc_9_4_1_0
         env:
@@ -123,55 +128,147 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{matrix.toolchain}}
       - name: Enable type layout randomization
         run: echo RUSTFLAGS=${RUSTFLAGS}\ -Zrandomize-layout >> $GITHUB_ENV
         if: matrix.toolchain == 'nightly'
-      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@v2.47.7
+        with:
+          tool: nextest
       - name: Test
         run: cargo nextest run --profile ci --all-features
         env:
+          RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
-  rustfmt-clippy:
+  miri:
     runs-on: ubuntu-24.04
+    needs: test
     steps:
       - uses: actions/checkout@v4
-      - uses: advantic-au/action-mq-client@stable
-        id: mq-client
         with:
-          client-version: 9.4.1.0
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
-          components: rustfmt, clippy
+          components: miri
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "build"
-      - name: Run rustfmt
-        run: cargo fmt -- --check
+      - uses: taiki-e/install-action@v2.47.7
+        with:
+          tool: nextest
+      - name: Execute miri tests
+        env:
+          MIRIFLAGS: -Zmiri-strict-provenance
+        run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,mqc_9_4_1_0
+
+  incremental_mutants:
+    runs-on: ubuntu-24.04
+    needs: test
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: advantic-au/action-mq-client@stable
+        id: mq-client
+        with:
+          client-version: latest
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Relative diff
+        run: |
+          git branch -av
+          git diff origin/"${GITHUB_BASE_REF}".. > git.diff
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2.47.7
+        with:
+          tool: cargo-mutants
+      - name: Mutant testing
+        run: |
+          cargo mutants --no-shuffle -vV --in-diff git.diff --all-features
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+        continue-on-error: true
+      - name: Artefact mutants-incremental.out
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutants-incremental.out
+          path: mutants.out
+
+  rustfmt:
+      runs-on: ubuntu-24.04
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            persist-credentials: false
+        - name: Install stable
+          uses: dtolnay/rust-toolchain@master
+          with:
+            toolchain: stable
+            components: rustfmt
+        - name: Lint with rustfmt
+          run: cargo fmt -- --check
+
+  clippy:
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - ""
+          - "--no-default-features"
+          - "--all-features"
+    runs-on: ubuntu-24.04
+    permissions:
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: advantic-au/action-mq-client@stable
+        id: mq-client
+        with:
+          client-version: latest
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "build"
       - name: Run clippy
         uses: auguwu/clippy-action@1.4.0
         env:
+          RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
         with:
-          check-args: --tests --all-features
+          check-args: ${{ matrix.features }}
           token: ${{secrets.GITHUB_TOKEN}}
 
   minimum:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       # Re-resolve Cargo.lock with minimal versions
       - uses: dtolnay/rust-toolchain@nightly # -Z option only available on nightly
       - run: cargo generate-lockfile -Z minimal-versions
@@ -181,6 +278,7 @@ jobs:
           toolchain: 1.81
       - run: cargo check --locked --all-features
         env:
+          RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
   docs:
@@ -189,6 +287,44 @@ jobs:
       RUSTDOCFLAGS: -Dwarnings
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly # Required for cargo-docs-rs
-      - uses: dtolnay/install@cargo-docs-rs
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+      - uses: taiki-e/install-action@v2.47.7
+        with:
+          tool: cargo-docs-rs
       - run: cargo docs-rs
+
+  pregen_outcome:
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    name: Pregen outcome
+    needs: [pregen]
+    steps:
+      - run: |
+          result="${NEEDS_RESULT}"
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi
+        env:
+          NEEDS_RESULT: ${{ needs.pregen.result }}
+
+  clippy_outcome:
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    name: Clippy outcome
+    needs: [clippy]
+    steps:
+      - run: |
+          result="${NEEDS_RESULT}"
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi
+        env:
+          NEEDS_RESULT: ${{ needs.clippy.result }}

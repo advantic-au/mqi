@@ -1,10 +1,22 @@
 use libmqm_sys::lib as mqsys;
 use std::str;
 
-pub type MqCStrFn = unsafe extern "C" fn(mqsys::MQLONG) -> *mut std::os::raw::c_char;
+pub type MqCStrFnExtern = unsafe extern "C" fn(mqsys::MQLONG) -> *mut std::os::raw::c_char;
+pub type MqCStrFn = Box<dyn Fn(mqsys::MQLONG) -> &'static std::ffi::CStr>;
+pub type ConstantEntry<'a> = (&'a str /* name */, MqCStrFnExtern /* MQI _STR function */);
 
-pub type ConstantEntry<'a> = (&'a str /* name */, MqCStrFn /* MQI _STR function */);
+fn as_cstr_fn(extern_fn: MqCStrFnExtern) -> MqCStrFn {
+    Box::from(move |value| unsafe { std::ffi::CStr::from_ptr(extern_fn(value)) })
+}
 
+pub fn all_constants() -> impl std::iter::Iterator<Item = (&'static str, Box<dyn Fn(mqsys::MQLONG) -> &'static std::ffi::CStr>)> {
+    CONSTANTS
+        .iter()
+        .copied()
+        .map(|(prefix, extern_fn)| (prefix, as_cstr_fn(extern_fn)))
+}
+
+pub const PREFIX_CONSTANTS: &[&str] = &["MQITEM_", "MQFIELD_WQR_"];
 pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQACTIVE_", mqsys::MQACTIVE_STR),
     ("MQACTP_", mqsys::MQACTP_STR),

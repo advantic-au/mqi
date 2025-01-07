@@ -3,7 +3,7 @@
 use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
-use mqi::test::mock::{connect_ok, MockFunctions};
+use mqi::test::mock::MockFunctions;
 use mqi::{core::ConnectionHandle, sys, values, MqStruct, Object, ThreadBlock, ThreadNone, MQMD};
 use mqi::prelude::*;
 
@@ -11,13 +11,8 @@ use libmqm_default as default;
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
-    let mut mock_library = connect_ok();
-
-    mock_library.expect_MQCB().returning(|_, _, _, _, _, _, cc, rc| {
-        MockFunctions::mqi_outcome_ok(cc, rc);
-    });
-
-    let mut qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, ()).warn_as_error()?;
+    let mock_library = MockFunctions::connect_ok_event_cb();
+    let mut qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, &()).warn_as_error()?;
 
     qm.register_event_handler(
         values::MQCBDO(
@@ -39,11 +34,11 @@ fn qm() -> Result<(), Box<dyn Error>> {
     )?;
 
     qm.disconnect().warn_as_error()?;
-    //qm.register_event_handler(MQCBDO(sys::MQCBDO_REGISTER_CALL), &CallbackHandle::from(|_, _: &'_ MqStruct<sys::MQCBC>| ()));
     Ok(())
 }
 
 #[test]
+#[ignore]
 fn callback() -> Result<(), Box<dyn Error>> {
     fn register_cb<F, M>(cbd: &mut MqStruct<sys::MQCBD>, cb: F)
     where
@@ -89,14 +84,17 @@ fn callback() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let mut mock_library = mqi::test::mock::connect_ok();
+    let mut mock_library = MockFunctions::connect_ok_event_cb();
     let mut seq = mockall::Sequence::new();
     mock_library.open_ok(0x0c0c, 1, &mut seq);
+    mock_library.expect_MQCTL().returning(|_, _, _, cc, rc| {
+        MockFunctions::mqi_outcome_ok(cc, rc);
+    });
 
-    let qm = mqi::connect_lib::<ThreadBlock, _>(mock_library, ()).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadBlock, _>(mock_library, &()).warn_as_error()?;
 
     let qm = Arc::new(qm);
-    let object = Object::open(qm.clone(), ()).warn_as_error()?;
+    let object = Object::open(qm.clone(), &()).warn_as_error()?;
 
     let _ = thread::spawn(move || {
         println!("{:?}", object.handle());

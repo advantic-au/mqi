@@ -27,8 +27,8 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         .add(values::MqaiSelector(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
         .discard_warning();
 
-    let qm = mqi::connect_lib::<ThreadNone, _>(&mq_lib, ()).warn_as_error()?;
-    let execute_result = qm.execute(&admin_bag, values::MQCMD(sys::MQCMD_INQUIRE_Q)).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(&mq_lib, &()).warn_as_error()?;
+    let execute_result = qm.execute(&admin_bag, &values::MQCMD(sys::MQCMD_INQUIRE_Q)).warn_as_error()?;
 
     for bag in execute_result
         .try_bag_iter(values::MqaiSelector(sys::MQHA_BAG_HANDLE))?
