@@ -4,17 +4,22 @@ mqi
 [![Latest version](https://img.shields.io/crates/v/mqi.svg)](https://crates.io/crates/mqi)
 [![Documentation](https://docs.rs/mqi/badge.svg)](https://docs.rs/mqi)
 ![License](https://img.shields.io/crates/l/mqi.svg)
+[![codecov](https://codecov.io/gh/advantic-au/mqi/graph/badge.svg?token=KP8423VRNZ)](https://codecov.io/gh/advantic-au/mqi)
+[![Continuous Integration](https://github.com/advantic-au/mqi/actions/workflows/ci.yml/badge.svg)](https://github.com/advantic-au/mqi/actions/workflows/ci.yml?query=branch%3Adevelop+event%3Apush)
 
-Idiomatic Rust API's to the IBM® MQ Interface (MQI) and MQ Administration Interface (MQAI).
+Introduction
+------------
 
-You can use `mqi` to:
+The `mqi` crate provides idiomatic Rust APIs for the IBM® MQ Interface (MQI) and MQ Administration Interface (MQAI). IBM MQ is an enterprise-grade message queuing system that enables reliable, secure, and asynchronous data exchange between applications, systems, and services.
 
-- Connect to an IBM MQ server to send and receive MQ messages through the MQI functions
-- Administer IBM MQ server through the MQAI functions
+This crate enables Rust developers to interact with IBM MQ servers, leveraging the powerful and stable IBM MQ libraries.
 
-This crate uses the [libmqm-sys](https://crates.io/crates/libmqm-sys) crate for
-connectivity to MQ queue managers. The underlying connection uses the IBM supplied MQ libraries,
-offering proven stability and performance.
+Key Features
+------------
+
+- **MQI Integration**: Connect to IBM MQ servers to send and receive messages synchronously using robust MQI functions.
+- **MQAI Administration**: Administer IBM MQ servers through the comprehensive MQAI functions.
+- **Stability**: Built on the [libmqm-sys](https://crates.io/crates/libmqm-sys) crate, ensuring reliable connectivity to MQ queue managers using the IBM-supplied libraries.
 
 Usage
 -----
@@ -26,17 +31,16 @@ Usage
 
 3. Set the MQ_HOME environment variable to the installed location.
 
-4. Add the following to your `Cargo.toml`
+4. Add the `mqi` crate to your project:
 
-    ```toml
-    [dependencies]
-    mqi = "0.1.0"
+    ```sh
+    cargo add mqi
     ```
 
 Example
 -------
 
-Connect to the default queue manager using the MQSERVER environment variable.
+Connect to the default queue manager using the `MQSERVER` environment variable.
 
 ```rust
 use std::error::Error;
@@ -67,7 +71,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
-Refer to the [examples](/examples/) folder for additional examples.
+Refer to the [examples](/examples/) folder for comprehensive examples that cover reading and putting messages to a queue, using transactions and working with topics.
 
 Goals
 -----
@@ -75,27 +79,34 @@ Goals
 - Expose an ergonomic API over the IBM MQI libraries.
 - Become the preferred API for developing MQ applications where performance and safety
   is the primary concern.
-- Provide a simple layer over MQ to connect, send and receive MQ messages,
+- Provide a simple and comprehensive layer over IBM MQ to connect, send and receive MQ messages,
   whilst still allowing developers to tweak the advanced options that the MQI
   library provides.
-- Use Rust features such as lifetimes, safety guarantees, strong type system and
+- Utilise Rust features such as lifetimes, safety guarantees, strong type system and
   invariants for a robust API.
 
 Feature flags
 -------------
 
-| Feature        | Description |
-|----------------|-------------|
-| link (default) | Support linking the MQ library at compile-time |
-| tracing        | Add tracing to the MQI and MQAI calls using the tracing crate |
-| mqmgen         | Ensure the dependent MQM bindings are refreshed from the C library |
-| dlopen2        | Support loading the MQ library at run-time using [`dlopen2`](https://crates.io/crates/dlopen2) |
-| mqai           | Expose the MQAI functions |
+| Feature        | Default | Description |
+|----------------|---------|-------------|
+| link           | ✔ | Support linking the MQ library at compile-time |
+| tracing        |   | Add tracing to the MQI and MQAI calls using the tracing crate |
+| mqmgen         | ✔ | Ensure the dependent MQM bindings are refreshed from the C library |
+| dlopen2        |   | Support loading the MQ library at run-time using [`dlopen2`](https://crates.io/crates/dlopen2) |
+| mqai           |   | Expose the MQAI functions |
+| mqc_*          | mqc_9_2_0_0 | Enable features of a specific MQI library version eg `mqc_9_4_1_0` |
+
+Version Compatibility
+---------------------
+
+- The current MSRV is 1.81. No MSRV policy has been established.
+- IBM MQ client support is in line with IBM's support for MQ client. This crate supports IBM MQ client 9.2 to 9.4. Version specific features can be enabled using the `mqc_*` feature flags.
 
 Status
 ------
 
-This is under heavy development. The velocity of change to the API is high and is likely to evolve.
+This library is under heavy development. The velocity of change to the API is high and is likely to evolve. See the [progress page](PROGRESS.md) for the progress on the list of MQI functions exposed.
 
 Support
 -------

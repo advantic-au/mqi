@@ -144,7 +144,9 @@ jobs:
         with:
           tool: nextest
       - name: Test
-        run: cargo nextest run --profile ci --all-features
+        run: |
+          cargo nextest run --profile ci --all-features
+          cargo test --all-features --doc
         env:
           RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
