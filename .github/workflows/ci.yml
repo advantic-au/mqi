@@ -15,7 +15,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUSTFLAGS: -Dwarnings
   CARGO_TERM_COLOR: always
 
 permissions:
@@ -137,7 +136,62 @@ jobs:
       - name: Test
         run: cargo nextest run --profile ci --all-features
         env:
+          RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+
+  miri:
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: miri
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "build"
+      - uses: taiki-e/install-action@nextest
+      - name: Execute miri tests
+        env:
+          MIRIFLAGS: -Zmiri-strict-provenance
+        run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,mqc_9_4_1_0
+
+  incremental_mutants:
+    runs-on: ubuntu-24.04
+    needs: test
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: advantic-au/action-mq-client@stable
+        id: mq-client
+        with:
+          client-version: 9.4.1.0
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Relative diff
+        run: |
+          git branch -av
+          git diff origin/${{ github.base_ref }}.. > git.diff
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants
+      - name: Mutant testing
+        run: |
+          cargo mutants --no-shuffle -vV --in-diff git.diff --all-features
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+        continue-on-error: true
+      - name: Artefact mutants-incremental.out
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutants-incremental.out
+          path: mutants.out
 
   rustfmt-clippy:
     runs-on: ubuntu-24.04
@@ -159,6 +213,7 @@ jobs:
       - name: Run clippy
         uses: auguwu/clippy-action@1.4.0
         env:
+          RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
         with:
           check-args: --tests --all-features
@@ -181,6 +236,7 @@ jobs:
           toolchain: 1.81
       - run: cargo check --locked --all-features
         env:
+          RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
   docs:
