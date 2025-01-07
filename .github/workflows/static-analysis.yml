@@ -22,7 +22,7 @@ jobs:
         with:
           toolchain: stable
       - name: Install zizmor
-        uses: taiki-e/install-action@e523301c9af289ba196edd3ab08abdece06107d2 # v2.46.9
+        uses: taiki-e/install-action@v2.47.7
         with:
           tool: zizmor
       - name: zizmor static analysis check

@@ -17,9 +17,6 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 
-permissions:
-  checks: write # For the clippy action
-
 jobs:
   client_check:
     strategy:
@@ -37,6 +34,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
@@ -65,6 +64,8 @@ jobs:
     runs-on: ${{ matrix.build.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
@@ -84,7 +85,8 @@ jobs:
           git diff --stat --exit-code src/constants/mapping/pregen
 
   test_server:
-    name: "Test with MQ server"
+    name: "MQ server integration test"
+    needs: test
     runs-on: ubuntu-24.04
     services:
       mq:
@@ -97,6 +99,8 @@ jobs:
           - 1414:1414
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
@@ -104,7 +108,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@v2.47.7
+        with:
+          tool: nextest
       - name: Test
         run: cargo nextest run --profile ci --no-default-features --features runnable,link,mqai,mqc_9_4_1_0
         env:
@@ -122,6 +128,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
@@ -132,7 +140,9 @@ jobs:
       - name: Enable type layout randomization
         run: echo RUSTFLAGS=${RUSTFLAGS}\ -Zrandomize-layout >> $GITHUB_ENV
         if: matrix.toolchain == 'nightly'
-      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@v2.47.7
+        with:
+          tool: nextest
       - name: Test
         run: cargo nextest run --profile ci --all-features
         env:
@@ -144,6 +154,8 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
@@ -151,7 +163,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "build"
-      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@v2.47.7
+        with:
+          tool: nextest
       - name: Execute miri tests
         env:
           MIRIFLAGS: -Zmiri-strict-provenance
@@ -164,6 +178,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: 0
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
@@ -175,9 +190,11 @@ jobs:
       - name: Relative diff
         run: |
           git branch -av
-          git diff origin/${{ github.base_ref }}.. > git.diff
+          git diff origin/"${GITHUB_BASE_REF}".. > git.diff
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.47.7
         with:
           tool: cargo-mutants
       - name: Mutant testing
@@ -216,8 +233,12 @@ jobs:
           - "--no-default-features"
           - "--all-features"
     runs-on: ubuntu-24.04
+    permissions:
+      checks: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
@@ -235,13 +256,15 @@ jobs:
           RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
         with:
-          args: ${{ matrix.features }}
+          check-args: ${{ matrix.features }}
           token: ${{secrets.GITHUB_TOKEN}}
 
   minimum:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
@@ -264,6 +287,12 @@ jobs:
       RUSTDOCFLAGS: -Dwarnings
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly # Required for cargo-docs-rs
-      - uses: dtolnay/install@cargo-docs-rs
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+      - uses: taiki-e/install-action@v2.47.7
+        with:
+          tool: cargo-docs-rs
       - run: cargo docs-rs
