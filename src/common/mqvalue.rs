@@ -92,6 +92,7 @@ pub(crate) fn value_debug(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use std::{error::Error, str::FromStr};
 

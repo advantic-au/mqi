@@ -347,6 +347,7 @@ impl<'b> GetAttr<'b> for types::MessageId {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
     use libmqm_default as default;

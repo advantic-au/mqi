@@ -175,6 +175,7 @@ impl<T: Default> Default for StringCcsid<T> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use std::{borrow::Cow, mem};
 
