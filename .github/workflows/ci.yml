@@ -296,3 +296,31 @@ jobs:
         with:
           tool: cargo-docs-rs
       - run: cargo docs-rs
+
+  pregen_outcome:
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    name: Pregen outcome
+    needs: [pregen]
+    steps:
+      - run: |
+          result="${{ needs.pregen.result }}"
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi
+
+  clippy_outcome:
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    name: Clippy outcome
+    needs: [clippy]
+    steps:
+      - run: |
+          result="${{ needs.clippy.result }}"
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi
