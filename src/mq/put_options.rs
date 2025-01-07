@@ -12,25 +12,23 @@ impl_mqstruct_min_version!(sys::MQPMO);
 pub struct Context<T>(pub T);
 
 macro_rules! impl_putoption_tuple {
-    ([$first:ident, $($rest:ident),*]) => {
+    ([$($rest:ident),*]) => {
         #[expect(non_snake_case)]
-        impl <'po, $first, $($rest),*> PutOption<'po> for ($first, $($rest),*)
+        impl <'po, $($rest),*> PutOption<'po> for ($($rest),*)
         where
-            $first: PutOption<'po>,
             $($rest: PutOption<'po> ),*
         {
             #[inline]
-            fn apply_param(self, param: &mut PutParam<'po>) {
-                let($first, $($rest),*) = self;
-                ($($rest),*).apply_param(param);
-                $first.apply_param(param);
+            fn apply_param(&self, param: &mut PutParam<'po>) {
+                let $crate::macros::reverse_ident!($($rest),*) = self;
+                $($rest.apply_param(param);)*
             }
         }
     };
 }
 
 impl PutOption<'_> for () {
-    fn apply_param(self, _: &mut PutParam<'_>) {}
+    fn apply_param(&self, _: &mut PutParam<'_>) {}
 }
 
 all_multi_tuples!(impl_putoption_tuple);
@@ -43,13 +41,13 @@ pub enum PropertyAction<'handle, C: Conn, C2: Conn> {
 }
 
 impl<'po, C: Conn> PutOption<'po> for Context<&Object<C>> {
-    fn apply_param(self, (.., pmo): &mut PutParam<'po>) {
+    fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
         pmo.Context = unsafe { self.0.handle.raw_handle() };
     }
 }
 
 impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
-    fn apply_param(self, (.., pmo): &mut PutParam<'po>) {
+    fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
         pmo.set_min_version(sys::MQPMO_VERSION_3);
         pmo.Action = sys::MQACTP_NEW;
         pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
@@ -57,19 +55,19 @@ impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
 }
 
 impl PutOption<'_> for values::MQPMO {
-    fn apply_param(self, (.., pmo): &mut PutParam<'_>) {
+    fn apply_param(&self, (.., pmo): &mut PutParam<'_>) {
         pmo.Options |= self.value();
     }
 }
 
 impl PutOption<'_> for MqStruct<'static, sys::MQMD2> {
-    fn apply_param(self, param: &mut PutParam<'_>) {
+    fn apply_param(&self, param: &mut PutParam<'_>) {
         self.clone_into(&mut param.0);
     }
 }
 
 impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2> {
-    fn apply_param(self, (.., pmo): &mut PutParam<'po>) {
+    fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
         let (action, original, new) = match self {
             PropertyAction::Reply(original, new) => (sys::MQACTP_REPLY, original, new),
             PropertyAction::Forward(original, new) => (sys::MQACTP_FORWARD, original, new),
@@ -186,6 +184,7 @@ mod impl_put {
 
 #[cfg(test)]
 #[cfg(feature = "mock")]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use std::error::Error;
 
@@ -205,7 +204,7 @@ mod test {
         mock_library.properties_ok(0xf0f0, 1, &mut seq);
         mock_library.properties_ok(0x0e0e, 1, &mut seq);
 
-        let qm = connect_lib::<ThreadNone, _>(mock_library, ()).warn_as_error()?;
+        let qm = connect_lib::<ThreadNone, _>(mock_library, &()).warn_as_error()?;
 
         let mut put_param = (MqStruct::new(default::MQMD2_DEFAULT), MqStruct::new(default::MQPMO_DEFAULT));
 

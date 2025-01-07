@@ -158,6 +158,7 @@ impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use crate::sys;
     use crate::values::MQRC;

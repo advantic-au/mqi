@@ -30,7 +30,7 @@ fn set_property() -> Result<(), Box<dyn Error>> {
 
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
-    let qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, cred_options).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, &cred_options).warn_as_error()?;
     let properties = Properties::new(qm, values::MQCMHO::default())?;
 
     properties
@@ -55,7 +55,7 @@ fn inq_property() -> Result<(), Box<dyn Error>> {
 
     let creds = test::credentials();
     let cred_options: Credentials<_> = creds.as_ref().into();
-    let qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, cred_options).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, &cred_options).warn_as_error()?;
     let properties = Properties::new(qm, values::MQCMHO::default())?;
 
     let _: Option<StrCcsidOwned> = properties.property("name", MQIMPO::default()).warn_as_error()?;

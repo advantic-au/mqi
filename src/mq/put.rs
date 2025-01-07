@@ -1,15 +1,13 @@
 use std::borrow::Cow;
-use std::mem;
 
 use libmqm_default as default;
 use libmqm_sys::Mqi;
 
 use crate::core::{ConnectionHandle, Library, MqFunctions};
 use crate::headers::{fmt, TextEnc};
-use crate::types::{Fmt, MessageFormat};
+use crate::types::MessageFormat;
 use crate::{sys, Conn, MqStruct, Object, ResultComp};
 use crate::values;
-use crate::prelude::*;
 
 use super::values::{CCSID, MQENC, MQPMO};
 use super::{OpenOption, OpenParamOption};
@@ -59,11 +57,11 @@ impl<C: Conn> Object<C>
 where
     C::Lib: Library<MQ: libmqm_sys::Mqai>,
 {
-    pub fn put_bag<'po>(&self, put_options: impl PutOption<'po>, bag: &impl PutBag) -> ResultComp<()> {
+    pub fn put_bag<'po>(&self, put_options: &impl PutOption<'po>, bag: &impl PutBag) -> ResultComp<()> {
         self.put_bag_with(put_options, bag)
     }
 
-    pub fn put_bag_with<'po, R>(&self, put_options: impl PutOption<'po>, bag: &impl PutBag) -> ResultComp<R>
+    pub fn put_bag_with<'po, R>(&self, put_options: &impl PutOption<'po>, bag: &impl PutBag) -> ResultComp<R>
     where
         R: PutAttr,
     {
@@ -75,7 +73,7 @@ where
         let md = MqStruct::new(sys::MQMD2 {
             CodedCharSetId: ccsid,
             Encoding: encoding.value(),
-            Format: unsafe { mem::transmute::<Fmt, [i8; 8]>(fmt.into_ascii().into()) },
+            Format: *fmt.into_ascii().as_ref(),
             ..default::MQMD2_DEFAULT
         });
         let mqpmo = MqStruct::new(default::MQPMO_DEFAULT);
@@ -92,13 +90,13 @@ where
 }
 
 impl<C: Conn> Object<C> {
-    pub fn put_message<'po>(&self, put_options: impl PutOption<'po>, message: &(impl PutMessage + ?Sized)) -> ResultComp<()> {
+    pub fn put_message<'po>(&self, put_options: &impl PutOption<'po>, message: &(impl PutMessage + ?Sized)) -> ResultComp<()> {
         self.put_message_with(put_options, message)
     }
 
     pub fn put_message_with<'po, R>(
         &self,
-        put_options: impl PutOption<'po>,
+        put_options: &impl PutOption<'po>,
         message: &(impl PutMessage + ?Sized),
     ) -> ResultComp<R>
     where
@@ -116,7 +114,7 @@ impl<C: Conn> Object<C> {
 /// A trait that manipulates the parameters to the [`mqput`](`crate::core::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put")]
 pub trait PutOption<'po> {
-    fn apply_param(self, param: &mut PutParam<'po>);
+    fn apply_param(&self, param: &mut PutParam<'po>);
 }
 
 pub trait PutAttr {
@@ -129,8 +127,8 @@ pub trait PutAttr {
 pub(super) fn put_message_with<'po, 'oo, R, L>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
-    open_options: impl OpenOption<'oo, MQPMO>,
-    put_options: impl PutOption<'po>,
+    open_options: &impl OpenOption<'oo, MQPMO>,
+    put_options: &impl PutOption<'po>,
     message: &(impl PutMessage + ?Sized),
 ) -> ResultComp<R>
 where
@@ -148,7 +146,7 @@ where
     })
 }
 
-fn put<'po, T, F>(options: impl PutOption<'po>, message: &(impl PutMessage + ?Sized), put: F) -> ResultComp<T>
+fn put<'po, T, F>(options: &impl PutOption<'po>, message: &(impl PutMessage + ?Sized), put: F) -> ResultComp<T>
 where
     T: PutAttr,
     F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>,
@@ -161,7 +159,7 @@ where
     let md = MqStruct::new(sys::MQMD2 {
         CodedCharSetId: ccsid,
         Encoding: encoding.value(),
-        Format: unsafe { mem::transmute::<Fmt, [i8; 8]>(fmt.into_ascii().into()) },
+        Format: *fmt.into_ascii().as_ref(),
         ..default::MQMD2_DEFAULT
     });
     let mqpmo = MqStruct::new(default::MQPMO_DEFAULT);

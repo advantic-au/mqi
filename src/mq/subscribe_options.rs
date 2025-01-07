@@ -10,14 +10,14 @@ all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>);
 
 impl<'so, T: EncodedString + ?Sized> SubscribeOption<'so> for ObjectString<&'so T> {
     #[inline]
-    fn apply_param(self, param: &mut SubscribeParam<'so>) {
+    fn apply_param(&self, param: &mut SubscribeParam<'so>) {
         param.sd.attach_object_string(self.0);
     }
 }
 
 impl<C: Conn> SubscribeOption<'_> for &Object<C> {
     #[inline]
-    fn apply_param(self, param: &mut SubscribeParam) {
+    fn apply_param(&self, param: &mut SubscribeParam) {
         param.provided_object = unsafe { self.handle.raw_handle() };
     }
 }
@@ -25,14 +25,14 @@ impl<C: Conn> SubscribeOption<'_> for &Object<C> {
 // Set the close options for the subscription when opening
 impl SubscribeOption<'_> for values::MQCO {
     #[inline]
-    fn apply_param(self, param: &mut SubscribeParam) {
-        param.close_options |= self;
+    fn apply_param(&self, param: &mut SubscribeParam) {
+        param.close_options |= *self;
     }
 }
 
 impl SubscribeOption<'_> for values::MQSO {
     #[inline]
-    fn apply_param(self, param: &mut SubscribeParam) {
+    fn apply_param(&self, param: &mut SubscribeParam) {
         param.sd.Options |= self.value();
     }
 }

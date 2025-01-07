@@ -1,3 +1,5 @@
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! Overview
 //! --------
 //! Idiomatic Rust API's to the IBM® MQ Interface (MQI) and MQ Administration Interface (MQAI).
@@ -31,4 +33,5 @@ pub mod sys {
 pub mod prelude;
 
 #[doc(hidden)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub mod test;

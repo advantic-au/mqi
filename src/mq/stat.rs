@@ -14,7 +14,7 @@ use crate::{
 use super::{types::ObjectName, MqStruct, StrCcsidOwned};
 
 impl AsyncPutStat {
-    fn new(sts: &MqStruct<sys::MQSTS>, buffer: Vec<u8>) -> Self {
+    fn new(sts: &MqStruct<sys::MQSTS>, buffer: Vec<sys::MQCHAR>) -> Self {
         let mut buffer = buffer;
         unsafe {
             buffer.set_len(
@@ -64,7 +64,7 @@ impl ReconnectionStat {
 }
 
 impl ReconnectionErrorStat {
-    fn new(sts: &MqStruct<sys::MQSTS>, object_string_buffer: Vec<u8>, sub_name_buffer: Vec<u8>) -> Self {
+    fn new(sts: &MqStruct<sys::MQSTS>, object_string_buffer: Vec<sys::MQCHAR>, sub_name_buffer: Vec<sys::MQCHAR>) -> Self {
         let mut object_string_buffer = object_string_buffer;
         unsafe {
             object_string_buffer.set_len(

@@ -54,11 +54,13 @@ where
     }
 }
 
-pub trait Buffer<'a>: Sized + AsMut<[u8]> + AsRef<[u8]> {
+pub trait Buffer<'a, T>: Sized + AsMut<[T]> + AsRef<[T]> {
     #[must_use]
     fn truncate(self, size: usize) -> Self;
     fn split_at(self, at: usize) -> (Self, Self);
-    fn into_cow(self) -> Cow<'a, [u8]>;
+    fn into_cow(self) -> Cow<'a, [T]>
+    where
+        [T]: ToOwned;
     fn len(&self) -> usize;
 
     fn is_empty(&self) -> bool {
@@ -66,13 +68,13 @@ pub trait Buffer<'a>: Sized + AsMut<[u8]> + AsRef<[u8]> {
     }
 }
 
-impl<'a> Buffer<'a> for &'a mut [u8] {
+impl<'a, T: Clone> Buffer<'a, T> for &'a mut [T] {
     fn truncate(self, size: usize) -> Self {
         let len = self.len();
         &mut self[..cmp::min(size, len)]
     }
 
-    fn into_cow(self) -> Cow<'a, [u8]> {
+    fn into_cow(self) -> Cow<'a, [T]> {
         Cow::from(&*self)
     }
 
@@ -85,7 +87,7 @@ impl<'a> Buffer<'a> for &'a mut [u8] {
     }
 }
 
-impl<'a> Buffer<'a> for Vec<u8> {
+impl<'a, T: Clone> Buffer<'a, T> for Vec<T> {
     fn truncate(self, size: usize) -> Self {
         let mut vec = self;
         Self::truncate(&mut vec, size);
@@ -93,7 +95,7 @@ impl<'a> Buffer<'a> for Vec<u8> {
         vec
     }
 
-    fn into_cow(self) -> Cow<'a, [u8]> {
+    fn into_cow(self) -> Cow<'a, [T]> {
         self.into()
     }
 
@@ -112,12 +114,12 @@ impl<'a> Buffer<'a> for Vec<u8> {
     }
 }
 
-impl<'a> Buffer<'a> for InqBuffer<'a, u8> {
+impl<'a, T: Clone> Buffer<'a, T> for InqBuffer<'a, T> {
     fn truncate(self, size: usize) -> Self {
         Self::truncate(self, size)
     }
 
-    fn into_cow(self) -> Cow<'a, [u8]> {
+    fn into_cow(self) -> Cow<'a, [T]> {
         self.into()
     }
 

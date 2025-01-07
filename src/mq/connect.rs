@@ -152,7 +152,7 @@ pub trait ConnectAttr<S> {
 }
 
 /// Create and return a [`Connection`] to a queue manager using a specified MQ [`Library`].
-pub fn connect_lib<'co, H, L>(lib: L, options: impl ConnectOption<'co>) -> ResultComp<Connection<L, H>>
+pub fn connect_lib<'co, H, L>(lib: L, options: &impl ConnectOption<'co>) -> ResultComp<Connection<L, H>>
 where
     H: Threading,
     L: Library<MQ: Mqi>,
@@ -161,7 +161,7 @@ where
 }
 
 /// Create and return a [`Connection`] to a queue manager using a specified MQ [`Library`] and inferred [`ConnectAttr`].
-pub fn connect_lib_with<'co, A, H, L>(lib: L, options: impl ConnectOption<'co>) -> ResultComp<(Connection<L, H>, A)>
+pub fn connect_lib_with<'co, A, H, L>(lib: L, options: &impl ConnectOption<'co>) -> ResultComp<(Connection<L, H>, A)>
 where
     A: ConnectAttr<Connection<L, H>>,
     H: Threading,
@@ -171,7 +171,7 @@ where
 }
 
 /// Create a [`Connection`] to a queue manager using a specified MQ [`Library`] and inferred return value.
-pub(super) fn connect_lib_as<'co, R, H, L>(lib: L, options: impl ConnectOption<'co>) -> ResultComp<R>
+pub(super) fn connect_lib_as<'co, R, H, L>(lib: L, options: &impl ConnectOption<'co>) -> ResultComp<R>
 where
     R: ConnectValue<Connection<L, H>>,
     H: Threading,

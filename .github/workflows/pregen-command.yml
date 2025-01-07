@@ -23,6 +23,7 @@ jobs:
           token: ${{ secrets.SCD }}
           repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
           ref: ${{ github.event.client_payload.pull_request.head.ref }}
+          persist-credentials: true
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:

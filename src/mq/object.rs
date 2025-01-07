@@ -27,7 +27,7 @@ pub struct Object<C: Conn> {
     message = "{Self} does not implement `OpenOption` so it can't be used as an argument for MQI open"
 )]
 pub trait OpenOption<'oo, T> {
-    fn apply_param(self, param: &mut OpenParamOption<'oo, T>);
+    fn apply_param(&self, param: &mut OpenParamOption<'oo, T>);
 }
 
 pub trait OpenValue<S> {
@@ -93,6 +93,7 @@ impl<C: Conn> Drop for Object<C> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use crate::values::MQCO;
     use crate::sys;
