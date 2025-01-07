@@ -33,4 +33,5 @@ pub mod sys {
 pub mod prelude;
 
 #[doc(hidden)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub mod test;
