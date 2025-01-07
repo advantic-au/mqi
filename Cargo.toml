@@ -48,7 +48,7 @@ pregen = [
 tracing = ["dep:tracing"]
 ## Enable the administrative API
 mqai = ["libmqm-sys/mqai"]
-## [`Link`](link) the MQI library at compile time
+## Link the MQI library at compile time
 link = ["libmqm-sys/link"]
 ## Enable runtime loading of the MQI library using [`dlopen2`](dlopen2)
 dlopen2 = ["libmqm-sys/dlopen2"]
