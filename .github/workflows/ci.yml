@@ -304,12 +304,14 @@ jobs:
     needs: [pregen]
     steps:
       - run: |
-          result="${{ needs.pregen.result }}"
+          result="${NEEDS_RESULT}"
           if [[ $result == "success" || $result == "skipped" ]]; then
             exit 0
           else
             exit 1
           fi
+        env:
+          NEEDS_RESULT: ${{ needs.pregen.result }}
 
   clippy_outcome:
     if: ${{ always() }}
@@ -318,9 +320,11 @@ jobs:
     needs: [clippy]
     steps:
       - run: |
-          result="${{ needs.clippy.result }}"
+          result="${NEEDS_RESULT}"
           if [[ $result == "success" || $result == "skipped" ]]; then
             exit 0
           else
             exit 1
           fi
+        env:
+          NEEDS_RESULT: ${{ needs.clippy.result }}
