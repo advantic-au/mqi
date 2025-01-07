@@ -100,7 +100,7 @@ jobs:
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
@@ -125,7 +125,7 @@ jobs:
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{matrix.toolchain}}
@@ -168,7 +168,7 @@ jobs:
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
@@ -193,30 +193,49 @@ jobs:
           name: mutants-incremental.out
           path: mutants.out
 
-  rustfmt-clippy:
+  rustfmt:
+      runs-on: ubuntu-24.04
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            persist-credentials: false
+        - name: Install stable
+          uses: dtolnay/rust-toolchain@master
+          with:
+            toolchain: stable
+            components: rustfmt
+        - name: Lint with rustfmt
+          run: cargo fmt -- --check
+
+  clippy:
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - ""
+          - "--no-default-features"
+          - "--all-features"
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
-          components: rustfmt, clippy
+          components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "build"
-      - name: Run rustfmt
-        run: cargo fmt -- --check
       - name: Run clippy
         uses: auguwu/clippy-action@1.4.0
         env:
           RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
         with:
-          check-args: --tests --all-features
+          args: ${{ matrix.features }}
           token: ${{secrets.GITHUB_TOKEN}}
 
   minimum:
@@ -226,7 +245,7 @@ jobs:
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       # Re-resolve Cargo.lock with minimal versions
       - uses: dtolnay/rust-toolchain@nightly # -Z option only available on nightly
       - run: cargo generate-lockfile -Z minimal-versions

@@ -15,7 +15,7 @@ jobs:
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
         with:
-          client-version: 9.4.1.0
+          client-version: latest
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable

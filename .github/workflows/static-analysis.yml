@@ -1,0 +1,36 @@
+name: Zizmor Static Analysis
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: [.github/workflows/**]
+    branches: [develop]
+  schedule: [cron: "40 4 * * 1"]
+
+jobs:
+  zizmor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install zizmor
+        uses: taiki-e/install-action@e523301c9af289ba196edd3ab08abdece06107d2 # v2.46.9
+        with:
+          tool: zizmor
+      - name: zizmor static analysis check
+        run: zizmor --format sarif . > results.sarif
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+          category: zizmor
