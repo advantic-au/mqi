@@ -148,6 +148,14 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
         self.mq
             .mq_delete_item(self, selector.selector(), selector.index().unwrap_or_default())
     }
+
+    pub fn clear(&self) -> ResultComp<()> {
+        self.mq.mq_clear_bag(self)
+    }
+
+    pub fn truncate(&self, count: sys::MQLONG) -> ResultComp<()> {
+        self.mq.mq_truncate_bag(self, count)
+    }
 }
 
 impl<B: BagDrop, L: Library<MQ: Mqai>> Drop for Bag<B, L> {

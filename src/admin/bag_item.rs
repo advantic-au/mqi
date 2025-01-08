@@ -2,7 +2,7 @@ use libmqm_sys::Mqai;
 use std::fmt::Debug;
 
 use crate::core::mqai;
-use crate::values::{MqaiSelector, CCSID, MQIND};
+use crate::values::{self, MqaiSelector, CCSID, MQIND};
 use crate::core::Library;
 use crate::{prelude::*, MqStr, StrCcsidOwned, StringCcsid, NATIVE_IS_LE};
 use crate::{sys, Completion, EncodedString, Error, ResultComp, ResultCompErr, WithMqError};
@@ -358,4 +358,31 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<Vec<sys::MQBYTE>> {
     }
 
     type Error = crate::Error;
+}
+
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for (MqaiSelector, values::MQITEM) {
+    type Error = Error;
+
+    #[inline]
+    fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultCompErr<Self, Self::Error> {
+        bag.mq.mq_inquire_item_info(bag, selector, index)
+    }
+}
+
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for values::MQITEM {
+    type Error = Error;
+
+    #[inline]
+    fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultCompErr<Self, Self::Error> {
+        BagItemGet::inq_bag_item(selector, index, bag).map_completion(|(_, item)| item)
+    }
+}
+
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for values::MqaiSelector {
+    type Error = Error;
+
+    #[inline]
+    fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultCompErr<Self, Self::Error> {
+        BagItemGet::inq_bag_item(selector, index, bag).map_completion(|(selector, _)| selector)
+    }
 }
