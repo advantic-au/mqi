@@ -230,6 +230,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        toolchain: [beta, stable]
         features:
           - ""
           - "--no-default-features"
@@ -247,7 +248,7 @@ jobs:
           client-version: latest
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
+          toolchain: ${{ matrix.toolchain }}
           components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
