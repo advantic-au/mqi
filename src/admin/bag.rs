@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use libmqm_sys::Mqai;
 
 use crate::values::{MqaiSelector, MQIND, MQCBO, MQCC, MQRC};
-use crate::core::{self, mqai, Library};
+use crate::core::{self, mqai, Handle, Library, MqFunctions};
 use crate::prelude::*;
 use crate::{sys, Completion, Error, ResultComp, ResultCompErr, WithMqError as _};
 
@@ -116,6 +116,10 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
     #[must_use]
     pub const fn handle(&self) -> &mqai::BagHandle {
         &self.bag
+    }
+
+    pub fn mut_handle(&mut self) -> &mut mqai::BagHandle {
+        &mut self.bag
     }
 
     pub fn add_inquiry(&self, selector: MqaiSelector) -> ResultComp<()> {

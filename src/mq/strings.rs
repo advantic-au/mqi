@@ -1,8 +1,11 @@
 use std::{borrow::Cow, ptr};
 
-use crate::{conversion, sys};
+use crate::{conversion, sys, ResultComp, prelude::*};
 
-use super::{values::CCSID, MqStruct};
+use super::{
+    values::{self, CCSID},
+    Conn, MqStruct,
+};
 
 use libmqm_default as default;
 
@@ -119,6 +122,37 @@ impl<'a, T: Into<Cow<'a, [sys::MQCHAR]>>> TryFrom<StringCcsid<T>> for Cow<'a, st
                 Cow::Owned(String::from_utf8(conversion::vec_mqchar_to_byte(chars)).map_err(|e| e.utf8_error())?)
             }
         })
+    }
+}
+
+impl<T: AsRef<[sys::MQCHAR]>> StringCcsid<T> {
+    pub fn try_mq_convert<'a, C: Conn>(
+        &self,
+        ccsid: CCSID,
+        conn: &C,
+        target_le: bool,
+        buffer: &'a mut [sys::MQCHAR],
+    ) -> ResultComp<StrCcsid<'a>> {
+        let mut mqdcc = if self.le {
+            values::MQDCC(sys::MQDCC_SOURCE_ENC_REVERSED)
+        } else {
+            values::MQDCC(sys::MQDCC_SOURCE_ENC_NORMAL)
+        };
+
+        mqdcc |= if target_le {
+            values::MQDCC(sys::MQDCC_TARGET_ENC_REVERSED)
+        } else {
+            values::MQDCC(sys::MQDCC_TARGET_ENC_NORMAL)
+        };
+        conn.mq()
+            .mqxcnvc(Some(conn.handle()), mqdcc, self.ccsid, self.data.as_ref(), ccsid, buffer)
+            .map_completion(|length| StringCcsid {
+                ccsid,
+                le: target_le,
+                data: &buffer[..length
+                    .try_into()
+                    .expect("length should not exceed maximum positive MQLONG for MQCHARV")],
+            })
     }
 }
 

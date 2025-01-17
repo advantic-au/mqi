@@ -32,7 +32,7 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 | MQMHBUF | Convert message handle into buffer  | ✔ |   |  |
 | MQSUB   | Register subscription               | ✔ | ✔ |  |
 | MQSUBRQ | Subscription request                | ✔ |   |  |
-| MQXCNVC | Convert characters                  | ✔ |   |  |
+| MQXCNVC | Convert characters                  | ✔ | ✔ |  |
 
 MQAI functions
 ==============

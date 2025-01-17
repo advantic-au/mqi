@@ -208,26 +208,25 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Retrieves a message from a local queue that has been opened using the mqopen call
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
-    pub fn mqget<T: AsMut<[sys::MQBYTE]> + ?Sized>(
+    pub fn mqget(
         &self,
         connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         mqmd: Option<&mut impl MQMD>,
         gmo: &mut sys::MQGMO,
-        body: &mut T,
+        body: &mut [sys::MQBYTE],
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQGET");
-        let body_mut = body.as_mut();
         unsafe {
             self.0.lib().MQGET(
                 connection_handle.raw_handle(),
                 object_handle.raw_handle(),
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::from_mut(md).cast()),
                 ptr::from_mut(gmo).cast(),
-                size_of_val(body_mut)
+                size_of_val(body)
                     .try_into()
                     .expect("body length should not exceed maximum positive MQLONG"),
-                ptr::from_mut(body_mut).cast(),
+                ptr::from_mut(body).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -405,7 +404,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Returns the value of a property of a message.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, value)))]
     #[expect(clippy::too_many_arguments)]
-    pub fn mqinqmp<T: AsMut<[u8]> + ?Sized>(
+    pub fn mqinqmp(
         &self,
         connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
@@ -413,16 +412,15 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         name: &sys::MQCHARV,
         prop_desc: &mut sys::MQPD,
         prop_type: &mut MQTYPE,
-        value: Option<&mut T>,
+        value: Option<&mut [u8]>,
     ) -> ResultCompErr<sys::MQLONG, error::MqInqError> {
         let mut outcome = MqiOutcome::with_verb("MQINQMP");
         let (out_len, out) = value.map_or((0, ptr::null_mut()), |out| {
-            let value_buf = out.as_mut();
             (
-                size_of_val(value_buf)
+                size_of_val(out)
                     .try_into()
                     .expect("target value length should not exceed maximum positive MQLONG"),
-                ptr::from_mut(value_buf).cast(),
+                ptr::from_mut(out).cast(),
             )
         });
         unsafe {
@@ -622,17 +620,16 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Converts a message handle into a buffer and is the inverse of the mqbufmh call
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(buffer, self)))]
-    pub fn mqmhbuf<T: AsMut<[u8]> + ?Sized>(
+    pub fn mqmhbuf(
         &self,
         connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
         mhbuf_options: &sys::MQMHBO,
         name: &sys::MQCHARV,
         mqmd: &mut impl MQMD,
-        buffer: &mut T,
+        buffer: &mut [u8],
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQMHBUF");
-        let buffer_mut = buffer.as_mut();
         unsafe {
             self.0.lib().MQMHBUF(
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
@@ -640,10 +637,10 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 ptr::from_ref(mhbuf_options).cast_mut().cast(),
                 ptr::from_ref(name).cast_mut().cast(),
                 ptr::from_mut(mqmd).cast(),
-                size_of_val(buffer_mut)
+                size_of_val(buffer)
                     .try_into()
                     .expect("buffer length should not exceed maximum positive MQLONG"),
-                ptr::from_mut(buffer_mut).cast(),
+                ptr::from_mut(buffer).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -687,32 +684,30 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Converts characters from one character set to another
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(source, target, self)))]
-    pub fn mqxcnvc<S: AsRef<[sys::MQCHAR]> + ?Sized, T: AsMut<[sys::MQCHAR]> + ?Sized>(
+    pub fn mqxcnvc(
         &self,
         connection_handle: Option<ConnectionHandle>,
         options: MQDCC,
         source_ccsid: CCSID,
-        source: &S,
+        source: &[sys::MQCHAR],
         target_ccsid: CCSID,
-        target: &mut T,
+        target: &mut [sys::MQCHAR],
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQXCNVC");
-        let source_ref = source.as_ref();
-        let target_mut = target.as_mut();
         unsafe {
             self.0.lib().MQXCNVC(
                 connection_handle.map_or(sys::MQHC_DEF_HCONN, |h| h.raw_handle()),
                 options.value(),
                 source_ccsid.0,
-                size_of_val(source_ref)
+                size_of_val(source)
                     .try_into()
                     .expect("usize length of source should convert into MQLONG"),
-                ptr::from_ref(source_ref).cast_mut().cast(),
+                ptr::from_ref(source).cast_mut().cast(),
                 target_ccsid.0,
-                size_of_val(target_mut)
+                size_of_val(target)
                     .try_into()
                     .expect("usize length of target should convert into MQLONG"),
-                ptr::from_mut(target_mut).cast(),
+                ptr::from_mut(target).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,

@@ -466,24 +466,23 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(value, self)))]
-    pub fn mq_inquire_byte_string<T: AsMut<[u8]> + ?Sized>(
+    pub fn mq_inquire_byte_string(
         &self,
         bag: &BagHandle,
         selector: MqaiSelector,
         index: MQIND,
-        value: &mut T,
+        value: &mut [u8],
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("mqInquireByteString");
-        let value_mut = value.as_mut();
         unsafe {
             self.0.lib().mqInquireByteString(
                 bag.raw_handle(),
                 selector.0,
                 index.0,
-                size_of_val(value_mut)
+                size_of_val(value)
                     .try_into()
                     .expect("value length should not exceed maximum positive MQLONG"),
-                ptr::from_mut(value_mut).cast(),
+                ptr::from_mut(value).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
@@ -495,25 +494,24 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(value, self)))]
-    pub fn mq_inquire_string<T: AsMut<[sys::MQCHAR]> + ?Sized>(
+    pub fn mq_inquire_string(
         &self,
         bag: &BagHandle,
         selector: MqaiSelector,
         index: MQIND,
-        value: &mut T,
+        value: &mut [sys::MQCHAR],
     ) -> ResultComp<(sys::MQLONG, CCSID)> {
         let mut outcome = MqiOutcome::<(sys::MQLONG, CCSID)>::with_verb("mqInquireString");
         let (length, ccsid) = &mut outcome.value;
-        let value_mut = value.as_mut();
         unsafe {
             self.0.lib().mqInquireString(
                 bag.raw_handle(),
                 selector.0,
                 index.0,
-                size_of_val(value_mut)
+                size_of_val(value)
                     .try_into()
                     .expect("value length should not exceed maximum positive MQLONG"),
-                ptr::from_mut(value_mut).cast(),
+                ptr::from_mut(value).cast(),
                 length,
                 &mut ccsid.0,
                 &mut outcome.cc.0,
@@ -526,25 +524,24 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(value, self)))]
-    pub fn mq_inquire_string_filter<T: AsMut<[sys::MQCHAR]> + ?Sized>(
+    pub fn mq_inquire_string_filter(
         &self,
         bag: &BagHandle,
         selector: MqaiSelector,
         index: MQIND,
-        value: &mut T,
+        value: &mut [sys::MQCHAR],
     ) -> ResultComp<(sys::MQLONG, CCSID, MQCFOP)> {
         let mut outcome = MqiOutcome::new("mqInquireStringFilter", (-1, CCSID(0), MQCFOP(0)));
         let (length, ccsid, operator) = &mut outcome.value;
-        let value_mut = value;
         unsafe {
             self.0.lib().mqInquireStringFilter(
                 bag.raw_handle(),
                 selector.0,
                 index.0,
-                size_of_val(value_mut)
+                size_of_val(value)
                     .try_into()
                     .expect("value length should not exceed maximum positive MQLONG"),
-                ptr::from_mut(value_mut).cast(),
+                ptr::from_mut(value).cast(),
                 length,
                 &mut ccsid.0,
                 &mut operator.0,
@@ -738,19 +735,18 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
 
     /// Convert the bag into a PCF message in the supplied buffer
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, buffer)))]
-    pub fn mq_bag_to_buffer<T: AsMut<[u8]> + ?Sized>(
+    pub fn mq_bag_to_buffer(
         &self,
         options_bag: &BagHandle,
         data_bag: &BagHandle,
-        buffer: Option<&mut T>,
+        buffer: Option<&mut [u8]>,
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("mqBagToBuffer");
 
         let (buf, len) = buffer.map_or((ptr::null_mut(), 0), |buffer| {
-            let buffer_mut = buffer.as_mut();
             (
-                ptr::from_mut(buffer_mut).cast(),
-                size_of_val(buffer_mut)
+                ptr::from_mut(buffer).cast(),
+                size_of_val(buffer)
                     .try_into()
                     .expect("buffer length should not exceed maximum positive MQLONG"),
             )
@@ -773,7 +769,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
 
     /// Convert the supplied buffer into bag form
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, buffer)))]
-    pub fn mq_buffer_to_bag<T: ?Sized>(&self, options_bag: &BagHandle, buffer: &T, data_bag: &mut BagHandle) -> ResultComp<()> {
+    pub fn mq_buffer_to_bag(&self, options_bag: &BagHandle, buffer: &[u8], data_bag: &mut BagHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqBufferToBag");
         unsafe {
             self.0.lib().mqBufferToBag(
