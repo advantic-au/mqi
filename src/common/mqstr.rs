@@ -118,11 +118,10 @@ impl<const N: usize> MqStr<N> {
         self.data.iter().any(|c| *c != 0x20 && *c != 0)
     }
 
-    pub fn assign(&mut self, value: impl AsRef<[sys::MQCHAR]>) -> bool {
-        let mqchar_ref = value.as_ref();
-        match self.data.split_at_mut_checked(mqchar_ref.len()) {
+    pub fn assign(&mut self, value: &[sys::MQCHAR]) -> bool {
+        match self.data.split_at_mut_checked(value.len()) {
             Some((target, space)) => {
-                target.copy_from_slice(mqchar_ref);
+                target.copy_from_slice(value);
                 space.fill(0x20);
                 true
             }

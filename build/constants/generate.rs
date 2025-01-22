@@ -52,7 +52,7 @@ fn as_phf(by_value: &[&(mqsys::MQLONG, &str)]) -> String {
     phf_set.build().to_string()
 }
 
-pub fn generate(target: impl AsRef<Path>) -> Result<(), io::Error> {
+pub fn generate(target: &Path) -> Result<(), io::Error> {
     let mut file = BufWriter::new(File::create(target)?);
 
     let by_name_mqi = unsafe { mqsys::MQI_BY_NAME_STR };
