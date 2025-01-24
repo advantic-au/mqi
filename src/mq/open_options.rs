@@ -177,7 +177,7 @@ impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
         if od.ResObjectString.VSBufSize == 0 {
             od.ResObjectString.VSBufSize = DEFAULT_RESOBJECTSTRING_LENGTH;
         }
-        let mut buffer: Vec<_> = Vec::with_capacity(
+        let mut buffer = Vec::with_capacity(
             od.ResObjectString
                 .VSBufSize
                 .try_into()

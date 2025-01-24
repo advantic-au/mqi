@@ -1,9 +1,8 @@
 use std::fmt::Debug;
-use std::mem::{size_of_val, MaybeUninit};
 use std::ptr;
 
 use super::values::{CCSID, MQCO, MQDCC, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
-use super::{ConnectionHandle, Library, MqFunctions, MqiOutcome, MqiOutcomeVoid, MessageHandle, ObjectHandle, SubscriptionHandle};
+use super::{ConnectionHandle, Library, MessageHandle, MqFunctions, MqiOutcome, MqiOutcomeVoid, ObjectHandle, SubscriptionHandle, WriteByte};
 use crate::{sys, Error, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::Mqi;
 
@@ -108,13 +107,13 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Puts one message on a queue, or distribution list, or to a topic
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
     #[allow(clippy::allow_attributes, clippy::similar_names)]
-    pub fn mqput1<T: ?Sized>(
+    pub fn mqput1(
         &self,
         connection_handle: ConnectionHandle,
         mqod: &mut sys::MQOD,
         mqmd: Option<&mut impl MQMD>,
         pmo: &mut sys::MQPMO,
-        body: &T,
+        body: &[sys::MQBYTE],
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQPUT1");
         unsafe {
@@ -177,13 +176,13 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Puts a message on a queue or distribution list, or to a topic. The queue, distribution list,
     /// or topic must already be open.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
-    pub fn mqput<T: ?Sized>(
+    pub fn mqput(
         &self,
         connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         mqmd: Option<&mut impl MQMD>,
         pmo: &mut sys::MQPMO,
-        body: &T,
+        body: &[sys::MQBYTE],
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQPUT");
 
@@ -214,7 +213,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         object_handle: &ObjectHandle,
         mqmd: Option<&mut impl MQMD>,
         gmo: &mut sys::MQGMO,
-        body: &mut [sys::MQBYTE],
+        body: &mut (impl WriteByte<sys::MQBYTE> + ?Sized),
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQGET");
         unsafe {
@@ -239,14 +238,14 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Returns an array of integers and a set of character strings containing
     /// the attributes of an object
-    #[cfg_attr(feature = "tracing", instrument(level = "trace", , skip(self)))]
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", , skip(self, int_attr, text_attr)))]
     pub fn mqinq(
         &self,
         connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         selectors: &[MQXA],
-        int_attr: &mut [MaybeUninit<sys::MQLONG>],
-        text_attr: &mut [MaybeUninit<sys::MQCHAR>],
+        int_attr: &mut [impl WriteByte<sys::MQLONG>],
+        text_attr: &mut [impl WriteByte<sys::MQCHAR>],
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQINQ");
         unsafe {
@@ -263,11 +262,10 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("int_attr count should not exceed maximum positive MQLONG"),
                 int_attr.as_mut_ptr().cast(),
-                text_attr
-                    .len()
+                size_of_val(text_attr)
                     .try_into()
                     .expect("text_attr count should not exceed maximum positive MQLONG"),
-                text_attr.as_mut_ptr().cast(),
+                ptr::from_mut(text_attr).cast(),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -412,7 +410,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         name: &sys::MQCHARV,
         prop_desc: &mut sys::MQPD,
         prop_type: &mut MQTYPE,
-        value: Option<&mut [u8]>,
+        value: Option<&mut (impl WriteByte<sys::MQBYTE> + ?Sized)>,
     ) -> ResultCompErr<sys::MQLONG, error::MqInqError> {
         let mut outcome = MqiOutcome::with_verb("MQINQMP");
         let (out_len, out) = value.map_or((0, ptr::null_mut()), |out| {
@@ -627,7 +625,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         mhbuf_options: &sys::MQMHBO,
         name: &sys::MQCHARV,
         mqmd: &mut impl MQMD,
-        buffer: &mut [u8],
+        buffer: &mut (impl WriteByte<sys::MQBYTE> + ?Sized),
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQMHBUF");
         unsafe {
@@ -653,13 +651,13 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Converts a buffer into a message handle and is the inverse of the mqmhbuf call
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(buffer, self)))]
-    pub fn mqbufmh<T: AsRef<[u8]>>(
+    pub fn mqbufmh(
         &self,
         connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
         bufmh_options: &sys::MQBMHO,
         mqmd: &mut impl MQMD,
-        buffer: &T,
+        buffer: &[sys::MQBYTE],
     ) -> ResultErr<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQBUFMH");
         unsafe {
@@ -691,7 +689,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         source_ccsid: CCSID,
         source: &[sys::MQCHAR],
         target_ccsid: CCSID,
-        target: &mut [sys::MQCHAR],
+        target: &mut (impl WriteByte<sys::MQCHAR> + ?Sized),
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQXCNVC");
         unsafe {

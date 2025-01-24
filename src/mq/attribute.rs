@@ -133,7 +133,7 @@ impl<C: Conn> Object<C> {
         let mut text_len = Vec::new();
 
         let select: VecDeque<_> = selectors.into_iter().collect();
-        let mut selectors = Vec::<_>::with_capacity(select.len());
+        let mut selectors = Vec::with_capacity(select.len());
         for &AttributeType {
             attribute,
             text_len: len,

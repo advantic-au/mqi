@@ -967,32 +967,35 @@ mod tests {
 
     #[test]
     fn ebcdic_ascii_roundtrip() {
-        let mismatch: Vec<_> = (0..=255u8).filter_map(|ebcdic| {
-            let ascii = EBCDIC_ASCII7[ebcdic as usize];
-            let ebcdic_round = ASCII7_EBCDIC[ascii as usize];
-            if (ebcdic_round == 0x3F && ascii == 0x1A) || ebcdic == ebcdic_round {
-                None
-            } else {
-                Some((ebcdic, ascii, ebcdic_round))
-            }
-        }).collect();
+        let mismatch: Vec<_> = (0..=255u8)
+            .filter_map(|ebcdic| {
+                let ascii = EBCDIC_ASCII7[ebcdic as usize];
+                let ebcdic_round = ASCII7_EBCDIC[ascii as usize];
+                if (ebcdic_round == 0x3F && ascii == 0x1A) || ebcdic == ebcdic_round {
+                    None
+                } else {
+                    Some((ebcdic, ascii, ebcdic_round))
+                }
+            })
+            .collect();
         assert_eq!(mismatch, []);
     }
 
     #[test]
     fn ascii_ebcdic_roundtrip() {
-        let mismatch: Vec<_> = (0..=255u8).filter_map(|ascii| {
-            let ebcdic = ASCII7_EBCDIC[ascii as usize];
-            let ascii_round = EBCDIC_ASCII7[ebcdic as usize];
-            if (ascii_round == 0x1A && ebcdic == 0x3F) || ascii == ascii_round {
-                None
-            } else {
-                Some((ascii, ebcdic, ascii_round))
-            }
-        }).collect();
+        let mismatch: Vec<_> = (0..=255u8)
+            .filter_map(|ascii| {
+                let ebcdic = ASCII7_EBCDIC[ascii as usize];
+                let ascii_round = EBCDIC_ASCII7[ebcdic as usize];
+                if (ascii_round == 0x1A && ebcdic == 0x3F) || ascii == ascii_round {
+                    None
+                } else {
+                    Some((ascii, ebcdic, ascii_round))
+                }
+            })
+            .collect();
         assert_eq!(mismatch, []);
     }
-
 }
 
 #[cfg(test)]

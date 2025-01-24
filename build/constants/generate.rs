@@ -45,7 +45,7 @@ fn as_array(by_value: &[&(mqsys::MQLONG, &str)]) -> String {
 }
 
 fn as_phf(by_value: &[&(mqsys::MQLONG, &str)]) -> String {
-    let mut phf_set = phf_codegen::Map::<mqsys::MQLONG>::new();
+    let mut phf_set = phf_codegen::Map::new();
     for (value, name) in by_value {
         phf_set.entry(*value, &format!("\"{name}\""));
     }

@@ -158,7 +158,7 @@ impl<T: AsRef<[sys::MQCHAR]>> StringCcsid<T> {
 
 pub trait EncodedString {
     fn ccsid(&self) -> CCSID;
-    fn data(&self) -> &[u8];
+    fn data(&self) -> &[sys::MQCHAR];
 }
 
 impl EncodedString for str {
@@ -166,17 +166,17 @@ impl EncodedString for str {
         CCSID(1208) // = UTF-8 CCSID. str types are _always_ UTF-8
     }
 
-    fn data(&self) -> &[u8] {
-        unsafe { &*(std::ptr::from_ref(self) as *const [u8]) }
+    fn data(&self) -> &[sys::MQCHAR] {
+        unsafe { &*(std::ptr::from_ref(self) as *const _) }
     }
 }
 
-impl<T: AsRef<[u8]>> EncodedString for StringCcsid<T> {
+impl<T: AsRef<[sys::MQCHAR]>> EncodedString for StringCcsid<T> {
     fn ccsid(&self) -> CCSID {
         self.ccsid
     }
 
-    fn data(&self) -> &[u8] {
+    fn data(&self) -> &[sys::MQCHAR] {
         self.data.as_ref()
     }
 }
