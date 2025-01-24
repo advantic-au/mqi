@@ -2,7 +2,10 @@ use std::fmt::Debug;
 use std::ptr;
 
 use super::values::{CCSID, MQCO, MQDCC, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
-use super::{ConnectionHandle, Library, MessageHandle, MqFunctions, MqiOutcome, MqiOutcomeVoid, ObjectHandle, SubscriptionHandle, WriteByte};
+use super::{
+    ConnectionHandle, Library, MessageHandle, MqFunctions, MqiOutcome, MqiOutcomeVoid, ObjectHandle, SubscriptionHandle,
+    WriteByte,
+};
 use crate::{sys, Error, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::Mqi;
 

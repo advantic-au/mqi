@@ -170,7 +170,9 @@ jobs:
           tool: nextest
       - name: Execute miri tests
         env:
-          MIRIFLAGS: -Zmiri-strict-provenance
+          MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-env-forward=PROPTEST_DISABLE_FAILURE_PERSISTENCE -Zmiri-env-forward=PROPTEST_CASES
+          PROPTEST_CASES: 64
+          ROPTEST_DISABLE_FAILURE_PERSISTENCE: true
         run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,mqc_9_4_1_0
 
   incremental_mutants:
