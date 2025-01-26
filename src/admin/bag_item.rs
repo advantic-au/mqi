@@ -470,6 +470,19 @@ mod tests {
             },
         )?;
 
+        test_put_inq_bag_item(&99i32, lib, |subject: (MqaiSelector, values::MQITEM)| {
+            assert_eq!(subject, (MqaiSelector(0), values::MQITEM(sys::MQITEM_INTEGER)));
+        })?;
+
+        test_put_inq_bag_item(&88i32, lib, |subject: MqaiSelector| {
+            assert_eq!(subject, MqaiSelector(0));
+        })?;
+
+        test_put_inq_bag_item(STR, lib, |subject: values::MQITEM| {
+            assert_eq!(subject, values::MQITEM(sys::MQITEM_STRING));
+        })?;
+
+
         Ok(())
     }
 
@@ -488,12 +501,17 @@ mod tests {
         assert!(matches!(not_present, Ok(None)));
 
         bag.add(MqaiSelector(0), item).discard_warning()?;
-        let short_s: T = bag
-            .inquire(MqaiSelector(0))
-            .discard_warning()?
-            .expect("Inquire on value should exist");
-        assert(short_s);
-
+        assert(
+            bag.inquire(MqaiSelector(0))
+                .discard_warning()?
+                .expect("Inquire on value should exist"),
+        );
+        bag.set(MqaiSelector(0), item).discard_warning()?;
+        assert(
+            bag.inquire(MqaiSelector(0))
+                .discard_warning()?
+                .expect("Inquire on value should exist"),
+        );
         Ok(())
     }
 }

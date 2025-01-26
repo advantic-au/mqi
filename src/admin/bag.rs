@@ -144,7 +144,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
         }
     }
 
-    pub fn set<T: BagItemPut<L>>(&self, selector: impl InqSelect, value: &T) -> ResultCompErr<(), T::Error> {
+    pub fn set<T: BagItemPut<L> + ?Sized>(&self, selector: impl InqSelect, value: &T) -> ResultCompErr<(), T::Error> {
         T::set_bag_item(value, selector.selector(), selector.index().unwrap_or_default(), self)
     }
 
