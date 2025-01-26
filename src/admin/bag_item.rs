@@ -104,18 +104,6 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for [sys::MQBYTE] {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for &[sys::MQBYTE] {
-    type Error = <[sys::MQBYTE] as BagItemPut<L>>::Error;
-
-    fn add_to_bag<B: BagDrop>(&self, selector: MqaiSelector, bag: &Bag<B, L>) -> ResultCompErr<(), Self::Error> {
-        BagItemPut::add_to_bag(*self, selector, bag)
-    }
-
-    fn set_bag_item<B: BagDrop>(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultCompErr<(), Self::Error> {
-        BagItemPut::set_bag_item(*self, selector, index, bag)
-    }
-}
-
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for Vec<sys::MQBYTE> {
     type Error = Error;
 
@@ -442,6 +430,9 @@ mod tests {
 
         // Vec<sys::MQBYTE>
         test_put_inq_bag_item(BYTES.as_slice(), lib, |subject: Vec<sys::MQBYTE>| assert!(subject == BYTES))?;
+        test_put_inq_bag_item(&Vec::from(BYTES), lib, |subject: Vec<sys::MQBYTE>| {
+            assert_eq!(subject, BYTES);
+        })?;
         test_put_inq_bag_item(large_bytes.as_slice(), lib, |subject: Vec<sys::MQBYTE>| {
             assert!(subject == large_bytes);
         })?;
@@ -469,19 +460,39 @@ mod tests {
                 assert!(subject == Filter::greater(large_bytes.as_slice()));
             },
         )?;
+        test_put_inq_bag_item(
+            &Filter::greater(Vec::from(BYTES)),
+            lib,
+            |subject: Filter<Vec<sys::MQBYTE>>| {
+                assert!(subject == Filter::greater(BYTES));
+            },
+        )?;
 
+        // (MqaiSelector, MQITEM)
         test_put_inq_bag_item(&99i32, lib, |subject: (MqaiSelector, values::MQITEM)| {
             assert_eq!(subject, (MqaiSelector(0), values::MQITEM(sys::MQITEM_INTEGER)));
         })?;
 
+        // MqaiSelector
         test_put_inq_bag_item(&88i32, lib, |subject: MqaiSelector| {
             assert_eq!(subject, MqaiSelector(0));
         })?;
 
+        // MQITEM
         test_put_inq_bag_item(STR, lib, |subject: values::MQITEM| {
             assert_eq!(subject, values::MQITEM(sys::MQITEM_STRING));
         })?;
 
+        // MQLONG
+        test_put_inq_bag_item(&69i32, lib, |subject: sys::MQLONG| assert_eq!(subject, 69))?;
+
+        // MQINT64
+        test_put_inq_bag_item(&169i64, lib, |subject: sys::MQINT64| assert_eq!(subject, 169))?;
+
+        // Filter<MQLONG>
+        test_put_inq_bag_item(&Filter::greater(69i32), lib, |subject: Filter<sys::MQLONG>| {
+            assert_eq!(subject, Filter::greater(69));
+        })?;
 
         Ok(())
     }
