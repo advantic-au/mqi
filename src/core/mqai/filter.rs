@@ -4,10 +4,19 @@ use crate::sys;
 
 use super::values::MQCFOP;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq)]
 pub struct Filter<T> {
     pub operator: MQCFOP,
     pub value: T,
+}
+
+impl<A, B> PartialEq<Filter<A>> for Filter<B>
+where
+    B: PartialEq<A>,
+{
+    fn eq(&self, other: &Filter<A>) -> bool {
+        self.operator == other.operator && self.value == other.value
+    }
 }
 
 impl<T> Filter<T> {

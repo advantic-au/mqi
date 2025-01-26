@@ -61,6 +61,18 @@ impl<'a> From<&'a str> for StrCcsid<'a> {
     }
 }
 
+impl<A: AsRef<[sys::MQCHAR]>, B: AsRef<[sys::MQCHAR]>> PartialEq<StringCcsid<B>> for StringCcsid<A> {
+    fn eq(&self, other: &StringCcsid<B>) -> bool {
+        self.ccsid == other.ccsid && self.data.as_ref() == other.data.as_ref()
+    }
+}
+
+impl<A: AsRef<[sys::MQCHAR]>> PartialEq<&str> for StringCcsid<A> {
+    fn eq(&self, other: &&str) -> bool {
+        self.ccsid == 1208 && self.data.as_ref() == other.data()
+    }
+}
+
 impl<'a, T: Into<Cow<'a, str>>> From<T> for StrCcsidCow<'a> {
     fn from(value: T) -> Self {
         Self {
@@ -159,6 +171,16 @@ impl<T: AsRef<[sys::MQCHAR]>> StringCcsid<T> {
 pub trait EncodedString {
     fn ccsid(&self) -> CCSID;
     fn data(&self) -> &[sys::MQCHAR];
+}
+
+impl EncodedString for &str {
+    fn ccsid(&self) -> CCSID {
+        EncodedString::ccsid(*self)
+    }
+
+    fn data(&self) -> &[sys::MQCHAR] {
+        EncodedString::data(*self)
+    }
 }
 
 impl EncodedString for str {
