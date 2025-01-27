@@ -208,13 +208,13 @@ impl<L: Library<MQ: Mqai>, const N: usize> BagItemGet<L> for MqStr<N> {
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for StrCcsidOwned {
     fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
-        let (length, ccsid) = bag.mq.mq_inquire_string(bag, selector, index, &mut data_s).warn_as_error()?; // TODO: warn_as_error is probably wrong
+        let Completion((length, ccsid), mut warning) = bag.mq.mq_inquire_string(bag, selector, index, &mut data_s)?;
         let str_length: usize = length.try_into().expect("mq_inquire_string should not return negative");
         let mut data = Vec::with_capacity(str_length);
         let data_write = data.spare_capacity_mut();
-        if str_length > data_s.len() {
-            // TODO: warn_as_error is probably wrong
-            _ = bag.mq.mq_inquire_string(bag, selector, index, data_write).warn_as_error()?;
+        if matches!(warning, Some((values::MQRC(sys::MQRC_STRING_TRUNCATED), _))) {
+            let Completion((_, _), new_warning) = bag.mq.mq_inquire_string(bag, selector, index, data_write)?;
+            warning = new_warning;
         } else {
             data_write.copy_from_slice(&data_s[..str_length]);
         }
@@ -228,7 +228,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for StrCcsidOwned {
                 ccsid,
                 data,
             },
-            None,
+            warning,
         ))
     }
 
@@ -238,21 +238,16 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for StrCcsidOwned {
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<StrCcsidOwned> {
     fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
-        let (length, ccsid, operator) = bag
-            .mq
-            .mq_inquire_string_filter(bag, selector, index, &mut data_s)
-            .warn_as_error()?; // TODO: warn_as_error is probably wrong
-
+        let Completion((length, ccsid, operator), mut warning) =
+            bag.mq.mq_inquire_string_filter(bag, selector, index, &mut data_s)?;
         let str_length: usize = length
             .try_into()
             .expect("mq_inquire_string_filter should not return a negative length");
         let mut data = Vec::with_capacity(str_length);
         let data_write = data.spare_capacity_mut();
-        if str_length > data_s.len() {
-            _ = bag
-                .mq
-                .mq_inquire_string_filter(bag, selector, index, data_write)
-                .warn_as_error()?; // TODO: warn_as_error is probably wrong
+        if matches!(warning, Some((values::MQRC(sys::MQRC_STRING_TRUNCATED), _))) {
+            let Completion(_, new_warning) = bag.mq.mq_inquire_string_filter(bag, selector, index, data_write)?;
+            warning = new_warning;
         } else {
             data_write.copy_from_slice(&data_s[..str_length]);
         }
@@ -269,7 +264,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<StrCcsidOwned> {
                 },
                 operator,
             ),
-            None,
+            warning,
         ))
     }
 
@@ -279,27 +274,22 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<StrCcsidOwned> {
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<sys::MQBYTE> {
     fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
-        let length = bag
-            .mq
-            .mq_inquire_byte_string(bag, selector, index, &mut data_s)
-            .warn_as_error()?; // TODO: warn_as_error is probably wrong
+        let Completion(length, mut warning) = bag.mq.mq_inquire_byte_string(bag, selector, index, &mut data_s)?;
         let byte_str_length: usize = length
             .try_into()
             .expect("mq_inquire_string_filter should not return a negative length");
         let mut data = Self::with_capacity(byte_str_length);
         let data_write = data.spare_capacity_mut();
-        if byte_str_length > data_s.len() {
-            _ = bag
-                .mq
-                .mq_inquire_byte_string(bag, selector, index, data_write)
-                .warn_as_error()?; // TODO: warn_as_error is probably wrong
+        if matches!(warning, Some((values::MQRC(sys::MQRC_STRING_TRUNCATED), _))) {
+            let Completion(_, new_warning) = bag.mq.mq_inquire_byte_string(bag, selector, index, data_write)?;
+            warning = new_warning;
         } else {
             data_write.copy_from_slice(&data_s[..byte_str_length]);
         }
         unsafe {
             data.set_len(byte_str_length);
         }
-        Ok(Completion::new(data))
+        Ok(Completion(data, warning))
     }
 
     type Error = crate::Error;
@@ -349,27 +339,23 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<Vec<sys::MQBYTE>> {
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<Vec<sys::MQBYTE>> {
     fn inq_bag_item<'bag, B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
-        let (length, operator) = bag
-            .mq
-            .mq_inquire_byte_string_filter(bag, selector, index, &mut data_s)
-            .warn_as_error()?; // TODO: warn_as_error is probably wrong
+        let Completion((length, operator), mut warning) =
+            bag.mq.mq_inquire_byte_string_filter(bag, selector, index, &mut data_s)?;
         let byte_str_length: usize = length
             .try_into()
             .expect("mq_inquire_byte_string_filter should not return a negative length");
         let mut data = Vec::with_capacity(byte_str_length);
         let data_write = data.spare_capacity_mut();
-        if byte_str_length > data_s.len() {
-            _ = bag
-                .mq
-                .mq_inquire_byte_string_filter(bag, selector, index, data_write)
-                .warn_as_error()?; // TODO: warn_as_error is probably wrong
+        if matches!(warning, Some((values::MQRC(sys::MQRC_STRING_TRUNCATED), _))) {
+            let Completion(_, new_warning) = bag.mq.mq_inquire_byte_string_filter(bag, selector, index, data_write)?;
+            warning = new_warning;
         } else {
             data_write.copy_from_slice(&data_s[..byte_str_length]);
         }
         unsafe {
             data.set_len(byte_str_length);
         }
-        Ok(Completion::new(Self::new(data, operator)))
+        Ok(Completion(Self::new(data, operator), warning))
     }
 
     type Error = crate::Error;
@@ -419,8 +405,8 @@ mod tests {
     fn put_inq_bag_item_types() -> Result<(), Box<dyn std::error::Error>> {
         const BYTES: [u8; 2] = [0x0, 0x1];
         const STR: &str = "test";
-        let long_s: String = vec!['a'; 2 ^ 14].into_iter().collect();
-        let large_bytes = vec![127u8; 2 ^ 14];
+        let long_s: String = vec!['a'; 2usize.pow(14)].into_iter().collect();
+        let large_bytes = vec![127u8; 2usize.pow(14)];
 
         let lib = mq_library();
 
