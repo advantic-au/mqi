@@ -32,6 +32,15 @@ pub trait BagItemGet<L: Library<MQ: Mqai>>: Sized {
 
 const STACK_BUFFER_SIZE: usize = 0x1000;
 
+impl WithMqError for PutStringCcsidError {
+    fn mqi_error(&self) -> Option<&Error> {
+        match self {
+            Self::Mqi(e) => Some(e),
+            Self::CcsidMismatch(..) => None,
+        }
+    }
+}
+
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for sys::MQLONG {
     type Error = Error;
 
@@ -194,17 +203,26 @@ impl<T: EncodedString, L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<T> {
 }
 
 impl<L: Library<MQ: Mqai>, const N: usize> BagItemGet<L> for MqStr<N> {
-    fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<Self> {
-        let mut result = Self::default();
+    fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultCompErr<Self, Self::Error> {
+        let bag_ccsid = CCSID(
+            bag.mq
+                .mq_inquire_integer(bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .warn_as_error()?,
+        );
+        if bag_ccsid != 1208 {
+            return Err(PutStringCcsidError::CcsidMismatch(CCSID(1208), bag_ccsid));
+        }
+
+        let mut outcome = Self::empty();
         bag.mq
-            .mq_inquire_string(bag, selector, index, result.as_mut())
-            .map_completion(|_| result) // TODO: This ignores CCSID
+            .mq_inquire_string(bag, selector, index, outcome.as_mut())
+            .map_completion(|_| outcome)
+            .map_err(PutStringCcsidError::Mqi)
     }
 
-    type Error = crate::Error;
+    type Error = PutStringCcsidError;
 }
 
-// TODO: Handle warnings better here
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for StrCcsidOwned {
     fn inq_bag_item<B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
@@ -388,7 +406,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for values::MqaiSelector {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(feature = "link", feature = "dlopen2")))]
 mod tests {
     use mqai::Filter;
 
@@ -478,6 +496,11 @@ mod tests {
         // Filter<MQLONG>
         test_put_inq_bag_item(&Filter::greater(69i32), lib, |subject: Filter<sys::MQLONG>| {
             assert_eq!(subject, Filter::greater(69));
+        })?;
+
+        // MqStr<N>
+        test_put_inq_bag_item(STR, lib, |subject: MqStr<20>| {
+            assert_eq!(subject, STR);
         })?;
 
         Ok(())

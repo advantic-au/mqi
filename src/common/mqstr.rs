@@ -1,6 +1,6 @@
 use std::{fmt::Display, ptr, str::FromStr};
 
-use crate::sys;
+use crate::{sys, values, EncodedString};
 
 use super::conversion;
 
@@ -32,6 +32,12 @@ impl<const N: usize> std::hash::Hash for MqStr<N> {
 impl<const N: usize, const Y: usize> PartialEq<MqStr<Y>> for MqStr<N> {
     fn eq(&self, other: &MqStr<Y>) -> bool {
         self.value() == other.value()
+    }
+}
+
+impl<const N: usize> PartialEq<&str> for MqStr<N> {
+    fn eq(&self, other: &&str) -> bool {
+        self.value() == other.data()
     }
 }
 
@@ -191,5 +197,15 @@ impl<const N: usize> TryFrom<&str> for MqStr<N> {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         Self::from_byte_slice(value.as_bytes())
+    }
+}
+
+impl<const N: usize> EncodedString for MqStr<N> {
+    fn ccsid(&self) -> values::CCSID {
+        values::CCSID(1208)
+    }
+
+    fn data(&self) -> &[sys::MQCHAR] {
+        &self.data
     }
 }
