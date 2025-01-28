@@ -118,7 +118,7 @@ pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: Connect
     if sts.ObjectString.VSBufSize == 0 {
         sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
     }
-    let mut buffer: Vec<_> = Vec::with_capacity(
+    let mut buffer = Vec::with_capacity(
         sts.ObjectString
             .VSBufSize
             .try_into()
@@ -151,7 +151,7 @@ pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
     });
 
     sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-    let mut object_string_buffer: Vec<_> = Vec::with_capacity(
+    let mut object_string_buffer = Vec::with_capacity(
         sts.ObjectString
             .VSBufSize
             .try_into()
@@ -160,7 +160,7 @@ pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
     sts.ObjectString.VSPtr = ptr::from_mut(&mut *object_string_buffer).cast();
 
     sts.SubName.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-    let mut sub_name_buffer: Vec<_> = Vec::with_capacity(
+    let mut sub_name_buffer = Vec::with_capacity(
         sts.SubName
             .VSBufSize
             .try_into()

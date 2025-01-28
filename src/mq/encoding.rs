@@ -359,20 +359,22 @@ const CCSID: &[CcsidEntry] = &[
     (61712, 1, "IBM-500"),
 ];
 
-// Refer to https://www.ibm.com/docs/en/iis/latest?topic=tables-ebcdic-ascii
+// Originated from (with modifications / fixes)
+// * https://www.ibm.com/docs/en/iis/latest?topic=tables-ebcdic-ascii
+// * https://www.ibm.com/docs/en/iis/11.7?topic=tables-ascii-ebcdic
 
 const ASCII7_EBCDIC: [u8; 256] = [
     0x00, // NUL
     0x01, // SOH
     0x02, // STX
     0x03, // ETX
-    0x1A, // SEL
-    0x09, // HT
-    0x1A, // RNL
-    0x7F, // DEL
-    0x1A, // GE
-    0x1A, // SPS
-    0x1A, // RPT
+    0x37, // EOT (different from IBM documentation)
+    0x2D, // ENQ (different from IBM documentation)
+    0x2E, // ACK (different from IBM documentation)
+    0x2F, // BEL (different from IBM documentation)
+    0x16, // BS (different from IBM documentation)
+    0x05, // HT (different from IBM documentation)
+    0x25, // LF (different from IBM documentation)
     0x0B, // VT
     0x0C, // FF
     0x0D, // CR
@@ -718,7 +720,7 @@ const EBCDIC_ASCII7: [u8; 256] = [
     0x3B, // ;
     0x5E, // ‥
     0x2D, // -
-    0x1A, // / (no mapping)
+    0x2F, // /  (different from IBM documentation)
     0x1A, // (no mapping)
     0x1A, // (no mapping)
     0x1A, // (no mapping)
@@ -890,7 +892,7 @@ const fn convert<const N: usize>(input: &MqChar<N>, table: &[u8; 256]) -> MqChar
         reason = "Treating MQCHAR as always positive is desired here"
     )]
     while i < N {
-        result[i] = table[input[i] as usize] as sys::MQCHAR;
+        result[i] = table[input[i] as u8 as usize] as sys::MQCHAR;
         i += 1;
     }
     result
@@ -924,27 +926,29 @@ const fn ccsid_lookup_init<const N: usize>() -> [(i32, u8, &'static str); N] {
 }
 
 #[must_use]
-pub fn ccsid_lookup(ccsid: i32) -> Option<&'static CcsidEntry> {
+pub fn ccsid_lookup(ccsid: u32) -> Option<&'static CcsidEntry> {
     if ccsid < 2048 {
-        #[expect(clippy::cast_sign_loss)]
         Some(&CCSID_2K[ccsid as usize]).filter(|(ccsid, ..)| *ccsid != 0)
     } else {
+        #[expect(clippy::cast_sign_loss)]
         CCSID
-            .binary_search_by_key(&ccsid, |(ccsid_entry, ..)| *ccsid_entry)
+            .binary_search_by_key(&ccsid, |(ccsid_entry, ..)| *ccsid_entry as u32)
             .map(|index| &CCSID[index])
             .ok()
     }
 }
 
 #[must_use]
-pub fn is_ebcdic(ccsid: i32) -> Option<bool> {
+pub fn is_ebcdic(ccsid: u32) -> Option<bool> {
     ccsid_lookup(ccsid).map(|(_, encoding, _)| *encoding == 1)
 }
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use crate::encoding::{ccsid_lookup, is_ebcdic};
+    use crate::encoding::{ccsid_lookup, is_ebcdic, ASCII7_EBCDIC};
+
+    use super::EBCDIC_ASCII7;
 
     #[test]
     fn ccsid_lookup_all() {
@@ -959,5 +963,74 @@ mod tests {
         assert!(is_ebcdic(1).is_none());
         assert!(is_ebcdic(37).is_some_and(|ebcdic| ebcdic));
         assert!(is_ebcdic(1208).is_some_and(|ebcdic| !ebcdic));
+    }
+
+    #[test]
+    fn ebcdic_ascii_roundtrip() {
+        let mismatch: Vec<_> = (0..=255u8)
+            .filter_map(|ebcdic| {
+                let ascii = EBCDIC_ASCII7[ebcdic as usize];
+                let ebcdic_round = ASCII7_EBCDIC[ascii as usize];
+                if (ebcdic_round == 0x3F && ascii == 0x1A) || ebcdic == ebcdic_round {
+                    None
+                } else {
+                    Some((ebcdic, ascii, ebcdic_round))
+                }
+            })
+            .collect();
+        assert_eq!(mismatch, []);
+    }
+
+    #[test]
+    fn ascii_ebcdic_roundtrip() {
+        let mismatch: Vec<_> = (0..=255u8)
+            .filter_map(|ascii| {
+                let ebcdic = ASCII7_EBCDIC[ascii as usize];
+                let ascii_round = EBCDIC_ASCII7[ebcdic as usize];
+                if (ascii_round == 0x1A && ebcdic == 0x3F) || ascii == ascii_round {
+                    None
+                } else {
+                    Some((ascii, ebcdic, ascii_round))
+                }
+            })
+            .collect();
+        assert_eq!(mismatch, []);
+    }
+}
+
+#[cfg(test)]
+mod ptest {
+
+    use proptest::prelude::*;
+    use super::*;
+
+    proptest! {
+        #[test]
+        #[allow(clippy::cast_possible_wrap)]
+        fn ccsid_lookup_proptest(ccsid in 0..4096u32) {
+            if let Some((ccsid_result, ..)) = ccsid_lookup(ccsid) {
+                prop_assert_eq!(*ccsid_result, ccsid as sys::MQLONG);
+            }
+
+        }
+
+        #[test]
+        fn ascii_ebcdic_roundtrip(ch in any::<MqChar<128>>()) {
+            // perform a round trip conversion
+            let result = convert(&convert(&ch, &ASCII7_EBCDIC), &EBCDIC_ASCII7);
+            for (orig, round) in ch.iter().copied().zip(result) {
+                prop_assert!(orig == round || round == 0x1A);
+            }
+        }
+
+        #[test]
+        fn ebcdic_ascii_roundtrip(ch in any::<MqChar<128>>()) {
+            // perform a round trip conversion
+            let result = convert(&convert(&ch, &EBCDIC_ASCII7), &ASCII7_EBCDIC);
+            for (orig, round) in ch.iter().copied().zip(result) {
+                prop_assert!(orig == round || round == 0x3F);
+            }
+        }
+
     }
 }

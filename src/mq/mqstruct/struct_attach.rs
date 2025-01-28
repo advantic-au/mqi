@@ -15,7 +15,7 @@ const fn mq_str_ptr<T>(value: &str) -> *mut T {
     }
 }
 
-fn set_mqcharv(mqcharv: &mut sys::MQCHARV, data: &[u8], ccsid: CCSID) {
+fn set_mqcharv(mqcharv: &mut sys::MQCHARV, data: &[sys::MQCHAR], ccsid: CCSID) {
     mqcharv.VSPtr = ptr::from_ref(data).cast_mut().cast();
     mqcharv.VSLength = data.len().try_into().expect("length should convert to MQLONG");
     mqcharv.VSCCSID = ccsid.0;

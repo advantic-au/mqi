@@ -45,14 +45,14 @@ fn as_array(by_value: &[&(mqsys::MQLONG, &str)]) -> String {
 }
 
 fn as_phf(by_value: &[&(mqsys::MQLONG, &str)]) -> String {
-    let mut phf_set = phf_codegen::Map::<mqsys::MQLONG>::new();
+    let mut phf_set = phf_codegen::Map::new();
     for (value, name) in by_value {
         phf_set.entry(*value, &format!("\"{name}\""));
     }
     phf_set.build().to_string()
 }
 
-pub fn generate(target: impl AsRef<Path>) -> Result<(), io::Error> {
+pub fn generate(target: &Path) -> Result<(), io::Error> {
     let mut file = BufWriter::new(File::create(target)?);
 
     let by_name_mqi = unsafe { mqsys::MQI_BY_NAME_STR };

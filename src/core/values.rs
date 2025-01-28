@@ -56,12 +56,14 @@ pub struct CCSID(pub sys::MQLONG);
 impl CCSID {
     #[must_use]
     pub fn name(self) -> Option<&'static str> {
-        encoding::ccsid_lookup(self.0).map(|(.., name)| *name)
+        #[expect(clippy::cast_sign_loss)]
+        encoding::ccsid_lookup(self.0 as u32).map(|(.., name)| *name)
     }
 
     #[must_use]
     pub fn is_ebcdic(self) -> Option<bool> {
-        encoding::ccsid_lookup(self.0).map(|(_, encoding, _)| *encoding == 1)
+        #[expect(clippy::cast_sign_loss)]
+        encoding::ccsid_lookup(self.0 as u32).map(|(_, encoding, _)| *encoding == 1)
     }
 }
 
@@ -77,7 +79,8 @@ impl Display for CCSID {
 
 impl Debug for CCSID {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let encoding = encoding::ccsid_lookup(self.0);
+        #[expect(clippy::cast_sign_loss)]
+        let encoding = encoding::ccsid_lookup(self.0 as u32);
         match encoding {
             Some(&(.., name)) => f.debug_tuple("CCSID").field(&format_args!("{}: {name}", self.0)).finish(),
             None => f.debug_tuple("CCSID").field(&format_args!("{}", self.0)).finish(),
