@@ -1,8 +1,11 @@
 use std::{borrow::Cow, ptr};
 
-use crate::{conversion, sys};
+use crate::{conversion, sys, ResultComp, prelude::*};
 
-use super::{values::CCSID, MqStruct};
+use super::{
+    values::{self, CCSID},
+    Conn, MqStruct,
+};
 
 use libmqm_default as default;
 
@@ -55,6 +58,18 @@ impl<'a> From<&'a str> for StrCcsid<'a> {
             data: conversion::slice_byte_to_mqchar(value.as_bytes()),
             le: NATIVE_IS_LE,
         }
+    }
+}
+
+impl<A: AsRef<[sys::MQCHAR]>, B: AsRef<[sys::MQCHAR]>> PartialEq<StringCcsid<B>> for StringCcsid<A> {
+    fn eq(&self, other: &StringCcsid<B>) -> bool {
+        self.ccsid == other.ccsid && self.data.as_ref() == other.data.as_ref()
+    }
+}
+
+impl<A: AsRef<[sys::MQCHAR]>> PartialEq<&str> for StringCcsid<A> {
+    fn eq(&self, other: &&str) -> bool {
+        self.ccsid == 1208 && self.data.as_ref() == other.data()
     }
 }
 
@@ -122,9 +137,50 @@ impl<'a, T: Into<Cow<'a, [sys::MQCHAR]>>> TryFrom<StringCcsid<T>> for Cow<'a, st
     }
 }
 
+impl<T: AsRef<[sys::MQCHAR]>> StringCcsid<T> {
+    pub fn try_mq_convert<'a, C: Conn>(
+        &self,
+        ccsid: CCSID,
+        conn: &C,
+        target_le: bool,
+        buffer: &'a mut [sys::MQCHAR],
+    ) -> ResultComp<StrCcsid<'a>> {
+        let mut mqdcc = if self.le {
+            values::MQDCC(sys::MQDCC_SOURCE_ENC_REVERSED)
+        } else {
+            values::MQDCC(sys::MQDCC_SOURCE_ENC_NORMAL)
+        };
+
+        mqdcc |= if target_le {
+            values::MQDCC(sys::MQDCC_TARGET_ENC_REVERSED)
+        } else {
+            values::MQDCC(sys::MQDCC_TARGET_ENC_NORMAL)
+        };
+        conn.mq()
+            .mqxcnvc(Some(conn.handle()), mqdcc, self.ccsid, self.data.as_ref(), ccsid, buffer)
+            .map_completion(|length| StringCcsid {
+                ccsid,
+                le: target_le,
+                data: &buffer[..length
+                    .try_into()
+                    .expect("length should not exceed maximum positive MQLONG for MQCHARV")],
+            })
+    }
+}
+
 pub trait EncodedString {
     fn ccsid(&self) -> CCSID;
-    fn data(&self) -> &[u8];
+    fn data(&self) -> &[sys::MQCHAR];
+}
+
+impl EncodedString for &str {
+    fn ccsid(&self) -> CCSID {
+        EncodedString::ccsid(*self)
+    }
+
+    fn data(&self) -> &[sys::MQCHAR] {
+        EncodedString::data(*self)
+    }
 }
 
 impl EncodedString for str {
@@ -132,17 +188,17 @@ impl EncodedString for str {
         CCSID(1208) // = UTF-8 CCSID. str types are _always_ UTF-8
     }
 
-    fn data(&self) -> &[u8] {
-        unsafe { &*(std::ptr::from_ref(self) as *const [u8]) }
+    fn data(&self) -> &[sys::MQCHAR] {
+        unsafe { &*(std::ptr::from_ref(self) as *const _) }
     }
 }
 
-impl<T: AsRef<[u8]>> EncodedString for StringCcsid<T> {
+impl<T: AsRef<[sys::MQCHAR]>> EncodedString for StringCcsid<T> {
     fn ccsid(&self) -> CCSID {
         self.ccsid
     }
 
-    fn data(&self) -> &[u8] {
+    fn data(&self) -> &[sys::MQCHAR] {
         self.data.as_ref()
     }
 }

@@ -2,8 +2,11 @@ name: pregen-command
 on:
   repository_dispatch:
     types: [pregen-command]
+permissions: {}
 jobs:
   pregen:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       max-parallel: 1

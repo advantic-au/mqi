@@ -377,9 +377,9 @@ impl<'pw> Tls<'pw> {
         self
     }
 
-    pub fn suite_b_policy(&mut self, policy: impl Into<[sys::MQLONG; 4]>) -> &mut Self {
+    pub fn suite_b_policy(&mut self, policy: [sys::MQLONG; 4]) -> &mut Self {
         self.0.set_min_version(sys::MQSCO_VERSION_3);
-        self.0.EncryptionPolicySuiteB = policy.into();
+        self.0.EncryptionPolicySuiteB = policy;
         self
     }
 

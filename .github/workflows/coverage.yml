@@ -14,10 +14,15 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 
+permissions: {}
+
 jobs:
   test:
     name: "Coverage"
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      
     steps:
       - uses: actions/checkout@v4
         with:

@@ -138,6 +138,7 @@ no-default-features = true
 [dev-dependencies]
 # Mocking
 mockall = "0.13.0"
+proptest = "1.6.0"
 
 # development dependencies for examples
 clap = { version = "4.5.16", features = ["derive"] }
