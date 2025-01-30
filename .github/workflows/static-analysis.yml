@@ -1,6 +1,9 @@
 name: Zizmor Static Analysis
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - develop
   pull_request:
     paths: [.github/workflows/**]
     branches: [develop]
