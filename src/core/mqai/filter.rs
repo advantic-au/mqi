@@ -118,6 +118,16 @@ impl<T> Filter<T> {
     }
 }
 
+impl<T> Filter<Vec<T>> {
+    #[must_use]
+    pub fn as_slice(&self) -> Filter<&[T]> {
+        Filter {
+            operator: self.operator,
+            value: self.value.as_slice(),
+        }
+    }
+}
+
 impl<T: Display> Display for Filter<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} <{}>", self.value, self.operator)

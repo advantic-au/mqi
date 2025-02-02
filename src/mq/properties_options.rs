@@ -280,13 +280,6 @@ impl<T: AsRef<[sys::MQCHAR]>> SetProperty for StringCcsid<T> {
     }
 }
 
-impl SetProperty for Vec<sys::MQBYTE> {
-    type Data = <[sys::MQBYTE] as SetProperty>::Data;
-    fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
-        self.deref().apply_mqsetmp(pd, smpo)
-    }
-}
-
 impl<const N: usize> SetProperty for MqStr<N> {
     type Data = [u8];
 

@@ -113,18 +113,6 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for [sys::MQBYTE] {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for Vec<sys::MQBYTE> {
-    type Error = Error;
-
-    fn add_to_bag<B: BagDrop>(&self, selector: MqaiSelector, bag: &Bag<B, L>) -> ResultComp<()> {
-        bag.mq.mq_add_byte_string(bag, selector, self)
-    }
-
-    fn set_bag_item<B: BagDrop>(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<()> {
-        bag.mq.mq_set_byte_string(bag, selector, index, self)
-    }
-}
-
 impl<T: EncodedString + ?Sized, L: Library<MQ: Mqai>> BagItemPut<L> for T {
     type Error = PutStringCcsidError;
 
@@ -325,35 +313,6 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<&[sys::MQBYTE]> {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<Vec<sys::MQBYTE>> {
-    type Error = Error;
-
-    fn add_to_bag<B: BagDrop>(&self, selector: MqaiSelector, bag: &Bag<B, L>) -> ResultComp<()> {
-        let Self { operator, value } = self;
-        bag.mq.mq_add_byte_string_filter(
-            bag,
-            selector,
-            mqai::Filter {
-                operator: *operator,
-                value,
-            },
-        )
-    }
-
-    fn set_bag_item<B: BagDrop>(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<()> {
-        let Self { operator, value } = self;
-        bag.mq.mq_set_byte_string_filter(
-            bag,
-            selector,
-            index,
-            mqai::Filter {
-                operator: *operator,
-                value,
-            },
-        )
-    }
-}
-
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<Vec<sys::MQBYTE>> {
     fn inq_bag_item<'bag, B: BagDrop>(selector: MqaiSelector, index: MQIND, bag: &Bag<B, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
@@ -434,9 +393,6 @@ mod tests {
 
         // Vec<sys::MQBYTE>
         test_put_inq_bag_item(BYTES.as_slice(), lib, |subject: Vec<sys::MQBYTE>| assert!(subject == BYTES))?;
-        test_put_inq_bag_item(&Vec::from(BYTES), lib, |subject: Vec<sys::MQBYTE>| {
-            assert_eq!(subject, BYTES);
-        })?;
         test_put_inq_bag_item(large_bytes.as_slice(), lib, |subject: Vec<sys::MQBYTE>| {
             assert!(subject == large_bytes);
         })?;
@@ -448,29 +404,6 @@ mod tests {
         test_put_inq_bag_item(&Filter::greater(&*long_s), lib, |subject: Filter<StrCcsidOwned>| {
             assert!(subject == Filter::greater(&*long_s));
         })?;
-
-        // Filter<Vec<sys::MQBYTE>>
-        test_put_inq_bag_item(
-            &Filter::greater(BYTES.as_slice()),
-            lib,
-            |subject: Filter<Vec<sys::MQBYTE>>| {
-                assert!(subject == Filter::greater(BYTES));
-            },
-        )?;
-        test_put_inq_bag_item(
-            &Filter::greater(large_bytes.as_slice()),
-            lib,
-            |subject: Filter<Vec<sys::MQBYTE>>| {
-                assert!(subject == Filter::greater(large_bytes.as_slice()));
-            },
-        )?;
-        test_put_inq_bag_item(
-            &Filter::greater(Vec::from(BYTES)),
-            lib,
-            |subject: Filter<Vec<sys::MQBYTE>>| {
-                assert!(subject == Filter::greater(BYTES));
-            },
-        )?;
 
         // (MqaiSelector, MQITEM)
         test_put_inq_bag_item(&99i32, lib, |subject: (MqaiSelector, values::MQITEM)| {

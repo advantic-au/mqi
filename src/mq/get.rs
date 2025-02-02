@@ -114,6 +114,7 @@ pub trait GetAttr<'b> {
         Self: Sized;
 }
 
+#[cfg(feature = "mqai")]
 pub trait GetBagAttr {
     fn get_bag_extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<Self>
     where
@@ -178,11 +179,10 @@ pub trait GetOption {
 #[cfg(feature = "mqai")]
 mod mqai {
     use crate::{
-        prelude::*,
-        admin::{Bag, Owned},
-        sys, values, Completion, Conn, Error, MqStruct, Object, ResultComp,
+        admin::{Bag, Owned}, core::Library, prelude::*, sys, values, Completion, Conn, Error, MqStruct, Object, ResultComp
     };
     use libmqm_default as default;
+    use libmqm_sys::Mqai;
 
     use super::{GetBagAttr, GetOption, GetParam};
 
@@ -193,7 +193,7 @@ mod mqai {
         pub fn get_bag_with<R: GetBagAttr>(
             &self,
             options: &impl GetOption,
-            bag: &mut Bag<Owned, C::Lib>,
+            bag: &mut Bag<Owned, impl Library<MQ: Mqai>>,
         ) -> ResultComp<Option<R>> {
             let mut param = GetParam {
                 md: MqStruct::new(default::MQMD2_DEFAULT),
@@ -228,7 +228,7 @@ mod mqai {
             }
         }
 
-        pub fn get_bag(&self, options: &impl GetOption, bag: &mut Bag<Owned, C::Lib>) -> ResultComp<bool> {
+        pub fn get_bag(&self, options: &impl GetOption, bag: &mut Bag<Owned, impl Library<MQ: Mqai>>) -> ResultComp<bool> {
             self.get_bag_with::<()>(options, bag).map_completion(|o| o.is_some())
         }
     }
