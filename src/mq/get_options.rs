@@ -7,7 +7,7 @@ use crate::{
 
 use super::{
     get::{
-        GetAttr, GetBagAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait,
+        GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait,
         Headers, MatchOptions,
     },
     headers, impl_mqstruct_min_version, Buffer, MqStruct, StrCcsidCow,
@@ -119,9 +119,49 @@ impl GetOption for types::MsgToken {
     }
 }
 
+#[cfg(feature = "mqai")]
+#[expect(unused_parens)]
+mod get_bag_impl {
+
+    use crate::get::{GetBagAttr, GetParam};
+    use crate::macros::all_multi_tuples;
+    use crate::prelude::*;
+    use crate::ResultComp;
+
+    macro_rules! impl_getbagattr {
+        ([$first:ident, $($ty:ident),*]) => {
+            #[expect(non_snake_case)]
+            impl<'b, $first, $($ty),*> GetBagAttr for ($first, $($ty),*)
+            where
+                $first: GetBagAttr,
+                $($ty: GetBagAttr),*
+            {
+                #[inline]
+                fn get_bag_extract<F>(param: &mut GetParam, get_bag: F) -> ResultComp<Self>
+                where
+                    F: FnOnce(&mut GetParam) -> ResultComp<()>,
+                {
+                    let mut rest_outer = None;
+                    $first::get_bag_extract(param, |param| {
+                        <($($ty),*) as GetBagAttr>::get_bag_extract(param, get_bag).map_completion(|rest| {
+                            rest_outer = Some(rest);
+                        })
+                    })
+                    .map_completion(|a| {
+                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
+                        (a, $($ty),*)
+                    })
+                }
+            }
+        }
+    }
+
+    all_multi_tuples!(impl_getbagattr);
+}
+
 #[expect(unused_parens)]
 mod get_impl {
-    use crate::get::{GetAttr, GetBagAttr, GetValue, GetParam, GetState};
+    use crate::get::{GetAttr, GetValue, GetParam, GetState};
     use crate::Buffer;
     use crate::macros::all_multi_tuples;
     use crate::prelude::*;
@@ -193,37 +233,8 @@ mod get_impl {
         }
     }
 
-    macro_rules! impl_getbagattr {
-        ([$first:ident, $($ty:ident),*]) => {
-            #[expect(non_snake_case)]
-            impl<'b, $first, $($ty),*> GetBagAttr for ($first, $($ty),*)
-            where
-                $first: GetBagAttr,
-                $($ty: GetBagAttr),*
-            {
-                #[inline]
-                fn get_bag_extract<F>(param: &mut GetParam, get_bag: F) -> ResultComp<Self>
-                where
-                    F: FnOnce(&mut GetParam) -> ResultComp<()>,
-                {
-                    let mut rest_outer = None;
-                    $first::get_bag_extract(param, |param| {
-                        <($($ty),*) as GetBagAttr>::get_bag_extract(param, get_bag).map_completion(|rest| {
-                            rest_outer = Some(rest);
-                        })
-                    })
-                    .map_completion(|a| {
-                        let ($($ty),*) = rest_outer.expect("rest_outer should be set by extract closure");
-                        (a, $($ty),*)
-                    })
-                }
-            }
-        }
-    }
-
     all_multi_tuples!(impl_getvalue);
     all_multi_tuples!(impl_getattr);
-    all_multi_tuples!(impl_getbagattr);
 }
 
 impl<'b> GetValue<'b> for StrCcsidCow<'b> {
@@ -375,7 +386,7 @@ impl<'b> GetAttr<'b> for types::MessageId {
     }
 }
 
-impl GetBagAttr for () {
+impl super::get::GetBagAttr for () {
     fn get_bag_extract<F>(param: &mut GetParam, get_bag: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<()>,
