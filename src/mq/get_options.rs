@@ -157,6 +157,16 @@ mod get_bag_impl {
     }
 
     all_multi_tuples!(impl_getbagattr);
+
+    impl GetBagAttr for () {
+        fn get_bag_extract<F>(param: &mut GetParam, get_bag: F) -> ResultComp<Self>
+        where
+            F: FnOnce(&mut GetParam) -> ResultComp<()>,
+        {
+            get_bag(param) // No extra data to retrieve
+        }
+    }
+    
 }
 
 #[expect(unused_parens)]
@@ -383,15 +393,6 @@ impl<'b> GetAttr<'b> for types::MessageId {
         B: Buffer<'b, u8>,
     {
         get(param).map_completion(|state| (Self(param.md.MsgId.into()), state))
-    }
-}
-
-impl super::get::GetBagAttr for () {
-    fn get_bag_extract<F>(param: &mut GetParam, get_bag: F) -> ResultComp<Self>
-    where
-        F: FnOnce(&mut GetParam) -> ResultComp<()>,
-    {
-        get_bag(param) // No extra data to retrieve
     }
 }
 
