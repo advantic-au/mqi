@@ -110,7 +110,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@v2.47.7
+      - uses: taiki-e/install-action@v2.48.1
         with:
           tool: nextest
       - name: Test
@@ -142,7 +142,7 @@ jobs:
       - name: Enable type layout randomization
         run: echo RUSTFLAGS=${RUSTFLAGS}\ -Zrandomize-layout >> $GITHUB_ENV
         if: matrix.toolchain == 'nightly'
-      - uses: taiki-e/install-action@v2.47.7
+      - uses: taiki-e/install-action@v2.48.1
         with:
           tool: nextest
       - name: Test
@@ -167,7 +167,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "build"
-      - uses: taiki-e/install-action@v2.47.7
+      - uses: taiki-e/install-action@v2.48.1
         with:
           tool: nextest
       - name: Execute miri tests
@@ -200,7 +200,7 @@ jobs:
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2.47.7
+      - uses: taiki-e/install-action@v2.48.1
         with:
           tool: cargo-mutants
       - name: Mutant testing
@@ -299,7 +299,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
-      - uses: taiki-e/install-action@v2.47.7
+      - uses: taiki-e/install-action@v2.48.1
         with:
           tool: cargo-docs-rs
       - run: cargo docs-rs
