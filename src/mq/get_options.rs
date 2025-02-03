@@ -7,8 +7,8 @@ use crate::{
 
 use super::{
     get::{
-        GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait,
-        Headers, MatchOptions,
+        GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait, Headers,
+        MatchOptions,
     },
     headers, impl_mqstruct_min_version, Buffer, MqStruct, StrCcsidCow,
 };
@@ -166,7 +166,6 @@ mod get_bag_impl {
             get_bag(param) // No extra data to retrieve
         }
     }
-    
 }
 
 #[expect(unused_parens)]
