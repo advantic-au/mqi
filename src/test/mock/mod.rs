@@ -706,6 +706,13 @@ impl MockFunctions {
             .in_sequence(seq);
     }
 
+    pub fn get_bag_error(&mut self, mqrc: sys::MQLONG, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+        self.expect_mqGetBag()
+            .returning(move |_, _, _, _, _, cc, rc| Self::mqi_outcome(cc, rc, sys::MQCC_FAILED, mqrc))
+            .times(count)
+            .in_sequence(seq);
+    }
+
     pub fn get_ok(
         &mut self,
         message: &'static (impl PutMessage + ?Sized),

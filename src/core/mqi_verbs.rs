@@ -1,10 +1,9 @@
-use std::fmt::Debug;
 use std::ptr;
 
 use super::values::{CCSID, MQCO, MQDCC, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
 use super::{
-    ConnectionHandle, Library, MessageHandle, MqFunctions, MqiOutcome, MqiOutcomeVoid, ObjectHandle, SubscriptionHandle,
-    WriteByte,
+    ConnectionHandle, Library, MessageHandle, MqFunctions, MqiOutcome, MqiOutcomeVoid, ObjectHandle, ReadByte,
+    SubscriptionHandle, WriteByte,
 };
 use crate::{sys, Error, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::Mqi;
@@ -500,8 +499,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Set or modify a property of a message handle
     #[expect(clippy::too_many_arguments)]
-    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqsetmp<T: Debug + ?Sized>(
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, value)))]
+    pub fn mqsetmp<T: ReadByte + ?Sized>(
         &self,
         connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,

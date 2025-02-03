@@ -10,7 +10,25 @@ fn bag_message() -> Result<(), Box<dyn std::error::Error>> {
         mq_lib = test::mock::connect_ok();
         let mut seq = mockall::Sequence::new();
         mq_lib.open_ok(0x0c0c, 1, &mut seq);
-        // mq_lib.get_error(sys::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
+        mq_lib
+            .expect_mqCreateBag()
+            .returning(move |_, bag_handle, cc, rc| {
+                unsafe { *bag_handle = 0x0f0f };
+                test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+            })
+            .times(1)
+            .in_sequence(&mut seq);
+        mq_lib
+            .expect_mqSetInteger()
+            .returning(move |_, _, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
+            .times(1)
+            .in_sequence(&mut seq);
+        mq_lib.get_bag_error(sys::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
+        mq_lib
+            .expect_mqDeleteBag()
+            .returning(move |_, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
+            .times(1)
+            .in_sequence(&mut seq);
     }
     #[cfg(not(feature = "mock"))]
     {
@@ -30,9 +48,7 @@ fn bag_message() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     let mut bag = Bag::new_lib(&mq_lib, values::MQCBO(sys::MQCBO_NONE)).discard_warning()?;
-    let retrieved = object.get_bag(&(), &mut bag);
-
-
+    assert!(!object.get_bag(&(), &mut bag).warn_as_error()?);
 
     Ok(())
 }

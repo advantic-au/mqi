@@ -179,7 +179,10 @@ pub trait GetOption {
 #[cfg(feature = "mqai")]
 mod mqai {
     use crate::{
-        admin::{Bag, Owned}, core::Library, prelude::*, sys, values, Completion, Conn, Error, MqStruct, Object, ResultComp
+        admin::{Bag, Owned},
+        core::Library,
+        prelude::*,
+        sys, values, Completion, Conn, Error, MqStruct, Object, ResultComp,
     };
     use libmqm_default as default;
     use libmqm_sys::Mqai;

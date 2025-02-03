@@ -1,11 +1,11 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 
 use core::str;
-use std::ops::Deref as _;
 use std::{mem, ptr, slice};
 use std::{borrow::Cow, num::NonZero};
 
 use crate::conversion;
+use crate::core::ReadByte;
 use crate::macros::reverse_ident;
 
 use libmqm_sys::lib::MQTYPE_STRING;
@@ -54,7 +54,7 @@ pub trait PropertyAttr {
 }
 
 pub trait SetProperty {
-    type Data: std::fmt::Debug + ?Sized;
+    type Data: ReadByte + ?Sized;
     fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE);
 }
 
@@ -246,7 +246,14 @@ macro_rules! impl_primitive_setproptype {
     };
 }
 
-impl_primitive_setproptype!(bool, sys::MQTYPE_BOOLEAN);
+impl SetProperty for bool {
+    type Data = sys::MQLONG;
+    fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
+        smpo.ValueEncoding = sys::MQENC_NATIVE;
+        (if *self { &1 } else { &0 }, values::MQTYPE(sys::MQTYPE_BOOLEAN))
+    }
+}
+
 impl_primitive_setproptype!(i8, sys::MQTYPE_INT8);
 impl_primitive_setproptype!(i16, sys::MQTYPE_INT16);
 impl_primitive_setproptype!(i32, sys::MQTYPE_INT32);
@@ -255,18 +262,13 @@ impl_primitive_setproptype!(f32, sys::MQTYPE_FLOAT32);
 impl_primitive_setproptype!(f64, sys::MQTYPE_FLOAT64);
 impl_primitive_setproptype!(Null, sys::MQTYPE_NULL);
 
+impl ReadByte for Null {}
+
 impl SetProperty for str {
     type Data = Self;
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
         smpo.ValueCCSID = 1208;
         (self, MQTYPE(sys::MQTYPE_STRING))
-    }
-}
-
-impl SetProperty for String {
-    type Data = <str as SetProperty>::Data;
-    fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
-        self.deref().apply_mqsetmp(pd, smpo)
     }
 }
 
@@ -416,7 +418,7 @@ impl PropertyValue for Value {
         param.value_type = MQTYPE(sys::MQTYPE_AS_SET);
         param.impo.Options |= sys::MQIMPO_NONE;
         mqinqmp(param).map_completion(|state| match param.value_type.value() {
-            sys::MQTYPE_BOOLEAN => Self::Boolean(state.value[8] != 0),
+            sys::MQTYPE_BOOLEAN => Self::Boolean(i32::as_primitive(&state.value) != 0),
             sys::MQTYPE_STRING => Self::String(StringCcsid {
                 ccsid: CCSID(param.impo.ReturnedCCSID),
                 data: conversion::bytes_to_cow_mqchar(state.value).into_owned(),
@@ -487,11 +489,11 @@ impl PropertyValue for bool {
     {
         param.value_type = MQTYPE(sys::MQTYPE_BOOLEAN);
         param.impo.Options |= sys::MQIMPO_CONVERT_TYPE;
-        mqinqmp(param).map_completion(|state| state.value[8] != 0)
+        mqinqmp(param).map_completion(|state| sys::MQLONG::as_primitive(&state.value) != 0)
     }
 
     fn max_value_size() -> Option<NonZero<usize>> {
-        NonZero::new(mem::size_of::<Self>())
+        NonZero::new(mem::size_of::<sys::MQLONG>())
     }
 }
 
