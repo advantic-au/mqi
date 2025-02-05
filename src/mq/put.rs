@@ -1,9 +1,8 @@
 use std::borrow::Cow;
 
 use libmqm_default as default;
-use libmqm_sys::{Mqai, Mqi};
+use libmqm_sys::Mqi;
 
-use crate::admin::{Bag, BagDrop};
 use crate::core::{ConnectionHandle, Library, MqFunctions};
 use crate::headers::{fmt, TextEnc};
 use crate::types::MessageFormat;
@@ -11,7 +10,7 @@ use crate::{sys, Conn, MqStruct, Object, ResultComp};
 use crate::values;
 
 use super::values::{CCSID, MQENC, MQPMO};
-use super::{types, OpenOption, OpenParamOption};
+use super::{OpenOption, OpenParamOption};
 
 /// A trait that provides a rendered message for the [`mqput`](`crate::core::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put")]
@@ -47,42 +46,56 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
 }
 
 #[cfg(feature = "mqai")]
-impl<C: Conn> Object<C>
-where
-    C::Lib: Library<MQ: Mqai>,
-{
-    pub fn put_bag<'po>(
-        &self,
-        put_options: &impl PutOption<'po>,
-        format: TextEnc<types::Fmt>,
-        bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
-    ) -> ResultComp<()> {
-        self.put_bag_with(put_options, format, bag)
-    }
+mod mqai {
+    use libmqm_sys::Mqai;
+    use libmqm_default as default;
 
-    pub fn put_bag_with<'po, R>(
-        &self,
-        put_options: &impl PutOption<'po>,
-        format: TextEnc<types::Fmt>,
-        bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
-    ) -> ResultComp<R>
+    use crate::{
+        admin::{Bag, BagDrop},
+        core::Library,
+        headers::TextEnc,
+        sys, types, Conn, MqStruct, Object, ResultComp,
+    };
+
+    use super::{PutAttr, PutOption};
+
+    impl<C: Conn> Object<C>
     where
-        R: PutAttr,
+        C::Lib: Library<MQ: Mqai>,
     {
-        let md = MqStruct::new(sys::MQMD2 {
-            Format: format.into_ascii().into(),
-            ..default::MQMD2_DEFAULT
-        });
-        let mqpmo = MqStruct::new(default::MQPMO_DEFAULT);
+        pub fn put_bag<'po>(
+            &self,
+            put_options: &impl PutOption<'po>,
+            format: TextEnc<types::Fmt>,
+            bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
+        ) -> ResultComp<()> {
+            self.put_bag_with(put_options, format, bag)
+        }
 
-        let mut put_param = (md, mqpmo);
-        put_options.apply_param(&mut put_param);
-        R::put_bag_extract(&mut put_param, |(md, pmo)| {
-            let connection = self.connection();
-            connection
-                .mq()
-                .mq_put_bag(connection.handle(), self.handle(), &mut **md, &mut *pmo, bag.handle())
-        })
+        pub fn put_bag_with<'po, R>(
+            &self,
+            put_options: &impl PutOption<'po>,
+            format: TextEnc<types::Fmt>,
+            bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
+        ) -> ResultComp<R>
+        where
+            R: PutAttr,
+        {
+            let md = MqStruct::new(sys::MQMD2 {
+                Format: format.into_ascii().into(),
+                ..default::MQMD2_DEFAULT
+            });
+            let mqpmo = MqStruct::new(default::MQPMO_DEFAULT);
+
+            let mut put_param = (md, mqpmo);
+            put_options.apply_param(&mut put_param);
+            R::put_bag_extract(&mut put_param, |(md, pmo)| {
+                let connection = self.connection();
+                connection
+                    .mq()
+                    .mq_put_bag(connection.handle(), self.handle(), &mut **md, &mut *pmo, bag.handle())
+            })
+        }
     }
 }
 
