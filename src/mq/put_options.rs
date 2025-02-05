@@ -82,7 +82,7 @@ impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2> {
 
 impl PutAttr for MqStruct<'static, sys::MQMD2> {
     #[inline]
-    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
+    fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
@@ -95,7 +95,7 @@ impl PutAttr for MqStruct<'static, sys::MQMD2> {
 
 impl PutAttr for types::MessageId {
     #[inline]
-    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
+    fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
@@ -108,7 +108,7 @@ impl PutAttr for types::MessageId {
 
 impl PutAttr for types::CorrelationId {
     #[inline]
-    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
+    fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
@@ -121,7 +121,7 @@ impl PutAttr for types::CorrelationId {
 
 impl PutAttr for Option<types::UserIdentifier> {
     #[inline]
-    fn extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
+    fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
     {
@@ -149,13 +149,13 @@ mod impl_put {
             {
                 #[expect(non_snake_case)]
                 #[inline]
-                fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
+                fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
                 where
                     F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>
                 {
                     let mut rest_outer = None;
-                    $first::extract(param, |param| {
-                        <($($ty),*) as PutAttr>::extract(param, mqi).map_completion(|rest| {
+                    $first::put_bag_extract(param, |param| {
+                        <($($ty),*) as PutAttr>::put_bag_extract(param, mqi).map_completion(|rest| {
                             rest_outer = Some(rest);
                         })
                     })
@@ -170,7 +170,7 @@ mod impl_put {
 
     impl PutAttr for () {
         #[inline]
-        fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
+        fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
         where
             F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
             Self: Sized,

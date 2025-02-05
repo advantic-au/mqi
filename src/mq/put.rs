@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 
 use libmqm_default as default;
-use libmqm_sys::Mqi;
+use libmqm_sys::{Mqai, Mqi};
 
+use crate::admin::{Bag, BagDrop};
 use crate::core::{ConnectionHandle, Library, MqFunctions};
 use crate::headers::{fmt, TextEnc};
 use crate::types::MessageFormat;
@@ -10,20 +11,12 @@ use crate::{sys, Conn, MqStruct, Object, ResultComp};
 use crate::values;
 
 use super::values::{CCSID, MQENC, MQPMO};
-use super::{OpenOption, OpenParamOption};
+use super::{types, OpenOption, OpenParamOption};
 
 /// A trait that provides a rendered message for the [`mqput`](`crate::core::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put")]
 pub trait PutMessage {
     fn render(&self) -> Cow<[u8]>;
-    fn format(&self) -> MessageFormat;
-}
-
-/// A trait that provides a bag handle and message format for the [`mq_put_bag`](`crate::core::MqFunctions::mq_put_bag`) function
-#[cfg(feature = "mqai")]
-#[diagnostic::on_unimplemented(message = "{Self} does not implement `PutBag` so it can't be used as a bag for MQI mq_put_bag")]
-pub trait PutBag {
-    fn bag(&self) -> &crate::core::mqai::BagHandle;
     fn format(&self) -> MessageFormat;
 }
 
@@ -56,36 +49,39 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
 #[cfg(feature = "mqai")]
 impl<C: Conn> Object<C>
 where
-    C::Lib: Library<MQ: libmqm_sys::Mqai>,
+    C::Lib: Library<MQ: Mqai>,
 {
-    pub fn put_bag<'po>(&self, put_options: &impl PutOption<'po>, bag: &impl PutBag) -> ResultComp<()> {
-        self.put_bag_with(put_options, bag)
+    pub fn put_bag<'po>(
+        &self,
+        put_options: &impl PutOption<'po>,
+        format: TextEnc<types::Fmt>,
+        bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
+    ) -> ResultComp<()> {
+        self.put_bag_with(put_options, format, bag)
     }
 
-    pub fn put_bag_with<'po, R>(&self, put_options: &impl PutOption<'po>, bag: &impl PutBag) -> ResultComp<R>
+    pub fn put_bag_with<'po, R>(
+        &self,
+        put_options: &impl PutOption<'po>,
+        format: TextEnc<types::Fmt>,
+        bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
+    ) -> ResultComp<R>
     where
         R: PutAttr,
     {
-        let MessageFormat {
-            ccsid: CCSID(ccsid),
-            encoding,
-            fmt,
-        } = bag.format();
         let md = MqStruct::new(sys::MQMD2 {
-            CodedCharSetId: ccsid,
-            Encoding: encoding.value(),
-            Format: *fmt.into_ascii().as_ref(),
+            Format: format.into_ascii().into(),
             ..default::MQMD2_DEFAULT
         });
         let mqpmo = MqStruct::new(default::MQPMO_DEFAULT);
 
         let mut put_param = (md, mqpmo);
         put_options.apply_param(&mut put_param);
-        R::extract(&mut put_param, |(md, pmo)| {
+        R::put_bag_extract(&mut put_param, |(md, pmo)| {
             let connection = self.connection();
             connection
                 .mq()
-                .mq_put_bag(connection.handle(), self.handle(), &mut **md, &mut *pmo, bag.bag())
+                .mq_put_bag(connection.handle(), self.handle(), &mut **md, &mut *pmo, bag.handle())
         })
     }
 }
@@ -119,14 +115,14 @@ pub trait PutOption<'po> {
 }
 
 pub trait PutAttr {
-    fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
+    fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
         Self: Sized;
 }
 
-pub(super) fn put_message_with<'po, 'oo, R, L>(
-    functions: &MqFunctions<L>,
+pub(super) fn put_message_with<'po, 'oo, R>(
+    functions: &MqFunctions<impl Library<MQ: Mqi>>,
     handle: ConnectionHandle,
     open_options: &impl OpenOption<'oo, MQPMO>,
     put_options: &impl PutOption<'po>,
@@ -134,7 +130,6 @@ pub(super) fn put_message_with<'po, 'oo, R, L>(
 ) -> ResultComp<R>
 where
     R: PutAttr,
-    L: Library<MQ: Mqi>,
 {
     let mut open_params = OpenParamOption {
         mqod: MqStruct::new(default::MQOD_DEFAULT),
@@ -168,5 +163,5 @@ where
     let mut put_param = (md, mqpmo);
 
     options.apply_param(&mut put_param);
-    T::extract(&mut put_param, |param| put(param, &message.render()))
+    T::put_bag_extract(&mut put_param, |param| put(param, &message.render()))
 }
