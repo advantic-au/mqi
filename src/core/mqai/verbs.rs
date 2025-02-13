@@ -3,15 +3,15 @@ use std::ptr;
 
 use libmqm_sys::Mqai;
 
-use crate::core::{Library, MqFunctions, MqiOutcome, MqiOutcomeVoid, WriteByte};
-use crate::{core, MQMD};
+use crate::core::{ConnectionHandle, Library, MqFunctions, MqInqError, MqiOutcome, MqiOutcomeVoid, ObjectHandle, WriteRaw};
+use crate::{Error, ResultCompErr, MQMD};
 use crate::{sys, ResultComp};
 
 use crate::values::{MqaiSelector, CCSID, MQCBO, MQCFOP, MQCMD, MQIND, MQITEM};
 use super::{BagHandle, Filter};
 
 #[cfg(feature = "tracing")]
-use {core::tracing_outcome, tracing::instrument};
+use {crate::core::tracing_outcome, tracing::instrument};
 
 impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
@@ -455,7 +455,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         bag: &BagHandle,
         selector: MqaiSelector,
         index: MQIND,
-        value: &mut (impl WriteByte<sys::MQBYTE> + ?Sized),
+        value: &mut (impl WriteRaw<sys::MQBYTE> + ?Sized),
     ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("mqInquireByteString");
         unsafe {
@@ -483,7 +483,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         bag: &BagHandle,
         selector: MqaiSelector,
         index: MQIND,
-        value: &mut (impl WriteByte<sys::MQCHAR> + ?Sized),
+        value: &mut (impl WriteRaw<sys::MQCHAR> + ?Sized),
     ) -> ResultComp<(sys::MQLONG, CCSID)> {
         let mut outcome = MqiOutcome::<(sys::MQLONG, CCSID)>::with_verb("mqInquireString");
         let (length, ccsid) = &mut outcome.value;
@@ -513,7 +513,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         bag: &BagHandle,
         selector: MqaiSelector,
         index: MQIND,
-        value: &mut (impl WriteByte<sys::MQCHAR> + ?Sized),
+        value: &mut (impl WriteRaw<sys::MQCHAR> + ?Sized),
     ) -> ResultComp<(sys::MQLONG, CCSID, MQCFOP)> {
         let mut outcome = MqiOutcome::new("mqInquireStringFilter", (-1, CCSID(0), MQCFOP(0)));
         let (length, ccsid, operator) = &mut outcome.value;
@@ -544,7 +544,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         bag: &BagHandle,
         selector: MqaiSelector,
         index: MQIND,
-        value: &mut (impl WriteByte<sys::MQBYTE> + ?Sized),
+        value: &mut (impl WriteRaw<sys::MQBYTE> + ?Sized),
     ) -> ResultComp<(sys::MQLONG, MQCFOP)> {
         let mut outcome = MqiOutcome::new("mqInquireByteStringFilter", (-1, MQCFOP(0)));
         let (length, operator) = &mut outcome.value;
@@ -607,13 +607,13 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_execute(
         &self,
-        handle: core::ConnectionHandle,
+        handle: ConnectionHandle,
         command: MQCMD,
         options: Option<&BagHandle>,
         admin: &BagHandle,
         response: &BagHandle,
-        admin_q: Option<&core::ObjectHandle>,
-        response_q: Option<&core::ObjectHandle>,
+        admin_q: Option<&ObjectHandle>,
+        response_q: Option<&ObjectHandle>,
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqExecute");
         unsafe {
@@ -666,8 +666,8 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, bag)))]
     pub fn mq_get_bag(
         &self,
-        handle: core::ConnectionHandle,
-        object: &core::ObjectHandle,
+        handle: ConnectionHandle,
+        object: &ObjectHandle,
         mqmd: &mut impl MQMD,
         gmo: &mut sys::MQGMO,
         bag: Option<&BagHandle>,
@@ -693,8 +693,8 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_put_bag(
         &self,
-        handle: core::ConnectionHandle,
-        object: &core::ObjectHandle,
+        handle: ConnectionHandle,
+        object: &ObjectHandle,
         mqmd: &mut impl MQMD,
         pmo: &mut sys::MQPMO,
         bag: &BagHandle,
@@ -722,8 +722,8 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         &self,
         options_bag: &BagHandle,
         data_bag: &BagHandle,
-        buffer: Option<&mut (impl WriteByte<sys::MQBYTE> + ?Sized)>,
-    ) -> ResultComp<sys::MQLONG> {
+        buffer: Option<&mut (impl WriteRaw<sys::MQBYTE> + ?Sized)>,
+    ) -> ResultCompErr<sys::MQLONG, MqInqError> {
         let mut outcome = MqiOutcome::with_verb("mqBagToBuffer");
 
         let (buf, len) = buffer.map_or((ptr::null_mut(), 0), |buffer| {
@@ -747,7 +747,13 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
-        outcome.into()
+        match outcome.rc.value() {
+            sys::MQRC_BUFFER_LENGTH_ERROR => Err(MqInqError::Length(
+                outcome.value,
+                Error(outcome.cc, outcome.verb, outcome.rc),
+            )),
+            _ => outcome.into(),
+        }
     }
 
     /// Convert the supplied buffer into bag form

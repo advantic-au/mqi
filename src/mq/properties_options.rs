@@ -5,7 +5,7 @@ use std::{mem, ptr, slice};
 use std::{borrow::Cow, num::NonZero};
 
 use crate::conversion;
-use crate::core::ReadByte;
+use crate::core::ReadRaw;
 use crate::macros::reverse_ident;
 
 use libmqm_sys::lib::MQTYPE_STRING;
@@ -54,7 +54,7 @@ pub trait PropertyAttr {
 }
 
 pub trait SetProperty {
-    type Data: ReadByte + ?Sized;
+    type Data: ReadRaw + ?Sized;
     fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE);
 }
 
@@ -262,7 +262,7 @@ impl_primitive_setproptype!(f32, sys::MQTYPE_FLOAT32);
 impl_primitive_setproptype!(f64, sys::MQTYPE_FLOAT64);
 impl_primitive_setproptype!(Null, sys::MQTYPE_NULL);
 
-impl ReadByte for Null {}
+impl ReadRaw for Null {}
 
 impl SetProperty for str {
     type Data = Self;

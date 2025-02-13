@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::{
-    conversion, macros::all_option_tuples, sys, types, values, Completion, Conn, Error, Properties, ResultComp, ResultCompErr,
-    prelude::*,
+    conversion, macros::all_option_tuples, prelude::*, sys, types, values, Completion, Conn, Error, Properties, ResultComp,
+    ResultCompErr,
 };
 
 use super::{
@@ -179,22 +179,22 @@ mod get_impl {
     macro_rules! impl_getvalue {
         ([$first:ident, $($ty:ident),*]) => {
             #[expect(non_snake_case)]
-            impl<'b, $first, $($ty),*> GetValue<'b> for ($first, $($ty),*)
+            impl<'b, R, B, $first, $($ty),*> GetValue<'b, R, B> for ($first, $($ty),*)
             where
-                $first: GetValue<'b>,
-                $($ty: GetAttr<'b>),*
+                $first: GetValue<'b, R, B>,
+                $($ty: GetAttr<'b, R>),*
             {
                 type Error = $first::Error;
 
                 #[inline]
-                fn get_consume<F,B>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+                fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
                 where
                     F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-                    B: Buffer<'b, u8>,
+                    B: Buffer<'b, R>,
                 {
                     let mut rest_outer = None;
                     $first::get_consume(param, |param| {
-                        <($($ty),*) as GetAttr>::get_extract(param, get).map_completion(|(rest, state)| {
+                        <($($ty),*) as GetAttr<R>>::get_extract(param, get).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -215,20 +215,20 @@ mod get_impl {
     macro_rules! impl_getattr {
         ([$first:ident, $($ty:ident),*]) => {
             #[expect(non_snake_case)]
-            impl<'b, $first, $($ty),*> GetAttr<'b> for ($first, $($ty),*)
+            impl<'b, R, $first, $($ty),*> GetAttr<'b, R> for ($first, $($ty),*)
             where
-                $first: GetAttr<'b>,
-                $($ty: GetAttr<'b>),*
+                $first: GetAttr<'b, R>,
+                $($ty: GetAttr<'b, R>),*
             {
                 #[inline]
                 fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
                 where
                     F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-                    B: Buffer<'b, u8>,
+                    B: Buffer<'b, R>,
                 {
                     let mut rest_outer = None;
                     $first::get_extract(param, |param| {
-                        <($($ty),*) as GetAttr>::get_extract(param, get).map_completion(|(rest, state)| {
+                        <($($ty),*) as GetAttr<R>>::get_extract(param, get).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -246,10 +246,10 @@ mod get_impl {
     all_multi_tuples!(impl_getattr);
 }
 
-impl<'b> GetValue<'b> for StrCcsidCow<'b> {
+impl<'b, B> GetValue<'b, u8, B> for StrCcsidCow<'b> {
     type Error = GetStringCcsidError;
 
-    fn get_consume<F, B>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
         B: Buffer<'b, u8>,
@@ -261,16 +261,16 @@ impl<'b> GetValue<'b> for StrCcsidCow<'b> {
 
         Ok(state.map(|state| Self {
             ccsid: state.format.ccsid,
-            data: conversion::bytes_to_cow_mqchar(state.buffer.truncate(state.data_length).into_cow()),
             le: (state.format.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
+            data: conversion::bytes_to_cow_mqchar(state.into_truncated_buffer().into_cow()),
         }))
     }
 }
 
-impl<'b> GetValue<'b> for Cow<'b, str> {
+impl<'b, B> GetValue<'b, u8, B> for Cow<'b, str> {
     type Error = GetStringError;
 
-    fn get_consume<F, B>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
         B: Buffer<'b, u8>,
@@ -286,7 +286,7 @@ impl<'b> GetValue<'b> for Cow<'b, str> {
             ));
         }
 
-        match get_result.map(|state| state.buffer.truncate(state.data_length).into_cow()) {
+        match get_result.map(|state| state.into_truncated_buffer().into_cow()) {
             Completion(Cow::Borrowed(bytes), warning) => Ok(Completion(
                 Cow::Borrowed(std::str::from_utf8(bytes).map_err(|e| GetStringError::Utf8Parse(e, warning))?),
                 warning,
@@ -299,33 +299,54 @@ impl<'b> GetValue<'b> for Cow<'b, str> {
     }
 }
 
-impl<'b> GetValue<'b> for Cow<'b, [u8]> {
+impl<'b, R, B> GetValue<'b, R, B> for Cow<'b, [R]>
+where
+    R: Clone,
+{
     type Error = Error;
 
     #[inline]
-    fn get_consume<F, B>(param: &mut GetParam, get: F) -> ResultComp<Self>
+    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-        B: Buffer<'b, u8>,
+        B: Buffer<'b, R>,
     {
-        get(param).map_completion(|state| state.buffer.truncate(state.data_length).into_cow())
+        get(param).map_completion(|state| state.into_truncated_buffer().into_cow())
     }
 }
 
-impl<'b> GetValue<'b> for Vec<u8> {
+impl<'b, R, B> GetValue<'b, R, B> for &'b mut [R]
+where
+    B: Into<Self>,
+{
+    type Error = Error;
+
+    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    where
+        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+        B: Buffer<'b, R>,
+    {
+        get(param).map_completion(|state| state.into_truncated_buffer().into())
+    }
+}
+
+impl<'b, R, B> GetValue<'b, R, B> for Vec<R>
+where
+    B: Into<Self>,
+{
     type Error = Error;
 
     #[inline]
-    fn get_consume<F, B>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-        B: Buffer<'b, u8>,
+        B: Buffer<'b, R>,
     {
-        Cow::<[u8]>::get_consume(param, get).map_completion(Cow::into_owned)
+        get(param).map_completion(|state| state.into_truncated_buffer().into())
     }
 }
 
-impl<'b> GetAttr<'b> for Headers<'b> {
+impl<'b> GetAttr<'b, u8> for Headers<'b> {
     fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
@@ -362,34 +383,34 @@ impl<'b> GetAttr<'b> for Headers<'b> {
     }
 }
 
-impl<'b> GetAttr<'b> for types::MessageFormat {
+impl<'b, R> GetAttr<'b, R> for types::MessageFormat {
     #[inline]
     fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-        B: Buffer<'b, u8>,
+        B: Buffer<'b, R>,
     {
         get(param).map_completion(|state| (state.format, state))
     }
 }
 
-impl<'b> GetAttr<'b> for MqStruct<'static, sys::MQMD2> {
+impl<'b, R> GetAttr<'b, R> for MqStruct<'static, sys::MQMD2> {
     #[inline]
     fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-        B: Buffer<'b, u8>,
+        B: Buffer<'b, R>,
     {
         get(param).map_completion(|state| (param.md.clone(), state))
     }
 }
 
-impl<'b> GetAttr<'b> for types::MessageId {
+impl<'b, R> GetAttr<'b, R> for types::MessageId {
     #[inline]
     fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-        B: Buffer<'b, u8>,
+        B: Buffer<'b, R>,
     {
         get(param).map_completion(|state| (Self(param.md.MsgId.into()), state))
     }
@@ -466,7 +487,7 @@ mod test {
         // Failure should be passed through
         let mut params = default_getparam();
         let failure: ResultCompErr<Cow<[u8]>, _> =
-            GetValue::get_consume::<_, &mut [u8]>(&mut params, mock_get_failure(values::MQRC(sys::MQRC_NOT_AUTHORIZED)));
+            GetValue::<u8, &mut [u8]>::get_consume(&mut params, mock_get_failure(values::MQRC(sys::MQRC_NOT_AUTHORIZED)));
         assert!(matches!(failure, Err(Error(_, _, values::MQRC(sys::MQRC_NOT_AUTHORIZED)))));
 
         Ok(())
@@ -497,7 +518,7 @@ mod test {
         // Failure should be passed through
         let mut params = default_getparam();
         let failure: ResultCompErr<StrCcsidCow, _> =
-            GetValue::get_consume::<_, &mut [u8]>(&mut params, mock_get_failure(values::MQRC(sys::MQRC_NOT_AUTHORIZED)));
+            GetValue::<_, &mut [u8]>::get_consume(&mut params, mock_get_failure(values::MQRC(sys::MQRC_NOT_AUTHORIZED)));
         assert!(matches!(
             failure,
             Err(GetStringCcsidError::MQ(Error(_, _, values::MQRC(sys::MQRC_NOT_AUTHORIZED))))
@@ -544,7 +565,7 @@ mod test {
         // Failure should be passed through
         let mut params = default_getparam();
         let failure: ResultCompErr<Cow<str>, _> =
-            GetValue::get_consume::<_, &mut [u8]>(&mut params, mock_get_failure(values::MQRC(sys::MQRC_NOT_AUTHORIZED)));
+            GetValue::<_, &mut [u8]>::get_consume(&mut params, mock_get_failure(values::MQRC(sys::MQRC_NOT_AUTHORIZED)));
         assert!(matches!(
             failure,
             Err(GetStringError::MQ(Error(_, _, values::MQRC(sys::MQRC_NOT_AUTHORIZED))))

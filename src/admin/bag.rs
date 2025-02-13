@@ -2,10 +2,11 @@ use std::marker::PhantomData;
 
 use libmqm_sys::Mqai;
 
+use crate::core::mqai::BagHandle;
 use crate::values::{MqaiSelector, MQIND, MQCBO, MQCC, MQRC};
-use crate::core::{self, mqai, Library};
-use crate::prelude::*;
-use crate::{sys, Completion, Error, ResultComp, ResultCompErr, WithMqError as _};
+use crate::core::{mqai, Library, MqFunctions, MqInqError, WriteRaw};
+use crate::{prelude::*, Buffer};
+use crate::{sys, Completion, Error, ResultComp, ResultCompErr};
 
 pub trait BagDrop: Sized {
     fn drop_bag<L: Library<MQ: Mqai>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
@@ -72,7 +73,7 @@ impl BagDrop for Embedded {
 #[derive(Debug)]
 pub struct Bag<B: BagDrop, L: Library<MQ: Mqai>> {
     bag: mqai::BagHandle,
-    pub(super) mq: core::MqFunctions<L>,
+    pub(super) mq: MqFunctions<L>,
     _marker: PhantomData<B>,
 }
 
@@ -86,7 +87,7 @@ impl<T: BagDrop, L: Library<MQ: Mqai>> std::ops::Deref for Bag<T, L> {
 
 impl<L: Library<MQ: Mqai>> Bag<Owned, L> {
     pub fn new_lib(lib: L, options: MQCBO) -> ResultComp<Self> {
-        let mq = core::MqFunctions(lib);
+        let mq = MqFunctions(lib);
         let bag = mq.mq_create_bag(options)?;
 
         mq.mq_set_integer(&bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default(), 1208)
@@ -159,6 +160,41 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
 
     pub fn truncate(&self, count: sys::MQLONG) -> ResultComp<()> {
         self.mq.mq_truncate_bag(self, count)
+    }
+
+    /// Renders the [`Bag`] to the provided [`Buffer`]
+    ///
+    /// Uses the `mqBagToBuffer` MQ API call
+    ///
+    pub fn to_buffer<'b, A: Buffer<'b, impl WriteRaw<sys::MQBYTE>>>(&self, buffer: A) -> ResultCompErr<A, MqInqError> {
+        let mut buf = buffer;
+        self.mq
+            .mq_bag_to_buffer(&BagHandle::from(sys::MQHB_NONE), self.handle(), Some(buf.as_mut()))
+            .map_completion(|length| buf.truncate(length.try_into().expect("mq buffer length should convert to usize")))
+    }
+
+    /// Calculates the required buffer length in bytes for the [`Bag::to_buffer`] function.
+    ///
+    /// Uses the `mqBagToBuffer` MQ API call
+    ///
+    pub fn buffer_len(&self) -> ResultComp<usize> {
+        match self.mq.mq_bag_to_buffer(
+            &BagHandle::from(sys::MQHB_NONE),
+            self.handle(),
+            Option::<&mut [sys::MQBYTE]>::None,
+        ) {
+            Err(MqInqError::Length(len, _)) => Ok(Completion(len, None)),
+            other => other,
+        }
+        .map_completion(|length| length.try_into().expect("mq buffer length should convert to usize"))
+        .map_err(std::convert::Into::into)
+    }
+
+    pub fn from_buffer(&mut self, buffer: &[sys::MQBYTE]) -> ResultComp<()> {
+        let mq = &mut self.mq;
+        let handle = &mut self.bag;
+
+        mq.mq_buffer_to_bag(&BagHandle::from(sys::MQHB_NONE), buffer, handle)
     }
 }
 

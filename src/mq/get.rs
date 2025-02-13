@@ -3,6 +3,7 @@ use std::{borrow::Cow, cmp, num::NonZero, str::Utf8Error};
 use libmqm_default as default;
 
 use crate::{
+    core::WriteRaw,
     headers::{ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     prelude::*,
     sys, types, values, Buffer, Completion, Conn, Error, MqStruct, Object, ResultComp, ResultCompErr, StrCcsidCow,
@@ -106,11 +107,20 @@ pub struct GetState<B> {
     pub format: types::MessageFormat,
 }
 
-pub trait GetAttr<'b> {
+impl<B> GetState<B> {
+    pub fn into_truncated_buffer<'b, R>(self) -> B
+    where
+        B: Buffer<'b, R>,
+    {
+        self.buffer.truncate(self.data_length)
+    }
+}
+
+pub trait GetAttr<'b, R> {
     fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-        B: Buffer<'b, u8>,
+        B: Buffer<'b, R>,
         Self: Sized;
 }
 
@@ -131,10 +141,10 @@ pub trait GetBagAttr {
 ///
 /// pub struct Fixed<const N: usize>(pub [u8; N]);
 ///
-/// impl<'b, const N: usize> get::GetValue<'b> for Fixed<N> {
+/// impl<'b, const N: usize, B> get::GetValue<'b, u8, B> for Fixed<N> {
 ///    type Error = Error;
 ///
-///    fn get_consume<F, B>(param: &mut get::GetParam, get: F) -> ResultComp<Self>
+///    fn get_consume<F>(param: &mut get::GetParam, get: F) -> ResultComp<Self>
 ///    where
 ///        F: FnOnce(&mut get::GetParam) -> ResultComp<get::GetState<B>>,
 ///        B: Buffer<'b, u8>,
@@ -142,9 +152,9 @@ pub trait GetBagAttr {
 ///        get(param).map_completion(|state| {
 ///            // Copy the message data into the fixed array
 ///            let msg_data: &[u8] = &state.buffer.as_ref()[..state.data_length];
-///            let mut target = [0; N];
-///            target[..state.data_length].copy_from_slice(msg_data);
-///            Self(target)
+///            let mut target = Self([0; N]);
+///            target.0[..state.data_length].copy_from_slice(msg_data);
+///            target
 ///        })
 ///    }
 ///
@@ -153,14 +163,14 @@ pub trait GetBagAttr {
 ///    }
 /// }
 /// ```
-pub trait GetValue<'b>: std::marker::Sized {
+pub trait GetValue<'b, R, B>: std::marker::Sized {
     type Error: std::fmt::Debug;
 
     /// Execute and consumes the result of the provided `get` function, creating `Self` from the [`GetState`]
-    fn get_consume<F, B>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-        B: Buffer<'b, u8>;
+        B: Buffer<'b, R>;
 
     /// The maximum size in bytes `Self` can consume from a `get` function call
     #[must_use]
@@ -238,19 +248,21 @@ mod mqai {
 }
 
 impl<C: Conn> Object<C> {
-    pub fn get_data<'b>(&self, options: &impl GetOption, buffer: impl Buffer<'b, u8>) -> ResultComp<Option<Cow<'b, [u8]>>> {
-        self.get_as(options, buffer)
-    }
-
-    pub fn get_data_with<'b, A>(
-        &self,
-        options: &impl GetOption,
-        buffer: impl Buffer<'b, u8>,
-    ) -> ResultComp<Option<(Cow<'b, [u8]>, A)>>
+    pub fn get_data<'b, R>(&self, options: &impl GetOption, buffer: &'b mut [R]) -> ResultComp<Option<&'b [R]>>
     where
-        A: GetAttr<'b>,
+        R: WriteRaw<u8>,
     {
         self.get_as(options, buffer)
+            .map_completion(|o| o.map(|buffer: &mut [R]| &*buffer))
+    }
+
+    pub fn get_data_with<'b, A, R>(&self, options: &impl GetOption, buffer: &'b mut [R]) -> ResultComp<Option<(&'b [R], A)>>
+    where
+        A: GetAttr<'b, R>,
+        R: WriteRaw<u8>,
+    {
+        self.get_as(options, buffer)
+            .map_completion(|o| o.map(|(buffer, attr): (&mut [R], A)| (&*buffer, attr)))
     }
 
     pub fn get_string<'b>(
@@ -267,14 +279,16 @@ impl<C: Conn> Object<C> {
         buffer: impl Buffer<'b, u8>,
     ) -> ResultCompErr<Option<(StrCcsidCow<'b>, A)>, GetStringCcsidError>
     where
-        A: GetAttr<'b>,
+        A: GetAttr<'b, u8>,
     {
         self.get_as(options, buffer)
     }
 
-    pub fn get_as<'b, R>(&self, options: &impl GetOption, buffer: impl Buffer<'b, u8>) -> ResultCompErr<Option<R>, R::Error>
+    pub fn get_as<'b, V, R, B>(&self, options: &impl GetOption, buffer: B) -> ResultCompErr<Option<V>, V::Error>
     where
-        R: GetValue<'b>,
+        B: Buffer<'b, R>,
+        V: GetValue<'b, R, B>,
+        R: WriteRaw<u8>,
     {
         let mut param = GetParam {
             md: MqStruct::new(default::MQMD2_DEFAULT),
@@ -287,9 +301,9 @@ impl<C: Conn> Object<C> {
 
         options.apply_param(&mut param);
 
-        let result = R::get_consume(&mut param, |param| {
+        let result = V::get_consume(&mut param, |param| {
             let mut buffer = buffer;
-            let write_area = match R::get_max_data_size() {
+            let write_area = match V::get_max_data_size() {
                 Some(max_len) => &mut buffer.as_mut()[..max_len.into()],
                 None => buffer.as_mut(),
             };

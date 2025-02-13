@@ -5,12 +5,15 @@ use libmqm_default as default;
 
 use crate::values::{MQRC, MQCC, MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::prelude::*;
-use crate::core::MessageHandle;
+use crate::core::{MessageHandle, WriteRaw};
 use crate::properties_options::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetProperty};
-use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
+use crate::{core, sys, Completion, Conn, InqBuffer};
 
 use crate::{EncodedString, Error, MqStruct};
 use crate::{ResultComp, ResultCompErr, ResultErr};
+
+use super::types::MessageFormat;
+use super::{values, Buffer};
 
 #[derive(Debug)]
 pub struct Properties<C: Conn> {
@@ -297,5 +300,37 @@ impl<C: Conn> Properties<C> {
         let mut s = self;
         let mqdmho = default::MQDMHO_DEFAULT;
         s.connection.mq().mqdltmh(Some(s.connection.handle()), &mut s.handle, &mqdmho)
+    }
+
+    pub fn to_buffer<'a, A: Buffer<'a, impl WriteRaw<sys::MQBYTE>>>(
+        &mut self,
+        name: &(impl EncodedString + ?Sized),
+        options: values::MQMHBO,
+        buffer: A,
+    ) -> ResultCompErr<(MessageFormat, A), core::MqInqError> {
+        let mut buf = buffer;
+        let mhbo = MqStruct::new(sys::MQMHBO {
+            Options: options.value(),
+            ..default::MQMHBO_DEFAULT
+        });
+        let mut mqmd = MqStruct::new(default::MQMD2_DEFAULT);
+        let name_mqcharv = MqStruct::from_encoded_str(name);
+
+        self.connection
+            .mq()
+            .mqmhbuf(
+                Some(self.connection.handle()),
+                self.handle(),
+                &mhbo,
+                &name_mqcharv,
+                &mut *mqmd,
+                buf.as_mut(),
+            )
+            .map_completion(|len| {
+                (
+                    MessageFormat::from_mqmd2(&mqmd),
+                    buf.truncate(len.try_into().expect("length should convert to usize")),
+                )
+            })
     }
 }

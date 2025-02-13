@@ -29,7 +29,6 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 | MQSET   | Set object attributes               | ✔ | ✔ |  |
 | MQSETMP | Set message property                | ✔ | ✔ |  |
 | MQSTAT  | Retrieve status information         | ✔ | ✔ |  |
-| MQMHBUF | Convert message handle into buffer  | ✔ |   |  |
 | MQSUB   | Register subscription               | ✔ | ✔ |  |
 | MQSUBRQ | Subscription request                | ✔ |   |  |
 | MQXCNVC | Convert characters                  | ✔ | ✔ |  |
@@ -44,8 +43,8 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=reference-mqai-calls>
 | mqCreateBag               | Create a new bag                                                       | ✔ | ✔ |   |
 | mqClearBag                | Delete all user items from the bag                                     | ✔ | ✔ |   |
 | mqDeleteBag               | Delete the specified bag                                               | ✔ | ✔ | On Drop |
-| mqGetBag                  | Remove a message from the specified queue as bag data                  | ✔ |   |   |
-| mqPutBag                  | Convert the contents of the specified bag into a PCF message and send  | ✔ |   |   |
+| mqGetBag                  | Remove a message from the specified queue as bag data                  | ✔ | ✔ |   |
+| mqPutBag                  | Convert the contents of the specified bag into a PCF message and send  | ✔ | ✔ |   |
 | mqTruncateBag             | Reduce the number of user items in a user bag to the specified value   | ✔ | ✔ |   |
 | mqAddInquiry              | Add a selector to an administration bag                                | ✔ | ✔ |   |
 | mqDeleteItem              | Remove one or more user items from a bag                               | ✔ | ✔ |   |
@@ -74,8 +73,8 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=reference-mqai-calls>
 | mqInquireBag              | Inquire the value of a bag handle                                      | ✔ | ✔ |   |
 | mqCountItems              | Return the number of occurrences of items                              | ✔ | ✔ |   |
 | mqExecute                 | Send an administration command message and wait for the reply          | ✔ | ✔ |   |
-| mqBagToBuffer             | Convert the bag into a PCF message in the supplied buffer              | ✔ |   |   |
-| mqBufferToBag             | Convert the supplied buffer into bag form                              | ✔ |   |   |
+| mqBagToBuffer             | Convert the bag into a PCF message in the supplied buffer              | ✔ | ✔ |   |
+| mqBufferToBag             | Convert the supplied buffer into bag form                              | ✔ | ✔ |   |
 | mqInquireItemInfo         | Return information about a specified item in a bag                     | ✔ | ✔ |   |
 | mqTrim                    | Trim the blanks from a blank-padded string, then terminates it with a null | ✘ |   | Can be trivially implemented in safe rust |
 | mqPad                     | Pad a null-terminated string with blanks                               | ✘  |   | Can be trivially implemented in safe rust |
