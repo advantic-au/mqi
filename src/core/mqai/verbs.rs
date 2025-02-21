@@ -748,10 +748,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
         match outcome.rc.value() {
-            sys::MQRC_BUFFER_LENGTH_ERROR => Err(MqInqError::Length(
-                outcome.value,
-                Error(outcome.cc, outcome.verb, outcome.rc),
-            )),
+            sys::MQRC_BUFFER_LENGTH_ERROR => Err(MqInqError::Length(outcome.value, Error(outcome.cc, outcome.verb, outcome.rc))),
             _ => outcome.into(),
         }
     }

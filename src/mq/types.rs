@@ -9,6 +9,8 @@ use std::{
     ptr, str,
 };
 
+use libmqm_default as default;
+
 use super::{headers::fmt::MQFMT_NONE, MqStruct};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
@@ -59,6 +61,16 @@ impl MessageFormat {
             encoding: MQENC(md.Encoding),
             fmt: TextEnc::Ascii(md.Format),
         }
+    }
+
+    #[must_use]
+    pub fn into_mqmd2(&self) -> MqStruct<sys::MQMD2> {
+        MqStruct::new(sys::MQMD2 {
+            CodedCharSetId: self.ccsid.0,
+            Encoding: self.encoding.0,
+            Format: *self.fmt.into_ascii().as_ref(),
+            ..default::MQMD2_DEFAULT
+        })
     }
 }
 

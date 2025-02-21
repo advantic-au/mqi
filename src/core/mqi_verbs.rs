@@ -666,7 +666,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         bufmh_options: &sys::MQBMHO,
         mqmd: &mut impl MQMD,
         buffer: &[sys::MQBYTE],
-    ) -> ResultErr<sys::MQLONG> {
+    ) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQBUFMH");
         unsafe {
             self.0.lib().MQBUFMH(

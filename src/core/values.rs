@@ -33,6 +33,7 @@ define_mqvalue!(pub MQXA, mapping::MQXA_FULL_CONST, "Integer and Character attri
 define_mqmask!(pub MQCBDO, mapping::MQCBDO_CONST, "Options mask to control the action of `MQCB`");
 define_mqmask!(pub MQIMPO, mapping::MQIMPO_CONST, "Options mask to control the action of `MQINQMP`");
 define_mqmask!(pub MQMHBO, mapping::MQMHBO_CONST, "Options mask to control the action of `MQMHBUF`");
+define_mqmask!(pub MQBMHO, mapping::MQBMHO_CONST, "Options mask to control the action of `MQBUFMH`");
 impl_default_mqvalue!(MQIMPO, sys::MQIMPO_NONE);
 define_mqvalue!(pub MQPD, mapping::MQPD_CONST, "Property descriptor, support and context");
 define_mqmask!(pub MQCOPY, mapping::MQCOPY_CONST, "Property copy options mask");
