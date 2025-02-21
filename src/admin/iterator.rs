@@ -76,6 +76,7 @@ where
 }
 
 #[cfg(all(test, any(feature = "link", feature = "dlopen2")))]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use crate::prelude::*;
     use crate::{
