@@ -78,11 +78,16 @@ where
 #[cfg(all(test, any(feature = "link", feature = "dlopen2")))]
 mod tests {
     use crate::prelude::*;
-    use crate::{admin::Bag, sys, test::mq_library, values::{MqaiSelector, MQCBO}, Completion};
+    use crate::{
+        admin::Bag,
+        sys,
+        test::mq_library,
+        values::{MqaiSelector, MQCBO},
+        Completion,
+    };
 
     #[test]
     fn test_empty_iterator() -> Result<(), Box<dyn std::error::Error>> {
-
         let lib = mq_library();
 
         let bag = Bag::new_lib(&lib, MQCBO(sys::MQCBO_NONE)).warn_as_error()?;
@@ -95,7 +100,6 @@ mod tests {
 
     #[test]
     fn test_one_iterator() -> Result<(), Box<dyn std::error::Error>> {
-
         let lib = mq_library();
 
         let bag = Bag::new_lib(&lib, MQCBO(sys::MQCBO_NONE)).warn_as_error()?;
