@@ -39,7 +39,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         if self.count == self.index {
             return None;
-        };
+        }
         let result = match T::inq_bag_item(self.selector, MQIND(self.index), self.bag) {
             Err(e) => match e.mqi_error() {
                 Some(&Error(MQCC(sys::MQCC_FAILED), _, MQRC(sys::MQRC_SELECTOR_NOT_PRESENT | sys::MQRC_INDEX_NOT_PRESENT))) => {

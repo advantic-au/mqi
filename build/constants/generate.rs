@@ -35,10 +35,11 @@ fn by_value(by_value_mqi: &[mqsys::MQI_BY_VALUE_STR]) -> Vec<(i32, &str)> {
 }
 
 fn as_array(by_value: &[&(mqsys::MQLONG, &str)]) -> String {
+    use std::fmt::Write as _;
     let mut result = String::new();
     result.push('[');
     for (value, name) in by_value {
-        result.push_str(&format!("({value},\"{name}\"),"));
+        let _ = write!(result, "({value},\"{name}\"),");
     }
     result.push(']');
     result
