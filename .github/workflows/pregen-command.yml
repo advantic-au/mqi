@@ -13,9 +13,9 @@ jobs:
       matrix:
         build:
           - os: windows-latest
-            mq-version: 9.4.1.0
+            mq-version: 9.4.1.1
           - os: ubuntu-24.04
-            mq-version: 9.4.1.0
+            mq-version: 9.4.1.1
           - os: macos-latest
             mq-version: 9.4.1.0
     runs-on: ${{ matrix.build.os }}
