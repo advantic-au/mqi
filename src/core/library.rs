@@ -45,7 +45,6 @@ impl Library for link::LinkedMq {
     type MQ = Self;
 
     #[inline]
-    #[must_use]
     fn lib(&self) -> &Self::MQ {
         self
     }

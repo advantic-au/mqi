@@ -53,6 +53,7 @@ pub struct MessageFormat {
 
 impl MessageFormat {
     #[must_use]
+    #[allow(clippy::allow_attributes, clippy::missing_const_for_fn)]
     pub fn from_mqmd2(md: &MqStruct<sys::MQMD2>) -> Self {
         Self {
             ccsid: CCSID(md.CodedCharSetId),

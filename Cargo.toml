@@ -95,7 +95,7 @@ libmqm-default = { version = "0.6.0", default-features = false }
 tracing = { version = "0.1.40", optional = true }
 dlopen2 = "0.7.0"
 regex-lite = "0.1.6"
-derive_more = { version = "1.0.0", features = [
+derive_more = { version = "2.0.1", features = [
     "deref",
     "deref_mut",
     "as_ref",
