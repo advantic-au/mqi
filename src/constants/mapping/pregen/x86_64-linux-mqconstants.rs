@@ -1,4 +1,4 @@
-/* Generated with MQ client version 9.4.1.1 */
+/* Generated with MQ client version 9.4.1.0 */
 pub const MQACTIVE_CONST: LinearSource = ConstSource(&[(0,"MQACTIVE_NO"),(1,"MQACTIVE_YES"),], &[]);
 pub const MQACTP_CONST: LinearSource = ConstSource(&[(0,"MQACTP_NEW"),(1,"MQACTP_FORWARD"),(2,"MQACTP_REPLY"),(3,"MQACTP_REPORT"),], &[]);
 pub const MQACTV_CONST: LinearSource = ConstSource(&[(1,"MQACTV_DETAIL_LOW"),(2,"MQACTV_DETAIL_MEDIUM"),(3,"MQACTV_DETAIL_HIGH"),], &[]);
