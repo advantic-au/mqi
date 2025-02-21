@@ -25,12 +25,12 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - client-version: 9.2.0.27
+          - client-version: 9.2.0.30
             feature: mqc_9_2_0_0
-          - client-version: 9.3.1.0
-            feature: mqc_9_3_1_0
-          - client-version: 9.3.4.1
-            feature: mqc_9_3_4_0
+          - client-version: 9.3.0.26
+            feature: mqc_9_3_0_0
+          - client-version: 9.3.5.1
+            feature: mqc_9_3_5_0
           - client-version: 9.4.1.0
             feature: mqc_9_4_1_0
     runs-on: ubuntu-24.04
