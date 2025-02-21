@@ -31,7 +31,7 @@ jobs:
             feature: mqc_9_3_0_0
           - client-version: 9.3.5.1
             feature: mqc_9_3_5_0
-          - client-version: 9.4.1.0
+          - client-version: 9.4.1.1
             feature: mqc_9_4_1_0
     runs-on: ubuntu-24.04
     steps:
