@@ -473,7 +473,8 @@ mod test {
     }
 
     pub fn with_mqbufmh_mocked<F>(data: &'static [u8], f: F) -> ResultComp<()>
-        where F: FnOnce(&mut Properties<Connection<MockFunctions, ThreadNone>>, MessageFormat, &mut [u8]) -> ResultComp<()>,
+    where
+        F: FnOnce(&mut Properties<Connection<MockFunctions, ThreadNone>>, MessageFormat, &mut [u8]) -> ResultComp<()>,
     {
         let mut mock_library = mock::connect_ok();
         let mut seq = mockall::Sequence::new();
@@ -518,13 +519,14 @@ mod test {
             assert_eq!(same_buffer, buffer_clone);
             assert_eq!(same_format, mf);
             Ok(Completion::new(()))
-        }).warn_as_error()?;
+        })
+        .warn_as_error()?;
 
         with_mqbufmh_mocked(MOCK_DATA, |properties, mf, buffer| {
             properties.from_buffer(MQBMHO(sys::MQBMHO_NONE), &mf, buffer)
-        }).warn_as_error()?;
+        })
+        .warn_as_error()?;
 
         Ok(())
     }
-
 }
