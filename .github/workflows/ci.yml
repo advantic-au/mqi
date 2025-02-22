@@ -25,13 +25,13 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - client-version: 9.2.0.27
+          - client-version: 9.2.0.30
             feature: mqc_9_2_0_0
-          - client-version: 9.3.1.0
-            feature: mqc_9_3_1_0
-          - client-version: 9.3.4.1
+          - client-version: 9.3.0.26
+            feature: mqc_9_3_0_0
+          - client-version: 9.3.5.1
             feature: mqc_9_3_4_0
-          - client-version: 9.4.1.0
+          - client-version: 9.4.1.1
             feature: mqc_9_4_1_0
     runs-on: ubuntu-24.04
     steps:
@@ -58,9 +58,9 @@ jobs:
       matrix:
         build:
           - os: windows-latest
-            mq-version: 9.4.1.0
+            mq-version: 9.4.1.1
           - os: ubuntu-24.04
-            mq-version: 9.4.1.0
+            mq-version: 9.4.1.1
           - os: macos-latest
             mq-version: 9.4.1.0
     runs-on: ${{ matrix.build.os }}
@@ -110,7 +110,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@v2.47.7
+      - uses: taiki-e/install-action@v2.48.20
         with:
           tool: nextest
       - name: Test
@@ -142,7 +142,7 @@ jobs:
       - name: Enable type layout randomization
         run: echo RUSTFLAGS=${RUSTFLAGS}\ -Zrandomize-layout >> $GITHUB_ENV
         if: matrix.toolchain == 'nightly'
-      - uses: taiki-e/install-action@v2.47.7
+      - uses: taiki-e/install-action@v2.48.20
         with:
           tool: nextest
       - name: Test
@@ -167,7 +167,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "build"
-      - uses: taiki-e/install-action@v2.47.7
+      - uses: taiki-e/install-action@v2.48.20
         with:
           tool: nextest
       - name: Execute miri tests
@@ -200,7 +200,7 @@ jobs:
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2.47.7
+      - uses: taiki-e/install-action@v2.48.20
         with:
           tool: cargo-mutants
       - name: Mutant testing
@@ -299,7 +299,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
-      - uses: taiki-e/install-action@v2.47.7
+      - uses: taiki-e/install-action@v2.48.20
         with:
           tool: cargo-docs-rs
       - run: cargo docs-rs

@@ -164,7 +164,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         match value {
             AttributeValue::Text(value) => println!("{attr}: {value:?}"),
             AttributeValue::Long(value) => println!("{attr}: {value}"),
-        };
+        }
     }
 
     let r = object.inq_item(attribute::MQCA_DEF_XMIT_Q_NAME).warn_as_error()?;

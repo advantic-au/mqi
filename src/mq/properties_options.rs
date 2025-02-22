@@ -143,6 +143,7 @@ pub enum Value {
 
 impl Metadata {
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn new(length: usize, impo: &MqStruct<sys::MQIMPO>, value_type: values::MQTYPE) -> Self {
         Self {
             length,
@@ -211,6 +212,7 @@ impl Attributes {
     }
 
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn support(&self) -> values::MQPD {
         values::MQPD(self.mqpd.Support)
     }
@@ -220,6 +222,7 @@ impl Attributes {
     }
 
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn context(&self) -> values::MQPD {
         values::MQPD(self.mqpd.Context)
     }
@@ -229,6 +232,7 @@ impl Attributes {
     }
 
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn copy_options(&self) -> values::MQCOPY {
         values::MQCOPY(self.mqpd.CopyOptions)
     }

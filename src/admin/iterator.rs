@@ -39,7 +39,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         if self.count == self.index {
             return None;
-        };
+        }
         let result = match T::inq_bag_item(self.selector, MQIND(self.index), self.bag) {
             Err(e) => match e.mqi_error() {
                 Some(&Error(MQCC(sys::MQCC_FAILED), _, MQRC(sys::MQRC_SELECTOR_NOT_PRESENT | sys::MQRC_INDEX_NOT_PRESENT))) => {
@@ -72,5 +72,45 @@ where
 
     pub fn try_bag_iter(&self, selector: MqaiSelector) -> ResultComp<BagItem<Bag<Embedded, L>, B, L>> {
         self.try_iter(selector)
+    }
+}
+
+#[cfg(all(test, any(feature = "link", feature = "dlopen2")))]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use crate::prelude::*;
+    use crate::{
+        admin::Bag,
+        sys,
+        test::mq_library,
+        values::{MqaiSelector, MQCBO},
+        Completion,
+    };
+
+    #[test]
+    fn test_empty_iterator() -> Result<(), Box<dyn std::error::Error>> {
+        let lib = mq_library();
+
+        let bag = Bag::new_lib(&lib, MQCBO(sys::MQCBO_NONE)).warn_as_error()?;
+        let mut i = bag.try_iter::<sys::MQLONG>(MqaiSelector(0)).warn_as_error()?;
+
+        assert_eq!(i.size_hint(), (0, Some(0)));
+        assert!(i.next().is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_one_iterator() -> Result<(), Box<dyn std::error::Error>> {
+        let lib = mq_library();
+
+        let bag = Bag::new_lib(&lib, MQCBO(sys::MQCBO_NONE)).warn_as_error()?;
+        bag.add(MqaiSelector(0), &99).warn_as_error()?;
+        let mut i = bag.try_iter::<sys::MQLONG>(MqaiSelector(0)).warn_as_error()?;
+
+        assert_eq!(i.size_hint(), (1, Some(1)));
+        assert!(matches!(i.next(), Some(Ok(Completion(99, _)))));
+        assert!(i.next().is_none());
+
+        Ok(())
     }
 }
