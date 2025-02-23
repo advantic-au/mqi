@@ -743,7 +743,8 @@ impl MockFunctions {
         self.expect_MQGET()
             .returning_st(move |_, _, mqmd, _, buffer_len, buffer, data_length, cc, rc| {
                 let md: &mut sys::MQMD = unsafe { &mut *(mqmd.cast()) };
-                md.Format = *unsafe { &*std::ptr::from_ref(message.format().fmt.into_ascii().as_ref()).cast() };
+                let fmt = message.format().fmt.into_ascii();
+                md.Format = *unsafe { &*std::ptr::from_ref(fmt.as_ref()).cast() };
                 md.Encoding = message.format().encoding.0;
 
                 let msg = message.render();
