@@ -61,11 +61,12 @@ fn main() -> anyhow::Result<()> {
     ctrlc::set_handler(move || running.store(false, atomic::Ordering::Relaxed))?;
 
     while running_check.load(atomic::Ordering::Relaxed) {
-        if let Some((data, _format)) = queue
-            .get_data_with::<MessageFormat>(&GetWait::Wait(500), &mut *buffer)
+        let message: Option<(_, MessageFormat)> = queue
+            .get_data_with(&GetWait::Wait(500), &mut buffer)
             .warn_as_error()
-            .context("Unable to get message")?
-        {
+            .context("Unable to get message")?;
+
+        if let Some((data, _format)) = message {
             println!("{data:?}");
             // TODO: demonstrate some simple message handling
         }

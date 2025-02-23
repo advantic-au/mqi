@@ -5,12 +5,15 @@ use libmqm_default as default;
 
 use crate::values::{MQRC, MQCC, MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE};
 use crate::prelude::*;
-use crate::core::MessageHandle;
+use crate::core::{MessageHandle, WriteRaw};
 use crate::properties_options::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetProperty};
-use crate::{core, sys, Buffer as _, Completion, Conn, InqBuffer};
+use crate::{core, sys, Completion, Conn, InqBuffer};
 
 use crate::{EncodedString, Error, MqStruct};
 use crate::{ResultComp, ResultCompErr, ResultErr};
+
+use super::types::MessageFormat;
+use super::{values, Buffer};
 
 #[derive(Debug)]
 pub struct Properties<C: Conn> {
@@ -297,5 +300,233 @@ impl<C: Conn> Properties<C> {
         let mut s = self;
         let mqdmho = default::MQDMHO_DEFAULT;
         s.connection.mq().mqdltmh(Some(s.connection.handle()), &mut s.handle, &mqdmho)
+    }
+
+    pub fn to_buffer<'a, A: Buffer<'a, impl WriteRaw<sys::MQBYTE>>>(
+        &self,
+        name: &(impl EncodedString + ?Sized),
+        options: values::MQMHBO,
+        buffer: A,
+    ) -> ResultCompErr<(MessageFormat, A), core::MqInqError> {
+        let read_only_options = options & !sys::MQMHBO_DELETE_PROPERTIES;
+        let mut buf = buffer;
+        let mhbo = MqStruct::new(sys::MQMHBO {
+            Options: read_only_options.value(),
+            ..default::MQMHBO_DEFAULT
+        });
+        let mut mqmd = MqStruct::new(default::MQMD2_DEFAULT);
+        let name_mqcharv = MqStruct::from_encoded_str(name);
+
+        self.connection
+            .mq()
+            .mqmhbuf(
+                Some(self.connection.handle()),
+                self.handle(),
+                &mhbo,
+                &name_mqcharv,
+                &mut *mqmd,
+                buf.as_mut(),
+            )
+            .map_completion(|len| {
+                (
+                    MessageFormat::from_mqmd2(&mqmd),
+                    buf.truncate(len.try_into().expect("length should convert to usize")),
+                )
+            })
+    }
+
+    pub fn to_buffer_mut<'a, A: Buffer<'a, impl WriteRaw<sys::MQBYTE>>>(
+        &mut self,
+        name: &(impl EncodedString + ?Sized),
+        options: values::MQMHBO,
+        buffer: A,
+    ) -> ResultCompErr<(MessageFormat, A), core::MqInqError> {
+        let mut buf = buffer;
+        let mhbo = MqStruct::new(sys::MQMHBO {
+            Options: options.value(),
+            ..default::MQMHBO_DEFAULT
+        });
+        let mut mqmd = MqStruct::new(default::MQMD2_DEFAULT);
+        let name_mqcharv = MqStruct::from_encoded_str(name);
+
+        self.connection
+            .mq()
+            .mqmhbuf(
+                Some(self.connection.handle()),
+                self.handle(),
+                &mhbo,
+                &name_mqcharv,
+                &mut *mqmd,
+                buf.as_mut(),
+            )
+            .map_completion(|len| {
+                (
+                    MessageFormat::from_mqmd2(&mqmd),
+                    buf.truncate(len.try_into().expect("length should convert to usize")),
+                )
+            })
+    }
+
+    pub fn from_buffer(&mut self, options: values::MQBMHO, format: &MessageFormat, buffer: &[sys::MQBYTE]) -> ResultComp<()> {
+        // Drop the delete properties option as this fn does not modify the buffer
+        let options_read_only = options & !sys::MQBMHO_DELETE_PROPERTIES;
+        let mut mqmd = format.into_mqmd2();
+        let bmho = MqStruct::new(sys::MQBMHO {
+            Options: options_read_only.value(),
+            ..default::MQBMHO_DEFAULT
+        });
+
+        self.connection
+            .mq()
+            .mqbufmh(Some(self.connection.handle()), &self.handle, &bmho, &mut *mqmd, buffer)
+            .map_completion(|_| {})
+    }
+
+    pub fn from_buffer_mut<'a>(
+        &mut self,
+        options: values::MQBMHO,
+        format: &MessageFormat,
+        buffer: &'a mut [sys::MQBYTE],
+    ) -> ResultComp<(MessageFormat, &'a [sys::MQBYTE])> {
+        let mut mqmd = format.into_mqmd2();
+        let bmho = MqStruct::new(sys::MQBMHO {
+            Options: options.value(),
+            ..default::MQBMHO_DEFAULT
+        });
+
+        self.connection
+            .mq()
+            .mqbufmh(Some(self.connection.handle()), &self.handle, &bmho, &mut *mqmd, buffer)
+            .map_completion(|len| {
+                (
+                    MessageFormat::from_mqmd2(&mqmd),
+                    &buffer[..len.try_into().expect("length should convert to usize")],
+                )
+            })
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "mock")]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod test {
+    use std::error::Error;
+
+    use crate::{
+        connect_lib,
+        headers::{fmt::MQFMT_NONE, TextEnc},
+        prelude::*,
+        sys,
+        test::mock::{self, MockFunctions},
+        types::MessageFormat,
+        values::{CCSID, MQBMHO, MQCMHO, MQENC, MQMHBO},
+        Completion, Connection, ResultComp, ThreadNone,
+    };
+
+    use super::Properties;
+
+    fn with_mqmhbuf_mocked<F>(mock_data: &'static [u8], f: F) -> ResultComp<()>
+    where
+        F: FnOnce(&mut Properties<Connection<MockFunctions, ThreadNone>>) -> ResultComp<()>,
+    {
+        let mut mock_library = mock::connect_ok();
+        let mut seq = mockall::Sequence::new();
+
+        mock_library.properties_ok(0xf0f0, 1, &mut seq);
+        mock_library
+            .expect_MQMHBUF()
+            .returning(|_, _, _, _, _, buf_len, buf_target, data_len, cc, rc| {
+                unsafe { MockFunctions::copy_to_mq_data(mock_data, buf_len, buf_target, data_len) };
+                MockFunctions::mqi_outcome_ok(cc, rc);
+            })
+            .once()
+            .in_sequence(&mut seq);
+
+        let connection = connect_lib::<ThreadNone, _>(mock_library, &()).warn_as_error()?;
+        let mut properties = Properties::new(connection, MQCMHO(sys::MQCMHO_NONE))?;
+
+        f(&mut properties).warn_as_error()?;
+
+        Ok(Completion::new(()))
+    }
+
+    #[test]
+    pub fn to_buffer() -> Result<(), Box<dyn Error>> {
+        const MOCK_DATA: &[u8] = b"MOCK";
+        with_mqmhbuf_mocked(MOCK_DATA, |prop| {
+            let buffer = vec![0u8; usize::pow(2, 16)]; // 64k
+            let (_, prop_buffer) = prop.to_buffer_mut("%", MQMHBO(sys::MQMHBO_NONE), buffer).warn_as_error()?;
+            assert_eq!(MOCK_DATA, prop_buffer);
+            Ok(Completion::new(()))
+        })
+        .warn_as_error()?;
+
+        with_mqmhbuf_mocked(MOCK_DATA, |prop| {
+            let buffer = vec![0u8; usize::pow(2, 16)]; // 64k
+            let (_, prop_buffer) = prop.to_buffer("%", MQMHBO(sys::MQMHBO_NONE), buffer).warn_as_error()?;
+            assert_eq!(MOCK_DATA, prop_buffer);
+            Ok(Completion::new(()))
+        })
+        .warn_as_error()?;
+
+        Ok(())
+    }
+
+    pub fn with_mqbufmh_mocked<F>(data: &'static [u8], f: F) -> ResultComp<()>
+    where
+        F: FnOnce(&mut Properties<Connection<MockFunctions, ThreadNone>>, MessageFormat, &mut [u8]) -> ResultComp<()>,
+    {
+        let mut mock_library = mock::connect_ok();
+        let mut seq = mockall::Sequence::new();
+
+        mock_library.properties_ok(0xf0f0, 1, &mut seq);
+        mock_library
+            .expect_MQBUFMH()
+            .returning(|_, _, _, _, buffer_len, _, data_len, cc, rc| {
+                unsafe {
+                    *data_len = buffer_len;
+                }
+                MockFunctions::mqi_outcome_ok(cc, rc);
+            })
+            .once()
+            .in_sequence(&mut seq);
+
+        let connection = connect_lib::<ThreadNone, _>(mock_library, &()).warn_as_error()?;
+        let mut properties = Properties::new(connection, MQCMHO(sys::MQCMHO_NONE))?;
+
+        let mut buffer = data.to_owned();
+
+        let mf = MessageFormat {
+            ccsid: CCSID(1208),
+            encoding: MQENC::default(),
+            fmt: TextEnc::Ascii(MQFMT_NONE),
+        };
+
+        f(&mut properties, mf, &mut buffer).warn_as_error()?;
+
+        Ok(Completion::new(()))
+    }
+
+    #[test]
+    pub fn from_buffer() -> Result<(), Box<dyn Error>> {
+        const MOCK_DATA: &[u8] = b"MOCK_FROM_BUFFER";
+
+        with_mqbufmh_mocked(MOCK_DATA, |properties, mf, buffer| {
+            let buffer_clone = buffer.to_owned();
+            let (same_format, same_buffer) = properties
+                .from_buffer_mut(MQBMHO(sys::MQBMHO_NONE), &mf, buffer)
+                .warn_as_error()?;
+            assert_eq!(same_buffer, buffer_clone);
+            assert_eq!(same_format, mf);
+            Ok(Completion::new(()))
+        })
+        .warn_as_error()?;
+
+        with_mqbufmh_mocked(MOCK_DATA, |properties, mf, buffer| {
+            properties.from_buffer(MQBMHO(sys::MQBMHO_NONE), &mf, buffer)
+        })
+        .warn_as_error()?;
+
+        Ok(())
     }
 }

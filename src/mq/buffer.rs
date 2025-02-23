@@ -60,7 +60,8 @@ pub trait Buffer<'a, T>: Sized + AsMut<[T]> + AsRef<[T]> {
     fn split_at(self, at: usize) -> (Self, Self);
     fn into_cow(self) -> Cow<'a, [T]>
     where
-        [T]: ToOwned;
+        [T]: ToOwned,
+        T: Clone;
     fn len(&self) -> usize;
 
     fn is_empty(&self) -> bool {
@@ -68,13 +69,16 @@ pub trait Buffer<'a, T>: Sized + AsMut<[T]> + AsRef<[T]> {
     }
 }
 
-impl<'a, T: Clone> Buffer<'a, T> for &'a mut [T] {
+impl<'a, T> Buffer<'a, T> for &'a mut [T] {
     fn truncate(self, size: usize) -> Self {
         let len = self.len();
         &mut self[..cmp::min(size, len)]
     }
 
-    fn into_cow(self) -> Cow<'a, [T]> {
+    fn into_cow(self) -> Cow<'a, [T]>
+    where
+        T: Clone,
+    {
         Cow::from(&*self)
     }
 

@@ -8,16 +8,13 @@ use crate::headers::{fmt, TextEnc};
 use crate::types::MessageFormat;
 use crate::{sys, Conn, MqStruct, Object, ResultComp};
 use crate::values;
-use crate::prelude::*;
 
 use super::values::{CCSID, MQENC, MQPMO};
 use super::{OpenOption, OpenParamOption};
 
 /// A trait that provides a rendered message for the [`mqput`](`crate::core::MqFunctions::mqput`) function
-#[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessae` so it can't be used as an argument for MQI put")]
+#[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put")]
 pub trait PutMessage {
-    type Data: ?Sized;
-
     fn render(&self) -> Cow<[u8]>;
     fn format(&self) -> MessageFormat;
 }
@@ -25,8 +22,6 @@ pub trait PutMessage {
 pub type PutParam<'a> = (MqStruct<'static, sys::MQMD2>, MqStruct<'a, sys::MQPMO>);
 
 impl PutMessage for str {
-    type Data = Self;
-
     fn render(&self) -> Cow<[u8]> {
         self.as_bytes().into()
     }
@@ -41,14 +36,66 @@ impl PutMessage for str {
 }
 
 impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
-    type Data = Self;
-
     fn render(&self) -> Cow<[u8]> {
         Cow::Borrowed(self.0.as_ref())
     }
 
     fn format(&self) -> MessageFormat {
         self.1
+    }
+}
+
+#[cfg(feature = "mqai")]
+mod mqai {
+    use libmqm_sys::Mqai;
+    use libmqm_default as default;
+
+    use crate::{
+        admin::{Bag, BagDrop},
+        core::Library,
+        headers::TextEnc,
+        sys, types, Conn, MqStruct, Object, ResultComp,
+    };
+
+    use super::{PutAttr, PutOption};
+
+    impl<C: Conn> Object<C>
+    where
+        C::Lib: Library<MQ: Mqai>,
+    {
+        pub fn put_bag<'po>(
+            &self,
+            put_options: &impl PutOption<'po>,
+            format: TextEnc<types::Fmt>,
+            bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
+        ) -> ResultComp<()> {
+            self.put_bag_with(put_options, format, bag)
+        }
+
+        pub fn put_bag_with<'po, R>(
+            &self,
+            put_options: &impl PutOption<'po>,
+            format: TextEnc<types::Fmt>,
+            bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
+        ) -> ResultComp<R>
+        where
+            R: PutAttr,
+        {
+            let md = MqStruct::new(sys::MQMD2 {
+                Format: format.into_ascii().into(),
+                ..default::MQMD2_DEFAULT
+            });
+            let mqpmo = MqStruct::new(default::MQPMO_DEFAULT);
+
+            let mut put_param = (md, mqpmo);
+            put_options.apply_param(&mut put_param);
+            R::put_bag_extract(&mut put_param, |(md, pmo)| {
+                let connection = self.connection();
+                connection
+                    .mq()
+                    .mq_put_bag(connection.handle(), self.handle(), &mut **md, &mut *pmo, bag.handle())
+            })
+        }
     }
 }
 
@@ -81,14 +128,14 @@ pub trait PutOption<'po> {
 }
 
 pub trait PutAttr {
-    fn extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<(Self, ())>
+    fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
         Self: Sized;
 }
 
-pub(super) fn put_message_with<'po, 'oo, R, L>(
-    functions: &MqFunctions<L>,
+pub(super) fn put_message_with<'po, 'oo, R>(
+    functions: &MqFunctions<impl Library<MQ: Mqi>>,
     handle: ConnectionHandle,
     open_options: &impl OpenOption<'oo, MQPMO>,
     put_options: &impl PutOption<'po>,
@@ -96,7 +143,6 @@ pub(super) fn put_message_with<'po, 'oo, R, L>(
 ) -> ResultComp<R>
 where
     R: PutAttr,
-    L: Library<MQ: Mqi>,
 {
     let mut open_params = OpenParamOption {
         mqod: MqStruct::new(default::MQOD_DEFAULT),
@@ -130,5 +176,5 @@ where
     let mut put_param = (md, mqpmo);
 
     options.apply_param(&mut put_param);
-    T::extract(&mut put_param, |param| put(param, &message.render())).map_completion(|(attr, ..)| attr)
+    T::put_bag_extract(&mut put_param, |param| put(param, &message.render()))
 }

@@ -84,23 +84,27 @@ fn main() -> anyhow::Result<()> {
     .warn_as_error() // Fail on any warnings
     .context("Unable to open the object")?;
 
-    let mut buffer = vec![0u8; 20 * 1024].into_boxed_slice(); // 20kb
-
+    let mut buffer = Vec::<u8>::with_capacity(20 * 1024); // 20kb
+    let buf_write = buffer.spare_capacity_mut();
     let syncpoint = Syncpoint::new(qm_ref);
 
     let mut properties = Properties::new(&qm, MQCMHO::default())?;
-    let message = obj
-        .get_data_with::<MqStruct<sys::MQMD2>>(
+    let message: Option<(_, MqStruct<sys::MQMD2>)> = obj
+        .get_data_with(
             &(
                 MQGMO(sys::MQGMO_SYNCPOINT), // Must use the syncpoint option
                 &mut properties,             // Retrieve the message properties
             ),
-            &mut *buffer, // Provide a buffer for the message
+            buf_write, // Provide a buffer for the message
         )
         .warn_as_error() // Fail on any warnings
         .context("Unable to get a messsage")?;
 
     if let Some((msg_data, md)) = message {
+        let len = msg_data.len();
+        unsafe {
+            buffer.set_len(len);
+        }
         let mut target_properties = Properties::new(&qm, MQCMHO::default())?; // Create a placeholder for target properties
         let fmt = MessageFormat::from_mqmd2(&md);
         qm_ref
@@ -124,7 +128,7 @@ fn main() -> anyhow::Result<()> {
                     Context(&obj),                                                // Source object as context
                     PropertyAction::Forward(&properties, &mut target_properties), // Forward the properties
                 ),
-                &(msg_data, fmt), // Set the message content and format
+                &(buffer, fmt), // Set the message content and format
             )
             .warn_as_error() // Fail on any warnings
             .context("Unable to put a message")?;

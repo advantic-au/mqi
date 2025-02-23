@@ -1,7 +1,7 @@
 #![expect(clippy::allow_attributes)]
 
 use std::cmp;
-use std::slice::from_raw_parts_mut;
+use std::slice;
 use crate::core::Library;
 
 use libmqm_sys::Mqi;
@@ -651,6 +651,20 @@ mockall::mock! {
 #[allow(dead_code)]
 #[expect(non_snake_case)]
 impl MockFunctions {
+    pub unsafe fn copy_to_mq_data(
+        data: &[u8],
+        buf_len: sys::MQLONG,
+        buf_target: sys::PMQVOID,
+        data_len: sys::PMQLONG,
+    ) -> sys::MQLONG {
+        let write_len = cmp::min(size_of_val(data), buf_len.try_into().expect("convertable buffer length"));
+        let target = unsafe { slice::from_raw_parts_mut(buf_target.cast(), write_len) };
+        target.copy_from_slice(&data[..write_len]);
+        let write_len_long = write_len.try_into().expect("convertable buffer length");
+        unsafe { *data_len = write_len_long };
+        write_len_long
+    }
+
     pub fn connx_outcome(&mut self, hconn: sys::MQHCONN, comp_code: sys::MQLONG, reason: sys::MQLONG) {
         self.expect_MQCONNX().returning(
             move |_, _, pHconn: sys::PMQHCONN, pCompCode: sys::PMQLONG, pReason: sys::PMQLONG| {
@@ -706,6 +720,20 @@ impl MockFunctions {
             .in_sequence(seq);
     }
 
+    pub fn get_bag_error(&mut self, mqrc: sys::MQLONG, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+        self.expect_mqGetBag()
+            .returning(move |_, _, _, _, _, cc, rc| Self::mqi_outcome(cc, rc, sys::MQCC_FAILED, mqrc))
+            .times(count)
+            .in_sequence(seq);
+    }
+
+    pub fn get_bag_ok(&mut self, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+        self.expect_mqGetBag()
+            .returning(move |_, _, _, _, _, cc, rc| Self::mqi_outcome_ok(cc, rc))
+            .times(count)
+            .in_sequence(seq);
+    }
+
     pub fn get_ok(
         &mut self,
         message: &'static (impl PutMessage + ?Sized),
@@ -713,27 +741,19 @@ impl MockFunctions {
         seq: &mut mockall::Sequence,
     ) {
         self.expect_MQGET()
-            .returning_st(move |_, _, mqmd, _, buffer_len, buffer, out_length, cc, rc| {
+            .returning_st(move |_, _, mqmd, _, buffer_len, buffer, data_length, cc, rc| {
                 let md: &mut sys::MQMD = unsafe { &mut *(mqmd.cast()) };
                 md.Format = *unsafe { &*std::ptr::from_ref(message.format().fmt.into_ascii().as_ref()).cast() };
                 md.Encoding = message.format().encoding.0;
 
-                let buf: &mut [u8] = unsafe {
-                    from_raw_parts_mut(
-                        buffer.cast(),
-                        buffer_len.try_into().expect("buffer length to convert from i32 to usize"),
-                    )
-                };
                 let msg = message.render();
-                let len = cmp::min(buf.len(), msg.len());
-                buf[..len].copy_from_slice(&msg[..len]);
-                let copy_len = len.try_into().expect("buffer length to convert from usize to i32");
-                unsafe { *out_length = copy_len };
+                let mock_length = unsafe { Self::copy_to_mq_data(&msg, buffer_len, buffer, data_length) };
+
                 Self::mqi_outcome(
                     cc,
                     rc,
                     sys::MQCC_OK,
-                    if copy_len < buffer_len {
+                    if mock_length < buffer_len {
                         sys::MQRC_TRUNCATED_MSG_ACCEPTED
                     } else {
                         sys::MQRC_NONE

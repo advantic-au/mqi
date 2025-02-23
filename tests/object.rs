@@ -41,8 +41,8 @@ fn no_message() -> Result<(), Box<dyn std::error::Error>> {
         ),
     )?;
 
-    let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
-    let msg = object.get_data(&(), buffer)?;
+    let mut buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
+    let msg = object.get_data(&(), &mut buffer)?;
 
     assert_eq!(msg.warning(), None);
     assert_eq!(msg.discard_warning(), None);

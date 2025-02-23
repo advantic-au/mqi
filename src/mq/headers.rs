@@ -40,6 +40,28 @@ pub mod fmt {
 
     pub const MQFMT_NONE: Fmt = cstr_array(sys::MQFMT_NONE);
     pub const MQFMT_STRING: Fmt = cstr_array(sys::MQFMT_STRING);
+    pub const MQFMT_ADMIN: Fmt = cstr_array(sys::MQFMT_ADMIN);
+
+    pub const MQFMT_AMQP: Fmt = cstr_array(sys::MQFMT_AMQP);
+    pub const MQFMT_CHANNEL_COMPLETED: Fmt = cstr_array(sys::MQFMT_CHANNEL_COMPLETED);
+    pub const MQFMT_CICS: Fmt = cstr_array(sys::MQFMT_CICS);
+    pub const MQFMT_COMMAND_1: Fmt = cstr_array(sys::MQFMT_COMMAND_1);
+    pub const MQFMT_COMMAND_2: Fmt = cstr_array(sys::MQFMT_COMMAND_2);
+    pub const MQFMT_DEAD_LETTER_HEADER: Fmt = cstr_array(sys::MQFMT_DEAD_LETTER_HEADER);
+    pub const MQFMT_DIST_HEADER: Fmt = cstr_array(sys::MQFMT_DIST_HEADER);
+    pub const MQFMT_EMBEDDED_PCF: Fmt = cstr_array(sys::MQFMT_EMBEDDED_PCF);
+    pub const MQFMT_EVENT: Fmt = cstr_array(sys::MQFMT_EVENT);
+    pub const MQFMT_IMS: Fmt = cstr_array(sys::MQFMT_IMS);
+    pub const MQFMT_IMS_VAR_STRING: Fmt = cstr_array(sys::MQFMT_IMS_VAR_STRING);
+    pub const MQFMT_MD_EXTENSION: Fmt = cstr_array(sys::MQFMT_MD_EXTENSION);
+    pub const MQFMT_PCF: Fmt = cstr_array(sys::MQFMT_PCF);
+    pub const MQFMT_REF_MSG_HEADER: Fmt = cstr_array(sys::MQFMT_REF_MSG_HEADER);
+    pub const MQFMT_RF_HEADER: Fmt = cstr_array(sys::MQFMT_RF_HEADER);
+    pub const MQFMT_RF_HEADER_1: Fmt = cstr_array(sys::MQFMT_RF_HEADER_1);
+    pub const MQFMT_RF_HEADER_2: Fmt = cstr_array(sys::MQFMT_RF_HEADER_2);
+    pub const MQFMT_TRIGGER: Fmt = cstr_array(sys::MQFMT_TRIGGER);
+    pub const MQFMT_WORK_INFO_HEADER: Fmt = cstr_array(sys::MQFMT_WORK_INFO_HEADER);
+    pub const MQFMT_XMIT_Q_HEADER: Fmt = cstr_array(sys::MQFMT_XMIT_Q_HEADER);
 }
 
 #[derive(derive_more::Error, derive_more::Display, Debug, Clone)]
