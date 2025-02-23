@@ -208,7 +208,7 @@ impl PropertyAttr for Attributes {
 }
 
 impl Attributes {
-    #[expect(clippy::missing_const_for_fn, reason = "false positive")]
+    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
     pub fn set_support(&mut self, support: values::MQPD) {
         self.mqpd.Support = support.value();
     }
