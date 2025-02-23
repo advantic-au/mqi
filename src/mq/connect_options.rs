@@ -687,6 +687,8 @@ pub enum MqServerSyntaxError {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
+    use crate::values::MQXPT;
+
     use super::*;
 
     #[test]
@@ -696,10 +698,24 @@ mod tests {
     }
 
     #[test]
-    fn mqserver() -> Result<(), MqServerSyntaxError> {
-        let mqserver = MqServer::try_from("a/TCP/c")?;
-        assert!(mqserver.channel_name.len() == 1);
+    fn mqserver_transport() -> Result<(), MqServerSyntaxError> {
+        const VALID: &[(values::MQXPT, &str)] = &[
+            (MQXPT(sys::MQXPT_TCP), "a/TCP/b"),
+            (MQXPT(sys::MQXPT_SPX), "a/SPX/b"),
+            (MQXPT(sys::MQXPT_LU62), "a/LU62/c"),
+            (MQXPT(sys::MQXPT_NETBIOS), "a/NETBIOS/c"),
+        ];
+        for (transport, server) in VALID {
+            let (_, _, m_transport) = mqserver(server)?;
+            assert!(m_transport == *transport);
+        }
 
         Ok(())
+    }
+
+    #[test]
+    fn mqserver_invalid() {
+        let mqserver = MqServer::try_from("invalid");
+        assert!(mqserver.is_err());
     }
 }
