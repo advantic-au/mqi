@@ -123,21 +123,13 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     #[must_use]
     pub fn next_ccsid(&self) -> CCSID {
         let next_ccsid = self.native_mqlong(T::next_raw_ccsid(&self.raw_header));
-        if next_ccsid == 0 {
-            self.ccsid
-        } else {
-            CCSID(next_ccsid)
-        }
+        if next_ccsid == 0 { self.ccsid } else { CCSID(next_ccsid) }
     }
 
     #[must_use]
     pub fn next_encoding(&self) -> MQENC {
         let next_encoding = self.native_mqlong(T::next_raw_encoding(&self.raw_header)).into();
-        if next_encoding == 0 {
-            self.encoding
-        } else {
-            next_encoding
-        }
+        if next_encoding == 0 { self.encoding } else { next_encoding }
     }
 
     #[must_use]
@@ -350,11 +342,7 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
 #[inline]
 #[must_use]
 const fn swap_to_native(value: sys::MQLONG, native: bool) -> sys::MQLONG {
-    if native {
-        value
-    } else {
-        value.swap_bytes()
-    }
+    if native { value } else { value.swap_bytes() }
 }
 
 impl ChainedHeader for sys::MQDH {

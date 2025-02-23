@@ -68,7 +68,7 @@ impl<C: Conn> Object<C> {
         }
     }
 
-    pub fn close_options(&mut self, options: MQCO) {
+    pub const fn close_options(&mut self, options: MQCO) {
         self.close_options = options;
     }
 

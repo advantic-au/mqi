@@ -26,6 +26,7 @@ impl<'oo, O> OpenOption<'oo, O> for () {
 macro_rules! impl_openoption_tuple {
     ([$($rest:ident),*]) => {
         #[expect(non_snake_case)]
+        #[diagnostic::do_not_recommend]
         impl <'oo, O, $($rest),*> OpenOption<'oo, O> for ($($rest),*)
         where
             $($rest: OpenOption<'oo, O> ),*
@@ -220,6 +221,7 @@ mod open_impl {
 
     macro_rules! impl_openvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
+            #[diagnostic::do_not_recommend]
             impl<S, $first, $($ty),*> OpenValue<S> for ($first, $($ty),*)
             where
                 $first: OpenValue<S>,
@@ -251,6 +253,7 @@ mod open_impl {
 
     macro_rules! impl_openattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
+            #[diagnostic::do_not_recommend]
             impl<S, O, $first, $($ty),*> OpenAttr<S, O> for ($first, $($ty),*)
             where
                 $first: OpenAttr<S, O>,

@@ -282,7 +282,7 @@ jobs:
       # Now verify that `cargo check` works with respect to the oldest possible
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81
+          toolchain: 1.85
       - run: cargo check --locked --all-features
         env:
           RUSTFLAGS: -Dwarnings

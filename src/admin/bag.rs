@@ -119,7 +119,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
         &self.bag
     }
 
-    pub fn mut_handle(&mut self) -> &mut mqai::BagHandle {
+    pub const fn mut_handle(&mut self) -> &mut mqai::BagHandle {
         &mut self.bag
     }
 
