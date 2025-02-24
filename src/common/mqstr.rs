@@ -170,13 +170,13 @@ impl<const N: usize> AsRef<[u8; N]> for MqStr<N> {
 
 impl<const N: usize> AsRef<MqStr<N>> for MqChar<N> {
     fn as_ref(&self) -> &MqStr<N> {
-        unsafe { &*(ptr::addr_of!(self).cast()) }
+        unsafe { &*self.as_ptr().cast() }
     }
 }
 
 impl<const N: usize> AsRef<MqStr<N>> for [u8; N] {
     fn as_ref(&self) -> &MqStr<N> {
-        unsafe { &*ptr::addr_of!(self).cast() }
+        unsafe { &*self.as_ptr().cast() }
     }
 }
 
