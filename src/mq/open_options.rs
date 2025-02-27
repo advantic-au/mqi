@@ -1,5 +1,3 @@
-use std::ptr;
-
 use crate::{
     prelude::*,
     sys,
@@ -184,7 +182,7 @@ impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
                 .try_into()
                 .expect("buffer length should convert to usize"),
         );
-        od.ResObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
+        od.ResObjectString.VSPtr = (&raw mut *buffer).cast();
 
         open(param).map_completion(|state| {
             let od = &mut param.mqod;

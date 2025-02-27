@@ -220,7 +220,7 @@ impl<C: Conn> Properties<C> {
             param.impo.ReturnedName = inq_name_buffer
                 .as_mut()
                 .map_or(default::MQCHARV_DEFAULT, |name| sys::MQCHARV {
-                    VSPtr: ptr::from_mut(&mut *name).cast(),
+                    VSPtr: (&raw mut *name).cast(),
                     VSBufSize: name
                         .as_ref()
                         .len()

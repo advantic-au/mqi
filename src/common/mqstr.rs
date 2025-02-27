@@ -152,7 +152,7 @@ impl<const N: usize> Default for MqStr<N> {
 
 impl<const N: usize> Display for MqStr<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        String::from_utf8_lossy(unsafe { &*(ptr::from_ref(self.value()) as *const [u8]) }).fmt(f)
+        String::from_utf8_lossy(unsafe { &*(ptr::from_ref(self.value()) as *const _) }).fmt(f)
     }
 }
 
