@@ -1,12 +1,13 @@
 use crate::{macros::all_option_tuples, values, Error, ResultComp, ResultCompErr};
 
 use super::{
-    open_options::ObjectString, Conn, EncodedString, Object, SubscribeAttr, SubscribeOption, SubscribeParam, SubscribeState,
-    SubscribeValue, Subscription,
+    open_options::ObjectString, Conn, EncodedString, Object, SubscribeAttr, SubscribeOption, SubscribeParam,
+    SubscribeRequestOption, SubscribeRequestParam, SubscribeState, SubscribeValue, Subscription,
 };
 use crate::prelude::*;
 
 all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>);
+all_option_tuples!(SubscribeRequestOption, SubscribeRequestParam);
 
 impl<'so, T: EncodedString + ?Sized> SubscribeOption<'so> for ObjectString<&'so T> {
     #[inline]
@@ -34,6 +35,19 @@ impl SubscribeOption<'_> for values::MQSO {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam) {
         param.sd.Options |= self.value();
+    }
+}
+
+impl SubscribeRequestOption for values::MQSR {
+    #[inline]
+    fn apply_param(&self, param: &mut super::SubscribeRequestParam) {
+        param.sr = *self;
+    }
+}
+
+impl SubscribeRequestOption for values::MQSRO {
+    fn apply_param(&self, param: &mut super::SubscribeRequestParam) {
+        param.sro.Options |= self.0;
     }
 }
 

@@ -8,7 +8,7 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 |---------|-------------------------------------|----------|----------|-|
 | MQBACK  | Back out changes                    | ✔ | ✔ |  |
 | MQBEGIN | Begin unit of work                  | ✔ | Experiment | |
-| MQBUFMH | Convert buffer into message handle  | ✔ |   |  |
+| MQBUFMH | Convert buffer into message handle  | ✔ | ✔ |  |
 | MQCB    | Manage callback                     | ✔ | Experiment | |
 | MQCLOSE | Close object                        | ✔ | ✔ |  |
 | MQCMIT  | Commit changes                      | ✔ | ✔ | |
@@ -22,7 +22,7 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 | MQGET   | Get message                         | ✔ | ✔ |  |
 | MQINQ   | Inquire object attributes           | ✔ | ✔ |  |
 | MQINQMP | Inquire message property            | ✔ | ✔ |  |
-| MQMHBUF | Convert message handle into buffer  | ✔ |   |  |
+| MQMHBUF | Convert message handle into buffer  | ✔ | ✔ |  |
 | MQOPEN  | Open object                         | ✔ | ✔ |  |
 | MQPUT   | Put message                         | ✔ | ✔ |  |
 | MQPUT1  | Put one message                     | ✔ | ✔ |  |
@@ -30,7 +30,7 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 | MQSETMP | Set message property                | ✔ | ✔ |  |
 | MQSTAT  | Retrieve status information         | ✔ | ✔ |  |
 | MQSUB   | Register subscription               | ✔ | ✔ |  |
-| MQSUBRQ | Subscription request                | ✔ |   |  |
+| MQSUBRQ | Subscription request                | ✔ | ✔ |  |
 | MQXCNVC | Convert characters                  | ✔ | ✔ |  |
 
 MQAI functions

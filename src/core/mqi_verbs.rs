@@ -310,7 +310,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         subscription_handle: &SubscriptionHandle,
         action: MQSR,
         mqsro: &mut sys::MQSRO,
-    ) -> ResultErr<()> {
+    ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQSUBRQ");
         unsafe {
             self.0.lib().MQSUBRQ(
