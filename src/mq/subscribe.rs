@@ -175,7 +175,8 @@ impl<C: Conn + Clone> Subscription<C> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "mock"))]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use crate::{
         connect_lib,
