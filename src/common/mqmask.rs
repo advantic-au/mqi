@@ -53,7 +53,7 @@ macro_rules! define_mqmask {
         }
 
         impl $i {
-            pub fn masked_list(&self) -> (impl Iterator<Item = $crate::ConstantItem<'static>>, $crate::sys::MQLONG) {
+            pub fn masked_list(&self) -> (impl Iterator<Item = $crate::ConstantItem<'static>> + use<>, $crate::sys::MQLONG) {
                 let &Self(val) = self;
                 $crate::mqmask::masked_list(val, Self::const_lookup().all())
             }
@@ -136,12 +136,14 @@ pub(crate) fn mask_debug(
     let (list, residual) = masked_list(value, lookup.all());
     if residual == value && residual != 0 {
         f.debug_tuple(type_name).field(&format_args!("{value:#X}")).finish()
-    } else if let Some(mask_str) = mask_str(lookup, list, residual) {
-        f.debug_tuple(type_name)
-            .field(&format_args!("{mask_str} = {value:#X}"))
-            .finish()
     } else {
-        f.debug_tuple(type_name).field(&format_args!("{value:#X}")).finish()
+        match mask_str(lookup, list, residual) {
+            Some(mask_str) => f
+                .debug_tuple(type_name)
+                .field(&format_args!("{mask_str} = {value:#X}"))
+                .finish(),
+            _ => f.debug_tuple(type_name).field(&format_args!("{value:#X}")).finish(),
+        }
     }
 }
 

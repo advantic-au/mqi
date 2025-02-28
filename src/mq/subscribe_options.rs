@@ -69,6 +69,7 @@ mod impl_subscribe {
 
     macro_rules! impl_subscribevalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
+            #[diagnostic::do_not_recommend]
             impl<C: Conn, $first, $($ty),*> SubscribeValue<C> for ($first, $($ty),*)
             where
                 $first: SubscribeValue<C>,
@@ -100,6 +101,7 @@ mod impl_subscribe {
 
     macro_rules! impl_subscribeattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
+            #[diagnostic::do_not_recommend]
             impl<C: Conn, $first, $($ty),*> SubscribeAttr<C> for ($first, $($ty),*)
             where
                 $first: SubscribeAttr<C>,

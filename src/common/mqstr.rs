@@ -152,7 +152,7 @@ impl<const N: usize> Default for MqStr<N> {
 
 impl<const N: usize> Display for MqStr<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        String::from_utf8_lossy(unsafe { &*(ptr::from_ref(self.value()) as *const [u8]) }).fmt(f)
+        String::from_utf8_lossy(unsafe { &*(ptr::from_ref(self.value()) as *const _) }).fmt(f)
     }
 }
 
@@ -170,13 +170,13 @@ impl<const N: usize> AsRef<[u8; N]> for MqStr<N> {
 
 impl<const N: usize> AsRef<MqStr<N>> for MqChar<N> {
     fn as_ref(&self) -> &MqStr<N> {
-        unsafe { &*(ptr::addr_of!(self).cast()) }
+        unsafe { &*self.as_ptr().cast() }
     }
 }
 
 impl<const N: usize> AsRef<MqStr<N>> for [u8; N] {
     fn as_ref(&self) -> &MqStr<N> {
-        unsafe { &*ptr::addr_of!(self).cast() }
+        unsafe { &*self.as_ptr().cast() }
     }
 }
 

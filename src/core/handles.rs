@@ -53,7 +53,7 @@ impl<R: RawHandle> Handle<R> {
     /// # Safety
     /// Primarily used by MQ to write/invalidate MQ handle
     #[must_use]
-    pub unsafe fn mut_raw_handle(&mut self) -> &mut R::HandleType {
+    pub const unsafe fn mut_raw_handle(&mut self) -> &mut R::HandleType {
         &mut self.0
     }
 }

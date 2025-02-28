@@ -52,14 +52,8 @@ impl MockFunctions {
                     ReconnectDelay: sys::MQRD_NO_DELAY,
                 };
                 unsafe {
-                    let fn_cb: MqCbFn = std::mem::transmute::<*const c_void, MqCbFn>(function);
-                    fn_cb(
-                        *hconn,
-                        ptr::null_mut(),
-                        ptr::null_mut(),
-                        ptr::null_mut(),
-                        ptr::addr_of_mut!(cbc),
-                    );
+                    let fn_cb = std::mem::transmute::<*const c_void, MqCbFn>(function);
+                    fn_cb(*hconn, ptr::null_mut(), ptr::null_mut(), ptr::null_mut(), &raw mut cbc);
                 }
             }
             Self::mqi_outcome_ok(cc, rc);

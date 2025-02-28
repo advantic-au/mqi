@@ -28,6 +28,7 @@ macro_rules! reverse_ident {
 macro_rules! impl_option_tuple {
     ($trait:ident, $ty:ty, [$($gen:ident),*]) => {
         #[expect(non_snake_case)]
+        #[diagnostic::do_not_recommend]
         impl<$($gen, )*> $trait for ($($gen, )*)
         where
             $($gen: $trait),*
@@ -42,6 +43,7 @@ macro_rules! impl_option_tuple {
 
     ($lt:lifetime, $trait:ident, $ty:ty, [$($gen:ident),*]) => {
         #[expect(non_snake_case)]
+        #[diagnostic::do_not_recommend]
         impl<$lt, $($gen, )*> $trait<$lt> for ($($gen, )*)
         where
             $($gen: $trait<$lt>),*

@@ -43,23 +43,23 @@ impl<'ptr> MqStruct<'ptr, sys::MQSD> {
 impl<'ptr> MqStruct<'ptr, sys::MQCNO> {
     pub fn attach_csp(&mut self, csp: &'ptr MqStruct<sys::MQCSP>) {
         self.set_min_version(sys::MQCNO_VERSION_5);
-        self.SecurityParmsPtr = ptr::addr_of!(csp.struc).cast_mut();
+        self.SecurityParmsPtr = (&raw const csp.struc).cast_mut();
     }
 
     pub fn attach_cd(&mut self, cd: &'ptr MqStruct<sys::MQCD>) {
         self.set_min_version(sys::MQCNO_VERSION_2);
-        self.ClientConnPtr = ptr::addr_of!(cd.struc).cast_mut().cast();
+        self.ClientConnPtr = (&raw const cd.struc).cast_mut().cast();
     }
 
     pub fn attach_sco(&mut self, sco: &'ptr MqStruct<sys::MQSCO>) {
         self.set_min_version(sys::MQCNO_VERSION_4);
-        self.SSLConfigPtr = ptr::addr_of!(sco.struc).cast_mut();
+        self.SSLConfigPtr = (&raw const sco.struc).cast_mut();
     }
 
     #[cfg(feature = "mqc_9_3_0_0")]
     pub fn attach_bno(&mut self, bno: &'ptr MqStruct<sys::MQBNO>) {
         self.set_min_version(sys::MQCNO_VERSION_8);
-        self.BalanceParmsPtr = ptr::addr_of!(bno.struc).cast_mut();
+        self.BalanceParmsPtr = (&raw const bno.struc).cast_mut();
     }
 
     pub fn attach_ccdt(&mut self, url: &'ptr str) {

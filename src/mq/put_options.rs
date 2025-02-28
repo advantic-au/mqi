@@ -14,6 +14,7 @@ pub struct Context<T>(pub T);
 macro_rules! impl_putoption_tuple {
     ([$($rest:ident),*]) => {
         #[expect(non_snake_case)]
+        #[diagnostic::do_not_recommend]
         impl <'po, $($rest),*> PutOption<'po> for ($($rest),*)
         where
             $($rest: PutOption<'po> ),*
@@ -142,6 +143,7 @@ mod impl_put {
 
     macro_rules! impl_putattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
+            #[diagnostic::do_not_recommend]
             impl<$first, $($ty),*> PutAttr for ($first, $($ty),*)
             where
                 $first: PutAttr,

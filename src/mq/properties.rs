@@ -69,7 +69,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
         returned_name,
     ) {
         (Err(core::MqInqError::Length(length, Error(.., MQRC(sys::MQRC_PROPERTY_VALUE_TOO_BIG)))), rn)
-            if max_value_size.map_or(true, |max_len| Into::<usize>::into(max_len) > value.len()) =>
+            if max_value_size.is_none_or(|max_len| Into::<usize>::into(max_len) > value.len()) =>
         {
             let len = length.try_into().expect("length should convert to usize");
             let value_vec = InqBuffer::Owned(vec![0; len]);
@@ -88,7 +88,7 @@ fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
             )
         }
         (Err(core::MqInqError::Length(length, Error(.., MQRC(sys::MQRC_PROPERTY_NAME_TOO_BIG)))), Some(rn))
-            if max_name_size.map_or(true, |max_len| Into::<usize>::into(max_len) > rn.len()) =>
+            if max_name_size.is_none_or(|max_len| Into::<usize>::into(max_len) > rn.len()) =>
         {
             let len = length.try_into().expect("length should convert to usize");
             let name_vec = InqBuffer::Owned(vec![0; len]);
@@ -220,7 +220,7 @@ impl<C: Conn> Properties<C> {
             param.impo.ReturnedName = inq_name_buffer
                 .as_mut()
                 .map_or(default::MQCHARV_DEFAULT, |name| sys::MQCHARV {
-                    VSPtr: ptr::from_mut(&mut *name).cast(),
+                    VSPtr: (&raw mut *name).cast(),
                     VSBufSize: name
                         .as_ref()
                         .len()

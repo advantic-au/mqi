@@ -131,6 +131,7 @@ mod get_bag_impl {
     macro_rules! impl_getbagattr {
         ([$first:ident, $($ty:ident),*]) => {
             #[expect(non_snake_case)]
+            #[diagnostic::do_not_recommend]
             impl<'b, $first, $($ty),*> GetBagAttr for ($first, $($ty),*)
             where
                 $first: GetBagAttr,
@@ -179,6 +180,7 @@ mod get_impl {
     macro_rules! impl_getvalue {
         ([$first:ident, $($ty:ident),*]) => {
             #[expect(non_snake_case)]
+            #[diagnostic::do_not_recommend]
             impl<'b, R, B, $first, $($ty),*> GetValue<'b, R, B> for ($first, $($ty),*)
             where
                 $first: GetValue<'b, R, B>,
@@ -215,6 +217,7 @@ mod get_impl {
     macro_rules! impl_getattr {
         ([$first:ident, $($ty:ident),*]) => {
             #[expect(non_snake_case)]
+            #[diagnostic::do_not_recommend]
             impl<'b, R, $first, $($ty),*> GetAttr<'b, R> for ($first, $($ty),*)
             where
                 $first: GetAttr<'b, R>,
@@ -442,7 +445,7 @@ mod test {
     fn mock_get_message<'b, B: Buffer<'b, u8>>(
         buffer: B,
         fmt: types::MessageFormat,
-    ) -> impl FnOnce(&mut GetParam) -> ResultComp<GetState<B>> {
+    ) -> impl FnOnce(&mut GetParam) -> ResultComp<GetState<B>> + use<B> {
         let len = buffer.len();
         move |_| {
             Ok(Completion::new(GetState {
