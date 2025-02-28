@@ -27,12 +27,36 @@ pub struct SubscribeParam<'a> {
     pub provided_object: sys::MQLONG,
 }
 
+#[derive(Debug)]
+pub struct SubscribeRequestParam {
+    pub sro: MqStruct<'static, sys::MQSRO>,
+    pub sr: values::MQSR,
+}
+
 impl<C: Conn> Subscription<C> {
+    /// Close the subscription.
+    ///
+    /// This utilises the MQI function `MQCLOSE`.
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
         s.connection
             .mq()
             .mqclose(s.connection.handle(), &mut s.handle, s.close_options)
+    }
+
+    /// Request the retained publication(s) for the subscription.
+    ///
+    /// This utilises the MQI function `MQSUBRQ`.
+    pub fn request_retained(&self, request_options: &impl SubscribeRequestOption) -> ResultComp<sys::MQLONG> {
+        let mut srp = SubscribeRequestParam {
+            sro: MqStruct::new(default::MQSRO_DEFAULT),
+            sr: values::MQSR(sys::MQSR_ACTION_PUBLICATION),
+        };
+        request_options.apply_param(&mut srp);
+        self.connection
+            .mq()
+            .mqsubrq(self.connection.handle(), &self.handle, srp.sr, &mut srp.sro)
+            .map_completion(|()| srp.sro.NumPubs)
     }
 }
 
@@ -70,6 +94,10 @@ pub trait SubscribeAttr<C: Conn> {
 )]
 pub trait SubscribeOption<'so> {
     fn apply_param(&self, param: &mut SubscribeParam<'so>);
+}
+
+pub trait SubscribeRequestOption {
+    fn apply_param(&self, param: &mut SubscribeRequestParam);
 }
 
 // Blanket implementation for SubscribeValue<C>
@@ -144,5 +172,54 @@ impl<C: Conn + Clone> Subscription<C> {
                     }
                 })
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        connect_lib,
+        prelude::*,
+        sys,
+        test::mock::{self, MockFunctions},
+        values, MqStruct, ThreadNone,
+    };
+
+    use super::Subscription;
+
+    #[test]
+    pub fn test_request_retained() -> Result<(), Box<dyn std::error::Error>> {
+        let mut mock_library = mock::connect_ok();
+
+        mock_library
+            .expect_MQSUBRQ()
+            .returning(|_, _, _, sro, cc, rc| {
+                let mqsro: *mut MqStruct<sys::MQSRO> = sro.cast();
+                unsafe {
+                    (*mqsro).NumPubs = 5;
+                }
+                MockFunctions::mqi_outcome_ok(cc, rc);
+            })
+            .once();
+
+        mock_library
+            .expect_MQCLOSE()
+            .withf(|_, &hobj, _, _, _| 1 == unsafe { *hobj })
+            .returning(|_, _, _, cc, rc| {
+                MockFunctions::mqi_outcome_ok(cc, rc);
+            })
+            .once();
+
+        let qm = connect_lib::<ThreadNone, _>(mock_library, &()).warn_as_error()?;
+
+        let sub = Subscription {
+            handle: 1.into(),
+            connection: qm,
+            close_options: values::MQCO::default(),
+        };
+
+        assert_eq!(sub.request_retained(&()).warn_as_error()?, 5);
+
+        Ok(())
     }
 }

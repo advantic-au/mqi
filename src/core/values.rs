@@ -14,6 +14,8 @@ define_mqvalue!(pub MQCBF, mapping::MQCBCF_CONST, "Flags containing information 
 define_mqvalue!(pub MQCS, mapping::MQCS_CONST, "Callback consumer state");
 define_mqvalue!(pub MQRD, mapping::MQRD_CONST, "Reconnect delay");
 define_mqvalue!(pub MQSR, mapping::MQSR_CONST, "Value describing action for `MQSUBRQ`");
+define_mqmask!(pub MQSRO, mapping::MQSRO_CONST, "Options mask that control the action of MQSUBRQ");
+impl_default_mqvalue!(MQSRO, sys::MQSRO_NONE);
 define_mqvalue!(pub MQTYPE, mapping::MQTYPE_CONST, "Property data types");
 impl_default_mqvalue!(MQTYPE, sys::MQTYPE_AS_SET);
 define_mqmask!(pub MQENC, mapping::MQENC_CONST, "Mask describing data encoding");
