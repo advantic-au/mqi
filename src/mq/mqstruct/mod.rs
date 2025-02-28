@@ -17,7 +17,7 @@ pub struct MqStruct<'ptr, T> {
 }
 
 impl<T> MqStruct<'_, T> {
-    pub fn new(struc: T) -> Self {
+    pub const fn new(struc: T) -> Self {
         Self {
             struc,
             _marker: PhantomData,

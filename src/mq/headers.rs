@@ -123,21 +123,13 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     #[must_use]
     pub fn next_ccsid(&self) -> CCSID {
         let next_ccsid = self.native_mqlong(T::next_raw_ccsid(&self.raw_header));
-        if next_ccsid == 0 {
-            self.ccsid
-        } else {
-            CCSID(next_ccsid)
-        }
+        if next_ccsid == 0 { self.ccsid } else { CCSID(next_ccsid) }
     }
 
     #[must_use]
     pub fn next_encoding(&self) -> MQENC {
         let next_encoding = self.native_mqlong(T::next_raw_encoding(&self.raw_header)).into();
-        if next_encoding == 0 {
-            self.encoding
-        } else {
-            next_encoding
-        }
+        if next_encoding == 0 { self.encoding } else { next_encoding }
     }
 
     #[must_use]
@@ -350,11 +342,7 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
 #[inline]
 #[must_use]
 const fn swap_to_native(value: sys::MQLONG, native: bool) -> sys::MQLONG {
-    if native {
-        value
-    } else {
-        value.swap_bytes()
-    }
+    if native { value } else { value.swap_bytes() }
 }
 
 impl ChainedHeader for sys::MQDH {
@@ -373,11 +361,11 @@ impl ChainedHeader for sys::MQDH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *ptr::from_ref(&self.Format).cast() }
+        unsafe { *(&raw const self.Format).cast() }
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *ptr::from_ref(&self.StrucId).cast() }
+        unsafe { *(&raw const self.StrucId).cast() }
     }
 
     fn raw_version(&self) -> sys::MQLONG {
@@ -416,11 +404,11 @@ impl ChainedHeader for sys::MQCIH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *ptr::from_ref(&self.Format).cast() }
+        unsafe { *(&raw const self.Format).cast() }
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *ptr::from_ref(&self.StrucId).cast() }
+        unsafe { *(&raw const self.StrucId).cast() }
     }
 
     fn raw_version(&self) -> sys::MQLONG {
@@ -459,11 +447,11 @@ impl ChainedHeader for sys::MQDLH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *ptr::from_ref(&self.Format).cast() }
+        unsafe { *(&raw const self.Format).cast() }
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *ptr::from_ref(&self.StrucId).cast() }
+        unsafe { *(&raw const self.StrucId).cast() }
     }
 
     fn raw_version(&self) -> sys::MQLONG {
@@ -498,11 +486,11 @@ impl ChainedHeader for sys::MQIIH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *ptr::from_ref(&self.Format).cast() }
+        unsafe { *(&raw const self.Format).cast() }
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *ptr::from_ref(&self.StrucId).cast() }
+        unsafe { *(&raw const self.StrucId).cast() }
     }
 
     fn raw_version(&self) -> sys::MQLONG {
@@ -537,11 +525,11 @@ impl ChainedHeader for sys::MQRFH2 {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *ptr::from_ref(&self.Format).cast() }
+        unsafe { *(&raw const self.Format).cast() }
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *ptr::from_ref(&self.StrucId).cast() }
+        unsafe { *(&raw const self.StrucId).cast() }
     }
 
     fn raw_version(&self) -> sys::MQLONG {
@@ -602,11 +590,11 @@ impl ChainedHeader for sys::MQRFH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *ptr::from_ref(&self.Format).cast() }
+        unsafe { *(&raw const self.Format).cast() }
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *ptr::from_ref(&self.StrucId).cast() }
+        unsafe { *(&raw const self.StrucId).cast() }
     }
 
     fn raw_version(&self) -> sys::MQLONG {
@@ -691,7 +679,7 @@ fn next_header<'a>(data: &'a [u8], next_format: &MessageFormat) -> Result<Option
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use std::{mem::transmute, ptr, slice::from_raw_parts};
+    use std::{mem::transmute, slice::from_raw_parts};
 
     use crate::{
         headers::{EncodedHeader, Header, HeaderError},
@@ -760,8 +748,10 @@ mod tests {
         dlh.Format = sys::MQRFH2::FMT_ASCII;
         dlh.CodedCharSetId = 1208;
         dlh.Encoding = sys::MQENC_NATIVE;
-        data[..sys::MQDLH_LENGTH_1].copy_from_slice(unsafe { from_raw_parts(ptr::from_ref(&dlh).cast(), sys::MQDLH_LENGTH_1) });
-        data[sys::MQDLH_LENGTH_1..].copy_from_slice(unsafe { from_raw_parts(ptr::from_ref(&rfh2).cast(), sys::MQRFH2_LENGTH_2) });
+        let dlh_ptr = &raw const dlh;
+        let rfh2_ptr = &raw const rfh2;
+        data[..sys::MQDLH_LENGTH_1].copy_from_slice(unsafe { from_raw_parts(dlh_ptr.cast(), sys::MQDLH_LENGTH_1) });
+        data[sys::MQDLH_LENGTH_1..].copy_from_slice(unsafe { from_raw_parts(rfh2_ptr.cast(), sys::MQRFH2_LENGTH_2) });
 
         let headers = Header::iter(
             data.as_slice(),

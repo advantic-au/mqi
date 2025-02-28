@@ -1,5 +1,3 @@
-use std::ptr;
-
 use libmqm_sys::Mqi;
 use libmqm_default as default;
 
@@ -124,7 +122,7 @@ pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: Connect
             .try_into()
             .expect("buffer length should convert to usize"),
     );
-    sts.ObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
+    sts.ObjectString.VSPtr = (&raw mut *buffer).cast();
 
     functions
         .mqstat(handle, values::MQSTAT(sys::MQSTAT_TYPE_ASYNC_ERROR), &mut sts)
@@ -157,7 +155,7 @@ pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
             .try_into()
             .expect("buffer length should convert to usize"),
     );
-    sts.ObjectString.VSPtr = ptr::from_mut(&mut *object_string_buffer).cast();
+    sts.ObjectString.VSPtr = (&raw mut *object_string_buffer).cast();
 
     sts.SubName.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
     let mut sub_name_buffer = Vec::with_capacity(
@@ -166,7 +164,7 @@ pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
             .try_into()
             .expect("buffer length should convert to usize"),
     );
-    sts.SubName.VSPtr = ptr::from_mut(&mut *sub_name_buffer).cast();
+    sts.SubName.VSPtr = (&raw mut *sub_name_buffer).cast();
 
     functions
         .mqstat(handle, values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION_ERROR), &mut sts)

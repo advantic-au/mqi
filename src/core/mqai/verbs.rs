@@ -789,8 +789,8 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 bag.raw_handle(),
                 selector.0,
                 index.0,
-                &mut outcome.value.0 .0,
-                &mut outcome.value.1 .0,
+                &mut outcome.value.0.0,
+                &mut outcome.value.1.0,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );

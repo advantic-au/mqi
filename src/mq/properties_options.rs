@@ -64,6 +64,7 @@ pub trait SetPropertyAttr {
 
 macro_rules! impl_setproperty_tuple {
     ([$first:ident, $($ty:ident),*]) => {
+        #[diagnostic::do_not_recommend]
         impl<$first, $($ty),*> SetProperty for ($first, $($ty),*)
         where
             $first: SetProperty,
@@ -207,32 +208,35 @@ impl PropertyAttr for Attributes {
 }
 
 impl Attributes {
+    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
     pub fn set_support(&mut self, support: values::MQPD) {
         self.mqpd.Support = support.value();
     }
 
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
+    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
     pub fn support(&self) -> values::MQPD {
         values::MQPD(self.mqpd.Support)
     }
 
+    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
     pub fn set_context(&mut self, context: values::MQPD) {
         self.mqpd.Context = context.value();
     }
 
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
+    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
     pub fn context(&self) -> values::MQPD {
         values::MQPD(self.mqpd.Context)
     }
 
+    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
     pub fn set_copy_options(&mut self, copy_options: values::MQPD) {
         self.mqpd.CopyOptions = copy_options.value();
     }
 
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
+    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
     pub fn copy_options(&self) -> values::MQCOPY {
         values::MQCOPY(self.mqpd.CopyOptions)
     }
@@ -646,6 +650,7 @@ mod impl_property {
 
     macro_rules! impl_propertyvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
+            #[diagnostic::do_not_recommend]
             impl<$first, $($ty),*> PropertyValue for ($first, $($ty),*)
             where
                 $first: PropertyValue,
@@ -682,6 +687,7 @@ mod impl_property {
 
     macro_rules! impl_propertyattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
+            #[diagnostic::do_not_recommend]
             impl<$first, $($ty),*> PropertyAttr for ($first, $($ty),*)
             where
                 $first: PropertyAttr,

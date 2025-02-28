@@ -100,7 +100,7 @@ Feature flags
 Version Compatibility
 ---------------------
 
-- The current MSRV is 1.81. No MSRV policy has been established.
+- The current MSRV is 1.85. No MSRV policy has been established.
 - IBM MQ client support is in line with IBM's support for MQ client. This crate supports IBM MQ client 9.2 to 9.4. Version specific features can be enabled using the `mqc_*` feature flags.
 
 Status

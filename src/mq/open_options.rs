@@ -1,5 +1,3 @@
-use std::ptr;
-
 use crate::{
     prelude::*,
     sys,
@@ -26,6 +24,7 @@ impl<'oo, O> OpenOption<'oo, O> for () {
 macro_rules! impl_openoption_tuple {
     ([$($rest:ident),*]) => {
         #[expect(non_snake_case)]
+        #[diagnostic::do_not_recommend]
         impl <'oo, O, $($rest),*> OpenOption<'oo, O> for ($($rest),*)
         where
             $($rest: OpenOption<'oo, O> ),*
@@ -183,7 +182,7 @@ impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
                 .try_into()
                 .expect("buffer length should convert to usize"),
         );
-        od.ResObjectString.VSPtr = ptr::from_mut(&mut *buffer).cast();
+        od.ResObjectString.VSPtr = (&raw mut *buffer).cast();
 
         open(param).map_completion(|state| {
             let od = &mut param.mqod;
@@ -220,6 +219,7 @@ mod open_impl {
 
     macro_rules! impl_openvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
+            #[diagnostic::do_not_recommend]
             impl<S, $first, $($ty),*> OpenValue<S> for ($first, $($ty),*)
             where
                 $first: OpenValue<S>,
@@ -251,6 +251,7 @@ mod open_impl {
 
     macro_rules! impl_openattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
+            #[diagnostic::do_not_recommend]
             impl<S, O, $first, $($ty),*> OpenAttr<S, O> for ($first, $($ty),*)
             where
                 $first: OpenAttr<S, O>,
