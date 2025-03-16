@@ -191,22 +191,22 @@ mod test {
     pub fn test_request_retained() -> Result<(), Box<dyn std::error::Error>> {
         let qm = mock::connect_ok(|mock_library| {
             mock_library
-            .expect_MQSUBRQ()
-            .returning(|_, _, _, sro, cc, rc| {
-                let mqsro: *mut MqStruct<sys::MQSRO> = sro.cast();
-                unsafe {
-                    (*mqsro).NumPubs = 5;
-                }
-                MockFunctions::mqi_outcome_ok(cc, rc);
-            })
-            .once();
-        mock_library
-            .expect_MQCLOSE()
-            .withf(|_, &hobj, _, _, _| 1 == unsafe { *hobj })
-            .returning(|_, _, _, cc, rc| {
-                MockFunctions::mqi_outcome_ok(cc, rc);
-            })
-            .once();
+                .expect_MQSUBRQ()
+                .returning(|_, _, _, sro, cc, rc| {
+                    let mqsro: *mut MqStruct<sys::MQSRO> = sro.cast();
+                    unsafe {
+                        (*mqsro).NumPubs = 5;
+                    }
+                    MockFunctions::mqi_outcome_ok(cc, rc);
+                })
+                .once();
+            mock_library
+                .expect_MQCLOSE()
+                .withf(|_, &hobj, _, _, _| 1 == unsafe { *hobj })
+                .returning(|_, _, _, cc, rc| {
+                    MockFunctions::mqi_outcome_ok(cc, rc);
+                })
+                .once();
         });
 
         let sub = Subscription {

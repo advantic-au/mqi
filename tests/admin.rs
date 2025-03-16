@@ -16,7 +16,8 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
             // TODO: add some return data
             test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
         });
-        mock_library.expect_mqCountItems()
+        mock_library
+            .expect_mqCountItems()
             .returning(|_, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc));
     });
 

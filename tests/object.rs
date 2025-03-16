@@ -22,14 +22,14 @@ fn no_message() -> Result<(), Box<dyn std::error::Error>> {
         connection = test::mock::connect_ok(|mock_library| {
             let mut seq = mockall::Sequence::new();
             mock_library.open_ok(0x0c0c, 1, &mut seq);
-            mock_library.get_error(sys::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);    
+            mock_library.get_error(sys::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
         });
     }
     #[cfg(not(feature = "mock"))]
     {
         let creds = test::credentials();
         let cred_options: Credentials<_> = creds.as_ref().into();
-        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;    
+        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
     let object = Object::open(
         &connection,
@@ -64,14 +64,14 @@ fn put_get_message() -> Result<(), Box<dyn std::error::Error>> {
                 test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
             });
             mock_library.properties_ok(0x0d0d, 1, &mut seq);
-            mock_library.get_ok("put_get_message test", 1, &mut seq);    
+            mock_library.get_ok("put_get_message test", 1, &mut seq);
         });
     }
     #[cfg(not(feature = "mock"))]
     {
         let creds = test::credentials();
         let cred_options: Credentials<_> = creds.as_ref().into();
-        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;    
+        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
     let object = Object::open(&connection, &(QUEUE, values::MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
@@ -193,7 +193,7 @@ fn put_message() -> Result<(), Box<dyn Error>> {
     {
         let creds = test::credentials();
         let cred_options: Credentials<_> = creds.as_ref().into();
-        let connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;    
+        let connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
     let object = Object::open(connection, &(QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;

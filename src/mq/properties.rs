@@ -487,7 +487,7 @@ mod test {
                     MockFunctions::mqi_outcome_ok(cc, rc);
                 })
                 .once()
-                .in_sequence(&mut seq);    
+                .in_sequence(&mut seq);
         });
 
         let mut properties = Properties::new(connection, MQCMHO(sys::MQCMHO_NONE))?;

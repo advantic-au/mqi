@@ -73,7 +73,10 @@ where
     }
 
     #[inline]
-    pub fn library(&self) -> L  where L: Clone {
+    pub fn library(&self) -> L
+    where
+        L: Clone,
+    {
         self.mq.0.clone()
     }
 }

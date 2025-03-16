@@ -56,14 +56,14 @@ fn put_get_bag() -> Result<(), Box<dyn std::error::Error>> {
                 .expect_mqDeleteBag()
                 .returning(move |_, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
                 .times(2)
-                .in_sequence(&mut seq);    
+                .in_sequence(&mut seq);
         });
     }
     #[cfg(not(feature = "mock"))]
     {
         let creds = test::credentials();
         let cred_options: connect_options::Credentials<_> = creds.as_ref().into();
-        connection = mqi::connect_lib::<ThreadNone, _>(&test::mq_library(), &cred_options).warn_as_error()?;    
+        connection = mqi::connect_lib::<ThreadNone, _>(&test::mq_library(), &cred_options).warn_as_error()?;
     }
 
     // Open the queue
@@ -110,14 +110,14 @@ fn bag_no_message() -> Result<(), Box<dyn std::error::Error>> {
                 .expect_mqDeleteBag()
                 .returning(move |_, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
                 .times(1)
-                .in_sequence(&mut seq);    
+                .in_sequence(&mut seq);
         });
     }
     #[cfg(not(feature = "mock"))]
     {
         let creds = test::credentials();
         let cred_options: connect_options::Credentials<_> = creds.as_ref().into();
-        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;    
+        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
     let object = Object::open(

@@ -862,11 +862,15 @@ impl Library for MockFunctions {
 }
 
 pub fn connect_ok<F>(f: F) -> Connection<Rc<MockFunctions>, ThreadNone>
-where F: FnOnce(&mut MockFunctions) {
+where
+    F: FnOnce(&mut MockFunctions),
+{
     let mut mock = MockFunctions::new();
     mock.connx_outcome(0x0d0d, sys::MQCC_OK, sys::MQRC_NONE);
     mock.disc_outcome(sys::MQCC_OK, sys::MQRC_NONE);
     f(&mut mock);
 
-    connect_lib(Rc::from(mock), &()).warn_as_error().expect("should not fail or produce a warning")
+    connect_lib(Rc::from(mock), &())
+        .warn_as_error()
+        .expect("should not fail or produce a warning")
 }

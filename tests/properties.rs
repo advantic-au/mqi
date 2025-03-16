@@ -7,7 +7,7 @@ use mqi::{
     sys, test,
     values::{self, MQIMPO},
     Properties, StrCcsidOwned,
-    prelude::*
+    prelude::*,
 };
 
 #[test]

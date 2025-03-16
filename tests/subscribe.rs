@@ -5,11 +5,10 @@ use mqi::{prelude::*, test};
 
 #[test]
 fn subscribe() -> Result<(), Box<dyn std::error::Error>> {
-
     let connection = test::mock::connect_ok(|mock_library| {
         let mut seq = mockall::Sequence::new();
         mock_library.open_ok(0x0101_0101, 1, &mut seq);
-        mock_library.subscribe_managed_ok(0x0505, 0x5b5b, 1, &mut seq);    
+        mock_library.subscribe_managed_ok(0x0505, 0x5b5b, 1, &mut seq);
     });
 
     let object = Object::open(connection.connection_ref(), &()).warn_as_error()?;
