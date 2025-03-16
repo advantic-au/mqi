@@ -12,6 +12,9 @@ use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
 use mqi::{get, Properties};
 use mqi::{attribute, sys, Object};
 
+#[cfg(not(feature = "mock"))]
+use mqi::{connect_options::Credentials, ThreadNone};
+
 #[test]
 fn no_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
@@ -193,7 +196,7 @@ fn put_message() -> Result<(), Box<dyn Error>> {
     {
         let creds = test::credentials();
         let cred_options: Credentials<_> = creds.as_ref().into();
-        let connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
+        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
     let object = Object::open(connection, &(QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;

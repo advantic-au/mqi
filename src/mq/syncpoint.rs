@@ -67,6 +67,7 @@ impl<C: Conn> Drop for Syncpoint<C> {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
+    #[cfg(feature = "mock")]
     use crate::{prelude::*, ResultComp};
 
     #[test]

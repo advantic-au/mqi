@@ -6,6 +6,9 @@ use mqi::{
     sys, test, types, values, Object,
 };
 
+#[cfg(not(feature = "mock"))]
+use mqi::{connect_options::Credentials, ThreadNone};
+
 #[test]
 fn put_get_bag() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: types::QueueName = types::QueueName(mqstr!("DEV.QUEUE.1"));
@@ -61,9 +64,10 @@ fn put_get_bag() -> Result<(), Box<dyn std::error::Error>> {
     }
     #[cfg(not(feature = "mock"))]
     {
+        let lib = std::rc::Rc::from(test::mq_library());
         let creds = test::credentials();
-        let cred_options: connect_options::Credentials<_> = creds.as_ref().into();
-        connection = mqi::connect_lib::<ThreadNone, _>(&test::mq_library(), &cred_options).warn_as_error()?;
+        let cred_options: Credentials<_> = creds.as_ref().into();
+        connection = mqi::connect_lib::<ThreadNone, _>(lib, &cred_options).warn_as_error()?;
     }
 
     // Open the queue
@@ -116,7 +120,7 @@ fn bag_no_message() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(feature = "mock"))]
     {
         let creds = test::credentials();
-        let cred_options: connect_options::Credentials<_> = creds.as_ref().into();
+        let cred_options: Credentials<_> = creds.as_ref().into();
         connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
