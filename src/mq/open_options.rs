@@ -112,7 +112,7 @@ impl OpenOption<'_, MQPMO> for AlternateUserId {
 
 impl<S, O> OpenAttr<S, O> for Option<QueueName> {
     #[inline]
-    fn extract<'b, F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
+    fn open_extract<'b, F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
     {
@@ -128,7 +128,7 @@ impl<S, O> OpenAttr<S, O> for Option<QueueName> {
 
 impl<S, O> OpenAttr<S, O> for MQOT {
     #[inline]
-    fn extract<'b, F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
+    fn open_extract<'b, F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
     {
@@ -141,7 +141,7 @@ impl<C: Conn> OpenValue<Self> for Object<C> {
     type Error = Error;
 
     #[inline]
-    fn consume<'oo, F>(param: &mut OpenParam<'oo>, open: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn open_consume<'oo, F>(param: &mut OpenParam<'oo>, open: F) -> crate::ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut OpenParam<'oo>) -> ResultComp<Self>,
     {
@@ -151,7 +151,7 @@ impl<C: Conn> OpenValue<Self> for Object<C> {
 
 impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
     #[inline]
-    fn extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
+    fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
     {
@@ -168,7 +168,7 @@ impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
 const DEFAULT_RESOBJECTSTRING_LENGTH: sys::MQLONG = 4096;
 
 impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
-    fn extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
+    fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
     {
@@ -229,13 +229,13 @@ mod open_impl {
 
                 #[expect(non_snake_case)]
                 #[inline]
-                fn consume<'a, F>(param: &mut OpenParam<'a>, mqi: F) -> ResultCompErr<Self, Self::Error>
+                fn open_consume<'a, F>(param: &mut OpenParam<'a>, mqi: F) -> ResultCompErr<Self, Self::Error>
                 where
                     F: FnOnce(&mut OpenParam<'a>) -> ResultComp<S>,
                 {
                     let mut rest_outer = None;
-                    $first::consume(param, |param| {
-                        <($($ty),*) as OpenAttr<S, MQOO>>::extract(param, mqi).map_completion(|(rest, state)| {
+                    $first::open_consume(param, |param| {
+                        <($($ty),*) as OpenAttr<S, MQOO>>::open_extract(param, mqi).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -259,13 +259,13 @@ mod open_impl {
             {
                 #[expect(non_snake_case)]
                 #[inline]
-                fn extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
+                fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
                 where
                     F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>
                 {
                     let mut rest_outer = None;
-                    $first::extract(param, |param| {
-                        <($($ty),*) as OpenAttr<S, O>>::extract(param, mqi).map_completion(|(rest, state)| {
+                    $first::open_extract(param, |param| {
+                        <($($ty),*) as OpenAttr<S, O>>::open_extract(param, mqi).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })

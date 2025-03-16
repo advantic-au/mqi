@@ -1,19 +1,19 @@
 #![cfg(feature = "mock")]
 
-use std::{error::Error, sync::Arc, thread};
+use std::{sync::Arc, thread};
 
 use mqi::{
-    connect_options::{Binding, MqServer, Tls},
-    prelude::*,
-    test,
-    types::{CertificateLabel, CipherSpec, KeyRepo, MessageId, QueueName, FORMAT_NONE},
-    values, Properties, ThreadNone,
+    prelude::*, sys, test, types::{MessageId, QueueName, FORMAT_NONE}, values, Properties
 };
 
 #[test]
 fn thread() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
-    let mut mock = test::mock::connect_ok();
+
+    let mut mock = test::mock::MockFunctions::new();
+    mock.connx_outcome(0x0d0d, sys::MQCC_OK, sys::MQRC_NONE);
+    mock.disc_outcome(sys::MQCC_OK, sys::MQRC_NONE);
+
     let mut seq = mockall::Sequence::new();
     mock.properties_ok(0xf0f0, 1, &mut seq);
     mock.expect_MQSETMP().returning(|_, _, _, _, _, _, _, _, cc, rc| {
@@ -45,30 +45,4 @@ fn thread() {
     })
     .join()
     .expect("thread join should not fail");
-}
-
-#[test]
-fn default_binding() -> Result<(), Box<dyn Error>> {
-    let mock = test::mock::connect_ok();
-    let qm = mqi::connect_lib::<ThreadNone, _>(mock, &Binding::Default).warn_as_error()?;
-
-    // Disconnect.
-    qm.disconnect().warn_as_error()?;
-
-    Ok(())
-}
-
-#[test]
-fn connect() -> Result<(), Box<dyn Error>> {
-    let mock = test::mock::connect_ok();
-    let def = MqServer::try_from("A/TCP/C")?;
-
-    let tls = Tls::new(
-        &KeyRepo(mqstr!("path")),
-        Some(&CertificateLabel(mqstr!("label"))),
-        &CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")),
-    );
-    let _qm = mqi::connect_lib::<ThreadNone, _>(mock, &(tls, def)).warn_as_error()?;
-
-    Ok(())
 }

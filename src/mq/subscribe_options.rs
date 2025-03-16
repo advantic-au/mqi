@@ -55,7 +55,7 @@ impl<C: Conn> SubscribeValue<C> for Subscription<C> {
     type Error = Error;
 
     #[inline]
-    fn consume<'so, F>(param: &mut SubscribeParam<'so>, subscribe: F) -> ResultCompErr<Self, Self::Error>
+    fn subscribe_consume<'so, F>(param: &mut SubscribeParam<'so>, subscribe: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
     {
@@ -66,7 +66,7 @@ impl<C: Conn> SubscribeValue<C> for Subscription<C> {
 // Return the optional handle of a managed subscription
 impl<C: Conn> SubscribeAttr<C> for Option<Object<C>> {
     #[inline]
-    fn extract<'so, F>(param: &mut SubscribeParam<'so>, subscribe: F) -> ResultComp<(Self, SubscribeState<C>)>
+    fn subscribe_extract<'so, F>(param: &mut SubscribeParam<'so>, subscribe: F) -> ResultComp<(Self, SubscribeState<C>)>
     where
         F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
     {
@@ -93,13 +93,13 @@ mod impl_subscribe {
 
                 #[expect(non_snake_case)]
                 #[inline]
-                fn consume<'sp, F>(param: &mut SubscribeParam<'sp>, mqi: F) -> ResultCompErr<Self, Self::Error>
+                fn subscribe_consume<'sp, F>(param: &mut SubscribeParam<'sp>, mqi: F) -> ResultCompErr<Self, Self::Error>
                 where
                     F: FnOnce(&mut SubscribeParam<'sp>) -> ResultComp<SubscribeState<C>>,
                 {
                     let mut rest_outer = None;
-                    $first::consume(param, |param| {
-                        <($($ty),*) as SubscribeAttr<C>>::extract(param, mqi).map_completion(|(rest, state)| {
+                    $first::subscribe_consume(param, |param| {
+                        <($($ty),*) as SubscribeAttr<C>>::subscribe_extract(param, mqi).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -123,13 +123,13 @@ mod impl_subscribe {
             {
                 #[expect(non_snake_case)]
                 #[inline]
-                fn extract<'sp, F>(param: &mut SubscribeParam<'sp>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
+                fn subscribe_extract<'sp, F>(param: &mut SubscribeParam<'sp>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
                 where
                     F: FnOnce(&mut SubscribeParam<'sp>) -> ResultComp<SubscribeState<C>>
                 {
                     let mut rest_outer = None;
-                    $first::extract(param, |param| {
-                        <($($ty),*) as SubscribeAttr<C>>::extract(param, mqi).map_completion(|(rest, state)| {
+                    $first::subscribe_extract(param, |param| {
+                        <($($ty),*) as SubscribeAttr<C>>::subscribe_extract(param, mqi).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -147,7 +147,7 @@ mod impl_subscribe {
         type Error = crate::Error;
 
         #[inline]
-        fn consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
+        fn subscribe_consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
         where
             F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
         {
@@ -157,7 +157,7 @@ mod impl_subscribe {
 
     impl<C: Conn> SubscribeAttr<C> for () {
         #[inline]
-        fn extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
+        fn subscribe_extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
         where
             F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
             Self: Sized,

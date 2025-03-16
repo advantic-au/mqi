@@ -7,7 +7,7 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 | Verb    | Description                         | Wrapped  | API | Comments |
 |---------|-------------------------------------|----------|----------|-|
 | MQBACK  | Back out changes                    | ✔ | ✔ |  |
-| MQBEGIN | Begin unit of work                  | ✔ | Experiment | |
+| MQBEGIN | Begin unit of work                  | ✔ | ✔ | |
 | MQBUFMH | Convert buffer into message handle  | ✔ | ✔ |  |
 | MQCB    | Manage callback                     | ✔ | Experiment | |
 | MQCLOSE | Close object                        | ✔ | ✔ |  |

@@ -88,13 +88,13 @@ mod connect_impl {
                 $($ty: ConnectAttr<S>),*
             {
                 #[inline]
-                fn consume<'a, F>(param: &mut ConnectParam<'a>, connect: F) -> ResultComp<Self>
+                fn connect_consume<'a, F>(param: &mut ConnectParam<'a>, connect: F) -> ResultComp<Self>
                 where
                     F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>,
                 {
                     let mut rest_outer = None;
-                    $first::consume(param, |param| {
-                        <($($ty),*) as ConnectAttr<S>>::extract(param, connect).map_completion(|(rest, state)| {
+                    $first::connect_consume(param, |param| {
+                        <($($ty),*) as ConnectAttr<S>>::connect_extract(param, connect).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -119,13 +119,13 @@ mod connect_impl {
                 $($ty: ConnectAttr<S>),*
             {
                 #[inline]
-                fn extract<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<(Self, S)>
+                fn connect_extract<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<(Self, S)>
                 where
                     F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>
                 {
                     let mut rest_outer = None;
-                    $first::extract(param, |param| {
-                        <($($ty),*) as ConnectAttr<S>>::extract(param, mqi).map_completion(|(rest, state)| {
+                    $first::connect_extract(param, |param| {
+                        <($($ty),*) as ConnectAttr<S>>::connect_extract(param, mqi).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -617,7 +617,7 @@ impl<'cd> ConnectOption<'cd> for MqStruct<'cd, sys::MQCD> {
 
 impl<S> super::ConnectAttr<S> for ConnectionId {
     #[inline]
-    fn extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
+    fn connect_extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
     where
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
@@ -628,7 +628,7 @@ impl<S> super::ConnectAttr<S> for ConnectionId {
 
 impl<S> super::ConnectAttr<S> for ConnTag {
     #[inline]
-    fn extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
+    fn connect_extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
     where
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
@@ -709,6 +709,8 @@ mod tests {
             let (_, _, m_transport) = mqserver(server)?;
             assert!(m_transport == *transport);
         }
+
+        assert!(mqserver("a/BAD/c").is_err_and(|e| matches!(e, MqServerSyntaxError::UnrecognizedTransport(_))));
 
         Ok(())
     }

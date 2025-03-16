@@ -71,6 +71,11 @@ where
     pub fn connection_ref(&self) -> ConnectionRef<L, H> {
         ConnectionRef::from_parts(self.handle, self.mq.clone())
     }
+
+    #[inline]
+    pub fn library(&self) -> L  where L: Clone {
+        self.mq.0.clone()
+    }
 }
 
 impl<L, H> ConnectionRef<'_, L, H>
@@ -127,7 +132,7 @@ impl<L: Library<MQ: Mqi>, H> Drop for Connection<L, H> {
 
 impl<L: Library<MQ: Mqi>, H: Threading> ConnectValue<Self> for Connection<L, H> {
     #[inline]
-    fn consume<'a, F>(param: &mut ConnectParam<'a>, connect: F) -> ResultComp<Self>
+    fn connect_consume<'a, F>(param: &mut ConnectParam<'a>, connect: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<Self>,
     {
@@ -137,7 +142,7 @@ impl<L: Library<MQ: Mqi>, H: Threading> ConnectValue<Self> for Connection<L, H> 
 
 /// A trait that represents the value of an outcome of an MQ connection call
 pub trait ConnectValue<S> {
-    fn consume<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<Self>
+    fn connect_consume<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>,
         Self: std::marker::Sized;
@@ -145,7 +150,7 @@ pub trait ConnectValue<S> {
 
 /// A trait that represents an attribute of an outcome of an MQ connection call
 pub trait ConnectAttr<S> {
-    fn extract<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<(Self, S)>
+    fn connect_extract<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>,
         Self: std::marker::Sized;
@@ -199,7 +204,7 @@ where
         structs.cno.attach_csp(&structs.csp);
     }
 
-    R::consume(&mut structs.cno, |param| {
+    R::connect_consume(&mut structs.cno, |param| {
         param.Options |= H::MQCNO_HANDLE_SHARE;
         let mq = core::MqFunctions(lib);
         let qm_default = QueueManagerName::default(); // TODO: change to constant

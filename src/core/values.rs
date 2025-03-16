@@ -7,6 +7,8 @@ use crate::{define_mqmask, define_mqvalue, encoding, impl_default_mqvalue, mappi
 define_mqmask!(pub MQOO, mapping::MQOO_CONST, "Options mask to control the action of `MQOPEN`");
 define_mqmask!(pub MQCO, mapping::MQCO_CONST, "Options mask to control the action of `MQCLOSE`");
 impl_default_mqvalue!(MQCO, sys::MQCO_NONE);
+define_mqmask!(pub MQBO, mapping::MQBO_CONST, "Options mask to control the action of `MQBEGIN`");
+impl_default_mqvalue!(MQBO, sys::MQBO_NONE);
 define_mqmask!(pub MQSO, mapping::MQSO_CONST, "Options mask to control the action of `MQSUB`");
 define_mqmask!(pub MQOP, mapping::MQOP_CONST, "Operation codes for `MQCTL` and `MQCB`");
 define_mqvalue!(pub MQCBCT, mapping::MQCBCT_CONST, "Callback control and message delivery call types");

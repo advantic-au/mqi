@@ -192,7 +192,7 @@ mod test {
 
     use crate::put::PutOption;
     use crate::test::mock;
-    use crate::{connect_lib, values, Properties, ThreadNone};
+    use crate::{values, Properties};
 
     use super::*;
 
@@ -200,13 +200,11 @@ mod test {
 
     #[test]
     fn property_action() -> Result<(), Box<dyn Error>> {
-        let mut mock_library = mock::connect_ok();
-        let mut seq = mockall::Sequence::new();
-
-        mock_library.properties_ok(0xf0f0, 1, &mut seq);
-        mock_library.properties_ok(0x0e0e, 1, &mut seq);
-
-        let qm = connect_lib::<ThreadNone, _>(mock_library, &()).warn_as_error()?;
+        let qm = mock::connect_ok(|mock_library| {
+            let mut seq = mockall::Sequence::new();
+            mock_library.properties_ok(0xf0f0, 1, &mut seq);
+            mock_library.properties_ok(0x0e0e, 1, &mut seq);    
+        });
 
         let mut put_param = (MqStruct::new(default::MQMD2_DEFAULT), MqStruct::new(default::MQPMO_DEFAULT));
 
