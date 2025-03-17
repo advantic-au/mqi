@@ -689,6 +689,13 @@ pub enum MqServerSyntaxError {
 mod tests {
     use crate::values::MQXPT;
 
+    const VALID: &[(&str, values::MQXPT, &str, &str)] = &[
+        ("a", MQXPT(sys::MQXPT_TCP), "b", "a/TCP/b"),
+        ("a", MQXPT(sys::MQXPT_SPX), "c", "a/SPX/c"),
+        ("a", MQXPT(sys::MQXPT_LU62), "d", "a/LU62/d"),
+        ("a", MQXPT(sys::MQXPT_NETBIOS), "e", "a/NETBIOS/e"),
+    ];
+
     use super::*;
 
     #[test]
@@ -698,20 +705,33 @@ mod tests {
     }
 
     #[test]
-    fn mqserver_transport() -> Result<(), MqServerSyntaxError> {
-        const VALID: &[(values::MQXPT, &str)] = &[
-            (MQXPT(sys::MQXPT_TCP), "a/TCP/b"),
-            (MQXPT(sys::MQXPT_SPX), "a/SPX/b"),
-            (MQXPT(sys::MQXPT_LU62), "a/LU62/c"),
-            (MQXPT(sys::MQXPT_NETBIOS), "a/NETBIOS/c"),
-        ];
-        for (transport, server) in VALID {
-            let (_, _, m_transport) = mqserver(server)?;
+    fn mqserver_parse() -> Result<(), MqServerSyntaxError> {
+        for (channel, transport, connection, server) in VALID {
+            let (m_channel, m_connection, m_transport) = mqserver(server)?;
             assert!(m_transport == *transport);
+            assert!(m_channel.0 == *channel);
+            assert!(m_connection.0 == *connection);
         }
 
         assert!(mqserver("a/BAD/c").is_err_and(|e| matches!(e, MqServerSyntaxError::UnrecognizedTransport(_))));
 
+        Ok(())
+    }
+
+    #[test]
+    fn mqserver_try_from() -> Result<(), MqServerSyntaxError> {
+        for (v_channel, v_transport, v_connection, v_server) in VALID {
+            let MqServer {
+                channel_name,
+                connection_name,
+                transport,
+            } = MqServer::try_from(*v_server)?;
+            assert!(*v_transport == transport);
+            assert!(channel_name == *v_channel);
+            assert!(connection_name == *v_connection);
+        }
+
+        assert!(MqServer::try_from("a/BAD/c").is_err_and(|e| matches!(e, MqServerSyntaxError::UnrecognizedTransport(_))));
         Ok(())
     }
 
