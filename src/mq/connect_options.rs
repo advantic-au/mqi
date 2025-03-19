@@ -687,6 +687,7 @@ pub enum MqServerSyntaxError {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
+
     use crate::values::MQXPT;
 
     const VALID: &[(&str, values::MQXPT, &str, &str)] = &[
@@ -714,6 +715,7 @@ mod tests {
         }
 
         assert!(mqserver("a/BAD/c").is_err_and(|e| matches!(e, MqServerSyntaxError::UnrecognizedTransport(_))));
+        assert!(mqserver("invalid").is_err_and(|e| matches!(e, MqServerSyntaxError::InvalidFormat)));
 
         Ok(())
     }
@@ -732,12 +734,35 @@ mod tests {
         }
 
         assert!(MqServer::try_from("a/BAD/c").is_err_and(|e| matches!(e, MqServerSyntaxError::UnrecognizedTransport(_))));
+        assert!(MqServer::try_from("invalid").is_err_and(|e| matches!(e, MqServerSyntaxError::InvalidFormat)));
         Ok(())
     }
 
     #[test]
-    fn mqserver_invalid() {
-        let mqserver = MqServer::try_from("invalid");
-        assert!(mqserver.is_err());
+    fn connect_options() {
+        struct NoExecuteConnectOptions;
+
+        impl ConnectOption<'_> for NoExecuteConnectOptions {
+            fn apply_param<'ptr>(&self, _structs: &mut ConnectStructs<'ptr>) -> i32
+            where
+                'static: 'ptr,
+            {
+                panic!("Should not be called");
+            }
+            fn queue_manager_name(&self) -> Option<&QueueManagerName> {
+                panic!("Should not be called");
+            }
+        }
+
+        let mut cs = ConnectStructs::default();
+        // Test that apply_param is not executed
+        let none_options = None::<NoExecuteConnectOptions>;
+        ConnectOption::apply_param(&none_options, &mut cs);
+        ConnectOption::queue_manager_name(&none_options);
+        // Test that apply_param is executed
+        let some_options = Some(values::MQCNO::from(sys::MQCNO_RECONNECT));
+        assert!(cs.cno.Options & sys::MQCNO_RECONNECT == 0);
+        ConnectOption::apply_param(&some_options, &mut cs);
+        assert!(cs.cno.Options & sys::MQCNO_RECONNECT != 0);
     }
 }
