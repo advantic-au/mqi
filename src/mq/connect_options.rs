@@ -687,8 +687,9 @@ pub enum MqServerSyntaxError {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-
     use crate::values::MQXPT;
+
+    const CLIENT_MASK: sys::MQLONG = sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING;
 
     const VALID: &[(&str, values::MQXPT, &str, &str)] = &[
         ("a", MQXPT(sys::MQXPT_TCP), "b", "a/TCP/b"),
@@ -767,7 +768,6 @@ mod tests {
 
     #[test]
     fn binding() {
-        const CLIENT_MASK: sys::MQLONG = sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING;
         test_co(&Binding::Client, |_, _, cs| {
             assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_CLIENT_BINDING);
         });
@@ -784,6 +784,28 @@ mod tests {
             assert!(cs.cd.Version >= sys::MQCD_VERSION_7);
             assert_eq!(&cs.cd.SSLCipherSpec, CIPHER.as_mqchar());
             assert_eq!(bf & HAS_CD, HAS_CD);
+        });
+    }
+
+    #[test]
+    fn appl_name() {
+        const APP: ApplName = ApplName(mqstr!("MYAPP"));
+        test_co(&APP, |bf, _, cs| {
+            assert!(cs.cno.Version >= sys::MQCNO_VERSION_7);
+            assert_eq!(&cs.cno.ApplName, APP.as_mqchar());
+            assert_eq!(bf & HAS_CNO, HAS_CNO);
+        });
+    }
+
+    #[test]
+    fn ccdt() {
+        const CCDT: Ccdt = Ccdt("url");
+        test_co(&CCDT, |bf, _, cs| {
+            assert!(cs.cno.Version >= sys::MQCNO_VERSION_6);
+            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_CLIENT_BINDING);
+            assert_eq!(bf & HAS_CNO, HAS_CNO);
+            assert_eq!(cs.cno.CCDTUrlLength, 3);
+            assert!(!cs.cno.CCDTUrlPtr.is_null());
         });
     }
 
