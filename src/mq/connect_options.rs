@@ -739,7 +739,7 @@ mod tests {
     }
 
     #[test]
-    fn connect_options() {
+    fn connect_option_option() {
         struct NoExecuteConnectOptions;
 
         impl ConnectOption<'_> for NoExecuteConnectOptions {
@@ -760,9 +760,26 @@ mod tests {
         ConnectOption::apply_param(&none_options, &mut cs);
         ConnectOption::queue_manager_name(&none_options);
         // Test that apply_param is executed
-        let some_options = Some(values::MQCNO::from(sys::MQCNO_RECONNECT));
-        assert!(cs.cno.Options & sys::MQCNO_RECONNECT == 0);
-        ConnectOption::apply_param(&some_options, &mut cs);
-        assert!(cs.cno.Options & sys::MQCNO_RECONNECT != 0);
+        test_co(&Some(values::MQCNO::from(sys::MQCNO_RECONNECT)), |_, _, cs| {
+            assert!(cs.cno.Options & sys::MQCNO_RECONNECT != 0);
+        });
+    }
+
+    #[test]
+    fn binding() {
+        const CLIENT_MASK: sys::MQLONG = sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING;
+        test_co(&Binding::Client, |_, _, cs| {
+            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_CLIENT_BINDING)
+        });
+        test_co(&Binding::Default, |_, _, cs| assert_eq!(cs.cno.Options & CLIENT_MASK, 0));
+        test_co(&Binding::Local, |_, _, cs| {
+            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_LOCAL_BINDING)
+        });
+    }
+
+    /// Test a connection
+    fn test_co<'a, F: FnOnce(i32, Option<&QueueManagerName>, &ConnectStructs<'_>)>(co: &impl ConnectOption<'a>, f: F) {
+        let mut cs = ConnectStructs::default();
+        f(co.apply_param(&mut cs), co.queue_manager_name(), &cs);
     }
 }
