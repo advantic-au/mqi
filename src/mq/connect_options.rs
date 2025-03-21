@@ -769,15 +769,69 @@ mod tests {
     fn binding() {
         const CLIENT_MASK: sys::MQLONG = sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING;
         test_co(&Binding::Client, |_, _, cs| {
-            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_CLIENT_BINDING)
+            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_CLIENT_BINDING);
         });
         test_co(&Binding::Default, |_, _, cs| assert_eq!(cs.cno.Options & CLIENT_MASK, 0));
         test_co(&Binding::Local, |_, _, cs| {
-            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_LOCAL_BINDING)
+            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_LOCAL_BINDING);
         });
     }
 
-    /// Test a connection
+    #[test]
+    fn cipher_spec() {
+        const CIPHER: CipherSpec = CipherSpec(mqstr!("TLS_RSA_WITH_AES_128_CBC_SHA256"));
+        test_co(&CIPHER, |bf, _, cs| {
+            assert!(cs.cd.Version >= sys::MQCD_VERSION_7);
+            assert_eq!(&cs.cd.SSLCipherSpec, CIPHER.as_mqchar());
+            assert_eq!(bf & HAS_CD, HAS_CD);
+        });
+    }
+
+    #[test]
+    fn credentials() {
+        test_co(&Credentials::<'_, &str>::Default, |bf, _, cs| {
+            assert_eq!(cs.csp.AuthenticationType, sys::MQCSP_AUTH_NONE);
+            assert_eq!(bf & HAS_CSP, HAS_CSP);
+        });
+        test_co(&Credentials::user("user", "password"), |bf, _, cs| {
+            assert_eq!(cs.csp.AuthenticationType, sys::MQCSP_AUTH_USER_ID_AND_PWD);
+            assert_eq!(cs.csp.CSPUserIdLength, 4);
+            assert!(!cs.csp.CSPUserIdPtr.is_null());
+            assert_eq!(cs.csp.CSPPasswordLength, 8);
+            assert!(!cs.csp.CSPPasswordPtr.is_null());
+            assert_eq!(bf & HAS_CSP, HAS_CSP);
+        });
+        test_co(
+            &Credentials::User("user", "password".into(), Some("key".into())),
+            |_, _, cs| {
+                assert_eq!(cs.csp.InitialKeyLength, 3);
+                assert!(!cs.csp.InitialKeyPtr.is_null());
+            },
+        );
+        #[cfg(feature = "mqc_9_3_4_0")]
+        {
+            test_co(&Credentials::Token("token".into(), None), |bf, _, cs| {
+                assert_eq!(cs.csp.AuthenticationType, sys::MQCSP_AUTH_ID_TOKEN);
+                assert_eq!(cs.csp.TokenLength, 5);
+                assert!(!cs.csp.TokenPtr.is_null());
+                assert_eq!(bf & HAS_CSP, HAS_CSP);
+            });
+            test_co(&Credentials::Token("token".into(), Some("key".into())), |_, _, cs| {
+                assert_eq!(cs.csp.InitialKeyLength, 3);
+                assert!(!cs.csp.InitialKeyPtr.is_null());
+            });
+        }
+    }
+
+    #[test]
+    fn mqserver_co() {
+        const QM: QueueManagerName = QueueManagerName(mqstr!("MYQM"));
+        test_co(&QM, |_, coqm, _| {
+            assert!(coqm.is_some_and(|name| name == &QM));
+        });
+    }
+
+    /// Test a `ConnectionOption`
     fn test_co<'a, F: FnOnce(i32, Option<&QueueManagerName>, &ConnectStructs<'_>)>(co: &impl ConnectOption<'a>, f: F) {
         let mut cs = ConnectStructs::default();
         f(co.apply_param(&mut cs), co.queue_manager_name(), &cs);
