@@ -291,7 +291,7 @@ impl<T: AsRef<[sys::MQCHAR]>> SetProperty for StringCcsid<T> {
 }
 
 impl<const N: usize> SetProperty for MqStr<N> {
-    type Data = [u8];
+    type Data = [u8; N];
 
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
         smpo.ValueCCSID = 1208;
@@ -717,4 +717,118 @@ mod impl_property {
 
     all_multi_tuples!(impl_propertyvalue_tuple);
     all_multi_tuples!(impl_propertyattr_tuple);
+}
+
+#[cfg(test)]
+mod tests {
+    use libmqm_default as default;
+
+    use crate::{mqstr, sys, values::MQTYPE, MqStr, MqStruct, StrCcsid};
+
+    use super::{SetProperty, Value};
+
+    #[test]
+    fn set_property() {
+        test_sp("test", |_, smpo, data, mq_type| {
+            assert_eq!("test", data);
+            assert_eq!(MQTYPE(sys::MQTYPE_STRING), mq_type);
+            assert_eq!(smpo.ValueCCSID, 1208);
+        });
+
+        let mqstr_sub: MqStr<8> = mqstr!("test");
+        test_sp(&mqstr_sub, |_, smpo, data, mq_type| {
+            assert_eq!(mqstr_sub.as_bytes(), data);
+            assert_eq!(MQTYPE(sys::MQTYPE_STRING), mq_type);
+            assert_eq!(smpo.ValueCCSID, 1208);
+        });
+
+        let encoded_str = StrCcsid::from("test");
+        test_sp(&encoded_str, |_, smpo, data, mq_type| {
+            assert_eq!(encoded_str.data, data);
+            assert_eq!(MQTYPE(sys::MQTYPE_STRING), mq_type);
+            assert_eq!(smpo.ValueCCSID, encoded_str.ccsid.0);
+        });
+
+        let byte_str = b"test";
+        test_sp(byte_str.as_slice(), |_, _, data, mq_type| {
+            assert_eq!(byte_str, data);
+            assert_eq!(MQTYPE(sys::MQTYPE_BYTE_STRING), mq_type);
+        });
+
+        test_sp(&false, |_, _, data, mq_type| {
+            assert_eq!(&0, data);
+            assert_eq!(MQTYPE(sys::MQTYPE_BOOLEAN), mq_type);
+        });
+
+        test_sp(&true, |_, _, data, mq_type| {
+            assert_eq!(&1, data);
+            assert_eq!(MQTYPE(sys::MQTYPE_BOOLEAN), mq_type);
+        });
+
+        test_simple_sp::<i8>(&99, MQTYPE(sys::MQTYPE_INT8));
+        test_simple_sp::<i16>(&99, MQTYPE(sys::MQTYPE_INT16));
+        test_simple_sp::<f32>(&99.0, MQTYPE(sys::MQTYPE_FLOAT32));
+        test_simple_sp::<f64>(&99.0, MQTYPE(sys::MQTYPE_FLOAT64));
+        test_simple_sp::<sys::MQLONG>(&99, MQTYPE(sys::MQTYPE_INT32));
+        test_simple_sp::<sys::MQINT64>(&99, MQTYPE(sys::MQTYPE_INT64));
+
+        test_sp(&Value::Null, |_, _, _, mq_type| {
+            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_NULL));
+        });
+
+        test_sp(&Value::ByteString(b"test".into()), |_, _, _, mq_type| {
+            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_BYTE_STRING));
+        });
+
+        test_sp(&Value::String("test".into()), |_, smpo, _, mq_type| {
+            assert_eq!(smpo.ValueCCSID, 1208);
+            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_STRING));
+        });
+
+        test_sp(&Value::Float32(99.0), |_, _, _, mq_type| {
+            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_FLOAT32));
+        });
+
+        test_sp(&Value::Float64(99.0), |_, _, _, mq_type| {
+            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_FLOAT64));
+        });
+
+        test_sp(&Value::Boolean(false), |_, _, _, mq_type| {
+            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_BOOLEAN));
+        });
+
+        test_sp(&Value::Int8(99), |_, _, _, mq_type| {
+            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_INT8));
+        });
+
+        test_sp(&Value::Int16(99), |_, _, _, mq_type| {
+            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_INT16));
+        });
+
+        test_sp(&Value::Int32(99), |_, _, _, mq_type| {
+            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_INT32));
+        });
+
+        test_sp(&Value::Int64(99), |_, _, _, mq_type| {
+            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_INT64));
+        });
+    }
+
+    fn test_simple_sp<S>(s: &S, mq_type: MQTYPE)
+    where
+        S::Data: PartialEq<S> + std::fmt::Debug,
+        S: SetProperty + std::fmt::Debug,
+    {
+        test_sp(s, |_, _, data, t| {
+            assert_eq!(data, s);
+            assert_eq!(t, mq_type);
+        });
+    }
+
+    fn test_sp<S: SetProperty + ?Sized>(sp: &S, f: impl FnOnce(&MqStruct<sys::MQPD>, &MqStruct<sys::MQSMPO>, &S::Data, MQTYPE)) {
+        let mut pd = MqStruct::new(default::MQPD_DEFAULT);
+        let mut smpo = MqStruct::new(default::MQSMPO_DEFAULT);
+        let (data, mq_type) = sp.apply_mqsetmp(&mut pd, &mut smpo);
+        f(&pd, &smpo, data, mq_type);
+    }
 }
