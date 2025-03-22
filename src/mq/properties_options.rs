@@ -720,6 +720,7 @@ mod impl_property {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use libmqm_default as default;
 
