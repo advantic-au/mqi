@@ -738,7 +738,7 @@ mod tests {
         mqstr,
         properties_options::{Metadata, Name},
         sys,
-        values::MQTYPE,
+        values::{MQRC, MQTYPE},
         Completion, MqStr, MqStruct, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
     };
 
@@ -880,20 +880,35 @@ mod tests {
 
     #[test]
     fn property_attr_name() -> Result<(), Box<dyn Error>> {
-        fn name_state(name: &[u8]) -> PropertyState {
-            PropertyState {
+        #[expect(clippy::unnecessary_wraps)]
+        fn name_state(name: &[u8]) -> ResultComp<PropertyState> {
+            Ok(Completion::new(PropertyState {
                 name: Some(Cow::from(slice_byte_to_mqchar(name))),
                 value: Cow::from(b""),
-            }
+            }))
+        }
+
+        #[expect(clippy::unnecessary_wraps)]
+        fn name_state_warning(name: &[u8]) -> ResultComp<PropertyState> {
+            Ok(Completion::new_warning(
+                PropertyState {
+                    name: Some(Cow::from(slice_byte_to_mqchar(name))),
+                    value: Cow::from(b""),
+                },
+                (MQRC(sys::MQRC_PROP_NAME_NOT_CONVERTED), ""),
+            ))
         }
 
         let (name, _) = execute_pa::<Name<String>>(|param| {
             assert_eq!(param.name_required, NameUsage::AnyLength);
             assert_ne!(param.impo.Options & sys::MQIMPO_CONVERT_VALUE, 0);
-            Ok(Completion::new(name_state(b"name")))
+            name_state(b"name")
         })
         .warn_as_error()?;
         assert_eq!(name, Name("name"));
+
+        execute_pa::<Name<String>>(|_| name_state_warning(b"name")).expect_err("should return error");
+        execute_pa::<Name<MqStr<25>>>(|_| name_state_warning(b"name")).expect_err("should return error");
 
         let (name, _) = execute_pa::<Name<MqStr<25>>>(|param| {
             assert_eq!(
@@ -901,7 +916,7 @@ mod tests {
                 NameUsage::MaxLength(unsafe { NonZero::new_unchecked(25) })
             );
             assert_ne!(param.impo.Options & sys::MQIMPO_CONVERT_VALUE, 0);
-            Ok(Completion::new(name_state(b"name")))
+            name_state(b"name")
         })
         .warn_as_error()?;
         assert_eq!(name, Name("name"));
@@ -910,7 +925,7 @@ mod tests {
             param.impo.ReturnedName.VSCCSID = 1208;
             assert_eq!(param.name_required, NameUsage::AnyLength);
             assert_eq!(param.impo.Options & sys::MQIMPO_CONVERT_VALUE, 0);
-            Ok(Completion::new(name_state(b"name")))
+            name_state(b"name")
         })
         .warn_as_error()?;
         assert_eq!(name, Name("name"));
