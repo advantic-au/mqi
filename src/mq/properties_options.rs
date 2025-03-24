@@ -106,7 +106,7 @@ pub struct Metadata {
 #[derive(Debug, Clone, Copy)]
 pub struct Null;
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum NameUsage {
     #[default]
     Ignored,
@@ -349,8 +349,14 @@ impl From<NameUsage> for Option<NonZero<usize>> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, derive_more::Deref, derive_more::DerefMut)]
+#[derive(Debug, Clone, Copy, Eq, derive_more::Deref, derive_more::DerefMut)]
 pub struct Name<T>(pub T);
+
+impl<T: PartialEq<Y>, Y> PartialEq<Name<Y>> for Name<T> {
+    fn eq(&self, other: &Name<Y>) -> bool {
+        self.0 == other.0
+    }
+}
 
 impl PropertyAttr for Name<String> {
     fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
@@ -364,10 +370,11 @@ impl PropertyAttr for Name<String> {
                 Err(Error(values::MQCC(sys::MQCC_WARNING), verb, rc))
             }
             other => Ok(other.map(|state| {
-                // SAFETY: The bytes coming from the MQI library should be correct as there
-                // is no conversion error
-                // The unwrap will succeed as the Option is always `Some` if this code is executed
+                // SAFETY: The `expect` will succeed as the Option is always `Some` when
+                // `NameUsage::AnyLength` is specified
                 let name = conversion::vec_mqchar_to_byte(state.name.clone().expect("Name should not be None").into_owned());
+                // SAFETY: The bytes coming from the MQI library should be correct as there
+                // is no conversion error (MQRC_PROP_NAME_NOT_CONVERTED)
                 (Self(unsafe { String::from_utf8_unchecked(name) }), state)
             })),
         }
@@ -722,11 +729,20 @@ mod impl_property {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
+    use std::{borrow::Cow, error::Error, num::NonZero};
+
     use libmqm_default as default;
 
-    use crate::{mqstr, sys, values::MQTYPE, MqStr, MqStruct, StrCcsid};
+    use crate::{
+        conversion::slice_byte_to_mqchar,
+        mqstr,
+        properties_options::{Metadata, Name},
+        sys,
+        values::MQTYPE,
+        Completion, MqStr, MqStruct, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
+    };
 
-    use super::{SetProperty, Value};
+    use super::{Attributes, NameUsage, PropertyAttr, PropertyParam, PropertyState, SetProperty, Value};
 
     #[test]
     fn set_property() {
@@ -831,5 +847,86 @@ mod tests {
         let mut smpo = MqStruct::new(default::MQSMPO_DEFAULT);
         let (data, mq_type) = sp.apply_mqsetmp(&mut pd, &mut smpo);
         f(&pd, &smpo, data, mq_type);
+    }
+
+    #[test]
+    fn property_attr() -> Result<(), Box<dyn Error>> {
+        let (attribute, _) = execute_pa::<Attributes>(|param| {
+            param.mqpd.Context = 99;
+            Ok(Completion::new(PropertyState {
+                name: None,
+                value: Cow::from(b"test"),
+            }))
+        })
+        .warn_as_error()?;
+        assert_eq!(99, attribute.mqpd.Context);
+
+        let (metadata, _) = execute_pa::<Metadata>(|param| {
+            param.value_type = MQTYPE(sys::MQTYPE_STRING);
+            param.impo.ReturnedCCSID = 1208;
+            param.impo.ReturnedEncoding = sys::MQENC_INTEGER_NORMAL;
+            Ok(Completion::new(PropertyState {
+                name: None,
+                value: Cow::from(b"test"),
+            }))
+        })
+        .warn_as_error()?;
+        assert_eq!(4, metadata.length);
+        assert_eq!(1208, metadata.ccsid);
+        assert_eq!(sys::MQENC_INTEGER_NORMAL, metadata.encoding.0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn property_attr_name() -> Result<(), Box<dyn Error>> {
+        fn name_state(name: &[u8]) -> PropertyState {
+            PropertyState {
+                name: Some(Cow::from(slice_byte_to_mqchar(name))),
+                value: Cow::from(b""),
+            }
+        }
+
+        let (name, _) = execute_pa::<Name<String>>(|param| {
+            assert_eq!(param.name_required, NameUsage::AnyLength);
+            assert_ne!(param.impo.Options & sys::MQIMPO_CONVERT_VALUE, 0);
+            Ok(Completion::new(name_state(b"name")))
+        })
+        .warn_as_error()?;
+        assert_eq!(name, Name("name"));
+
+        let (name, _) = execute_pa::<Name<MqStr<25>>>(|param| {
+            assert_eq!(
+                param.name_required,
+                NameUsage::MaxLength(unsafe { NonZero::new_unchecked(25) })
+            );
+            assert_ne!(param.impo.Options & sys::MQIMPO_CONVERT_VALUE, 0);
+            Ok(Completion::new(name_state(b"name")))
+        })
+        .warn_as_error()?;
+        assert_eq!(name, Name("name"));
+
+        let (name, _) = execute_pa::<Name<StrCcsidOwned>>(|param| {
+            param.impo.ReturnedName.VSCCSID = 1208;
+            assert_eq!(param.name_required, NameUsage::AnyLength);
+            assert_eq!(param.impo.Options & sys::MQIMPO_CONVERT_VALUE, 0);
+            Ok(Completion::new(name_state(b"name")))
+        })
+        .warn_as_error()?;
+        assert_eq!(name, Name("name"));
+
+        Ok(())
+    }
+    fn execute_pa<'a, A: PropertyAttr>(
+        f: impl FnOnce(&mut PropertyParam<'_>) -> ResultComp<PropertyState<'a>>,
+    ) -> ResultComp<(A, PropertyState<'a>)> {
+        let mut param = PropertyParam {
+            impo: MqStruct::new(default::MQIMPO_DEFAULT),
+            value_type: MQTYPE::default(),
+            mqpd: MqStruct::new(default::MQPD_DEFAULT),
+            name_required: NameUsage::default(),
+        };
+
+        A::property_extract(&mut param, |p| f(p))
     }
 }
