@@ -75,14 +75,14 @@ impl<C: Conn> Drop for Subscription<C> {
 pub trait SubscribeValue<C: Conn> {
     type Error: From<Error> + std::fmt::Debug;
 
-    fn consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
+    fn subscribe_consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
         Self: std::marker::Sized;
 }
 
 pub trait SubscribeAttr<C: Conn> {
-    fn extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
+    fn subscribe_extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
     where
         F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
         Self: Sized;
@@ -149,7 +149,7 @@ impl<C: Conn + Clone> Subscription<C> {
 
         subscribe_option.apply_param(&mut so);
 
-        R::consume(&mut so, |param| {
+        R::subscribe_consume(&mut so, |param| {
             let mut obj_handle = ObjectHandle::from(param.provided_object);
             connection
                 .mq()
@@ -179,39 +179,35 @@ impl<C: Conn + Clone> Subscription<C> {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use crate::{
-        connect_lib,
         prelude::*,
         sys,
         test::mock::{self, MockFunctions},
-        values, MqStruct, ThreadNone,
+        values, MqStruct,
     };
 
     use super::Subscription;
 
     #[test]
     pub fn test_request_retained() -> Result<(), Box<dyn std::error::Error>> {
-        let mut mock_library = mock::connect_ok();
-
-        mock_library
-            .expect_MQSUBRQ()
-            .returning(|_, _, _, sro, cc, rc| {
-                let mqsro: *mut MqStruct<sys::MQSRO> = sro.cast();
-                unsafe {
-                    (*mqsro).NumPubs = 5;
-                }
-                MockFunctions::mqi_outcome_ok(cc, rc);
-            })
-            .once();
-
-        mock_library
-            .expect_MQCLOSE()
-            .withf(|_, &hobj, _, _, _| 1 == unsafe { *hobj })
-            .returning(|_, _, _, cc, rc| {
-                MockFunctions::mqi_outcome_ok(cc, rc);
-            })
-            .once();
-
-        let qm = connect_lib::<ThreadNone, _>(mock_library, &()).warn_as_error()?;
+        let qm = mock::connect_ok(|mock_library| {
+            mock_library
+                .expect_MQSUBRQ()
+                .returning(|_, _, _, sro, cc, rc| {
+                    let mqsro: *mut MqStruct<sys::MQSRO> = sro.cast();
+                    unsafe {
+                        (*mqsro).NumPubs = 5;
+                    }
+                    MockFunctions::mqi_outcome_ok(cc, rc);
+                })
+                .once();
+            mock_library
+                .expect_MQCLOSE()
+                .withf(|_, &hobj, _, _, _| 1 == unsafe { *hobj })
+                .returning(|_, _, _, cc, rc| {
+                    MockFunctions::mqi_outcome_ok(cc, rc);
+                })
+                .once();
+        });
 
         let sub = Subscription {
             handle: 1.into(),

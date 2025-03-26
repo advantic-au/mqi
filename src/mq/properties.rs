@@ -206,7 +206,7 @@ impl<C: Conn> Properties<C> {
         };
         let name = MqStruct::from_encoded_str(name);
 
-        let result = P::consume(&mut param, |param| {
+        let result = P::property_consume(&mut param, |param| {
             let mut inq_name_buffer = match param.name_required {
                 NameUsage::Ignored => None,
                 used => {
@@ -410,10 +410,9 @@ impl<C: Conn> Properties<C> {
 #[cfg(feature = "mock")]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use std::error::Error;
+    use std::{error::Error, rc::Rc};
 
     use crate::{
-        connect_lib,
         headers::{fmt::MQFMT_NONE, TextEnc},
         prelude::*,
         sys,
@@ -427,23 +426,22 @@ mod test {
 
     fn with_mqmhbuf_mocked<F>(mock_data: &'static [u8], f: F) -> ResultComp<()>
     where
-        F: FnOnce(&mut Properties<Connection<MockFunctions, ThreadNone>>) -> ResultComp<()>,
+        F: FnOnce(&mut Properties<Connection<Rc<MockFunctions>, ThreadNone>>) -> ResultComp<()>,
     {
-        let mut mock_library = mock::connect_ok();
-        let mut seq = mockall::Sequence::new();
+        let mock_connection = mock::connect_ok(|mock_library| {
+            let mut seq = mockall::Sequence::new();
+            mock_library.properties_ok(0xf0f0, 1, &mut seq);
+            mock_library
+                .expect_MQMHBUF()
+                .returning(|_, _, _, _, _, buf_len, buf_target, data_len, cc, rc| {
+                    unsafe { MockFunctions::copy_to_mq_data(mock_data, buf_len, buf_target, data_len) };
+                    MockFunctions::mqi_outcome_ok(cc, rc);
+                })
+                .once()
+                .in_sequence(&mut seq);
+        });
 
-        mock_library.properties_ok(0xf0f0, 1, &mut seq);
-        mock_library
-            .expect_MQMHBUF()
-            .returning(|_, _, _, _, _, buf_len, buf_target, data_len, cc, rc| {
-                unsafe { MockFunctions::copy_to_mq_data(mock_data, buf_len, buf_target, data_len) };
-                MockFunctions::mqi_outcome_ok(cc, rc);
-            })
-            .once()
-            .in_sequence(&mut seq);
-
-        let connection = connect_lib::<ThreadNone, _>(mock_library, &()).warn_as_error()?;
-        let mut properties = Properties::new(connection, MQCMHO(sys::MQCMHO_NONE))?;
+        let mut properties = Properties::new(mock_connection, MQCMHO(sys::MQCMHO_NONE))?;
 
         f(&mut properties).warn_as_error()?;
 
@@ -474,24 +472,24 @@ mod test {
 
     pub fn with_mqbufmh_mocked<F>(data: &'static [u8], f: F) -> ResultComp<()>
     where
-        F: FnOnce(&mut Properties<Connection<MockFunctions, ThreadNone>>, MessageFormat, &mut [u8]) -> ResultComp<()>,
+        F: FnOnce(&mut Properties<Connection<Rc<MockFunctions>, ThreadNone>>, MessageFormat, &mut [u8]) -> ResultComp<()>,
     {
-        let mut mock_library = mock::connect_ok();
-        let mut seq = mockall::Sequence::new();
+        let connection = mock::connect_ok(|mock_library| {
+            let mut seq = mockall::Sequence::new();
 
-        mock_library.properties_ok(0xf0f0, 1, &mut seq);
-        mock_library
-            .expect_MQBUFMH()
-            .returning(|_, _, _, _, buffer_len, _, data_len, cc, rc| {
-                unsafe {
-                    *data_len = buffer_len;
-                }
-                MockFunctions::mqi_outcome_ok(cc, rc);
-            })
-            .once()
-            .in_sequence(&mut seq);
+            mock_library.properties_ok(0xf0f0, 1, &mut seq);
+            mock_library
+                .expect_MQBUFMH()
+                .returning(|_, _, _, _, buffer_len, _, data_len, cc, rc| {
+                    unsafe {
+                        *data_len = buffer_len;
+                    }
+                    MockFunctions::mqi_outcome_ok(cc, rc);
+                })
+                .once()
+                .in_sequence(&mut seq);
+        });
 
-        let connection = connect_lib::<ThreadNone, _>(mock_library, &()).warn_as_error()?;
         let mut properties = Properties::new(connection, MQCMHO(sys::MQCMHO_NONE))?;
 
         let mut buffer = data.to_owned();

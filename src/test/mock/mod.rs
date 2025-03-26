@@ -1,8 +1,13 @@
 #![expect(clippy::allow_attributes)]
 
 use std::cmp;
+use std::rc::Rc;
 use std::slice;
+use crate::connect_lib;
 use crate::core::Library;
+use crate::Connection;
+use crate::ThreadNone;
+use crate::ResultCompExt;
 
 use libmqm_sys::Mqi;
 use libmqm_sys::lib as sys;
@@ -856,11 +861,16 @@ impl Library for MockFunctions {
     }
 }
 
-#[must_use]
-#[allow(dead_code)]
-pub fn connect_ok() -> MockFunctions {
+pub fn connect_ok<F>(f: F) -> Connection<Rc<MockFunctions>, ThreadNone>
+where
+    F: FnOnce(&mut MockFunctions),
+{
     let mut mock = MockFunctions::new();
     mock.connx_outcome(0x0d0d, sys::MQCC_OK, sys::MQRC_NONE);
     mock.disc_outcome(sys::MQCC_OK, sys::MQRC_NONE);
-    mock
+    f(&mut mock);
+
+    connect_lib(Rc::from(mock), &())
+        .warn_as_error()
+        .expect("should not fail or produce a warning")
 }

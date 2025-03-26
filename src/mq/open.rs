@@ -31,7 +31,7 @@ impl<C: Conn> Object<C> {
             options: values::MQOO(sys::MQOO_BIND_AS_Q_DEF),
         };
         open_option.apply_param(&mut oo);
-        R::consume(&mut oo, |OpenParamOption { mqod, options }| {
+        R::open_consume(&mut oo, |OpenParamOption { mqod, options }| {
             connection
                 .mq()
                 .mqopen(connection.handle(), mqod, *options)

@@ -88,13 +88,13 @@ mod connect_impl {
                 $($ty: ConnectAttr<S>),*
             {
                 #[inline]
-                fn consume<'a, F>(param: &mut ConnectParam<'a>, connect: F) -> ResultComp<Self>
+                fn connect_consume<'a, F>(param: &mut ConnectParam<'a>, connect: F) -> ResultComp<Self>
                 where
                     F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>,
                 {
                     let mut rest_outer = None;
-                    $first::consume(param, |param| {
-                        <($($ty),*) as ConnectAttr<S>>::extract(param, connect).map_completion(|(rest, state)| {
+                    $first::connect_consume(param, |param| {
+                        <($($ty),*) as ConnectAttr<S>>::connect_extract(param, connect).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -119,13 +119,13 @@ mod connect_impl {
                 $($ty: ConnectAttr<S>),*
             {
                 #[inline]
-                fn extract<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<(Self, S)>
+                fn connect_extract<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<(Self, S)>
                 where
                     F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>
                 {
                     let mut rest_outer = None;
-                    $first::extract(param, |param| {
-                        <($($ty),*) as ConnectAttr<S>>::extract(param, mqi).map_completion(|(rest, state)| {
+                    $first::connect_extract(param, |param| {
+                        <($($ty),*) as ConnectAttr<S>>::connect_extract(param, mqi).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -617,7 +617,7 @@ impl<'cd> ConnectOption<'cd> for MqStruct<'cd, sys::MQCD> {
 
 impl<S> super::ConnectAttr<S> for ConnectionId {
     #[inline]
-    fn extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
+    fn connect_extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
     where
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
@@ -628,7 +628,7 @@ impl<S> super::ConnectAttr<S> for ConnectionId {
 
 impl<S> super::ConnectAttr<S> for ConnTag {
     #[inline]
-    fn extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
+    fn connect_extract<'b, F>(param: &mut ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
     where
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
@@ -689,6 +689,15 @@ pub enum MqServerSyntaxError {
 mod tests {
     use crate::values::MQXPT;
 
+    const CLIENT_MASK: sys::MQLONG = sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING;
+
+    const VALID: &[(&str, values::MQXPT, &str, &str)] = &[
+        ("a", MQXPT(sys::MQXPT_TCP), "b", "a/TCP/b"),
+        ("a", MQXPT(sys::MQXPT_SPX), "c", "a/SPX/c"),
+        ("a", MQXPT(sys::MQXPT_LU62), "d", "a/LU62/d"),
+        ("a", MQXPT(sys::MQXPT_NETBIOS), "e", "a/NETBIOS/e"),
+    ];
+
     use super::*;
 
     #[test]
@@ -698,24 +707,155 @@ mod tests {
     }
 
     #[test]
-    fn mqserver_transport() -> Result<(), MqServerSyntaxError> {
-        const VALID: &[(values::MQXPT, &str)] = &[
-            (MQXPT(sys::MQXPT_TCP), "a/TCP/b"),
-            (MQXPT(sys::MQXPT_SPX), "a/SPX/b"),
-            (MQXPT(sys::MQXPT_LU62), "a/LU62/c"),
-            (MQXPT(sys::MQXPT_NETBIOS), "a/NETBIOS/c"),
-        ];
-        for (transport, server) in VALID {
-            let (_, _, m_transport) = mqserver(server)?;
+    fn mqserver_parse() -> Result<(), MqServerSyntaxError> {
+        for (channel, transport, connection, server) in VALID {
+            let (m_channel, m_connection, m_transport) = mqserver(server)?;
             assert!(m_transport == *transport);
+            assert!(m_channel.0 == *channel);
+            assert!(m_connection.0 == *connection);
         }
+
+        assert!(mqserver("a/BAD/c").is_err_and(|e| matches!(e, MqServerSyntaxError::UnrecognizedTransport(_))));
+        assert!(mqserver("invalid").is_err_and(|e| matches!(e, MqServerSyntaxError::InvalidFormat)));
 
         Ok(())
     }
 
     #[test]
-    fn mqserver_invalid() {
-        let mqserver = MqServer::try_from("invalid");
-        assert!(mqserver.is_err());
+    fn mqserver_try_from() -> Result<(), MqServerSyntaxError> {
+        for (v_channel, v_transport, v_connection, v_server) in VALID {
+            let MqServer {
+                channel_name,
+                connection_name,
+                transport,
+            } = MqServer::try_from(*v_server)?;
+            assert!(*v_transport == transport);
+            assert!(channel_name == *v_channel);
+            assert!(connection_name == *v_connection);
+        }
+
+        assert!(MqServer::try_from("a/BAD/c").is_err_and(|e| matches!(e, MqServerSyntaxError::UnrecognizedTransport(_))));
+        assert!(MqServer::try_from("invalid").is_err_and(|e| matches!(e, MqServerSyntaxError::InvalidFormat)));
+        Ok(())
+    }
+
+    #[test]
+    fn connect_option_option() {
+        struct NoExecuteConnectOptions;
+
+        impl ConnectOption<'_> for NoExecuteConnectOptions {
+            fn apply_param<'ptr>(&self, _structs: &mut ConnectStructs<'ptr>) -> i32
+            where
+                'static: 'ptr,
+            {
+                panic!("Should not be called");
+            }
+            fn queue_manager_name(&self) -> Option<&QueueManagerName> {
+                panic!("Should not be called");
+            }
+        }
+
+        let mut cs = ConnectStructs::default();
+        // Test that apply_param is not executed
+        let none_options = None::<NoExecuteConnectOptions>;
+        ConnectOption::apply_param(&none_options, &mut cs);
+        ConnectOption::queue_manager_name(&none_options);
+        // Test that apply_param is executed
+        test_co(&Some(values::MQCNO::from(sys::MQCNO_RECONNECT)), |_, _, cs| {
+            assert!(cs.cno.Options & sys::MQCNO_RECONNECT != 0);
+        });
+    }
+
+    #[test]
+    fn binding() {
+        test_co(&Binding::Client, |_, _, cs| {
+            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_CLIENT_BINDING);
+        });
+        test_co(&Binding::Default, |_, _, cs| assert_eq!(cs.cno.Options & CLIENT_MASK, 0));
+        test_co(&Binding::Local, |_, _, cs| {
+            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_LOCAL_BINDING);
+        });
+    }
+
+    #[test]
+    fn cipher_spec() {
+        const CIPHER: CipherSpec = CipherSpec(mqstr!("TLS_RSA_WITH_AES_128_CBC_SHA256"));
+        test_co(&CIPHER, |bf, _, cs| {
+            assert!(cs.cd.Version >= sys::MQCD_VERSION_7);
+            assert_eq!(&cs.cd.SSLCipherSpec, CIPHER.as_mqchar());
+            assert_eq!(bf & HAS_CD, HAS_CD);
+        });
+    }
+
+    #[test]
+    fn appl_name() {
+        const APP: ApplName = ApplName(mqstr!("MYAPP"));
+        test_co(&APP, |bf, _, cs| {
+            assert!(cs.cno.Version >= sys::MQCNO_VERSION_7);
+            assert_eq!(&cs.cno.ApplName, APP.as_mqchar());
+            assert_eq!(bf & HAS_CNO, HAS_CNO);
+        });
+    }
+
+    #[test]
+    fn ccdt() {
+        const CCDT: Ccdt = Ccdt("url");
+        test_co(&CCDT, |bf, _, cs| {
+            assert!(cs.cno.Version >= sys::MQCNO_VERSION_6);
+            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_CLIENT_BINDING);
+            assert_eq!(bf & HAS_CNO, HAS_CNO);
+            assert_eq!(cs.cno.CCDTUrlLength, 3);
+            assert!(!cs.cno.CCDTUrlPtr.is_null());
+        });
+    }
+
+    #[test]
+    fn credentials() {
+        test_co(&Credentials::<'_, &str>::Default, |bf, _, cs| {
+            assert_eq!(cs.csp.AuthenticationType, sys::MQCSP_AUTH_NONE);
+            assert_eq!(bf & HAS_CSP, HAS_CSP);
+        });
+        test_co(&Credentials::user("user", "password"), |bf, _, cs| {
+            assert_eq!(cs.csp.AuthenticationType, sys::MQCSP_AUTH_USER_ID_AND_PWD);
+            assert_eq!(cs.csp.CSPUserIdLength, 4);
+            assert!(!cs.csp.CSPUserIdPtr.is_null());
+            assert_eq!(cs.csp.CSPPasswordLength, 8);
+            assert!(!cs.csp.CSPPasswordPtr.is_null());
+            assert_eq!(bf & HAS_CSP, HAS_CSP);
+        });
+        test_co(
+            &Credentials::User("user", "password".into(), Some("key".into())),
+            |_, _, cs| {
+                assert_eq!(cs.csp.InitialKeyLength, 3);
+                assert!(!cs.csp.InitialKeyPtr.is_null());
+            },
+        );
+        #[cfg(feature = "mqc_9_3_4_0")]
+        {
+            test_co(&Credentials::Token("token".into(), None), |bf, _, cs| {
+                assert_eq!(cs.csp.AuthenticationType, sys::MQCSP_AUTH_ID_TOKEN);
+                assert_eq!(cs.csp.TokenLength, 5);
+                assert!(!cs.csp.TokenPtr.is_null());
+                assert_eq!(bf & HAS_CSP, HAS_CSP);
+            });
+            test_co(&Credentials::Token("token".into(), Some("key".into())), |_, _, cs| {
+                assert_eq!(cs.csp.InitialKeyLength, 3);
+                assert!(!cs.csp.InitialKeyPtr.is_null());
+            });
+        }
+    }
+
+    #[test]
+    fn mqserver_co() {
+        const QM: QueueManagerName = QueueManagerName(mqstr!("MYQM"));
+        test_co(&QM, |_, coqm, _| {
+            assert!(coqm.is_some_and(|name| name == &QM));
+        });
+    }
+
+    /// Test a `ConnectionOption`
+    fn test_co<'a, F: FnOnce(i32, Option<&QueueManagerName>, &ConnectStructs<'_>)>(co: &impl ConnectOption<'a>, f: F) {
+        let mut cs = ConnectStructs::default();
+        f(co.apply_param(&mut cs), co.queue_manager_name(), &cs);
     }
 }

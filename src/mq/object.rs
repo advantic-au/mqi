@@ -33,14 +33,14 @@ pub trait OpenOption<'oo, T> {
 pub trait OpenValue<S> {
     type Error: From<Error> + std::fmt::Debug;
 
-    fn consume<'oo, F>(param: &mut OpenParam<'oo>, mqi: F) -> ResultCompErr<Self, Self::Error>
+    fn open_consume<'oo, F>(param: &mut OpenParam<'oo>, mqi: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut OpenParam<'oo>) -> ResultComp<S>,
         Self: std::marker::Sized;
 }
 
 pub trait OpenAttr<S, O> {
-    fn extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
+    fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
         Self: Sized;

@@ -2,38 +2,40 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
 
-use mqi::connect_options::Credentials;
 use mqi::test;
 use mqi::headers::fmt;
 use mqi::open_options::SelectionString;
-use mqi::{prelude::*, ThreadNone};
+use mqi::prelude::*;
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::values;
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
 use mqi::{get, Properties};
 use mqi::{attribute, sys, Object};
 
+#[cfg(not(feature = "mock"))]
+use mqi::{connect_options::Credentials, ThreadNone};
+
 #[test]
 fn no_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
     #[allow(clippy::allow_attributes, unused_mut)]
-    let mut mq_lib;
+    let mut connection;
     #[cfg(feature = "mock")]
     {
-        mq_lib = test::mock::connect_ok();
-        let mut seq = mockall::Sequence::new();
-        mq_lib.open_ok(0x0c0c, 1, &mut seq);
-        mq_lib.get_error(sys::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
+        connection = test::mock::connect_ok(|mock_library| {
+            let mut seq = mockall::Sequence::new();
+            mock_library.open_ok(0x0c0c, 1, &mut seq);
+            mock_library.get_error(sys::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
+        });
     }
     #[cfg(not(feature = "mock"))]
     {
-        mq_lib = test::mq_library();
+        let creds = test::credentials();
+        let cred_options: Credentials<_> = creds.as_ref().into();
+        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
-    let creds = test::credentials();
-    let cred_options: Credentials<_> = creds.as_ref().into();
-    let qm = mqi::connect_lib::<ThreadNone, _>(mq_lib, &cred_options).warn_as_error()?;
     let object = Object::open(
-        &qm,
+        &connection,
         &(
             QUEUE,
             values::MQOO(sys::MQOO_INPUT_AS_Q_DEF),
@@ -54,34 +56,34 @@ fn no_message() -> Result<(), Box<dyn std::error::Error>> {
 fn put_get_message() -> Result<(), Box<dyn std::error::Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
     #[allow(clippy::allow_attributes, unused_mut)]
-    let mut mq_lib;
+    let mut connection;
     #[cfg(feature = "mock")]
     {
-        mq_lib = test::mock::connect_ok();
-        let mut seq = mockall::Sequence::new();
-        mq_lib.open_ok(0x0c0c, 1, &mut seq);
-        mq_lib.expect_MQPUT().returning(|_, _, _, _, _, _, cc, rc| {
-            // TODO: add assertions here
-            test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+        connection = test::mock::connect_ok(|mock_library| {
+            let mut seq = mockall::Sequence::new();
+            mock_library.open_ok(0x0c0c, 1, &mut seq);
+            mock_library.expect_MQPUT().returning(|_, _, _, _, _, _, cc, rc| {
+                // TODO: add assertions here
+                test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+            });
+            mock_library.properties_ok(0x0d0d, 1, &mut seq);
+            mock_library.get_ok("put_get_message test", 1, &mut seq);
         });
-        mq_lib.properties_ok(0x0d0d, 1, &mut seq);
-        mq_lib.get_ok("put_get_message test", 1, &mut seq);
     }
     #[cfg(not(feature = "mock"))]
     {
-        mq_lib = test::mq_library();
+        let creds = test::credentials();
+        let cred_options: Credentials<_> = creds.as_ref().into();
+        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
-    let creds = test::credentials();
-    let cred_options: Credentials<_> = creds.as_ref().into();
-    let qm = mqi::connect_lib::<ThreadNone, _>(mq_lib, &cred_options).warn_as_error()?;
-    let object = Object::open(&qm, &(QUEUE, values::MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
+    let object = Object::open(&connection, &(QUEUE, values::MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
 
     let mid = object
         .put_message_with::<MessageId>(&(), "put_get_message test")
         .warn_as_error()?;
 
-    let mut properties = Properties::new(&qm, values::MQCMHO::default())?;
+    let mut properties = Properties::new(&connection, values::MQCMHO::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
     let msg = object.get_as(
@@ -123,34 +125,35 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     #[allow(clippy::allow_attributes, unused_mut)]
-    let mut mq_lib;
+    let mut connection;
     #[cfg(feature = "mock")]
     {
-        mq_lib = test::mock::connect_ok();
-        let mut seq = mockall::Sequence::new();
-        mq_lib.open_ok(0x0c0c, 1, &mut seq);
-        mq_lib
-            .expect_MQINQ()
-            .returning(|_, _, _, _, int_len, ints, char_len, chars, cc, rc| {
-                use std::slice;
+        connection = test::mock::connect_ok(|mock_library| {
+            let mut seq = mockall::Sequence::new();
+            mock_library.open_ok(0x0c0c, 1, &mut seq);
+            mock_library
+                .expect_MQINQ()
+                .returning(|_, _, _, _, int_len, ints, char_len, chars, cc, rc| {
+                    use std::slice;
 
-                let char_slice =
-                    unsafe { slice::from_raw_parts_mut(chars, char_len.try_into().expect("char_len should be positive")) };
-                char_slice.fill(32);
-                let int_slice =
-                    unsafe { slice::from_raw_parts_mut(ints, int_len.try_into().expect("int_len should be positive")) };
-                int_slice.fill(0);
-                test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
-            });
+                    let char_slice =
+                        unsafe { slice::from_raw_parts_mut(chars, char_len.try_into().expect("char_len should be positive")) };
+                    char_slice.fill(32);
+                    let int_slice =
+                        unsafe { slice::from_raw_parts_mut(ints, int_len.try_into().expect("int_len should be positive")) };
+                    int_slice.fill(0);
+                    test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+                });
+        });
     }
     #[cfg(not(feature = "mock"))]
     {
-        mq_lib = test::mq_library();
+        let creds = test::credentials();
+        let cred_options: Credentials<_> = creds.as_ref().into();
+
+        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
-    let creds = test::credentials();
-    let cred_options: Credentials<_> = creds.as_ref().into();
-    let connection = mqi::connect_lib::<ThreadNone, _>(mq_lib, &cred_options).warn_as_error()?;
     let object = Object::open(connection, &(QueueManagerName(mqstr!("")), values::MQOO(sys::MQOO_INQUIRE))).warn_as_error()?;
 
     let result = object.inq(INQ)?;
@@ -177,25 +180,25 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 fn put_message() -> Result<(), Box<dyn Error>> {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
     #[allow(clippy::allow_attributes, unused_mut)]
-    let mut mq_lib;
+    let mut connection;
     #[cfg(feature = "mock")]
     {
-        mq_lib = test::mock::connect_ok();
-        let mut seq = mockall::Sequence::new();
-        mq_lib.open_ok(0x0c0c, 1, &mut seq);
-        mq_lib.expect_MQPUT().returning(|_, _, _, _, _, _, cc, rc| {
-            // TODO: add assertions here
-            test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+        connection = test::mock::connect_ok(|mock_library| {
+            let mut seq = mockall::Sequence::new();
+            mock_library.open_ok(0x0c0c, 1, &mut seq);
+            mock_library.expect_MQPUT().returning(|_, _, _, _, _, _, cc, rc| {
+                // TODO: add assertions here
+                test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+            });
         });
     }
     #[cfg(not(feature = "mock"))]
     {
-        mq_lib = test::mq_library();
+        let creds = test::credentials();
+        let cred_options: Credentials<_> = creds.as_ref().into();
+        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
-    let creds = test::credentials();
-    let cred_options: Credentials<_> = creds.as_ref().into();
-    let connection = mqi::connect_lib::<ThreadNone, _>(mq_lib, &cred_options).warn_as_error()?;
     let object = Object::open(connection, &(QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
 
     object.put_message(&(), "message").warn_as_error()?;
