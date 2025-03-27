@@ -414,4 +414,12 @@ pub const CONSTANTS: &[ConstantEntry] = &[
     ("MQ_HTTPSCERTREV_", mqsys::MQ_HTTPSCERTREV_STR),
     #[cfg(feature = "mqc_9_4_1_0")]
     ("MQ_HTTPSCERTVAL_", mqsys::MQ_HTTPSCERTVAL_STR),
+    #[cfg(feature = "mqc_9_4_2_0")]
+    ("MQNHACONNGRP", mqsys::MQNHACONNGRP_STR),
+    #[cfg(feature = "mqc_9_4_2_0")]
+    ("MQNHAGRPROLE", mqsys::MQNHAGRPROLE_STR),
+    #[cfg(feature = "mqc_9_4_2_0")]
+    ("MQNHASTATUS", mqsys::MQNHASTATUS_STR),
+    #[cfg(feature = "mqc_9_4_2_0")]
+    ("MQNHATYPE", mqsys::MQNHATYPE_STR),
 ];
