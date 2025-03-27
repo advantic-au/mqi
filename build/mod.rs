@@ -1,4 +1,4 @@
-use std::{env, io};
+use std::env;
 
 #[cfg(feature = "constantgen")]
 mod constants {
@@ -14,14 +14,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "constantgen")]
     {
         use std::io::Write as _;
-        let mut constants_write = io::BufWriter::new(Vec::new());
+        let mut constants_write = std::io::BufWriter::new(Vec::new());
         constants::generate::generate_constants(&mut constants_write)?;
 
         let constants_str = String::from_utf8(constants_write.into_inner()?)?;
         let constants_syn = syn::parse_file(&constants_str)?;
         let constants_pretty = prettyplease::unparse(&constants_syn);
         let constants_file = std::fs::File::create(&path)?;
-        let mut constants_pretty_write = io::BufWriter::new(constants_file);
+        let mut constants_pretty_write = std::io::BufWriter::new(constants_file);
 
         writeln!(
             &mut constants_pretty_write,
