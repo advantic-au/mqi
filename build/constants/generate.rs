@@ -2,9 +2,8 @@ use super::list;
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::CStr;
-use std::io::{self, BufWriter, Write as _};
-
-use std::{fs::File, path::Path, str};
+use std::io;
+use std::str;
 
 use libmqm_sys::lib as mqsys;
 // Load the `MQI_BY_NAME_STR` into a Vec
@@ -53,9 +52,7 @@ fn as_phf(by_value: &[&(mqsys::MQLONG, &str)]) -> String {
     phf_set.build().to_string()
 }
 
-pub fn generate(target: &Path) -> Result<(), io::Error> {
-    let mut file = BufWriter::new(File::create(target)?);
-
+pub fn generate_constants(w: &mut impl std::io::Write) -> Result<(), io::Error> {
     let by_name_mqi = unsafe { mqsys::MQI_BY_NAME_STR };
     let by_name = by_name(&by_name_mqi);
 
@@ -137,30 +134,19 @@ pub fn generate(target: &Path) -> Result<(), io::Error> {
 
     prefix_constants.sort_by_key(|(prefix, ..)| *prefix);
 
-    writeln!(
-        &mut file,
-        "/* Generated with MQ client version {} */",
-        libmqm_sys::version::CLIENT_BUILD_VERSION
-    )?;
-
     // Pick a lookup type based on the size of the constants for a prefix
     // TODO: Determine best ranges for performance
     for (prefix, (primary, ref extra)) in prefix_constants {
-        write!(&mut file, "pub const {prefix}CONST: ")?;
+        write!(w, "pub const {prefix}CONST: ")?;
         match primary.len() {
             0..=63 => {
                 // Linear search array
-                writeln!(
-                    &mut file,
-                    "LinearSource = ConstSource(&{}, &{});",
-                    as_array(primary),
-                    as_array(extra)
-                )?;
+                writeln!(w, "LinearSource = ConstSource(&{}, &{});", as_array(primary), as_array(extra))?;
             }
             64..=255 => {
                 // Binary search array
                 writeln!(
-                    &mut file,
+                    w,
                     "BinarySearchSource = ConstSource(BinarySearch(&{}), &{});",
                     as_array(primary),
                     as_array(extra)
@@ -168,12 +154,7 @@ pub fn generate(target: &Path) -> Result<(), io::Error> {
             }
             _ => {
                 // Perfect hash used for larger constant lists
-                writeln!(
-                    &mut file,
-                    "PhfSource = ConstSource(&{}, &{});",
-                    as_phf(primary),
-                    as_array(extra)
-                )?;
+                writeln!(w, "PhfSource = ConstSource(&{}, &{});", as_phf(primary), as_array(extra))?;
             }
         }
     }
@@ -184,7 +165,7 @@ pub fn generate(target: &Path) -> Result<(), io::Error> {
         mqi_by_string.entry(name, &value.to_string());
     }
     writeln!(
-        &mut file,
+        w,
         "pub(crate) const MQI_BY_STRING: ::phf::Map<&'static str, ::libmqm_sys::lib::MQLONG> = {};",
         mqi_by_string.build()
     )
