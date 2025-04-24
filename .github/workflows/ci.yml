@@ -201,7 +201,7 @@ jobs:
       fail-fast: false
       matrix:
         toolchain: [stable]
-        feature: [all, none, default, exits, mqai, generate, dlopen2]
+        feature: [all, none, default, exits, mqai, mqm_generate, dlopen2]
         include:
           - feature: all
             feature_args: --all-features
@@ -214,8 +214,8 @@ jobs:
             feature_args: --no-default-features --features mock,exits,link
           - feature: mqai
             feature_args: --no-default-features --features mock,mqai,link
-          - feature: generate
-            feature_args: --no-default-features --features mock,generate,link
+          - feature: mqm_generate
+            feature_args: --no-default-features --features mock,mqm_generate,link
           - feature: dlopen2
             feature_args: --no-default-features --features mock,mqai,exits,dlopen2
     runs-on: ubuntu-24.04
