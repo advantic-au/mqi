@@ -48,7 +48,7 @@ jobs:
         with:
           shared-key: "build"
       - name: Check
-        run: cargo check --features ${{ matrix.version.feature }},mqai,dlopen2
+        run: cargo check --features ${{ matrix.version.feature }},mqm_generate,exits,mqai,dlopen2
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
@@ -80,7 +80,7 @@ jobs:
         with:
           tool: nextest
       - name: Test
-        run: cargo nextest run --profile ci --no-default-features --features runnable,link,mqai,mqc_9_4_2_0
+        run: cargo nextest run --profile ci --no-default-features --features runnable,link,mqai,exits,mqc_9_4_2_0
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
           MQSERVER: DEV.APP.SVRCONN/TCP/localhost(1414)
@@ -141,7 +141,7 @@ jobs:
           MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-env-forward=PROPTEST_DISABLE_FAILURE_PERSISTENCE -Zmiri-env-forward=PROPTEST_CASES
           PROPTEST_CASES: 64
           PROPTEST_DISABLE_FAILURE_PERSISTENCE: true
-        run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,mqc_9_4_2_0
+        run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,exits,mqc_9_4_2_0
 
   incremental_mutants:
     runs-on: ubuntu-24.04
@@ -183,38 +183,41 @@ jobs:
           path: mutants.out
 
   rustfmt:
-      runs-on: ubuntu-24.04
-      steps:
-        - uses: actions/checkout@v4
-          with:
-            persist-credentials: false
-        - name: Install stable
-          uses: dtolnay/rust-toolchain@master
-          with:
-            toolchain: stable
-            components: rustfmt
-        - name: Lint with rustfmt
-          run: cargo fmt -- --check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt
+      - name: Lint with rustfmt
+        run: cargo fmt -- --check
 
   clippy:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [beta, stable]
-        features:
-          - ""
-          - "--no-default-features"
-          - "--all-features"
+        toolchain: [stable]
+        feature: [all, none, default, exits, mqai, generate, dlopen2]
         include:
-          - features: "--no-default-features"
-            combination:
-              - ""
-              - "--features dlopen2"
-              - "--features link"
-              - "--features link,mqai"
-              - "--features link,exits"
-              - "--features dlopen2,mqai"
-              - "--features dlopen2,exits"
+          - feature: all
+            feature_args: --all-features
+            toolchain: beta
+          - feature: none
+            feature_args: --no-default-features
+            toolchain: beta
+          - feature: default
+          - feature: exits
+            feature_args: --no-default-features --features mock,exits,link
+          - feature: mqai
+            feature_args: --no-default-features --features mock,mqai,link
+          - feature: generate
+            feature_args: --no-default-features --features mock,generate,link
+          - feature: dlopen2
+            feature_args: --no-default-features --features mock,mqai,exits,dlopen2
     runs-on: ubuntu-24.04
     permissions:
       checks: write
@@ -239,7 +242,7 @@ jobs:
           RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
         with:
-          check-args: --tests --examples ${{ matrix.features }} ${{ matrix.combinations }}
+          check-args: --tests --examples ${{ matrix.feature_flags }}
           token: ${{secrets.GITHUB_TOKEN}}
 
   minimum:

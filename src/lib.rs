@@ -50,7 +50,11 @@ offering proven stability and performance.
 | `MQCMIT`    | [`Syncpoint::commit`]        |
 | `MQCB`      | [`Connection::register_event_handler`] |
 | `MQCTL`     | *Not implemented yet*        |
-| `MQXCNVC`   | [`StringCcsid::try_mq_convert`] |
+
+| Exits API     | Crate function(s)               |
+|---------------|---------------------------------|
+| `MQXCNVC`     | [`StringCcsid::try_mq_convert`] |
+
 */
 
 mod common;

@@ -1,4 +1,4 @@
-#![cfg(feature = "mock")]
+#![cfg(all(feature = "mock", feature = "exits"))]
 
 use mqi::{prelude::*, core::MqFunctions, test::mock::MockFunctions, core::CCSID, types::MQDCC, Error, MqChar};
 

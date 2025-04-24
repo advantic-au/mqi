@@ -51,7 +51,7 @@ pub struct Embedded {}
 impl BagDrop for Owned {
     fn drop_bag<L: Library<MQ: Mqai>>(bag: &mut Bag<Self, L>) -> ResultComp<()> {
         if bag.is_deletable() {
-            bag.mq.mq_delete_bag(&mut bag.bag)
+            bag.mq.mq_delete_bag(&mut bag.handle)
         } else {
             Ok(Completion::new(()))
         }
@@ -65,7 +65,7 @@ impl BagDrop for Embedded {
 
 #[derive(Debug)]
 pub struct Bag<B: BagDrop, L: Library<MQ: Mqai>> {
-    bag: mqai::BagHandle,
+    handle: mqai::BagHandle,
     pub(super) mq: MqFunctions<L>,
     _marker: PhantomData<B>,
 }
@@ -74,7 +74,7 @@ impl<T: BagDrop, L: Library<MQ: Mqai>> std::ops::Deref for Bag<T, L> {
     type Target = mqai::BagHandle;
 
     fn deref(&self) -> &Self::Target {
-        &self.bag
+        &self.handle
     }
 }
 
@@ -86,8 +86,8 @@ impl<L: Library<MQ: Mqai>> Bag<Owned, L> {
         mq.mq_set_integer(&bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default(), 1208)
             .discard_warning()?;
 
-        Ok(bag.map(|bag| Self {
-            bag,
+        Ok(bag.map(|handle| Self {
+            handle,
             mq,
             _marker: PhantomData,
         }))
@@ -96,8 +96,8 @@ impl<L: Library<MQ: Mqai>> Bag<Owned, L> {
 
 impl<L: Library<MQ: Mqai> + Clone> BagItemGet<L> for Bag<Embedded, L> {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
-        bag.mq.mq_inquire_bag(bag, selector, index).map_completion(|bag_handle| Self {
-            bag: bag_handle,
+        bag.mq.mq_inquire_bag(bag, selector, index).map_completion(|handle| Self {
+            handle,
             mq: bag.mq.clone(),
             _marker: PhantomData,
         })
@@ -109,11 +109,11 @@ impl<L: Library<MQ: Mqai> + Clone> BagItemGet<L> for Bag<Embedded, L> {
 impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
     #[must_use]
     pub const fn handle(&self) -> &mqai::BagHandle {
-        &self.bag
+        &self.handle
     }
 
     pub const fn mut_handle(&mut self) -> &mut mqai::BagHandle {
-        &mut self.bag
+        &mut self.handle
     }
 
     pub fn add_inquiry(&self, selector: Selector) -> ResultComp<()> {
@@ -185,7 +185,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
 
     pub fn from_buffer(&mut self, buffer: &[sys::MQBYTE]) -> ResultComp<()> {
         let mq = &mut self.mq;
-        let handle = &mut self.bag;
+        let handle = &mut self.handle;
 
         mq.mq_buffer_to_bag(&BagHandle::from(sys::MQHB_NONE), buffer, handle)
     }

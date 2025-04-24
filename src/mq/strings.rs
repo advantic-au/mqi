@@ -148,7 +148,7 @@ impl<T: AsRef<[sys::MQCHAR]>> StringCcsid<T> {
         C: super::Conn,
     {
         use crate::{constants, prelude::*};
-        
+
         let mut mqdcc = if self.le {
             constants::MQDCC_SOURCE_ENC_REVERSED
         } else {
