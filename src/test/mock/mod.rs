@@ -730,20 +730,6 @@ impl MockFunctions {
             .in_sequence(seq);
     }
 
-    pub fn get_bag_error(&mut self, mqrc: types::MQRC, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
-        self.expect_mqGetBag()
-            .returning(move |_, _, _, _, _, cc, rc| Self::mqi_outcome(cc, rc, constants::MQCC_FAILED, mqrc))
-            .times(count)
-            .in_sequence(seq);
-    }
-
-    pub fn get_bag_ok(&mut self, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
-        self.expect_mqGetBag()
-            .returning(move |_, _, _, _, _, cc, rc| Self::mqi_outcome_ok(cc, rc))
-            .times(count)
-            .in_sequence(seq);
-    }
-
     pub fn get_ok(
         &mut self,
         message: &'static (impl PutMessage + ?Sized),
@@ -822,6 +808,23 @@ impl MockFunctions {
 
         self.close_ok(hObj);
         self.close_ok(hSub);
+    }
+}
+
+#[cfg(feature = "mqai")]
+impl MockFunctions {
+    pub fn get_bag_error(&mut self, mqrc: types::MQRC, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+        self.expect_mqGetBag()
+            .returning(move |_, _, _, _, _, cc, rc| Self::mqi_outcome(cc, rc, constants::MQCC_FAILED, mqrc))
+            .times(count)
+            .in_sequence(seq);
+    }
+
+    pub fn get_bag_ok(&mut self, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+        self.expect_mqGetBag()
+            .returning(move |_, _, _, _, _, cc, rc| Self::mqi_outcome_ok(cc, rc))
+            .times(count)
+            .in_sequence(seq);
     }
 }
 
