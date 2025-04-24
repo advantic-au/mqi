@@ -242,7 +242,7 @@ jobs:
           RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
         with:
-          check-args: --tests --examples ${{ matrix.feature_flags }}
+          check-args: --tests --examples ${{ matrix.feature_args }}
           token: ${{secrets.GITHUB_TOKEN}}
 
   minimum:
