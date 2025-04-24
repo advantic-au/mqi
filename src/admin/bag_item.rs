@@ -3,10 +3,10 @@ use std::fmt::Debug;
 use std::mem;
 
 use crate::core::mqai;
-use crate::values::{self, MqaiSelector, CCSID, MQIND};
-use crate::core::Library;
+use crate::core::{Library, CCSID};
 use crate::{prelude::*, MqStr, StrCcsidOwned, StringCcsid, NATIVE_IS_LE};
-use crate::{sys, Completion, EncodedString, Error, ResultComp, ResultCompErr, WithMqError};
+use crate::{sys, constants, Completion, EncodedString, Error, ResultComp, ResultCompErr, WithMqError};
+use crate::types::{MQIND, MQITEM, Selector};
 
 use super::{Bag, BagDrop};
 
@@ -21,13 +21,13 @@ pub enum PutStringCcsidError {
 pub trait BagItemPut<L: Library<MQ: Mqai>> {
     type Error;
 
-    fn add_to_bag(&self, selector: MqaiSelector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error>;
-    fn set_bag_item(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error>;
+    fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error>;
+    fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error>;
 }
 
 pub trait BagItemGet<L: Library<MQ: Mqai>>: Sized {
     type Error: WithMqError + Debug;
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error>;
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error>;
 }
 
 const STACK_BUFFER_SIZE: usize = 0x1000;
@@ -44,17 +44,17 @@ impl WithMqError for PutStringCcsidError {
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for sys::MQLONG {
     type Error = Error;
 
-    fn add_to_bag(&self, selector: MqaiSelector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
+    fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
         bag.mq.mq_add_integer(bag, selector, *self)
     }
 
-    fn set_bag_item(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
+    fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
         bag.mq.mq_set_integer(bag, selector, index, *self)
     }
 }
 
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for sys::MQLONG {
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_integer(bag, selector, index)
     }
 
@@ -64,17 +64,17 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for sys::MQLONG {
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<sys::MQLONG> {
     type Error = Error;
 
-    fn add_to_bag(&self, selector: MqaiSelector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
+    fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
         bag.mq.mq_add_integer_filter(bag, selector, *self)
     }
 
-    fn set_bag_item(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
+    fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
         bag.mq.mq_set_integer_filter(bag, selector, index, *self)
     }
 }
 
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<sys::MQLONG> {
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_integer_filter(bag, selector, index)
     }
 
@@ -84,17 +84,17 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<sys::MQLONG> {
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for i64 {
     type Error = Error;
 
-    fn add_to_bag(&self, selector: MqaiSelector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
+    fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
         bag.mq.mq_add_integer64(bag, selector, *self)
     }
 
-    fn set_bag_item(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
+    fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
         bag.mq.mq_set_integer64(bag, selector, index, *self)
     }
 }
 
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for i64 {
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_integer64(bag, selector, index)
     }
 
@@ -104,11 +104,11 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for i64 {
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for [sys::MQBYTE] {
     type Error = Error;
 
-    fn add_to_bag(&self, selector: MqaiSelector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
+    fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
         bag.mq.mq_add_byte_string(bag, selector, self)
     }
 
-    fn set_bag_item(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
+    fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
         bag.mq.mq_set_byte_string(bag, selector, index, self)
     }
 }
@@ -116,10 +116,10 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for [sys::MQBYTE] {
 impl<T: EncodedString + ?Sized, L: Library<MQ: Mqai>> BagItemPut<L> for T {
     type Error = PutStringCcsidError;
 
-    fn add_to_bag(&self, selector: MqaiSelector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
+    fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
         let bag_ccsid = CCSID(
             bag.mq
-                .mq_inquire_integer(bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .mq_inquire_integer(bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
                 .warn_as_error()?,
         );
         if bag_ccsid != self.ccsid() {
@@ -128,10 +128,10 @@ impl<T: EncodedString + ?Sized, L: Library<MQ: Mqai>> BagItemPut<L> for T {
         bag.mq.mq_add_string(bag, selector, self.data()).map_err(Into::into)
     }
 
-    fn set_bag_item(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
+    fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
         let bag_ccsid = CCSID(
             bag.mq
-                .mq_inquire_integer(bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .mq_inquire_integer(bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
                 .warn_as_error()?,
         );
         if bag_ccsid != self.ccsid() {
@@ -144,11 +144,11 @@ impl<T: EncodedString + ?Sized, L: Library<MQ: Mqai>> BagItemPut<L> for T {
 impl<T: EncodedString, L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<T> {
     type Error = PutStringCcsidError;
 
-    fn add_to_bag(&self, selector: MqaiSelector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
+    fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
         let Self { operator, value } = self;
         let bag_ccsid = CCSID(
             bag.mq
-                .mq_inquire_integer(bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .mq_inquire_integer(bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
                 .warn_as_error()?,
         );
         if bag_ccsid != value.ccsid() {
@@ -166,11 +166,11 @@ impl<T: EncodedString, L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<T> {
             .map_err(Into::into)
     }
 
-    fn set_bag_item(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
+    fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
         let Self { operator, value } = self;
         let bag_ccsid = CCSID(
             bag.mq
-                .mq_inquire_integer(bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .mq_inquire_integer(bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
                 .warn_as_error()?,
         );
         if bag_ccsid != value.ccsid() {
@@ -191,10 +191,10 @@ impl<T: EncodedString, L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<T> {
 }
 
 impl<L: Library<MQ: Mqai>, const N: usize> BagItemGet<L> for MqStr<N> {
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error> {
         let bag_ccsid = CCSID(
             bag.mq
-                .mq_inquire_integer(bag, MqaiSelector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .mq_inquire_integer(bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
                 .warn_as_error()?,
         );
         if bag_ccsid != 1208 {
@@ -212,13 +212,13 @@ impl<L: Library<MQ: Mqai>, const N: usize> BagItemGet<L> for MqStr<N> {
 }
 
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for StrCcsidOwned {
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion((length, ccsid), mut warning) = bag.mq.mq_inquire_string(bag, selector, index, &mut data_s)?;
         let str_length: usize = length.try_into().expect("mq_inquire_string should not return negative");
         let mut data = Vec::with_capacity(str_length);
         let data_write = data.spare_capacity_mut();
-        if matches!(warning, Some((values::MQRC(sys::MQRC_STRING_TRUNCATED), _))) {
+        if matches!(warning, Some((constants::MQRC_STRING_TRUNCATED, _))) {
             let Completion((_, _), new_warning) = bag.mq.mq_inquire_string(bag, selector, index, data_write)?;
             warning = new_warning;
         } else {
@@ -242,7 +242,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for StrCcsidOwned {
 }
 
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<StrCcsidOwned> {
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion((length, ccsid, operator), mut warning) =
             bag.mq.mq_inquire_string_filter(bag, selector, index, &mut data_s)?;
@@ -251,7 +251,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<StrCcsidOwned> {
             .expect("mq_inquire_string_filter should not return a negative length");
         let mut data = Vec::with_capacity(str_length);
         let data_write = data.spare_capacity_mut();
-        if matches!(warning, Some((values::MQRC(sys::MQRC_STRING_TRUNCATED), _))) {
+        if matches!(warning, Some((constants::MQRC_STRING_TRUNCATED, _))) {
             let Completion(_, new_warning) = bag.mq.mq_inquire_string_filter(bag, selector, index, data_write)?;
             warning = new_warning;
         } else {
@@ -278,7 +278,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<StrCcsidOwned> {
 }
 
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<sys::MQBYTE> {
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion(length, mut warning) = bag.mq.mq_inquire_byte_string(bag, selector, index, &mut data_s)?;
         let byte_str_length: usize = length
@@ -286,7 +286,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<sys::MQBYTE> {
             .expect("mq_inquire_string_filter should not return a negative length");
         let mut data = Self::with_capacity(byte_str_length);
         let data_write = data.spare_capacity_mut();
-        if matches!(warning, Some((values::MQRC(sys::MQRC_STRING_TRUNCATED), _))) {
+        if matches!(warning, Some((constants::MQRC_STRING_TRUNCATED, _))) {
             let Completion(_, new_warning) = bag.mq.mq_inquire_byte_string(bag, selector, index, data_write)?;
             warning = new_warning;
         } else {
@@ -304,17 +304,17 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<sys::MQBYTE> {
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<&[sys::MQBYTE]> {
     type Error = Error;
 
-    fn add_to_bag(&self, selector: MqaiSelector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
+    fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
         bag.mq.mq_add_byte_string_filter(bag, selector, *self)
     }
 
-    fn set_bag_item(&self, selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
+    fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
         bag.mq.mq_set_byte_string_filter(bag, selector, index, *self)
     }
 }
 
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<Vec<sys::MQBYTE>> {
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion((length, operator), mut warning) =
             bag.mq.mq_inquire_byte_string_filter(bag, selector, index, &mut data_s)?;
@@ -323,7 +323,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<Vec<sys::MQBYTE>> {
             .expect("mq_inquire_byte_string_filter should not return a negative length");
         let mut data = Vec::with_capacity(byte_str_length);
         let data_write = data.spare_capacity_mut();
-        if matches!(warning, Some((values::MQRC(sys::MQRC_STRING_TRUNCATED), _))) {
+        if matches!(warning, Some((constants::MQRC_STRING_TRUNCATED, _))) {
             let Completion(_, new_warning) = bag.mq.mq_inquire_byte_string_filter(bag, selector, index, data_write)?;
             warning = new_warning;
         } else {
@@ -338,29 +338,29 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<Vec<sys::MQBYTE>> {
     type Error = crate::Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for (MqaiSelector, values::MQITEM) {
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for (Selector, MQITEM) {
     type Error = Error;
 
     #[inline]
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error> {
         bag.mq.mq_inquire_item_info(bag, selector, index)
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for values::MQITEM {
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQITEM {
     type Error = Error;
 
     #[inline]
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error> {
         BagItemGet::inq_bag_item(selector, index, bag).map_completion(|(_, item)| item)
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for values::MqaiSelector {
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for Selector {
     type Error = Error;
 
     #[inline]
-    fn inq_bag_item(selector: MqaiSelector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error> {
+    fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error> {
         BagItemGet::inq_bag_item(selector, index, bag).map_completion(|(selector, _)| selector)
     }
 }
@@ -370,14 +370,9 @@ mod tests {
     use mqai::Filter;
 
     use super::*;
-    use crate::{
-        admin::Bag,
-        sys,
-        test::mq_library,
-        values::{MqaiSelector, MQCBO},
-        StrCcsidOwned,
-    };
+    use crate::{admin::Bag, sys, test::mq_library, StrCcsidOwned};
 
+    #[allow(clippy::allow_attributes, clippy::needless_borrows_for_generic_args, reason="Borrow required when built with dlopen2")]
     #[test]
     fn put_inq_bag_item_types() -> Result<(), Box<dyn std::error::Error>> {
         const BYTES: [u8; 2] = [0x0, 0x1];
@@ -388,51 +383,51 @@ mod tests {
         let lib = mq_library();
 
         // StrCcsidOwned
-        test_put_inq_bag_item(STR, lib, |s: StrCcsidOwned| assert!(s == STR))?;
-        test_put_inq_bag_item(&*long_s, lib, |s: StrCcsidOwned| assert!(s == &*long_s))?;
+        test_put_inq_bag_item(STR, &lib, |s: StrCcsidOwned| assert!(s == STR))?;
+        test_put_inq_bag_item(&*long_s, &lib, |s: StrCcsidOwned| assert!(s == &*long_s))?;
 
         // Vec<sys::MQBYTE>
-        test_put_inq_bag_item(BYTES.as_slice(), lib, |subject: Vec<sys::MQBYTE>| assert!(subject == BYTES))?;
-        test_put_inq_bag_item(large_bytes.as_slice(), lib, |subject: Vec<sys::MQBYTE>| {
+        test_put_inq_bag_item(BYTES.as_slice(), &lib, |subject: Vec<sys::MQBYTE>| assert!(subject == BYTES))?;
+        test_put_inq_bag_item(large_bytes.as_slice(), &lib, |subject: Vec<sys::MQBYTE>| {
             assert!(subject == large_bytes);
         })?;
 
         // Filter<StrCcsidOwned>
-        test_put_inq_bag_item(&Filter::greater(STR), lib, |subject: Filter<StrCcsidOwned>| {
+        test_put_inq_bag_item(&Filter::greater(STR), &lib, |subject: Filter<StrCcsidOwned>| {
             assert!(subject == Filter::greater(STR));
         })?;
-        test_put_inq_bag_item(&Filter::greater(&*long_s), lib, |subject: Filter<StrCcsidOwned>| {
+        test_put_inq_bag_item(&Filter::greater(&*long_s), &lib, |subject: Filter<StrCcsidOwned>| {
             assert!(subject == Filter::greater(&*long_s));
         })?;
 
         // (MqaiSelector, MQITEM)
-        test_put_inq_bag_item(&99i32, lib, |subject: (MqaiSelector, values::MQITEM)| {
-            assert_eq!(subject, (MqaiSelector(0), values::MQITEM(sys::MQITEM_INTEGER)));
+        test_put_inq_bag_item(&99i32, &lib, |subject: (Selector, MQITEM)| {
+            assert_eq!(subject, (Selector(0), constants::MQITEM_INTEGER));
         })?;
 
         // MqaiSelector
-        test_put_inq_bag_item(&88i32, lib, |subject: MqaiSelector| {
-            assert_eq!(subject, MqaiSelector(0));
+        test_put_inq_bag_item(&88i32, &lib, |subject: Selector| {
+            assert_eq!(subject, Selector(0));
         })?;
 
         // MQITEM
-        test_put_inq_bag_item(STR, lib, |subject: values::MQITEM| {
-            assert_eq!(subject, values::MQITEM(sys::MQITEM_STRING));
+        test_put_inq_bag_item(STR, &lib, |subject: MQITEM| {
+            assert_eq!(subject, constants::MQITEM_STRING);
         })?;
 
         // MQLONG
-        test_put_inq_bag_item(&69i32, lib, |subject: sys::MQLONG| assert_eq!(subject, 69))?;
+        test_put_inq_bag_item(&69i32, &lib, |subject: sys::MQLONG| assert_eq!(subject, 69))?;
 
         // MQINT64
-        test_put_inq_bag_item(&169i64, lib, |subject: sys::MQINT64| assert_eq!(subject, 169))?;
+        test_put_inq_bag_item(&169i64, &lib, |subject: sys::MQINT64| assert_eq!(subject, 169))?;
 
         // Filter<MQLONG>
-        test_put_inq_bag_item(&Filter::greater(69i32), lib, |subject: Filter<sys::MQLONG>| {
+        test_put_inq_bag_item(&Filter::greater(69i32), &lib, |subject: Filter<sys::MQLONG>| {
             assert_eq!(subject, Filter::greater(69));
         })?;
 
         // MqStr<N>
-        test_put_inq_bag_item(STR, lib, |subject: MqStr<20>| {
+        test_put_inq_bag_item(STR, &lib, |subject: MqStr<20>| {
             assert_eq!(subject, STR);
         })?;
 
@@ -448,20 +443,20 @@ mod tests {
         L: Library<MQ: Mqai>,
         F: Fn(T),
     {
-        let bag = Bag::new_lib(lib, MQCBO(sys::MQCBO_NONE)).discard_warning()?;
+        let bag = Bag::new_lib(lib, constants::MQCBO_NONE).discard_warning()?;
 
-        let not_present: Result<Option<T>, T::Error> = bag.inquire(MqaiSelector(0)).discard_warning();
+        let not_present: Result<Option<T>, T::Error> = bag.inquire(Selector(0)).discard_warning();
         assert!(matches!(not_present, Ok(None)));
 
-        bag.add(MqaiSelector(0), item).discard_warning()?;
+        bag.add(Selector(0), item).discard_warning()?;
         assert(
-            bag.inquire(MqaiSelector(0))
+            bag.inquire(Selector(0))
                 .discard_warning()?
                 .expect("Inquire on value should exist"),
         );
-        bag.set(MqaiSelector(0), item).discard_warning()?;
+        bag.set(Selector(0), item).discard_warning()?;
         assert(
-            bag.inquire(MqaiSelector(0))
+            bag.inquire(Selector(0))
                 .discard_warning()?
                 .expect("Inquire on value should exist"),
         );

@@ -1,9 +1,7 @@
-use crate::sys;
-use crate::ResultComp;
-use crate::ResultCompErrExt;
+use crate::{types::MQBO, sys, ResultComp, ResultCompErrExt};
 use libmqm_default as default;
 
-use super::{values, Conn, MqStruct};
+use super::{Conn, MqStruct};
 
 #[derive(Debug, PartialEq)]
 enum SyncpointState {
@@ -29,9 +27,9 @@ impl<C: Conn> Syncpoint<C> {
     /// Begins a unit of work that is coordinated by the queue manager, and that can involve external resource managers.
     ///
     /// Uses the `MQBEGIN` MQ API call
-    pub fn begin(connection: C, mqbo: values::MQBO) -> ResultComp<Self> {
+    pub fn begin(connection: C, mqbo: MQBO) -> ResultComp<Self> {
         let mut bo = MqStruct::new(sys::MQBO {
-            Options: mqbo.value(),
+            Options: mqbo.0,
             ..default::MQBO_DEFAULT
         });
         connection
@@ -75,9 +73,9 @@ mod tests {
     fn begin() -> ResultComp<()> {
         use crate::{
             test::mock::{self, MockFunctions},
-            values::MQBO,
             Completion, Syncpoint,
         };
+        use crate::types::MQBO;
 
         let mock_connection = mock::connect_ok(|mock_library| {
             mock_library

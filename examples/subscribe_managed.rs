@@ -8,8 +8,8 @@ mod args;
 use anyhow::Context as _;
 use clap::Parser;
 use mqi::{
-    connect_options::ApplName, get::GetWait, open_options::ObjectString, prelude::*, sys, types::MessageFormat, values::MQSO,
-    ThreadNone, Subscription,
+    connect_options::ApplName, get::GetWait, open_options::ObjectString, prelude::*, types::MessageFormat, constants, ThreadNone,
+    Subscription,
 };
 use tracing::Level;
 
@@ -48,10 +48,12 @@ fn main() -> anyhow::Result<()> {
 
     // Create a managed, non-durable subscription to the topic. Fail on any warning.
     // The subscription will persist until `_subscription` is descoped.
-    let (_subscription, queue) =
-        Subscription::subscribe_managed(qm.connection_ref(), (MQSO(sys::MQSO_CREATE | sys::MQSO_NON_DURABLE), topic))
-            .warn_as_error()
-            .context("Unable to subscribe to topic")?;
+    let (_subscription, queue) = Subscription::subscribe_managed(
+        qm.connection_ref(),
+        (constants::MQSO_CREATE | constants::MQSO_NON_DURABLE, topic),
+    )
+    .warn_as_error()
+    .context("Unable to subscribe to topic")?;
 
     let mut buffer = vec![0u8; 20 * 1024].into_boxed_slice(); // 20kb
 

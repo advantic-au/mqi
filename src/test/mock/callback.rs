@@ -5,7 +5,7 @@ use std::{
 };
 
 use super::MockFunctions;
-use crate::sys;
+use crate::{sys, constants};
 
 impl MockFunctions {
     #[must_use]
@@ -16,7 +16,7 @@ impl MockFunctions {
         unsafe impl Send for MqCallback {}
 
         let mut mock_library = Self::new();
-        mock_library.connx_outcome(0x0d0d, sys::MQCC_OK, sys::MQRC_NONE);
+        mock_library.connx_outcome(0x0d0d, constants::MQCC_OK, constants::MQRC_NONE);
         let cb: Arc<Mutex<Option<MqCallback>>> = Arc::default();
         let cb_init = cb.clone();
         mock_library

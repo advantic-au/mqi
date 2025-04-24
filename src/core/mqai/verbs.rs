@@ -3,11 +3,10 @@ use std::ptr;
 
 use libmqm_sys::Mqai;
 
-use crate::core::{ConnectionHandle, Library, MqFunctions, MqInqError, MqiOutcome, MqiOutcomeVoid, ObjectHandle, WriteRaw};
+use crate::core::{CCSID, ConnectionHandle, Library, MqFunctions, MqInqError, MqiOutcome, MqiOutcomeVoid, ObjectHandle, WriteRaw};
 use crate::{Error, ResultCompErr, MQMD};
-use crate::{sys, ResultComp};
-
-use crate::values::{MqaiSelector, CCSID, MQCBO, MQCFOP, MQCMD, MQIND, MQITEM};
+use crate::{sys, constants, ResultComp};
+use crate::types::{Selector, MQCBO, MQCFOP, MQCMD, MQIND, MQITEM};
 use super::{BagHandle, Filter};
 
 #[cfg(feature = "tracing")]
@@ -41,7 +40,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_add_inquiry(&self, bag: &BagHandle, selector: MqaiSelector) -> ResultComp<()> {
+    pub fn mq_add_inquiry(&self, bag: &BagHandle, selector: Selector) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddInquiry");
         unsafe {
             self.0
@@ -54,7 +53,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_delete_item(&self, bag: &BagHandle, selector: MqaiSelector, index: MQIND) -> ResultComp<()> {
+    pub fn mq_delete_item(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqDeleteItem");
         unsafe {
             self.0
@@ -67,7 +66,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_add_integer(&self, bag: &BagHandle, selector: MqaiSelector, value: sys::MQLONG) -> ResultComp<()> {
+    pub fn mq_add_integer(&self, bag: &BagHandle, selector: Selector, value: sys::MQLONG) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddInteger");
         unsafe {
             self.0
@@ -83,7 +82,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_add_integer_filter(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         Filter { value, operator }: Filter<sys::MQLONG>,
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddIntegerFilter");
@@ -103,7 +102,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_add_integer64(&self, bag: &BagHandle, selector: MqaiSelector, value: sys::MQINT64) -> ResultComp<()> {
+    pub fn mq_add_integer64(&self, bag: &BagHandle, selector: Selector, value: sys::MQINT64) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddInteger64");
         unsafe {
             self.0
@@ -116,7 +115,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_add_string(&self, bag: &BagHandle, selector: MqaiSelector, value: &[sys::MQCHAR]) -> ResultComp<()> {
+    pub fn mq_add_string(&self, bag: &BagHandle, selector: Selector, value: &[sys::MQCHAR]) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddString");
         unsafe {
             self.0.lib().mqAddString(
@@ -139,7 +138,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_add_string_filter(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         Filter { value, operator }: Filter<&[sys::MQCHAR]>,
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddStringFilter");
@@ -162,7 +161,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_add_byte_string(&self, bag: &BagHandle, selector: MqaiSelector, value: &[sys::MQBYTE]) -> ResultComp<()> {
+    pub fn mq_add_byte_string(&self, bag: &BagHandle, selector: Selector, value: &[sys::MQBYTE]) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddByteString");
         unsafe {
             self.0.lib().mqAddByteString(
@@ -185,7 +184,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_add_byte_string_filter(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         Filter { value, operator }: Filter<&[sys::MQBYTE]>,
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddByteStringFilter");
@@ -208,7 +207,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_add_bag(&self, bag: &BagHandle, selector: MqaiSelector, to_add: &BagHandle) -> ResultComp<()> {
+    pub fn mq_add_bag(&self, bag: &BagHandle, selector: Selector, to_add: &BagHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddBag");
         unsafe {
             self.0.lib().mqAddBag(
@@ -225,7 +224,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_set_integer(&self, bag: &BagHandle, selector: MqaiSelector, index: MQIND, value: sys::MQLONG) -> ResultComp<()> {
+    pub fn mq_set_integer(&self, bag: &BagHandle, selector: Selector, index: MQIND, value: sys::MQLONG) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqSetInteger");
         unsafe {
             self.0.lib().mqSetInteger(
@@ -246,7 +245,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_set_integer_filter(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         index: MQIND,
         Filter { value, operator }: Filter<sys::MQLONG>,
     ) -> ResultComp<()> {
@@ -268,7 +267,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_set_integer64(&self, bag: &BagHandle, selector: MqaiSelector, index: MQIND, value: sys::MQINT64) -> ResultComp<()> {
+    pub fn mq_set_integer64(&self, bag: &BagHandle, selector: Selector, index: MQIND, value: sys::MQINT64) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqSetInteger64");
         unsafe {
             self.0.lib().mqSetInteger64(
@@ -286,7 +285,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_set_string(&self, bag: &BagHandle, selector: MqaiSelector, index: MQIND, value: &[sys::MQCHAR]) -> ResultComp<()> {
+    pub fn mq_set_string(&self, bag: &BagHandle, selector: Selector, index: MQIND, value: &[sys::MQCHAR]) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqSetString");
         unsafe {
             self.0.lib().mqSetString(
@@ -310,7 +309,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_set_string_filter(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         index: MQIND,
         Filter { value, operator }: Filter<&[sys::MQCHAR]>,
     ) -> ResultComp<()> {
@@ -335,13 +334,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_set_byte_string(
-        &self,
-        bag: &BagHandle,
-        selector: MqaiSelector,
-        index: MQIND,
-        value: &[sys::MQBYTE],
-    ) -> ResultComp<()> {
+    pub fn mq_set_byte_string(&self, bag: &BagHandle, selector: Selector, index: MQIND, value: &[sys::MQBYTE]) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqSetByteString");
         unsafe {
             self.0.lib().mqSetByteString(
@@ -365,7 +358,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_set_byte_string_filter(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         index: MQIND,
         Filter { value, operator }: Filter<&[sys::MQBYTE]>,
     ) -> ResultComp<()> {
@@ -390,7 +383,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_inquire_integer(&self, bag: &BagHandle, selector: MqaiSelector, index: MQIND) -> ResultComp<sys::MQLONG> {
+    pub fn mq_inquire_integer(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("mqInquireInteger");
         unsafe {
             self.0.lib().mqInquireInteger(
@@ -411,7 +404,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_inquire_integer_filter(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         index: MQIND,
     ) -> ResultComp<Filter<sys::MQLONG>> {
         let mut outcome = MqiOutcome::new("mqInquireIntegerFilter", Filter::new(0, MQCFOP(0)));
@@ -432,7 +425,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_inquire_integer64(&self, bag: &BagHandle, selector: MqaiSelector, index: MQIND) -> ResultComp<sys::MQINT64> {
+    pub fn mq_inquire_integer64(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<sys::MQINT64> {
         let mut outcome = MqiOutcome::with_verb("mqInquireInteger64");
         unsafe {
             self.0.lib().mqInquireInteger64(
@@ -453,7 +446,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_inquire_byte_string(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         index: MQIND,
         value: &mut (impl WriteRaw<sys::MQBYTE> + ?Sized),
     ) -> ResultComp<sys::MQLONG> {
@@ -481,7 +474,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_inquire_string(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         index: MQIND,
         value: &mut (impl WriteRaw<sys::MQCHAR> + ?Sized),
     ) -> ResultComp<(sys::MQLONG, CCSID)> {
@@ -511,7 +504,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_inquire_string_filter(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         index: MQIND,
         value: &mut (impl WriteRaw<sys::MQCHAR> + ?Sized),
     ) -> ResultComp<(sys::MQLONG, CCSID, MQCFOP)> {
@@ -542,7 +535,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_inquire_byte_string_filter(
         &self,
         bag: &BagHandle,
-        selector: MqaiSelector,
+        selector: Selector,
         index: MQIND,
         value: &mut (impl WriteRaw<sys::MQBYTE> + ?Sized),
     ) -> ResultComp<(sys::MQLONG, MQCFOP)> {
@@ -569,7 +562,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_inquire_bag(&self, bag: &BagHandle, selector: MqaiSelector, index: MQIND) -> ResultComp<BagHandle> {
+    pub fn mq_inquire_bag(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<BagHandle> {
         let mut outcome = MqiOutcome::<BagHandle>::with_verb("mqInquireBag");
         unsafe {
             self.0.lib().mqInquireBag(
@@ -587,7 +580,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_count_items(&self, bag: &BagHandle, selector: MqaiSelector) -> ResultComp<sys::MQLONG> {
+    pub fn mq_count_items(&self, bag: &BagHandle, selector: Selector) -> ResultComp<sys::MQLONG> {
         let mut outcome = MqiOutcome::with_verb("mqCountItems");
         unsafe {
             self.0.lib().mqCountItems(
@@ -747,8 +740,10 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
-        match outcome.rc.value() {
-            sys::MQRC_BUFFER_LENGTH_ERROR => Err(MqInqError::Length(outcome.value, Error(outcome.cc, outcome.verb, outcome.rc))),
+        match outcome.rc {
+            constants::MQRC_BUFFER_LENGTH_ERROR => {
+                Err(MqInqError::Length(outcome.value, Error(outcome.cc, outcome.verb, outcome.rc)))
+            }
             _ => outcome.into(),
         }
     }
@@ -776,13 +771,8 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
 
     /// Return information about a specified item in a bag
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_inquire_item_info(
-        &self,
-        bag: &BagHandle,
-        selector: MqaiSelector,
-        index: MQIND,
-    ) -> ResultComp<(MqaiSelector, MQITEM)> {
-        let mut outcome = MqiOutcome::new("mqInquireItemInfo", (MqaiSelector(-1), MQITEM(-1)));
+    pub fn mq_inquire_item_info(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<(Selector, MQITEM)> {
+        let mut outcome = MqiOutcome::new("mqInquireItemInfo", (Selector(-1), MQITEM(-1)));
 
         unsafe {
             self.0.lib().mqInquireItemInfo(
@@ -813,20 +803,20 @@ mod tests {
     fn inquire_integer() {
         let mq_lib = MqFunctions(mq_library());
         let mut bag = mq_lib
-            .mq_create_bag(MQCBO(sys::MQCBO_COMMAND_BAG))
+            .mq_create_bag(constants::MQCBO_COMMAND_BAG)
             .warn_as_error()
             .expect("creation of MQ bag should not fail");
 
         // MQIASY_BAG_OPTIONS, index 0 should exist
         let options = mq_lib
-            .mq_inquire_integer(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(0))
+            .mq_inquire_integer(&bag, Selector(sys::MQIASY_BAG_OPTIONS), MQIND(0))
             .warn_as_error()
             .expect("options retrieval should not fail");
-        assert_eq!(MQCBO(options), MQCBO(sys::MQCBO_COMMAND_BAG));
+        assert_eq!(MQCBO(options), constants::MQCBO_COMMAND_BAG);
 
         // MQIASY_BAG_OPTIONS, index 1 should not exist
         mq_lib
-            .mq_inquire_integer(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(1))
+            .mq_inquire_integer(&bag, Selector(sys::MQIASY_BAG_OPTIONS), MQIND(1))
             .warn_as_error()
             .expect_err("options retrieval should fail");
 
@@ -840,17 +830,17 @@ mod tests {
     fn inquire_item_info() {
         let mq_lib = MqFunctions(mq_library());
         let mut bag = mq_lib
-            .mq_create_bag(MQCBO(sys::MQCBO_COMMAND_BAG))
+            .mq_create_bag(constants::MQCBO_COMMAND_BAG)
             .warn_as_error()
             .expect("creation of MQ bag should not fail");
         let (sel, item) = mq_lib
-            .mq_inquire_item_info(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(0))
+            .mq_inquire_item_info(&bag, Selector(sys::MQIASY_BAG_OPTIONS), MQIND(0))
             .warn_as_error()
             .expect("info of item should not fail");
-        assert_eq!(item, MQITEM(sys::MQITEM_INTEGER));
-        assert_eq!(sel, MqaiSelector(sys::MQIASY_BAG_OPTIONS));
+        assert_eq!(item, constants::MQITEM_INTEGER);
+        assert_eq!(sel, Selector(sys::MQIASY_BAG_OPTIONS));
         mq_lib
-            .mq_inquire_item_info(&bag, MqaiSelector(sys::MQIASY_BAG_OPTIONS), MQIND(1))
+            .mq_inquire_item_info(&bag, Selector(sys::MQIASY_BAG_OPTIONS), MQIND(1))
             .expect_err("index 1 should not exist");
         mq_lib
             .mq_delete_bag(&mut bag)
@@ -862,12 +852,12 @@ mod tests {
     fn bag_buffer() {
         let mq_lib = MqFunctions(mq_library());
         let mut bag = mq_lib
-            .mq_create_bag(MQCBO(sys::MQCBO_NONE))
+            .mq_create_bag(constants::MQCBO_NONE)
             .warn_as_error()
             .expect("creation of MQ bag should not fail");
         let mut buffer = vec![0u8; 2 * 1024 * 1024]; // 2Mb buffer
         mq_lib
-            .mq_add_integer(&bag, MqaiSelector(1), 99)
+            .mq_add_integer(&bag, Selector(1), 99)
             .warn_as_error()
             .expect("mq_set_integer should succeed");
         let length = mq_lib
@@ -876,7 +866,7 @@ mod tests {
             .expect("mqBagToBuffer should succeed");
         let bag_buffer = &buffer[..length.try_into().expect("returned length should convert to usize")];
         let mut bag_target = mq_lib
-            .mq_create_bag(MQCBO(sys::MQCBO_NONE))
+            .mq_create_bag(constants::MQCBO_NONE)
             .warn_as_error()
             .expect("creation of MQ bag should succeed");
         mq_lib
@@ -884,7 +874,7 @@ mod tests {
             .warn_as_error()
             .expect("mqBufferToBag should succeed");
         let target_int = mq_lib
-            .mq_inquire_integer(&bag_target, MqaiSelector(1), MQIND(0))
+            .mq_inquire_integer(&bag_target, Selector(1), MQIND(0))
             .warn_as_error()
             .expect("options retrieval should succeed");
         assert_eq!(target_int, 99);
@@ -898,29 +888,29 @@ mod tests {
     #[test]
     fn add_bag() -> Result<(), Box<dyn Error>> {
         let mq_lib = MqFunctions(mq_library());
-        let mut bag = mq_lib.mq_create_bag(MQCBO(sys::MQCBO_GROUP_BAG))?;
-        let bag_attached = mq_lib.mq_create_bag(MQCBO(sys::MQCBO_GROUP_BAG))?;
+        let mut bag = mq_lib.mq_create_bag(constants::MQCBO_GROUP_BAG)?;
+        let bag_attached = mq_lib.mq_create_bag(constants::MQCBO_GROUP_BAG)?;
         let mut wally: MqChar<3> = [1, 2, 3];
         mq_lib
-            .mq_add_bag(&bag, MqaiSelector(0), &bag_attached)
+            .mq_add_bag(&bag, Selector(0), &bag_attached)
             .warn_as_error()
             .expect("adding to a bag should succeed");
-        dbg!(mq_lib.mq_inquire_bag(&bag, MqaiSelector(0), MQIND(0))).warn_as_error()?;
-        dbg!(mq_lib.mq_add_integer(&bag_attached, MqaiSelector(0), 999)).warn_as_error()?;
-        dbg!(mq_lib.mq_add_string(&bag_attached, MqaiSelector(1), &wally)).warn_as_error()?;
+        dbg!(mq_lib.mq_inquire_bag(&bag, Selector(0), MQIND(0))).warn_as_error()?;
+        dbg!(mq_lib.mq_add_integer(&bag_attached, Selector(0), 999)).warn_as_error()?;
+        dbg!(mq_lib.mq_add_string(&bag_attached, Selector(1), &wally)).warn_as_error()?;
 
         wally[0] = 9;
 
         //dbg!(mq_lib.mq_add_string(&bag_attached, 2, "hello".as_bytes())).expect("BLA2");
         let mut data = vec![0i8; 4096];
-        let (length, ..) = dbg!(mq_lib.mq_inquire_string(&bag_attached, MqaiSelector(1), MQIND(0), data.as_mut_slice()))
+        let (length, ..) = dbg!(mq_lib.mq_inquire_string(&bag_attached, Selector(1), MQIND(0), data.as_mut_slice()))
             .warn_as_error()
             .expect("BLA2");
         let data = &data[..length.try_into().expect("length converts to usize")];
         dbg!(data);
         //mq_lib.mq_delete_bag(&mut bag_attached).expect("Failed to delete MQ BAG");
-        let r = dbg!(mq_lib.mq_inquire_bag(&bag, MqaiSelector(0), MQIND(0))).warn_as_error()?;
-        dbg!(mq_lib.mq_inquire_integer(&r, MqaiSelector(0), MQIND(0))).warn_as_error()?;
+        let r = dbg!(mq_lib.mq_inquire_bag(&bag, Selector(0), MQIND(0))).warn_as_error()?;
+        dbg!(mq_lib.mq_inquire_integer(&r, Selector(0), MQIND(0))).warn_as_error()?;
         dbg!(&bag);
         dbg!(&bag_attached);
         mq_lib.mq_delete_bag(&mut bag).warn_as_error()?;
@@ -930,9 +920,9 @@ mod tests {
 
     #[test]
     fn mqaiselector() {
-        assert_eq!(format!("{}", MqaiSelector(0)), "0");
-        assert_eq!(format!("{}", MqaiSelector(sys::MQCA_ALTERATION_TIME)), "MQCA_ALTERATION_TIME");
-        assert_eq!(format!("{}", MqaiSelector(sys::MQIACF_INQUIRY)), "MQIACF_INQUIRY");
-        assert_eq!(format!("{}", MqaiSelector(sys::MQSEL_ANY_SELECTOR)), "-30001");
+        assert_eq!(format!("{}", Selector(0)), "0");
+        assert_eq!(format!("{}", Selector(sys::MQCA_ALTERATION_TIME)), "MQCA_ALTERATION_TIME");
+        assert_eq!(format!("{}", Selector(sys::MQIACF_INQUIRY)), "MQIACF_INQUIRY");
+        assert_eq!(format!("{}", Selector(sys::MQSEL_ANY_SELECTOR)), "-30001");
     }
 }

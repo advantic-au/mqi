@@ -52,40 +52,6 @@ jobs:
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
-  pregen:
-    strategy:
-      fail-fast: false
-      matrix:
-        build:
-          - os: windows-latest
-            mq-version: 9.4.2.0
-          - os: ubuntu-24.04
-            mq-version: 9.4.2.0
-          - os: macos-latest
-            mq-version: 9.4.2.0
-    runs-on: ${{ matrix.build.os }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: advantic-au/action-mq-client@stable
-        id: mq-client
-        with:
-          client-version: ${{ matrix.build.mq-version }}
-      - name: Install stable
-        uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "build"
-      - name: Run build and refresh constants
-        run: cargo build --no-default-features --features pregen
-        env:
-          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
-      - name: Detect pregenerated changes
-        run: |
-          git add -N src/constants/mapping/pregen
-          git diff --stat --exit-code src/constants/mapping/pregen
-
   test_server:
     name: "MQ server integration test"
     needs: test
@@ -239,6 +205,16 @@ jobs:
           - ""
           - "--no-default-features"
           - "--all-features"
+        include:
+          - features: "--no-default-features"
+            combination:
+              - ""
+              - "--features dlopen2"
+              - "--features link"
+              - "--features link,mqai"
+              - "--features link,exits"
+              - "--features dlopen2,mqai"
+              - "--features dlopen2,exits"
     runs-on: ubuntu-24.04
     permissions:
       checks: write
@@ -263,7 +239,7 @@ jobs:
           RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
         with:
-          check-args: ${{ matrix.features }}
+          check-args: --tests --examples ${{ matrix.features }} ${{ matrix.combinations }}
           token: ${{secrets.GITHUB_TOKEN}}
 
   minimum:
@@ -303,22 +279,6 @@ jobs:
         with:
           tool: cargo-docs-rs
       - run: cargo docs-rs
-
-  pregen_outcome:
-    if: ${{ always() }}
-    runs-on: ubuntu-24.04
-    name: Pregen outcome
-    needs: [pregen]
-    steps:
-      - run: |
-          result="${NEEDS_RESULT}"
-          if [[ $result == "success" || $result == "skipped" ]]; then
-            exit 0
-          else
-            exit 1
-          fi
-        env:
-          NEEDS_RESULT: ${{ needs.pregen.result }}
 
   clippy_outcome:
     if: ${{ always() }}

@@ -2,10 +2,10 @@ use std::marker::PhantomData;
 
 use libmqm_sys::Mqai;
 
-use crate::values::{MqaiSelector, MQIND, MQCC, MQRC};
+use crate::types::{Selector, MQIND};
 use crate::core::Library;
 use crate::prelude::*;
-use crate::{sys, ResultComp, ResultCompErr, WithMqError as _};
+use crate::{sys, constants, ResultComp, ResultCompErr, WithMqError as _};
 
 use crate::Error;
 
@@ -16,7 +16,7 @@ where
     B: BagDrop,
     L: Library<MQ: Mqai>,
 {
-    selector: MqaiSelector,
+    selector: Selector,
     index: sys::MQLONG,
     count: sys::MQLONG,
     bag: &'bag Bag<B, L>,
@@ -42,9 +42,11 @@ where
         }
         let result = match T::inq_bag_item(self.selector, MQIND(self.index), self.bag) {
             Err(e) => match e.mqi_error() {
-                Some(&Error(MQCC(sys::MQCC_FAILED), _, MQRC(sys::MQRC_SELECTOR_NOT_PRESENT | sys::MQRC_INDEX_NOT_PRESENT))) => {
-                    None
-                }
+                Some(&Error(
+                    constants::MQCC_FAILED,
+                    _,
+                    constants::MQRC_SELECTOR_NOT_PRESENT | constants::MQRC_INDEX_NOT_PRESENT,
+                )) => None,
                 _ => Some(Err(e)),
             },
             other => Some(other),
@@ -60,7 +62,7 @@ where
     B: BagDrop,
     L: Library<MQ: Mqai> + Clone,
 {
-    pub fn try_iter<T: BagItemGet<L>>(&self, selector: MqaiSelector) -> ResultComp<BagItem<T, B, L>> {
+    pub fn try_iter<T: BagItemGet<L>>(&self, selector: Selector) -> ResultComp<BagItem<T, B, L>> {
         self.mq.mq_count_items(self, selector).map_completion(|count| BagItem {
             selector,
             count,
@@ -70,7 +72,7 @@ where
         })
     }
 
-    pub fn try_bag_iter(&self, selector: MqaiSelector) -> ResultComp<BagItem<Bag<Embedded, L>, B, L>> {
+    pub fn try_bag_iter(&self, selector: Selector) -> ResultComp<BagItem<Bag<Embedded, L>, B, L>> {
         self.try_iter(selector)
     }
 }
@@ -79,20 +81,14 @@ where
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use crate::prelude::*;
-    use crate::{
-        admin::Bag,
-        sys,
-        test::mq_library,
-        values::{MqaiSelector, MQCBO},
-        Completion,
-    };
+    use crate::{admin::Bag, sys, test::mq_library, types::Selector, constants, Completion};
 
     #[test]
     fn test_empty_iterator() -> Result<(), Box<dyn std::error::Error>> {
         let lib = mq_library();
 
-        let bag = Bag::new_lib(&lib, MQCBO(sys::MQCBO_NONE)).warn_as_error()?;
-        let mut i = bag.try_iter::<sys::MQLONG>(MqaiSelector(0)).warn_as_error()?;
+        let bag = Bag::new_lib(&lib, constants::MQCBO_NONE).warn_as_error()?;
+        let mut i = bag.try_iter::<sys::MQLONG>(Selector(0)).warn_as_error()?;
 
         assert_eq!(i.size_hint(), (0, Some(0)));
         assert!(i.next().is_none());
@@ -103,9 +99,9 @@ mod tests {
     fn test_one_iterator() -> Result<(), Box<dyn std::error::Error>> {
         let lib = mq_library();
 
-        let bag = Bag::new_lib(&lib, MQCBO(sys::MQCBO_NONE)).warn_as_error()?;
-        bag.add(MqaiSelector(0), &99).warn_as_error()?;
-        let mut i = bag.try_iter::<sys::MQLONG>(MqaiSelector(0)).warn_as_error()?;
+        let bag = Bag::new_lib(&lib, constants::MQCBO_NONE).warn_as_error()?;
+        bag.add(Selector(0), &99).warn_as_error()?;
+        let mut i = bag.try_iter::<sys::MQLONG>(Selector(0)).warn_as_error()?;
 
         assert_eq!(i.size_hint(), (1, Some(1)));
         assert!(matches!(i.next(), Some(Ok(Completion(99, _)))));

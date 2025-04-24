@@ -1,23 +1,18 @@
-use crate::{values, core::ObjectHandle, MqStruct};
-
-use crate::{
-    core::{self, values::MQCO},
-    Conn,
-};
-use crate::{sys, Error, ResultCompErr};
-use crate::ResultComp;
+use crate::{core::ObjectHandle, MqStruct, Conn};
+use crate::{sys, constants, Error, ResultComp, ResultCompErr};
+use crate::types::{MQCO, MQOO};
 
 pub struct OpenParamOption<'a, T> {
     pub mqod: MqStruct<'a, sys::MQOD>,
     pub options: T,
 }
 
-pub type OpenParam<'a> = OpenParamOption<'a, values::MQOO>;
+pub type OpenParam<'a> = OpenParamOption<'a, MQOO>;
 
 #[must_use]
 #[derive(Debug)]
 pub struct Object<C: Conn> {
-    pub(super) handle: core::ObjectHandle,
+    pub(super) handle: ObjectHandle,
     pub(super) connection: C,
     pub(super) close_options: MQCO,
 }
@@ -48,7 +43,7 @@ pub trait OpenAttr<S, O> {
 
 impl<C: Conn> Object<C> {
     #[must_use]
-    pub const fn handle(&self) -> &core::ObjectHandle {
+    pub const fn handle(&self) -> &ObjectHandle {
         &self.handle
     }
 
@@ -64,7 +59,7 @@ impl<C: Conn> Object<C> {
         Self {
             handle,
             connection,
-            close_options: values::MQCO(sys::MQCO_NONE),
+            close_options: constants::MQCO_NONE,
         }
     }
 
@@ -95,29 +90,32 @@ impl<C: Conn> Drop for Object<C> {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use crate::values::MQCO;
-    use crate::sys;
+    use crate::{sys, types};
+    use super::*;
 
     #[test]
     fn close_option() {
-        assert_eq!(MQCO(sys::MQCO_DELETE | 0xFF00).to_string(), "MQCO_DELETE|0xFF00");
         assert_eq!(
-            MQCO(sys::MQCO_DELETE | sys::MQCO_QUIESCE).to_string(),
+            (constants::MQCO_DELETE | types::MQCO(0xFF00)).to_string(),
+            "MQCO_DELETE|0xFF00"
+        );
+        assert_eq!(
+            (constants::MQCO_DELETE | constants::MQCO_QUIESCE).to_string(),
             "MQCO_DELETE|MQCO_QUIESCE"
         );
-        assert_eq!(MQCO(sys::MQCO_DELETE).to_string(), "MQCO_DELETE");
+        assert_eq!(constants::MQCO_DELETE.to_string(), "MQCO_DELETE");
         assert_eq!(MQCO(0).to_string(), "MQCO_NONE");
         assert_eq!(MQCO(0xFF00).to_string(), "0xFF00");
 
-        let (list_iter, _) = MQCO(sys::MQCO_DELETE).masked_list();
+        let (list_iter, _) = constants::MQCO_DELETE.bitflags_list();
         let list = list_iter.collect::<Vec<_>>();
         assert_eq!(list, &[(1, "MQCO_DELETE")]);
 
-        let (list_iter, _) = MQCO(sys::MQCO_NONE).masked_list();
+        let (list_iter, _) = constants::MQCO_NONE.bitflags_list();
         let list = list_iter.collect::<Vec<_>>();
         assert_eq!(list, &[]);
 
-        let (list_iter, _) = MQCO(sys::MQCO_DELETE | sys::MQCO_QUIESCE).masked_list();
+        let (list_iter, _) = (constants::MQCO_DELETE | constants::MQCO_QUIESCE).bitflags_list();
         let list = list_iter.collect::<Vec<_>>();
         assert_eq!(
             list,

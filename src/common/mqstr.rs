@@ -1,6 +1,6 @@
 use std::{fmt::Display, ptr, str::FromStr};
 
-use crate::{sys, values, EncodedString};
+use crate::{core::CCSID, sys, EncodedString};
 
 use super::conversion;
 
@@ -201,8 +201,8 @@ impl<const N: usize> TryFrom<&str> for MqStr<N> {
 }
 
 impl<const N: usize> EncodedString for MqStr<N> {
-    fn ccsid(&self) -> values::CCSID {
-        values::CCSID(1208)
+    fn ccsid(&self) -> CCSID {
+        CCSID(1208)
     }
 
     fn data(&self) -> &[sys::MQCHAR] {

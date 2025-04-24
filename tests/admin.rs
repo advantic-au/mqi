@@ -2,7 +2,8 @@
 
 use mqi::{prelude::*, ThreadNone};
 use mqi::admin::Bag;
-use mqi::values;
+use mqi::types::Selector;
+use mqi::constants;
 use mqi::types::ObjectName;
 use mqi::MqStr;
 use mqi::sys;
@@ -21,18 +22,14 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
             .returning(|_, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc));
     });
 
-    let admin_bag = Bag::new_lib(connection.library(), values::MQCBO(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
-    admin_bag.add(values::MqaiSelector(sys::MQCA_Q_NAME), "*")?.discard_warning();
-    admin_bag
-        .add(values::MqaiSelector(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?
-        .discard_warning();
+    let admin_bag = Bag::new_lib(connection.library(), constants::MQCBO_ADMIN_BAG).warn_as_error()?;
+    admin_bag.add(Selector(sys::MQCA_Q_NAME), "*")?.discard_warning();
+    admin_bag.add(Selector(sys::MQIA_Q_TYPE), &sys::MQQT_ALL)?.discard_warning();
 
     let qm = mqi::connect_lib::<ThreadNone, _>(connection.library(), &()).warn_as_error()?;
-    let execute_result = qm.execute(&admin_bag, &values::MQCMD(sys::MQCMD_INQUIRE_Q)).warn_as_error()?;
+    let execute_result = qm.execute(&admin_bag, &constants::MQCMD_INQUIRE_Q).warn_as_error()?;
 
-    for bag in execute_result
-        .try_bag_iter(values::MqaiSelector(sys::MQHA_BAG_HANDLE))?
-        .flatten()
+    for bag in execute_result.try_bag_iter(Selector(sys::MQHA_BAG_HANDLE))?.flatten()
     // flatten effectively ignores items that have errors
     {
         let q = bag.inquire::<ObjectName>(sys::MQCA_Q_NAME)?;

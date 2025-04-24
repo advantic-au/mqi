@@ -4,8 +4,10 @@ use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
 use mqi::test::mock::MockFunctions;
-use mqi::{core::ConnectionHandle, sys, values, MqStruct, Object, ThreadBlock, ThreadNone, MQMD};
+use mqi::{core::ConnectionHandle, sys, MqStruct, Object, ThreadBlock, ThreadNone, MQMD};
 use mqi::prelude::*;
+use mqi::types::{MQCBDO, MQCBCT, MQCS, MQCBCF, MQRD, MQRC, MQCC};
+use mqi::constants;
 
 use libmqm_default as default;
 
@@ -15,7 +17,7 @@ fn qm() -> Result<(), Box<dyn Error>> {
     let mut qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, &()).warn_as_error()?;
 
     qm.register_event_handler(
-        values::MQCBDO(
+        MQCBDO(
             sys::MQCBDO_NONE
                 | sys::MQCBDO_MC_EVENT_CALL
                 | sys::MQCBDO_EVENT_CALL
@@ -25,12 +27,12 @@ fn qm() -> Result<(), Box<dyn Error>> {
             // | sys::MQCBDO_STOP_CALL,
         ),
         |_, options| {
-            println!("{}", values::MQCBCT(options.CallType));
-            println!("{}", values::MQCS(options.State));
-            println!("{}", values::MQCC(options.CompCode));
-            println!("{}", values::MQRC(options.Reason));
-            println!("{}", values::MQCBF(options.Flags));
-            println!("{}", values::MQRD(options.ReconnectDelay));
+            println!("{}", MQCBCT(options.CallType));
+            println!("{}", MQCS(options.State));
+            println!("{}", MQCC(options.CompCode));
+            println!("{}", MQRC(options.Reason));
+            println!("{}", MQCBCF(options.Flags));
+            println!("{}", MQRD(options.ReconnectDelay));
         },
     )?;
 
@@ -112,7 +114,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
         qm.mq()
             .mqcb(
                 qm.handle(),
-                values::MQOP(sys::MQOP_REGISTER),
+                constants::MQOP_REGISTER,
                 &cbd,
                 Some(object.handle()),
                 Some(&*mqmd),
@@ -123,7 +125,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
         let ctlo = MqStruct::new(default::MQCTLO_DEFAULT);
 
         qm.mq()
-            .mqctl(qm.handle(), values::MQOP(sys::MQOP_START_WAIT), &ctlo)
+            .mqctl(qm.handle(), constants::MQOP_START_WAIT, &ctlo)
             .warn_as_error()
             .expect("mqctl should not fail");
 
@@ -138,7 +140,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
     // let ctlo = MqStruct::<sys::MQCTLO>::default();
     // connection
     //     .mq()
-    //     .mqctl(connection.handle(), MQOP(sys::MQOP_SUSPEND), &ctlo)
+    //     .mqctl(connection.handle(), constants::MQOP_SUSPEND, &ctlo)
     //     .warn_as_error()?;
 
     // object.close().warn_as_error()?;

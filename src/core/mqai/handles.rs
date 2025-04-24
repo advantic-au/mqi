@@ -1,9 +1,12 @@
 use std::fmt::Display;
 
 use crate::core::Handle;
-use crate::{impl_constant_lookup, mapping, sys};
+use crate::sys;
 
-use crate::constants::{ConstLookup, HasConstLookup};
+use libmqm_constants::{
+    lookup::{ConstLookup, HasConstLookup},
+    mapping,
+};
 
 pub mod raw {
     use crate::{core::RawHandle, sys};
@@ -24,7 +27,11 @@ impl From<sys::MQHBAG> for BagHandle {
     }
 }
 
-impl_constant_lookup!(BagHandle, mapping::MQHB_CONST);
+impl HasConstLookup for BagHandle {
+    fn const_lookup<'a>() -> &'a (impl ConstLookup + 'static) {
+        &mapping::MQHB_MAPSTR
+    }
+}
 
 impl Display for BagHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

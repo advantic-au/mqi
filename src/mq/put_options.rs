@@ -1,4 +1,4 @@
-use crate::{macros::all_multi_tuples, prelude::*, sys, types, values, Conn, MqStruct, Properties, ResultComp};
+use crate::{macros::all_multi_tuples, prelude::*, types::MQPMO, sys, types, Conn, MqStruct, Properties, ResultComp};
 
 use super::{
     impl_mqstruct_min_version,
@@ -55,9 +55,9 @@ impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
     }
 }
 
-impl PutOption<'_> for values::MQPMO {
+impl PutOption<'_> for MQPMO {
     fn apply_param(&self, (.., pmo): &mut PutParam<'_>) {
-        pmo.Options |= self.value();
+        pmo.Options |= self.0;
     }
 }
 
@@ -192,7 +192,8 @@ mod test {
 
     use crate::put::PutOption;
     use crate::test::mock;
-    use crate::{values, Properties};
+    use crate::Properties;
+    use crate::types::MQCMHO;
 
     use super::*;
 
@@ -208,8 +209,8 @@ mod test {
 
         let mut put_param = (MqStruct::new(default::MQMD2_DEFAULT), MqStruct::new(default::MQPMO_DEFAULT));
 
-        let source = Properties::new(&qm, values::MQCMHO::default())?;
-        let mut outcome = Properties::new(&qm, values::MQCMHO::default())?;
+        let source = Properties::new(&qm, MQCMHO::default())?;
+        let mut outcome = Properties::new(&qm, MQCMHO::default())?;
         let action = PropertyAction::Reply(&source, &mut outcome);
         action.apply_param(&mut put_param);
 

@@ -1,19 +1,7 @@
-use crate::values::{MQCC, MQRC};
-use crate::sys;
-use crate::HasMqNames;
+use crate::types::{MQCC, MQRC};
+use crate::constants;
 use std::fmt::{Debug, Display};
 
-impl MQRC {
-    #[must_use]
-    pub fn ibm_reference_url(&self, language: &str, version: Option<&str>) -> Option<String> {
-        let name = self.mq_primary_name()?.to_lowercase().replace('_', "-");
-        let version = version.unwrap_or("latest");
-        let code = self.value();
-        Some(format!(
-            "https://www.ibm.com/docs/{language}/ibm-mq/{version}?topic=codes-{code}-{code:04x}-rc{code}-{name}"
-        ))
-    }
-}
 /// A value returned from an MQ API call, optionally with a warning [`MQRC`]
 #[derive(Debug, Clone, derive_more::Deref, derive_more::DerefMut, derive_more::AsRef, derive_more::AsMut)]
 #[must_use]
@@ -151,30 +139,8 @@ where
 impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
     fn warn_as_error(self) -> Result<T, E> {
         match self {
-            Ok(Completion(_, Some((warn_cc, verb)))) => Err(E::from(Error(MQCC::from(sys::MQCC_WARNING), verb, warn_cc))),
+            Ok(Completion(_, Some((warn_cc, verb)))) => Err(E::from(Error(constants::MQCC_WARNING, verb, warn_cc))),
             other => other.map(|Completion(value, ..)| value),
         }
-    }
-}
-
-#[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
-mod tests {
-    use crate::sys;
-    use crate::values::MQRC;
-
-    #[test]
-    fn reason_code_display() {
-        assert_eq!(MQRC::from(sys::MQRC_Q_MGR_ACTIVE).to_string(), "MQRC_Q_MGR_ACTIVE");
-        assert_eq!(MQRC::from(sys::MQRC_NONE).to_string(), "MQRC_NONE");
-        assert_eq!(MQRC::from(-1).to_string(), "-1");
-    }
-
-    #[test]
-    fn ibm_reference_url() {
-        assert_eq!(
-            MQRC::from(sys::MQRC_Q_ALREADY_EXISTS).ibm_reference_url("en", None),
-            Some("https://www.ibm.com/docs/en/ibm-mq/latest?topic=codes-2290-08f2-rc2290-mqrc-q-already-exists".to_owned())
-        );
     }
 }

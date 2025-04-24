@@ -1,3 +1,5 @@
+#![cfg(any(feature = "link", feature = "dlopen2"))]
+
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::error::Error;
@@ -7,7 +9,8 @@ use mqi::headers::fmt;
 use mqi::open_options::SelectionString;
 use mqi::prelude::*;
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
-use mqi::values;
+use mqi::constants;
+use mqi::types::{MQOO, MQCMHO, MQXA};
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
 use mqi::{get, Properties};
 use mqi::{attribute, sys, Object};
@@ -25,7 +28,7 @@ fn no_message() -> Result<(), Box<dyn std::error::Error>> {
         connection = test::mock::connect_ok(|mock_library| {
             let mut seq = mockall::Sequence::new();
             mock_library.open_ok(0x0c0c, 1, &mut seq);
-            mock_library.get_error(sys::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
+            mock_library.get_error(constants::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
         });
     }
     #[cfg(not(feature = "mock"))]
@@ -38,7 +41,7 @@ fn no_message() -> Result<(), Box<dyn std::error::Error>> {
         &connection,
         &(
             QUEUE,
-            values::MQOO(sys::MQOO_INPUT_AS_Q_DEF),
+            constants::MQOO_INPUT_AS_Q_DEF,
             SelectionString("Root.MQMD.CorrelId = 0x0c0c0c0c"), // This should not exist
         ),
     )?;
@@ -77,13 +80,13 @@ fn put_get_message() -> Result<(), Box<dyn std::error::Error>> {
         connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
-    let object = Object::open(&connection, &(QUEUE, values::MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
+    let object = Object::open(&connection, &(QUEUE, MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
 
     let mid = object
         .put_message_with::<MessageId>(&(), "put_get_message test")
         .warn_as_error()?;
 
-    let mut properties = Properties::new(&connection, values::MQCMHO::default())?;
+    let mut properties = Properties::new(&connection, MQCMHO::default())?;
 
     let buffer = vec![0; 4 * 1024]; // Use and consume a vector for the buffer
     let msg = object.get_as(
@@ -119,7 +122,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         // Hmmm... this works. Not documented for MQINQ though.
         #[expect(clippy::cast_possible_truncation)]
         unsafe {
-            AttributeType::new(values::MQXA(sys::MQCA_VERSION), sys::MQ_VERSION_LENGTH as u32)
+            AttributeType::new(MQXA(sys::MQCA_VERSION), sys::MQ_VERSION_LENGTH as u32)
         },
         attribute::MQIA_COMMAND_LEVEL,
     ];
@@ -154,7 +157,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
-    let object = Object::open(connection, &(QueueManagerName(mqstr!("")), values::MQOO(sys::MQOO_INQUIRE))).warn_as_error()?;
+    let object = Object::open(connection, &(QueueManagerName(mqstr!("")), constants::MQOO_INQUIRE)).warn_as_error()?;
 
     let result = object.inq(INQ)?;
     if let Some((rc, verb)) = result.warning() {
@@ -199,7 +202,7 @@ fn put_message() -> Result<(), Box<dyn Error>> {
         connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
-    let object = Object::open(connection, &(QUEUE, values::MQOO(sys::MQOO_OUTPUT))).warn_as_error()?;
+    let object = Object::open(connection, &(QUEUE, constants::MQOO_OUTPUT)).warn_as_error()?;
 
     object.put_message(&(), "message").warn_as_error()?;
 

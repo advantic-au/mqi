@@ -1,15 +1,11 @@
 use libmqm_sys::Mqai;
+use crate::types::MQCMD;
 
 use crate::core::mqai::BagHandle;
 use crate::core::ObjectHandle;
 use crate::macros::all_option_tuples;
-use crate::{prelude::*, Object};
-use crate::{
-    core::Library,
-    sys,
-    values::{MQCBO, MQCMD},
-    Conn, ResultComp,
-};
+use crate::{prelude::*, Object, constants};
+use crate::{core::Library, Conn, ResultComp};
 
 use super::{Bag, BagDrop, Owned};
 
@@ -81,7 +77,7 @@ where
     ) -> ResultComp<Bag<Owned, Self::Lib>> {
         let lib = self.mq().0.clone();
         // There shouldn't be any warnings for creating a bag - so treat the warning as an error
-        let response_bag = Bag::new_lib(lib, MQCBO(sys::MQCBO_ADMIN_BAG)).warn_as_error()?;
+        let response_bag = Bag::new_lib(lib, constants::MQCBO_ADMIN_BAG).warn_as_error()?;
 
         let mut param = ExecuteParam::default();
         options.apply_param(&mut param);

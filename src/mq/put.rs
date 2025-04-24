@@ -3,13 +3,12 @@ use std::borrow::Cow;
 use libmqm_default as default;
 use libmqm_sys::Mqi;
 
-use crate::core::{ConnectionHandle, Library, MqFunctions};
+use crate::core::{ConnectionHandle, Library, MqFunctions, CCSID};
+use crate::types::MQPMO;
 use crate::headers::{fmt, TextEnc};
 use crate::types::MessageFormat;
-use crate::{sys, Conn, MqStruct, Object, ResultComp};
-use crate::values;
+use crate::{sys, constants, Conn, MqStruct, Object, ResultComp};
 
-use super::values::{CCSID, MQENC, MQPMO};
 use super::{OpenOption, OpenParamOption};
 
 /// A trait that provides a rendered message for the [`mqput`](`crate::core::MqFunctions::mqput`) function
@@ -29,7 +28,7 @@ impl PutMessage for str {
     fn format(&self) -> MessageFormat {
         MessageFormat {
             ccsid: CCSID(1208),
-            encoding: MQENC(sys::MQENC_NATIVE),
+            encoding: constants::MQENC_NATIVE,
             fmt: TextEnc::Ascii(fmt::MQFMT_STRING),
         }
     }
@@ -146,11 +145,11 @@ where
 {
     let mut open_params = OpenParamOption {
         mqod: MqStruct::new(default::MQOD_DEFAULT),
-        options: values::MQPMO::default(),
+        options: MQPMO::default(),
     };
     open_options.apply_param(&mut open_params);
     put(put_options, message, |(md, pmo), data| {
-        pmo.Options |= open_params.options.value();
+        pmo.Options |= open_params.options.0;
         functions.mqput1(handle, &mut open_params.mqod, Some(&mut **md), pmo, data)
     })
 }
@@ -167,7 +166,7 @@ where
     } = message.format();
     let md = MqStruct::new(sys::MQMD2 {
         CodedCharSetId: ccsid,
-        Encoding: encoding.value(),
+        Encoding: encoding.0,
         Format: *fmt.into_ascii().as_ref(),
         ..default::MQMD2_DEFAULT
     });

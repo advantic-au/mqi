@@ -4,9 +4,10 @@ use std::{sync::Arc, thread};
 
 use mqi::{
     prelude::*,
-    sys, test,
+    test,
     types::{MessageId, QueueName, FORMAT_NONE},
-    values, Properties,
+    types::{MQCMHO, MQSMPO},
+    constants, Properties,
 };
 
 #[test]
@@ -14,8 +15,8 @@ fn thread() {
     const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
     let mut mock = test::mock::MockFunctions::new();
-    mock.connx_outcome(0x0d0d, sys::MQCC_OK, sys::MQRC_NONE);
-    mock.disc_outcome(sys::MQCC_OK, sys::MQRC_NONE);
+    mock.connx_outcome(0x0d0d, constants::MQCC_OK, constants::MQRC_NONE);
+    mock.disc_outcome(constants::MQCC_OK, constants::MQRC_NONE);
 
     let mut seq = mockall::Sequence::new();
     mock.properties_ok(0xf0f0, 1, &mut seq);
@@ -35,8 +36,8 @@ fn thread() {
     println!("Connection ID: {id}");
     println!("{:?}", tag.0);
     thread::spawn(move || {
-        let msg = Properties::new(qm.clone(), values::MQCMHO::default()).expect("message created");
-        msg.set_property("wally", "test", values::MQSMPO::default())
+        let msg = Properties::new(qm.clone(), MQCMHO::default()).expect("message created");
+        msg.set_property("wally", "test", MQSMPO::default())
             .warn_as_error()
             .expect("property set should not fail");
 

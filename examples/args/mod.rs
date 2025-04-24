@@ -3,9 +3,8 @@ use std::str::FromStr;
 use clap::Args;
 use mqi::{
     connect_options::{Binding, Ccdt, ConnectOption, Credentials, MqServer},
-    sys,
     types::QueueManagerName,
-    values,
+    types, constants,
 };
 
 #[derive(clap::Parser, Debug)]
@@ -48,10 +47,10 @@ impl MethodArgs {
 }
 
 impl ConnectionArgs {
-    pub fn cno(&self) -> Result<values::MQCNO, std::num::ParseIntError> {
-        let mut cno_all = values::MQCNO(sys::MQCNO_NONE);
+    pub fn cno(&self) -> Result<types::MQCNO, std::num::ParseIntError> {
+        let mut cno_all = constants::MQCNO_NONE;
         for cno in &self.cno {
-            cno_all |= values::MQCNO::from_str(cno)?;
+            cno_all |= types::MQCNO::from_str(cno)?;
         }
         Ok(cno_all)
     }

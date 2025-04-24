@@ -5,15 +5,12 @@ use std::{mem, ptr, slice};
 use std::{borrow::Cow, num::NonZero};
 
 use crate::conversion;
-use crate::core::ReadRaw;
-use crate::macros::reverse_ident;
-
-use libmqm_sys::lib::MQTYPE_STRING;
-
-use crate::macros::all_multi_tuples;
+use crate::core::{ReadRaw, CCSID};
+use crate::macros::{all_multi_tuples, reverse_ident};
 use crate::{prelude::*, ResultCompErr};
 use crate::{sys, Completion, Error, MqStr, MqStruct, ResultComp, StrCcsidOwned, StringCcsid};
-use crate::values::{self, CCSID, MQENC, MQTYPE};
+use crate::constants;
+use crate::types::{MQENC, MQTYPE, MQPD, MQCOPY};
 
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
@@ -145,11 +142,11 @@ pub enum Value {
 impl Metadata {
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn new(length: usize, impo: &MqStruct<sys::MQIMPO>, value_type: values::MQTYPE) -> Self {
+    pub fn new(length: usize, impo: &MqStruct<sys::MQIMPO>, value_type: MQTYPE) -> Self {
         Self {
             length,
             ccsid: impo.ReturnedCCSID,
-            encoding: values::MQENC(impo.ReturnedEncoding),
+            encoding: MQENC(impo.ReturnedEncoding),
             value_type,
         }
     }
@@ -209,36 +206,36 @@ impl PropertyAttr for Attributes {
 
 impl Attributes {
     #[allow(clippy::missing_const_for_fn, reason = "false positive")]
-    pub fn set_support(&mut self, support: values::MQPD) {
-        self.mqpd.Support = support.value();
+    pub fn set_support(&mut self, support: MQPD) {
+        self.mqpd.Support = support.0;
     }
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn, reason = "false positive")]
-    pub fn support(&self) -> values::MQPD {
-        values::MQPD(self.mqpd.Support)
+    pub fn support(&self) -> MQPD {
+        MQPD(self.mqpd.Support)
     }
 
     #[allow(clippy::missing_const_for_fn, reason = "false positive")]
-    pub fn set_context(&mut self, context: values::MQPD) {
-        self.mqpd.Context = context.value();
-    }
-
-    #[must_use]
-    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
-    pub fn context(&self) -> values::MQPD {
-        values::MQPD(self.mqpd.Context)
-    }
-
-    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
-    pub fn set_copy_options(&mut self, copy_options: values::MQPD) {
-        self.mqpd.CopyOptions = copy_options.value();
+    pub fn set_context(&mut self, context: MQPD) {
+        self.mqpd.Context = context.0;
     }
 
     #[must_use]
     #[allow(clippy::missing_const_for_fn, reason = "false positive")]
-    pub fn copy_options(&self) -> values::MQCOPY {
-        values::MQCOPY(self.mqpd.CopyOptions)
+    pub fn context(&self) -> MQPD {
+        MQPD(self.mqpd.Context)
+    }
+
+    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
+    pub fn set_copy_options(&mut self, copy_options: MQPD) {
+        self.mqpd.CopyOptions = copy_options.0;
+    }
+
+    #[must_use]
+    #[allow(clippy::missing_const_for_fn, reason = "false positive")]
+    pub fn copy_options(&self) -> MQCOPY {
+        MQCOPY(self.mqpd.CopyOptions)
     }
 }
 
@@ -248,7 +245,7 @@ macro_rules! impl_primitive_setproptype {
             type Data = Self;
             fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
                 smpo.ValueEncoding = sys::MQENC_NATIVE;
-                (self, values::MQTYPE($mqtype))
+                (self, MQTYPE($mqtype))
             }
         }
     };
@@ -258,7 +255,7 @@ impl SetProperty for bool {
     type Data = sys::MQLONG;
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
         smpo.ValueEncoding = sys::MQENC_NATIVE;
-        (if *self { &1 } else { &0 }, values::MQTYPE(sys::MQTYPE_BOOLEAN))
+        (if *self { &1 } else { &0 }, constants::MQTYPE_BOOLEAN)
     }
 }
 
@@ -276,7 +273,7 @@ impl SetProperty for str {
     type Data = Self;
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
         smpo.ValueCCSID = 1208;
-        (self, MQTYPE(sys::MQTYPE_STRING))
+        (self, constants::MQTYPE_STRING)
     }
 }
 
@@ -286,7 +283,7 @@ impl<T: AsRef<[sys::MQCHAR]>> SetProperty for StringCcsid<T> {
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
         let CCSID(ccsid) = self.ccsid;
         smpo.ValueCCSID = ccsid;
-        (self.data.as_ref(), values::MQTYPE(MQTYPE_STRING))
+        (self.data.as_ref(), constants::MQTYPE_STRING)
     }
 }
 
@@ -295,14 +292,14 @@ impl<const N: usize> SetProperty for MqStr<N> {
 
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
         smpo.ValueCCSID = 1208;
-        (self.as_bytes(), MQTYPE(sys::MQTYPE_STRING))
+        (self.as_bytes(), constants::MQTYPE_STRING)
     }
 }
 
 impl SetProperty for [sys::MQBYTE] {
     type Data = Self;
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, _smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
-        (self, MQTYPE(sys::MQTYPE_BYTE_STRING))
+        (self, constants::MQTYPE_BYTE_STRING)
     }
 }
 
@@ -366,8 +363,8 @@ impl PropertyAttr for Name<String> {
         param.name_required = NameUsage::AnyLength;
         param.impo.Options |= sys::MQIMPO_CONVERT_VALUE;
         match mqinqmp(param)? {
-            Completion(_, Some((rc @ values::MQRC(sys::MQRC_PROP_NAME_NOT_CONVERTED), verb))) => {
-                Err(Error(values::MQCC(sys::MQCC_WARNING), verb, rc))
+            Completion(_, Some((rc @ constants::MQRC_PROP_NAME_NOT_CONVERTED, verb))) => {
+                Err(Error(constants::MQCC_WARNING, verb, rc))
             }
             other => Ok(other.map(|state| {
                 // SAFETY: The `expect` will succeed as the Option is always `Some` when
@@ -389,8 +386,8 @@ impl<const N: usize> PropertyAttr for Name<MqStr<N>> {
         param.name_required = NameUsage::MaxLength(unsafe { NonZero::new_unchecked(N) });
         param.impo.Options |= sys::MQIMPO_CONVERT_VALUE;
         match mqinqmp(param)? {
-            Completion(_, Some((rc @ values::MQRC(sys::MQRC_PROP_NAME_NOT_CONVERTED), verb))) => {
-                Err(Error(values::MQCC(sys::MQCC_WARNING), verb, rc))
+            Completion(_, Some((rc @ constants::MQRC_PROP_NAME_NOT_CONVERTED, verb))) => {
+                Err(Error(constants::MQCC_WARNING, verb, rc))
             }
             other => Ok(other.map(|state| {
                 let name = state.name.as_ref().expect("Name should not be None");
@@ -430,23 +427,23 @@ impl PropertyValue for Value {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.value_type = MQTYPE(sys::MQTYPE_AS_SET);
+        param.value_type = constants::MQTYPE_AS_SET;
         param.impo.Options |= sys::MQIMPO_NONE;
-        mqinqmp(param).map_completion(|state| match param.value_type.value() {
-            sys::MQTYPE_BOOLEAN => Self::Boolean(i32::as_primitive(&state.value) != 0),
-            sys::MQTYPE_STRING => Self::String(StringCcsid {
+        mqinqmp(param).map_completion(|state| match param.value_type {
+            constants::MQTYPE_BOOLEAN => Self::Boolean(i32::as_primitive(&state.value) != 0),
+            constants::MQTYPE_STRING => Self::String(StringCcsid {
                 ccsid: CCSID(param.impo.ReturnedCCSID),
                 data: conversion::bytes_to_cow_mqchar(state.value).into_owned(),
                 le: (param.impo.ReturnedEncoding & sys::MQENC_INTEGER_REVERSED) != 0,
             }),
-            sys::MQTYPE_BYTE_STRING => Self::ByteString(state.value.into()),
-            sys::MQTYPE_INT8 => Self::Int8(i8::as_primitive(&state.value)),
-            sys::MQTYPE_INT16 => Self::Int16(i16::as_primitive(&state.value)),
-            sys::MQTYPE_INT32 => Self::Int32(i32::as_primitive(&state.value)),
-            sys::MQTYPE_INT64 => Self::Int64(i64::as_primitive(&state.value)),
-            sys::MQTYPE_FLOAT32 => Self::Float32(f32::as_primitive(&state.value)),
-            sys::MQTYPE_FLOAT64 => Self::Float64(f64::as_primitive(&state.value)),
-            sys::MQTYPE_NULL => Self::Null,
+            constants::MQTYPE_BYTE_STRING => Self::ByteString(state.value.into()),
+            constants::MQTYPE_INT8 => Self::Int8(i8::as_primitive(&state.value)),
+            constants::MQTYPE_INT16 => Self::Int16(i16::as_primitive(&state.value)),
+            constants::MQTYPE_INT32 => Self::Int32(i32::as_primitive(&state.value)),
+            constants::MQTYPE_INT64 => Self::Int64(i64::as_primitive(&state.value)),
+            constants::MQTYPE_FLOAT32 => Self::Float32(f32::as_primitive(&state.value)),
+            constants::MQTYPE_FLOAT64 => Self::Float64(f64::as_primitive(&state.value)),
+            constants::MQTYPE_NULL => Self::Null,
             _ => unreachable!(),
         })
     }
@@ -465,8 +462,8 @@ macro_rules! impl_primitive_propertyvalue {
                 param.value_type = MQTYPE($mqtype);
                 param.impo.Options |= sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE; // TODO: Oh shit. Rework value type to not convert
                 match mqinqmp(param)? {
-                    Completion(_, Some((rc @ values::MQRC(sys::MQRC_PROP_VALUE_NOT_CONVERTED), verb))) => {
-                        Err(Error(values::MQCC(sys::MQCC_WARNING), verb, rc))
+                    Completion(_, Some((rc @ constants::MQRC_PROP_VALUE_NOT_CONVERTED, verb))) => {
+                        Err(Error(constants::MQCC_WARNING, verb, rc))
                     }
                     other => Ok(other.map(|state| Self::as_primitive(&*state.value))),
                 }
@@ -502,7 +499,7 @@ impl PropertyValue for bool {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.value_type = MQTYPE(sys::MQTYPE_BOOLEAN);
+        param.value_type = constants::MQTYPE_BOOLEAN;
         param.impo.Options |= sys::MQIMPO_CONVERT_TYPE;
         mqinqmp(param).map_completion(|state| sys::MQLONG::as_primitive(&state.value) != 0)
     }
@@ -519,7 +516,7 @@ impl PropertyValue for Vec<sys::MQBYTE> {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.value_type = MQTYPE(sys::MQTYPE_BYTE_STRING);
+        param.value_type = constants::MQTYPE_BYTE_STRING;
         param.impo.Options |= sys::MQIMPO_CONVERT_TYPE;
         mqinqmp(param).map_completion(|state| state.value.into())
     }
@@ -532,7 +529,7 @@ impl<const N: usize> PropertyValue for [u8; N] {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.value_type = MQTYPE(sys::MQTYPE_BYTE_STRING);
+        param.value_type = constants::MQTYPE_BYTE_STRING;
         param.impo.Options |= sys::MQIMPO_CONVERT_TYPE;
         mqinqmp(param).map_completion(|state| {
             let mut result: [u8; N] = [0; N];
@@ -553,7 +550,7 @@ impl<const N: usize> PropertyValue for MqStr<N> {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.value_type = MQTYPE(sys::MQTYPE_BYTE_STRING);
+        param.value_type = constants::MQTYPE_BYTE_STRING;
         param.impo.Options |= sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
         mqinqmp(param)
             .map_completion(|state| Self::from_byte_slice(&state.value).expect("buffer size should equal required length"))
@@ -569,7 +566,7 @@ impl<T: AsRef<[u8]>> SetProperty for Raw<T> {
 
     fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
         smpo.ValueCCSID = self.metadata.ccsid;
-        smpo.ValueEncoding = self.metadata.encoding.value();
+        smpo.ValueEncoding = self.metadata.encoding.0;
         (&self.data.as_ref()[..self.metadata.length], self.metadata.value_type)
     }
 }
@@ -581,7 +578,7 @@ impl PropertyValue for Raw<Vec<u8>> {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.value_type = MQTYPE(sys::MQTYPE_AS_SET);
+        param.value_type = constants::MQTYPE_AS_SET;
         param.impo.Options |= sys::MQIMPO_NONE;
         mqinqmp(param).map_completion(|state| {
             let len = state.value.len();
@@ -597,7 +594,7 @@ impl<const N: usize> PropertyValue for Raw<[u8; N]> {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.value_type = MQTYPE(sys::MQTYPE_AS_SET);
+        param.value_type = constants::MQTYPE_AS_SET;
         param.impo.Options |= sys::MQIMPO_NONE;
         mqinqmp(param).map_completion(|state| {
             let mut data: [u8; N] = [0; N];
@@ -619,11 +616,11 @@ impl PropertyValue for String {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.value_type = MQTYPE(sys::MQTYPE_STRING);
+        param.value_type = constants::MQTYPE_STRING;
         param.impo.Options |= sys::MQIMPO_CONVERT_VALUE | sys::MQIMPO_CONVERT_TYPE;
         match mqinqmp(param)? {
-            Completion(_, Some((rc @ values::MQRC(sys::MQRC_PROP_VALUE_NOT_CONVERTED), verb))) => {
-                Err(Error(values::MQCC(sys::MQCC_WARNING), verb, rc))
+            Completion(_, Some((rc @ constants::MQRC_PROP_VALUE_NOT_CONVERTED, verb))) => {
+                Err(Error(constants::MQCC_WARNING, verb, rc))
             }
             // SAFETY: The bytes coming from the MQI library must be correct as there
             // is no conversion error
@@ -639,7 +636,7 @@ impl PropertyValue for StrCcsidOwned {
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
     {
-        param.value_type = MQTYPE(sys::MQTYPE_STRING);
+        param.value_type = constants::MQTYPE_STRING;
         param.impo.Options |= sys::MQIMPO_CONVERT_TYPE;
         mqinqmp(param).map_completion(|state| Self {
             ccsid: CCSID(param.impo.ReturnedCCSID),
@@ -737,97 +734,95 @@ mod tests {
         conversion::slice_byte_to_mqchar,
         mqstr,
         properties_options::{Metadata, Name},
-        sys,
-        values::{MQRC, MQTYPE},
-        Completion, MqStr, MqStruct, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
+        sys, Completion, MqStr, MqStruct, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
     };
 
-    use super::{Attributes, NameUsage, PropertyAttr, PropertyParam, PropertyState, SetProperty, Value};
+    use super::*;
 
     #[test]
     fn set_property() {
         test_sp("test", |_, smpo, data, mq_type| {
             assert_eq!("test", data);
-            assert_eq!(MQTYPE(sys::MQTYPE_STRING), mq_type);
+            assert_eq!(constants::MQTYPE_STRING, mq_type);
             assert_eq!(smpo.ValueCCSID, 1208);
         });
 
         let mqstr_sub: MqStr<8> = mqstr!("test");
         test_sp(&mqstr_sub, |_, smpo, data, mq_type| {
             assert_eq!(mqstr_sub.as_bytes(), data);
-            assert_eq!(MQTYPE(sys::MQTYPE_STRING), mq_type);
+            assert_eq!(constants::MQTYPE_STRING, mq_type);
             assert_eq!(smpo.ValueCCSID, 1208);
         });
 
         let encoded_str = StrCcsid::from("test");
         test_sp(&encoded_str, |_, smpo, data, mq_type| {
             assert_eq!(encoded_str.data, data);
-            assert_eq!(MQTYPE(sys::MQTYPE_STRING), mq_type);
+            assert_eq!(constants::MQTYPE_STRING, mq_type);
             assert_eq!(smpo.ValueCCSID, encoded_str.ccsid.0);
         });
 
         let byte_str = b"test";
         test_sp(byte_str.as_slice(), |_, _, data, mq_type| {
             assert_eq!(byte_str, data);
-            assert_eq!(MQTYPE(sys::MQTYPE_BYTE_STRING), mq_type);
+            assert_eq!(constants::MQTYPE_BYTE_STRING, mq_type);
         });
 
         test_sp(&false, |_, _, data, mq_type| {
             assert_eq!(&0, data);
-            assert_eq!(MQTYPE(sys::MQTYPE_BOOLEAN), mq_type);
+            assert_eq!(constants::MQTYPE_BOOLEAN, mq_type);
         });
 
         test_sp(&true, |_, _, data, mq_type| {
             assert_eq!(&1, data);
-            assert_eq!(MQTYPE(sys::MQTYPE_BOOLEAN), mq_type);
+            assert_eq!(constants::MQTYPE_BOOLEAN, mq_type);
         });
 
-        test_simple_sp::<i8>(&99, MQTYPE(sys::MQTYPE_INT8));
-        test_simple_sp::<i16>(&99, MQTYPE(sys::MQTYPE_INT16));
-        test_simple_sp::<f32>(&99.0, MQTYPE(sys::MQTYPE_FLOAT32));
-        test_simple_sp::<f64>(&99.0, MQTYPE(sys::MQTYPE_FLOAT64));
-        test_simple_sp::<sys::MQLONG>(&99, MQTYPE(sys::MQTYPE_INT32));
-        test_simple_sp::<sys::MQINT64>(&99, MQTYPE(sys::MQTYPE_INT64));
+        test_simple_sp::<i8>(&99, constants::MQTYPE_INT8);
+        test_simple_sp::<i16>(&99, constants::MQTYPE_INT16);
+        test_simple_sp::<f32>(&99.0, constants::MQTYPE_FLOAT32);
+        test_simple_sp::<f64>(&99.0, constants::MQTYPE_FLOAT64);
+        test_simple_sp::<sys::MQLONG>(&99, constants::MQTYPE_INT32);
+        test_simple_sp::<sys::MQINT64>(&99, constants::MQTYPE_INT64);
 
         test_sp(&Value::Null, |_, _, _, mq_type| {
-            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_NULL));
+            assert_eq!(mq_type, constants::MQTYPE_NULL);
         });
 
         test_sp(&Value::ByteString(b"test".into()), |_, _, _, mq_type| {
-            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_BYTE_STRING));
+            assert_eq!(mq_type, constants::MQTYPE_BYTE_STRING);
         });
 
         test_sp(&Value::String("test".into()), |_, smpo, _, mq_type| {
             assert_eq!(smpo.ValueCCSID, 1208);
-            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_STRING));
+            assert_eq!(mq_type, constants::MQTYPE_STRING);
         });
 
         test_sp(&Value::Float32(99.0), |_, _, _, mq_type| {
-            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_FLOAT32));
+            assert_eq!(mq_type, constants::MQTYPE_FLOAT32);
         });
 
         test_sp(&Value::Float64(99.0), |_, _, _, mq_type| {
-            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_FLOAT64));
+            assert_eq!(mq_type, constants::MQTYPE_FLOAT64);
         });
 
         test_sp(&Value::Boolean(false), |_, _, _, mq_type| {
-            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_BOOLEAN));
+            assert_eq!(mq_type, constants::MQTYPE_BOOLEAN);
         });
 
         test_sp(&Value::Int8(99), |_, _, _, mq_type| {
-            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_INT8));
+            assert_eq!(mq_type, constants::MQTYPE_INT8);
         });
 
         test_sp(&Value::Int16(99), |_, _, _, mq_type| {
-            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_INT16));
+            assert_eq!(mq_type, constants::MQTYPE_INT16);
         });
 
         test_sp(&Value::Int32(99), |_, _, _, mq_type| {
-            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_INT32));
+            assert_eq!(mq_type, constants::MQTYPE_INT32);
         });
 
         test_sp(&Value::Int64(99), |_, _, _, mq_type| {
-            assert_eq!(mq_type, MQTYPE(sys::MQTYPE_INT64));
+            assert_eq!(mq_type, constants::MQTYPE_INT64);
         });
     }
 
@@ -862,7 +857,7 @@ mod tests {
         assert_eq!(99, attribute.mqpd.Context);
 
         let (metadata, _) = execute_pa::<Metadata>(|param| {
-            param.value_type = MQTYPE(sys::MQTYPE_STRING);
+            param.value_type = constants::MQTYPE_STRING;
             param.impo.ReturnedCCSID = 1208;
             param.impo.ReturnedEncoding = sys::MQENC_INTEGER_NORMAL;
             Ok(Completion::new(PropertyState {
@@ -873,7 +868,7 @@ mod tests {
         .warn_as_error()?;
         assert_eq!(4, metadata.length);
         assert_eq!(1208, metadata.ccsid);
-        assert_eq!(sys::MQENC_INTEGER_NORMAL, metadata.encoding.0);
+        assert_eq!(constants::MQENC_INTEGER_NORMAL, metadata.encoding);
 
         Ok(())
     }
@@ -895,7 +890,7 @@ mod tests {
                     name: Some(Cow::from(slice_byte_to_mqchar(name))),
                     value: Cow::from(b""),
                 },
-                (MQRC(sys::MQRC_PROP_NAME_NOT_CONVERTED), ""),
+                (constants::MQRC_PROP_NAME_NOT_CONVERTED, ""),
             ))
         }
 

@@ -9,6 +9,7 @@ use crate::Connection;
 use crate::ThreadNone;
 use crate::ResultCompExt;
 
+use crate::{constants, types};
 use libmqm_sys::Mqi;
 use libmqm_sys::lib as sys;
 
@@ -270,7 +271,11 @@ mockall::mock! {
             pCompCode: sys::PMQLONG,
             pReason: sys::PMQLONG,
         ) ;
+    }
 
+    #[allow(non_snake_case)]
+    #[cfg(feature = "exits")]
+    impl libmqm_sys::Exits for Functions {
         unsafe fn MQXCNVC(
             &self,
             Hconn: sys::MQHCONN,
@@ -670,7 +675,7 @@ impl MockFunctions {
         write_len_long
     }
 
-    pub fn connx_outcome(&mut self, hconn: sys::MQHCONN, comp_code: sys::MQLONG, reason: sys::MQLONG) {
+    pub fn connx_outcome(&mut self, hconn: sys::MQHCONN, comp_code: types::MQCC, reason: types::MQRC) {
         self.expect_MQCONNX().returning(
             move |_, _, pHconn: sys::PMQHCONN, pCompCode: sys::PMQLONG, pReason: sys::PMQLONG| {
                 unsafe {
@@ -681,7 +686,7 @@ impl MockFunctions {
         );
     }
 
-    pub fn disc_outcome(&mut self, comp_code: sys::MQLONG, reason: sys::MQLONG) {
+    pub fn disc_outcome(&mut self, comp_code: types::MQCC, reason: types::MQRC) {
         self.expect_MQDISC()
             .returning(move |_, pCompCode: sys::PMQLONG, pReason: sys::PMQLONG| {
                 Self::mqi_outcome(pCompCode, pReason, comp_code, reason);
@@ -689,15 +694,15 @@ impl MockFunctions {
     }
 
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn mqi_outcome(pCompCode: sys::PMQLONG, pReason: sys::PMQLONG, comp_code: sys::MQLONG, reason: sys::MQLONG) {
+    pub fn mqi_outcome(pCompCode: sys::PMQLONG, pReason: sys::PMQLONG, comp_code: types::MQCC, reason: types::MQRC) {
         unsafe {
-            *pCompCode = comp_code;
-            *pReason = reason;
+            *pCompCode = comp_code.0;
+            *pReason = reason.0;
         }
     }
 
     pub fn mqi_outcome_ok(pCompCode: sys::PMQLONG, pReason: sys::PMQLONG) {
-        Self::mqi_outcome(pCompCode, pReason, sys::MQCC_OK, sys::MQRC_NONE);
+        Self::mqi_outcome(pCompCode, pReason, constants::MQCC_OK, constants::MQRC_NONE);
     }
 
     pub fn properties_ok(&mut self, hMsg: sys::MQHMSG, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
@@ -718,16 +723,16 @@ impl MockFunctions {
             });
     }
 
-    pub fn get_error(&mut self, mqrc: sys::MQLONG, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+    pub fn get_error(&mut self, mqrc: types::MQRC, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
         self.expect_MQGET()
-            .returning(move |_, _, _, _, _, _, _, cc, rc| Self::mqi_outcome(cc, rc, sys::MQCC_FAILED, mqrc))
+            .returning(move |_, _, _, _, _, _, _, cc, rc| Self::mqi_outcome(cc, rc, constants::MQCC_FAILED, mqrc))
             .times(count)
             .in_sequence(seq);
     }
 
-    pub fn get_bag_error(&mut self, mqrc: sys::MQLONG, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
+    pub fn get_bag_error(&mut self, mqrc: types::MQRC, count: impl Into<mockall::TimesRange>, seq: &mut mockall::Sequence) {
         self.expect_mqGetBag()
-            .returning(move |_, _, _, _, _, cc, rc| Self::mqi_outcome(cc, rc, sys::MQCC_FAILED, mqrc))
+            .returning(move |_, _, _, _, _, cc, rc| Self::mqi_outcome(cc, rc, constants::MQCC_FAILED, mqrc))
             .times(count)
             .in_sequence(seq);
     }
@@ -758,11 +763,11 @@ impl MockFunctions {
                 Self::mqi_outcome(
                     cc,
                     rc,
-                    sys::MQCC_OK,
+                    constants::MQCC_OK,
                     if mock_length < buffer_len {
-                        sys::MQRC_TRUNCATED_MSG_ACCEPTED
+                        constants::MQRC_TRUNCATED_MSG_ACCEPTED
                     } else {
-                        sys::MQRC_NONE
+                        constants::MQRC_NONE
                     },
                 );
             })
@@ -866,8 +871,8 @@ where
     F: FnOnce(&mut MockFunctions),
 {
     let mut mock = MockFunctions::new();
-    mock.connx_outcome(0x0d0d, sys::MQCC_OK, sys::MQRC_NONE);
-    mock.disc_outcome(sys::MQCC_OK, sys::MQRC_NONE);
+    mock.connx_outcome(0x0d0d, constants::MQCC_OK, constants::MQRC_NONE);
+    mock.disc_outcome(constants::MQCC_OK, constants::MQRC_NONE);
     f(&mut mock);
 
     connect_lib(Rc::from(mock), &())

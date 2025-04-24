@@ -10,8 +10,7 @@ use mqi::{
     put_options::{Context, PropertyAction},
     sys,
     types::{MessageFormat, QueueManagerName, QueueName},
-    values::{MQCMHO, MQGMO, MQOO, MQPMO},
-    MqStruct, Object, Properties, Syncpoint, ThreadNone,
+    types, constants, MqStruct, Object, Properties, Syncpoint, ThreadNone,
 };
 
 const APP_NAME: ApplName = ApplName(mqstr!("forward"));
@@ -79,7 +78,10 @@ fn main() -> anyhow::Result<()> {
     let qm_ref = qm.connection_ref();
     let obj = Object::open(
         qm_ref,
-        &(source_queue, MQOO(sys::MQOO_INPUT_AS_Q_DEF | sys::MQOO_SAVE_ALL_CONTEXT)),
+        &(
+            source_queue,
+            constants::MQOO_INPUT_AS_Q_DEF | constants::MQOO_SAVE_ALL_CONTEXT,
+        ),
     )
     .warn_as_error() // Fail on any warnings
     .context("Unable to open the object")?;
@@ -88,12 +90,12 @@ fn main() -> anyhow::Result<()> {
     let buf_write = buffer.spare_capacity_mut();
     let syncpoint = Syncpoint::new(qm_ref);
 
-    let mut properties = Properties::new(&qm, MQCMHO::default())?;
+    let mut properties = Properties::new(&qm, types::MQCMHO::default())?;
     let message: Option<(_, MqStruct<sys::MQMD2>)> = obj
         .get_data_with(
             &(
-                MQGMO(sys::MQGMO_SYNCPOINT), // Must use the syncpoint option
-                &mut properties,             // Retrieve the message properties
+                constants::MQGMO_SYNCPOINT, // Must use the syncpoint option
+                &mut properties,            // Retrieve the message properties
             ),
             buf_write, // Provide a buffer for the message
         )
@@ -105,20 +107,20 @@ fn main() -> anyhow::Result<()> {
         unsafe {
             buffer.set_len(len);
         }
-        let mut target_properties = Properties::new(&qm, MQCMHO::default())?; // Create a placeholder for target properties
+        let mut target_properties = Properties::new(&qm, types::MQCMHO::default())?; // Create a placeholder for target properties
         let fmt = MessageFormat::from_mqmd2(&md);
         qm_ref
             .put_message(
                 // Equivalent to MQPUT1
                 &(
                     // Options used when opening the queue
-                    MQPMO(sys::MQPMO_SYNCPOINT), // Syncpoint - final execution on commit.
-                    MQPMO(match args.context {
-                        ContextArg::Default => sys::MQPMO_DEFAULT_CONTEXT,
-                        ContextArg::None => sys::MQPMO_NO_CONTEXT,
-                        ContextArg::Identity => sys::MQPMO_PASS_IDENTITY_CONTEXT,
-                        ContextArg::All => sys::MQPMO_PASS_ALL_CONTEXT,
-                    }),
+                    constants::MQPMO_SYNCPOINT, // Syncpoint - final execution on commit.
+                    match args.context {
+                        ContextArg::Default => constants::MQPMO_DEFAULT_CONTEXT,
+                        ContextArg::None => constants::MQPMO_NO_CONTEXT,
+                        ContextArg::Identity => constants::MQPMO_PASS_IDENTITY_CONTEXT,
+                        ContextArg::All => constants::MQPMO_PASS_ALL_CONTEXT,
+                    },
                     target_qm,    // Target queue manager
                     target_queue, // Target queue
                 ),

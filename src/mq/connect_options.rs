@@ -9,7 +9,7 @@ use crate::{
     conversion,
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
-    sys, values, MqStr,
+    constants, sys, MqStr, types,
 };
 
 use super::{
@@ -185,7 +185,7 @@ pub struct Ccdt<'url>(pub &'url str);
 pub struct MqServer<'m> {
     channel_name: &'m str,
     connection_name: &'m str,
-    transport: values::MQXPT,
+    transport: types::MQXPT,
 }
 
 impl<'m> TryFrom<&'m str> for MqServer<'m> {
@@ -208,10 +208,10 @@ impl<'m> TryFrom<&'m str> for MqServer<'m> {
                     Err(MqServerSyntaxError::ConnectionNameFormat(connection_name.to_string()))
                 }?,
                 transport: match transport {
-                    "TCP" => Ok(values::MQXPT(sys::MQXPT_TCP)),
-                    "LU62" => Ok(values::MQXPT(sys::MQXPT_LU62)),
-                    "NETBIOS" => Ok(values::MQXPT(sys::MQXPT_NETBIOS)),
-                    "SPX" => Ok(values::MQXPT(sys::MQXPT_SPX)),
+                    "TCP" => Ok(constants::MQXPT_TCP),
+                    "LU62" => Ok(constants::MQXPT_LU62),
+                    "NETBIOS" => Ok(constants::MQXPT_NETBIOS),
+                    "SPX" => Ok(constants::MQXPT_SPX),
                     other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
                 }?,
             }),
@@ -234,7 +234,7 @@ impl<'m> ConnectOption<'m> for MqServer<'m> {
             cd.ConnectionName.as_mut(),
             conversion::slice_byte_to_mqchar(self.connection_name.as_bytes())
         ));
-        cd.TransportType = self.transport.value();
+        cd.TransportType = self.transport.0;
         cno.Options &= !sys::MQCNO_LOCAL_BINDING;
         cno.Options |= sys::MQCNO_CLIENT_BINDING;
         HAS_CD
@@ -498,12 +498,12 @@ impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'c
     }
 }
 
-impl ConnectOption<'_> for values::MQCNO {
+impl ConnectOption<'_> for types::MQCNO {
     fn apply_param<'ptr>(&self, structs: &mut ConnectStructs<'ptr>) -> i32
     where
         'static: 'ptr,
     {
-        structs.cno.Options |= self.value();
+        structs.cno.Options |= self.0;
         HAS_CNO
     }
 }
@@ -638,7 +638,7 @@ impl<S> super::ConnectAttr<S> for ConnTag {
     }
 }
 
-pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, values::MQXPT), MqServerSyntaxError> {
+pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, types::MQXPT), MqServerSyntaxError> {
     #[expect(clippy::unwrap_used)]
     let server_pattern = regex_lite::Regex::new(r"^(.+)/(.+)/(.+)$").unwrap();
 
@@ -657,10 +657,10 @@ pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, values::MQ
                 .map(ConnectionName)
                 .ok_or_else(|| MqServerSyntaxError::ConnectionNameFormat(connection_name.to_string()))?;
             let transport = match transport {
-                "TCP" => Ok(values::MQXPT(sys::MQXPT_TCP)),
-                "LU62" => Ok(values::MQXPT(sys::MQXPT_LU62)),
-                "NETBIOS" => Ok(values::MQXPT(sys::MQXPT_NETBIOS)),
-                "SPX" => Ok(values::MQXPT(sys::MQXPT_SPX)),
+                "TCP" => Ok(constants::MQXPT_TCP),
+                "LU62" => Ok(constants::MQXPT_LU62),
+                "NETBIOS" => Ok(constants::MQXPT_NETBIOS),
+                "SPX" => Ok(constants::MQXPT_SPX),
                 other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
             }?;
             Ok((channel, connection_name, transport))
@@ -687,15 +687,16 @@ pub enum MqServerSyntaxError {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use crate::values::MQXPT;
+    use crate::types::MQXPT;
+    use crate::constants;
 
     const CLIENT_MASK: sys::MQLONG = sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING;
 
-    const VALID: &[(&str, values::MQXPT, &str, &str)] = &[
-        ("a", MQXPT(sys::MQXPT_TCP), "b", "a/TCP/b"),
-        ("a", MQXPT(sys::MQXPT_SPX), "c", "a/SPX/c"),
-        ("a", MQXPT(sys::MQXPT_LU62), "d", "a/LU62/d"),
-        ("a", MQXPT(sys::MQXPT_NETBIOS), "e", "a/NETBIOS/e"),
+    const VALID: &[(&str, MQXPT, &str, &str)] = &[
+        ("a", constants::MQXPT_TCP, "b", "a/TCP/b"),
+        ("a", constants::MQXPT_SPX, "c", "a/SPX/c"),
+        ("a", constants::MQXPT_LU62, "d", "a/LU62/d"),
+        ("a", constants::MQXPT_NETBIOS, "e", "a/NETBIOS/e"),
     ];
 
     use super::*;
@@ -761,7 +762,7 @@ mod tests {
         ConnectOption::apply_param(&none_options, &mut cs);
         ConnectOption::queue_manager_name(&none_options);
         // Test that apply_param is executed
-        test_co(&Some(values::MQCNO::from(sys::MQCNO_RECONNECT)), |_, _, cs| {
+        test_co(&Some(constants::MQCNO_RECONNECT), |_, _, cs| {
             assert!(cs.cno.Options & sys::MQCNO_RECONNECT != 0);
         });
     }

@@ -1,7 +1,9 @@
 use crate::{
-    core::{self, ObjectHandle},
+    core::{ObjectHandle, SubscriptionHandle},
+    types::{MQSR, MQCO},
+    constants,
     prelude::*,
-    sys, values, Error, ResultComp, ResultCompErr,
+    sys, Error, ResultComp, ResultCompErr,
 };
 
 use super::{Conn, MqStruct, Object};
@@ -10,9 +12,9 @@ use libmqm_default as default;
 
 #[derive(Debug)]
 pub struct Subscription<C: Conn> {
-    handle: core::SubscriptionHandle,
+    handle: SubscriptionHandle,
     connection: C,
-    close_options: values::MQCO,
+    close_options: MQCO,
 }
 
 pub struct SubscribeState<C: Conn> {
@@ -23,14 +25,14 @@ pub struct SubscribeState<C: Conn> {
 #[derive(Debug)]
 pub struct SubscribeParam<'a> {
     pub sd: MqStruct<'a, sys::MQSD>,
-    pub close_options: values::MQCO,
+    pub close_options: MQCO,
     pub provided_object: sys::MQLONG,
 }
 
 #[derive(Debug)]
 pub struct SubscribeRequestParam {
     pub sro: MqStruct<'static, sys::MQSRO>,
-    pub sr: values::MQSR,
+    pub sr: MQSR,
 }
 
 impl<C: Conn> Subscription<C> {
@@ -50,7 +52,7 @@ impl<C: Conn> Subscription<C> {
     pub fn request_retained(&self, request_options: &impl SubscribeRequestOption) -> ResultComp<sys::MQLONG> {
         let mut srp = SubscribeRequestParam {
             sro: MqStruct::new(default::MQSRO_DEFAULT),
-            sr: values::MQSR(sys::MQSR_ACTION_PUBLICATION),
+            sr: constants::MQSR_ACTION_PUBLICATION,
         };
         request_options.apply_param(&mut srp);
         self.connection
@@ -120,7 +122,7 @@ impl<C: Conn + Clone> Subscription<C> {
     where
         A: SubscribeAttr<C>,
     {
-        Self::subscribe_as::<(Self, Option<Object<C>>, A)>(connection, &(values::MQSO(sys::MQSO_MANAGED), subscribe_option))
+        Self::subscribe_as::<(Self, Option<Object<C>>, A)>(connection, &(constants::MQSO_MANAGED, subscribe_option))
             .map_completion(|(qm, queue, attr)| {
                 (
                     qm,
@@ -142,7 +144,7 @@ impl<C: Conn + Clone> Subscription<C> {
         R: SubscribeValue<C>,
     {
         let mut so = SubscribeParam {
-            close_options: values::MQCO::default(),
+            close_options: MQCO::default(),
             sd: MqStruct::new(default::MQSD_DEFAULT),
             provided_object: sys::MQHO_NONE,
         };
@@ -178,14 +180,8 @@ impl<C: Conn + Clone> Subscription<C> {
 #[cfg(all(test, feature = "mock"))]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use crate::{
-        prelude::*,
-        sys,
-        test::mock::{self, MockFunctions},
-        values, MqStruct,
-    };
-
-    use super::Subscription;
+    use super::*;
+    use crate::{sys, test::mock, MqStruct};
 
     #[test]
     pub fn test_request_retained() -> Result<(), Box<dyn std::error::Error>> {
@@ -197,14 +193,14 @@ mod test {
                     unsafe {
                         (*mqsro).NumPubs = 5;
                     }
-                    MockFunctions::mqi_outcome_ok(cc, rc);
+                    mock::MockFunctions::mqi_outcome_ok(cc, rc);
                 })
                 .once();
             mock_library
                 .expect_MQCLOSE()
                 .withf(|_, &hobj, _, _, _| 1 == unsafe { *hobj })
                 .returning(|_, _, _, cc, rc| {
-                    MockFunctions::mqi_outcome_ok(cc, rc);
+                    mock::MockFunctions::mqi_outcome_ok(cc, rc);
                 })
                 .once();
         });
@@ -212,7 +208,7 @@ mod test {
         let sub = Subscription {
             handle: 1.into(),
             connection: qm,
-            close_options: values::MQCO::default(),
+            close_options: MQCO::default(),
         };
 
         assert_eq!(sub.request_retained(&()).warn_as_error()?, 5);

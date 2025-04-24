@@ -12,10 +12,9 @@ use mqi::{
     headers::TextEnc,
     open_options::ObjectString,
     prelude::*,
-    sys,
+    core::CCSID,
     types::{MessageFormat, QueueManagerName, QueueName},
-    values::{CCSID, MQENC, MQOO, MQPMO},
-    MqStr, Object, ThreadNone,
+    types, constants, MqStr, Object, ThreadNone,
 };
 use tracing::Level;
 
@@ -84,22 +83,22 @@ fn main() -> anyhow::Result<()> {
         .context("Target queue manager name is invalid")?;
 
     // Additional MQOO options from the command line
-    let mut oo = MQOO(sys::MQOO_OUTPUT);
+    let mut oo = constants::MQOO_OUTPUT;
     for o in &args.oo {
-        oo |= MQOO::from_str(o).context("MQOO options are invalid")?;
+        oo |= types::MQOO::from_str(o).context("MQOO options are invalid")?;
     }
 
     // Additional MQPMO options from the command line
-    let mut pmo = MQPMO(sys::MQPMO_NONE);
+    let mut pmo = constants::MQPMO_NONE;
     for p in &args.pmo {
-        pmo |= MQPMO::from_str(p).context("MQPMO options are invalid")?;
+        pmo |= types::MQPMO::from_str(p).context("MQPMO options are invalid")?;
     }
 
     /* TODO: conversion from str -> TextEnc::Ascii is clunky */
     let fmt: MqStr<8> = (*args.format.unwrap_or_default()).try_into()?;
     let msg_fmt = MessageFormat {
         ccsid: CCSID(1208),
-        encoding: MQENC::default(),
+        encoding: types::MQENC::default(),
         fmt: TextEnc::Ascii(*fmt.as_mqchar()),
     };
 
