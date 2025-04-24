@@ -7,6 +7,7 @@ pub const fn mq_library() -> libmqm_sys::link::LinkedMq {
 }
 
 #[cfg(all(feature = "dlopen2", not(feature = "link")))]
+#[must_use]
 pub fn mq_library() -> std::sync::Arc<dl::DebugContainer> {
     use std::sync::Arc;
 

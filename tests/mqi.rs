@@ -1,12 +1,6 @@
 #![cfg(feature = "mock")]
 
-use mqi::{
-    prelude::*,
-    core::MqFunctions,
-    test::mock::MockFunctions,
-    values::{self, CCSID},
-    Error, MqChar,
-};
+use mqi::{prelude::*, core::MqFunctions, test::mock::MockFunctions, core::CCSID, types::MQDCC, Error, MqChar};
 
 #[test]
 fn mqxcnvc() -> Result<(), Error> {
@@ -21,7 +15,7 @@ fn mqxcnvc() -> Result<(), Error> {
     let mut target: MqChar<1024> = [0; 1024];
 
     let _ = mq
-        .mqxcnvc(None, values::MQDCC::default(), CCSID(1208), &buffer, CCSID(500), &mut target)
+        .mqxcnvc(None, MQDCC::default(), CCSID(1208), &buffer, CCSID(500), &mut target)
         .warn_as_error()?;
 
     Ok(())

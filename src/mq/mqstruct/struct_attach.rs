@@ -1,7 +1,7 @@
 use std::ptr;
 
 use super::{impl_mqstruct_min_version, MqStruct};
-use crate::{sys, values::CCSID, EncodedString};
+use crate::{sys, core::CCSID, EncodedString};
 
 const C_EMPTY: *mut std::ffi::c_void = c"".as_ptr().cast_mut().cast();
 

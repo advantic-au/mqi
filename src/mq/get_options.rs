@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    conversion, macros::all_option_tuples, prelude::*, sys, types, values, Completion, Conn, Error, Properties, ResultComp,
+    constants, conversion, macros::all_option_tuples, prelude::*, sys, types, Completion, Conn, Error, Properties, ResultComp,
     ResultCompErr,
 };
 
@@ -17,9 +17,9 @@ all_option_tuples!(GetOption, GetParam);
 
 impl_mqstruct_min_version!(sys::MQGMO);
 
-impl GetOption for values::MQGMO {
+impl GetOption for types::MQGMO {
     fn apply_param(&self, param: &mut GetParam) {
-        param.gmo.Options |= self.value();
+        param.gmo.Options |= self.0;
     }
 }
 
@@ -46,8 +46,8 @@ impl GetOption for GetConvert {
             Self::Convert => param.gmo.Options |= sys::MQGMO_CONVERT,
             Self::ConvertTo(ccsid, encoding) => {
                 param.gmo.Options |= sys::MQGMO_CONVERT;
-                param.md.CodedCharSetId = ccsid.0 as sys::MQLONG;
-                param.md.Encoding = encoding.value();
+                param.md.CodedCharSetId = ccsid.0;
+                param.md.Encoding = encoding.0;
             }
         }
     }
@@ -264,7 +264,7 @@ impl<'b, B> GetValue<'b, u8, B> for StrCcsidCow<'b> {
 
         Ok(state.map(|state| Self {
             ccsid: state.format.ccsid,
-            le: (state.format.encoding & sys::MQENC_INTEGER_REVERSED) != 0,
+            le: (state.format.encoding & constants::MQENC_INTEGER_REVERSED) != 0,
             data: conversion::bytes_to_cow_mqchar(state.into_truncated_buffer().into_cow()),
         }))
     }
@@ -423,23 +423,25 @@ impl<'b, R> GetAttr<'b, R> for types::MessageId {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
+    use crate::core::CCSID;
+    use crate::constants;
     use libmqm_default as default;
     use types::{CorrelationId, Identifier, MessageFormat};
 
     const FMT_STRING: types::MessageFormat = types::MessageFormat {
-        ccsid: values::CCSID(1208),
-        encoding: values::MQENC(sys::MQENC_NATIVE),
+        ccsid: CCSID(1208),
+        encoding: constants::MQENC_NATIVE,
         fmt: headers::TextEnc::Ascii(headers::fmt::MQFMT_STRING),
     };
 
     const FMT_BYTES: types::MessageFormat = types::MessageFormat {
-        ccsid: values::CCSID(1208),
-        encoding: values::MQENC(sys::MQENC_NATIVE),
+        ccsid: CCSID(1208),
+        encoding: constants::MQENC_NATIVE,
         fmt: headers::TextEnc::Ascii(headers::fmt::MQFMT_NONE),
     };
 
-    fn mock_get_failure<T>(rc: values::MQRC) -> impl FnOnce(&mut GetParam) -> ResultComp<T> {
-        move |_| Err(Error(values::MQCC(sys::MQCC_FAILED), "MQGET", rc))
+    fn mock_get_failure<T>(rc: types::MQRC) -> impl FnOnce(&mut GetParam) -> ResultComp<T> {
+        move |_| Err(Error(constants::MQCC_FAILED, "MQGET", rc))
     }
 
     fn mock_get_message<'b, B: Buffer<'b, u8>>(
@@ -490,8 +492,8 @@ mod test {
         // Failure should be passed through
         let mut params = default_getparam();
         let failure: ResultCompErr<Cow<[u8]>, _> =
-            GetValue::<u8, &mut [u8]>::get_consume(&mut params, mock_get_failure(values::MQRC(sys::MQRC_NOT_AUTHORIZED)));
-        assert!(matches!(failure, Err(Error(_, _, values::MQRC(sys::MQRC_NOT_AUTHORIZED)))));
+            GetValue::<u8, &mut [u8]>::get_consume(&mut params, mock_get_failure(constants::MQRC_NOT_AUTHORIZED));
+        assert!(matches!(failure, Err(Error(_, _, constants::MQRC_NOT_AUTHORIZED))));
 
         Ok(())
     }
@@ -503,7 +505,7 @@ mod test {
         let mut params = default_getparam();
         let empty_result: StrCcsidCow =
             GetValue::get_consume(&mut params, mock_get_message(empty.as_mut_slice(), FMT_STRING)).discard_warning()?;
-        assert_eq!(empty_result.ccsid, values::CCSID(1208));
+        assert_eq!(empty_result.ccsid, CCSID(1208));
         assert_eq!(empty_result.data, Cow::from(&[]));
 
         // Empty bytes message should fail
@@ -521,10 +523,10 @@ mod test {
         // Failure should be passed through
         let mut params = default_getparam();
         let failure: ResultCompErr<StrCcsidCow, _> =
-            GetValue::<_, &mut [u8]>::get_consume(&mut params, mock_get_failure(values::MQRC(sys::MQRC_NOT_AUTHORIZED)));
+            GetValue::<_, &mut [u8]>::get_consume(&mut params, mock_get_failure(constants::MQRC_NOT_AUTHORIZED));
         assert!(matches!(
             failure,
-            Err(GetStringCcsidError::MQ(Error(_, _, values::MQRC(sys::MQRC_NOT_AUTHORIZED))))
+            Err(GetStringCcsidError::MQ(Error(_, _, constants::MQRC_NOT_AUTHORIZED)))
         ));
 
         Ok(())
@@ -568,10 +570,10 @@ mod test {
         // Failure should be passed through
         let mut params = default_getparam();
         let failure: ResultCompErr<Cow<str>, _> =
-            GetValue::<_, &mut [u8]>::get_consume(&mut params, mock_get_failure(values::MQRC(sys::MQRC_NOT_AUTHORIZED)));
+            GetValue::<_, &mut [u8]>::get_consume(&mut params, mock_get_failure(constants::MQRC_NOT_AUTHORIZED));
         assert!(matches!(
             failure,
-            Err(GetStringError::MQ(Error(_, _, values::MQRC(sys::MQRC_NOT_AUTHORIZED))))
+            Err(GetStringError::MQ(Error(_, _, constants::MQRC_NOT_AUTHORIZED)))
         ));
 
         Ok(())

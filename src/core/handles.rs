@@ -1,10 +1,20 @@
 use std::fmt::Display;
 
-use crate::constants::ConstLookup as _;
-use crate::constants::HasConstLookup as _;
+use ::libmqm_constants::lookup::{ConstLookup as _, HasConstLookup as _};
+use ::libmqm_constants::mapping;
 
 use crate::sys;
-use crate::{constants::mapping, impl_constant_lookup};
+
+/// Implements `HasConstLookup` using the provided `ConstSource` static instance
+macro_rules! impl_constant_lookup {
+    ($t:ty, $source:path) => {
+        impl ::libmqm_constants::lookup::HasConstLookup for $t {
+            fn const_lookup<'a>() -> &'a (impl ::libmqm_constants::lookup::ConstLookup + 'static) {
+                &$source
+            }
+        }
+    };
+}
 
 pub trait RawHandle {
     type HandleType: Copy;
@@ -89,7 +99,7 @@ impl Default for ConnectionHandle {
     }
 }
 
-impl_constant_lookup!(ConnectionHandle, mapping::MQHC_CONST);
+impl_constant_lookup!(ConnectionHandle, mapping::MQHC_MAPSTR);
 
 impl Display for ConnectionHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -120,7 +130,7 @@ impl Default for ObjectHandle {
     }
 }
 
-impl_constant_lookup!(ObjectHandle, mapping::MQHO_CONST);
+impl_constant_lookup!(ObjectHandle, mapping::MQHO_MAPSTR);
 
 impl Display for ObjectHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -131,7 +141,7 @@ impl Display for ObjectHandle {
     }
 }
 
-impl_constant_lookup!(MessageHandle, mapping::MQHM_CONST);
+impl_constant_lookup!(MessageHandle, mapping::MQHM_MAPSTR);
 
 impl Display for MessageHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

@@ -1,12 +1,12 @@
 use libmqm_sys::Mqi;
 use libmqm_default as default;
+use crate::types::{MQCC, MQRC};
 
 use crate::{
-    core::{ConnectionHandle, Library, MqFunctions},
+    core::{ConnectionHandle, Library, MqFunctions, CCSID},
+    types::{MQOT, MQOO, MQSO},
     prelude::*,
-    sys,
-    values::{self, MQCC, MQRC, CCSID},
-    MqStr, ResultComp,
+    constants, sys, MqStr, ResultComp,
 };
 
 use super::{types::ObjectName, MqStruct, StrCcsidOwned};
@@ -32,7 +32,7 @@ impl AsyncPutStat {
             put_success_count: sts.PutSuccessCount,
             put_warning_count: sts.PutWarningCount,
             put_failure_count: sts.PutFailureCount,
-            object_type: values::MQOT(sts.ObjectType),
+            object_type: MQOT(sts.ObjectType),
             object_name: MqStr::from(sts.ObjectName),
             object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
             resolved_object_name: MqStr::from(sts.ResolvedObjectName),
@@ -54,7 +54,7 @@ impl ReconnectionStat {
                 value => Some(MQCC::from(value)),
             },
             reason: MQRC::from(sts.Reason),
-            object_type: values::MQOT(sts.ObjectType),
+            object_type: MQOT(sts.ObjectType),
             object_name: MqStr::from(sts.ObjectName),
             object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
         }
@@ -88,7 +88,7 @@ impl ReconnectionErrorStat {
                 value => Some(MQCC::from(value)),
             },
             reason: MQRC::from(sts.Reason),
-            object_type: values::MQOT(sts.ObjectType),
+            object_type: MQOT(sts.ObjectType),
             object_name: MqStr::from(sts.ObjectName),
             object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
             object_string: if object_string_buffer.is_empty() {
@@ -101,8 +101,8 @@ impl ReconnectionErrorStat {
             } else {
                 Some(StrCcsidOwned::from_vec(sub_name_buffer, CCSID(sts.SubName.VSCCSID)))
             },
-            open_options: values::MQOO(sts.OpenOptions),
-            sub_options: values::MQSO(sts.SubOptions),
+            open_options: MQOO(sts.OpenOptions),
+            sub_options: MQSO(sts.SubOptions),
         }
     }
 }
@@ -125,7 +125,7 @@ pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: Connect
     sts.ObjectString.VSPtr = (&raw mut *buffer).cast();
 
     functions
-        .mqstat(handle, values::MQSTAT(sys::MQSTAT_TYPE_ASYNC_ERROR), &mut sts)
+        .mqstat(handle, constants::MQSTAT_TYPE_ASYNC_ERROR, &mut sts)
         .map_completion(|()| AsyncPutStat::new(&sts, buffer))
 }
 
@@ -135,7 +135,7 @@ pub fn stat_reconnection<L: Library<MQ: Mqi>>(
 ) -> ResultComp<ReconnectionStat> {
     let mut sts = MqStruct::new(default::MQSTS_DEFAULT);
     functions
-        .mqstat(handle, values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION), &mut sts)
+        .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION, &mut sts)
         .map_completion(|()| ReconnectionStat::new(&sts))
 }
 
@@ -167,7 +167,7 @@ pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
     sts.SubName.VSPtr = (&raw mut *sub_name_buffer).cast();
 
     functions
-        .mqstat(handle, values::MQSTAT(sys::MQSTAT_TYPE_RECONNECTION_ERROR), &mut sts)
+        .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION_ERROR, &mut sts)
         .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
 }
 
@@ -179,7 +179,7 @@ pub struct AsyncPutStat {
     pub put_success_count: sys::MQLONG,
     pub put_warning_count: sys::MQLONG,
     pub put_failure_count: sys::MQLONG,
-    pub object_type: values::MQOT,
+    pub object_type: MQOT,
     pub object_name: ObjectName,               // TODO: fix wrapper?
     pub object_qmgr_name: ObjectName,          // TODO: fix wrapper?
     pub resolved_object_name: ObjectName,      // TODO: fix wrapper?
@@ -190,7 +190,7 @@ pub struct AsyncPutStat {
 pub struct ReconnectionStat {
     pub warning: Option<MQCC>,
     pub reason: MQRC,
-    pub object_type: values::MQOT,
+    pub object_type: MQOT,
     pub object_name: ObjectName,      // TODO: fix wrapper?
     pub object_qmgr_name: ObjectName, // TODO: fix wrapper?
 }
@@ -198,11 +198,11 @@ pub struct ReconnectionStat {
 pub struct ReconnectionErrorStat {
     pub warning: Option<MQCC>,
     pub reason: MQRC,
-    pub object_type: values::MQOT,
+    pub object_type: MQOT,
     pub object_name: ObjectName,      // TODO: fix wrapper?
     pub object_qmgr_name: ObjectName, // TODO: fix wrapper?
     pub object_string: Option<StrCcsidOwned>,
     pub sub_name: Option<StrCcsidOwned>,
-    pub open_options: values::MQOO,
-    pub sub_options: values::MQSO,
+    pub open_options: MQOO,
+    pub sub_options: MQSO,
 }

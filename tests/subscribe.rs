@@ -1,6 +1,6 @@
 #![cfg(feature = "mock")]
 
-use mqi::{open_options::ObjectString, sys, values, Object, Subscription};
+use mqi::{open_options::ObjectString, Object, Subscription, constants};
 use mqi::{prelude::*, test};
 
 #[test]
@@ -15,7 +15,7 @@ fn subscribe() -> Result<(), Box<dyn std::error::Error>> {
     let (sub, obj) = Subscription::subscribe_managed(
         connection.connection_ref(),
         (
-            values::MQSO(sys::MQSO_CREATE | sys::MQSO_NON_DURABLE),
+            constants::MQSO_CREATE | constants::MQSO_NON_DURABLE,
             &object,
             ObjectString("dev/"),
         ),

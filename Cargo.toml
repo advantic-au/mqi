@@ -10,110 +10,101 @@ categories = ["asynchronous"]
 
 rust-version = "1.85"
 edition = "2024"
-build = "build/mod.rs"
 
 [lib]
 path = "src/lib.rs"
 crate-type = ["lib"]
 
 [features]
-default = [
-    "link",
-    "constantgen",
-    "runnable",
-    "mqmgen",
-    "mqc_9_2_0_0",
-]
-
+default = ["link", "runnable", "mqc_9_2_0_0"]
 docsrs = ["libmqm-sys/docsrs", "mqai", "link", "dlopen2", "mqc_9_4_2_0"]
-
 ## Minimal features to make the code runnable
-runnable = [
-    "libmqm-sys/mqi_helpers",
-]
-
-## Generate the constants (default is to use pregenerated constants)
-constantgen = [
-    "runnable",
-    "dep:prettyplease",
-    "dep:syn",
-]
-
-## Generate the constants and save them in the src folder
-pregen = [
-    "constantgen",
-    "mqai",
-    "mqc_9_4_2_0",
-]
-
+runnable = ["libmqm-sys/mqi_helpers"]
 ## Enable tracing in the MQI calls
 tracing = ["dep:tracing"]
 ## Enable the administrative API
-mqai = ["libmqm-sys/mqai"]
+mqai = ["libmqm-sys/mqai", "libmqm-constants/mqai"]
+## Enable the exits API
+exits = ["libmqm-sys/exits", "libmqm-constants/exits"]
 ## Link the MQI library at compile time
 link = ["libmqm-sys/link"]
 ## Enable runtime loading of the MQI library using [`dlopen2`](dlopen2)
 dlopen2 = ["libmqm-sys/dlopen2"]
-## Generate the MQI bindings and defaults
-mqmgen = ["libmqm-sys/bindgen", "libmqm-default/defaultgen"]
+## Generate the bindings c bindings, constants and defaults using the provided MQ library
+mqm_generate = [
+    "libmqm-sys/bindgen",
+    "libmqm-default/generate",
+    "libmqm-constants/generate",
+]
 ## MQI and MQAI function mocking for unit and integration tests
 mock = ["dep:mockall"]
 
 ## Minimum MQ client version 9.2.0.0
-mqc_9_2_0_0 = ["libmqm-sys/mqc_9_2_0_0"]
+mqc_9_2_0_0 = ["libmqm-sys/mqc_9_2_0_0", "libmqm-constants/mqc_9_2_0_0"]
 ## Minimum MQ client version 9.3.0.0
 mqc_9_3_0_0 = [
     "libmqm-sys/mqc_9_3_0_0",
     "libmqm-default/mqc_9_3_0_0",
+    "libmqm-constants/mqc_9_3_0_0",
     "mqc_9_2_0_0",
 ]
 ## Minimum MQ client version 9.3.1.0
 mqc_9_3_1_0 = [
     "libmqm-sys/mqc_9_3_1_0",
     "libmqm-default/mqc_9_3_1_0",
+    "libmqm-constants/mqc_9_3_1_0",
     "mqc_9_3_0_0",
 ]
 ## Minimum MQ client version 9.3.2.0
 mqc_9_3_2_0 = [
     "libmqm-sys/mqc_9_3_2_0",
+    "libmqm-constants/mqc_9_3_2_0",
+
     "mqc_9_3_1_0",
 ]
 ## Minimum MQ client version 9.3.3.0
 mqc_9_3_3_0 = [
     "libmqm-sys/mqc_9_3_3_0",
+    "libmqm-constants/mqc_9_3_3_0",
     "mqc_9_3_2_0",
 ]
 ## Minimum MQ client version 9.3.4.0
 mqc_9_3_4_0 = [
     "libmqm-sys/mqc_9_3_4_0",
+    "libmqm-constants/mqc_9_3_4_0",
     "mqc_9_3_3_0",
 ]
 ## Minimum MQ client version 9.3.5.0
 mqc_9_3_5_0 = [
     "libmqm-sys/mqc_9_3_5_0",
+    "libmqm-constants/mqc_9_3_5_0",
     "mqc_9_3_4_0",
 ]
 ## Minimum MQ client version 9.4.0.0
 mqc_9_4_0_0 = [
     "libmqm-sys/mqc_9_4_0_0",
+    "libmqm-constants/mqc_9_4_0_0",
     "mqc_9_3_5_0",
 ]
 ## Minimum MQ client version 9.4.1.0
 mqc_9_4_1_0 = [
     "libmqm-sys/mqc_9_4_1_0",
+    "libmqm-constants/mqc_9_4_1_0",
+
     "mqc_9_4_0_0",
 ]
 ## Minimum MQ client version 9.4.2.0
 mqc_9_4_2_0 = [
     "libmqm-sys/mqc_9_4_2_0",
+    "libmqm-constants/mqc_9_4_2_0",
     "mqc_9_4_1_0",
 ]
 
 [dependencies]
-phf = { default-features = false, version = "0.11.2" }
 page_size = "0.6.0"
-libmqm-sys = { version = "0.7.0", default-features = false }
-libmqm-default = { version = "0.7.0", default-features = false }
+libmqm-sys = { version = "0.8.0", default-features = false }
+libmqm-default = { version = "0.8.0", default-features = false }
+libmqm-constants = { version = "0.8.0", default-features = false }
 tracing = { version = "0.1.40", optional = true }
 dlopen2 = "0.7.0"
 regex-lite = "0.1.6"
@@ -132,20 +123,11 @@ maybe-owned = "0.3.4"
 mockall = { version = "0.13.0", optional = true }
 document-features = "0.2.10"
 
-[build-dependencies]
-libmqm-sys = { version = "0.7.0", default-features = false }
-phf = { default-features = false, version = "0.11" }
-phf_codegen = "0.11.2"
-prettyplease = { version = "0.2.31", optional = true }
-syn = { version = "2.0.90", optional = true, default-features = false, features = [
-    "full",
-    "parsing",
-] }
-
-
 [lints.rust]
 unsafe_op_in_unsafe_fn = "warn"
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(coverage,coverage_nightly)',
+] }
 
 [lints.clippy]
 all = { level = "deny", priority = -1 }
@@ -157,7 +139,6 @@ allow_attributes = "warn"
 # TODO - These should be removed and the underlying problem fixed
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
-module_name_repetitions = "allow"
 
 [package.metadata.docs.rs]
 features = ["docsrs"]

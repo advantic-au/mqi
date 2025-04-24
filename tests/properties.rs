@@ -5,7 +5,7 @@ use std::error::Error;
 use test::mock::MockFunctions;
 use mqi::{
     sys, test,
-    values::{self, MQIMPO},
+    types::{MQIMPO, MQSMPO, MQCMHO},
     Properties, StrCcsidOwned,
     prelude::*,
 };
@@ -21,17 +21,15 @@ fn set_property() -> Result<(), Box<dyn Error>> {
                 let mqsmpo = unsafe { *mqsmpo.cast::<sys::MQSMPO>() };
 
                 assert_eq!(typ, sys::MQTYPE_STRING);
-                assert_eq!(mqsmpo.Options, values::MQSMPO::default().value());
+                assert_eq!(MQSMPO::default(), mqsmpo.Options);
                 assert_eq!(mqsmpo.ValueCCSID, 1208);
                 MockFunctions::mqi_outcome_ok(comp_code, reason);
             });
     });
 
-    let properties = Properties::new(connection, values::MQCMHO::default())?;
+    let properties = Properties::new(connection, MQCMHO::default())?;
 
-    properties
-        .set_property("key", "value", values::MQSMPO::default())
-        .warn_as_error()?;
+    properties.set_property("key", "value", MQSMPO::default()).warn_as_error()?;
 
     Ok(())
 }
@@ -49,7 +47,7 @@ fn inq_property() -> Result<(), Box<dyn Error>> {
             });
     });
 
-    let properties = Properties::new(connection, values::MQCMHO::default())?;
+    let properties = Properties::new(connection, MQCMHO::default())?;
 
     let _: Option<StrCcsidOwned> = properties.property("name", MQIMPO::default()).warn_as_error()?;
 

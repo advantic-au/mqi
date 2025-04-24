@@ -1,8 +1,7 @@
 use std::fmt::Display;
 
-use crate::sys;
-
-use super::values::MQCFOP;
+use crate::types::MQCFOP;
+use crate::constants;
 
 #[derive(Debug, Clone, Copy, Eq)]
 pub struct Filter<T> {
@@ -35,84 +34,84 @@ impl<T> Filter<T> {
 
     pub const fn less(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_LESS),
+            operator: constants::MQCFOP_LESS,
             value,
         }
     }
 
     pub const fn equal(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_EQUAL),
+            operator: constants::MQCFOP_EQUAL,
             value,
         }
     }
 
     pub const fn not_greater(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_NOT_GREATER),
+            operator: constants::MQCFOP_NOT_GREATER,
             value,
         }
     }
 
     pub const fn greater(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_GREATER),
+            operator: constants::MQCFOP_GREATER,
             value,
         }
     }
 
     pub const fn not_equal(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_NOT_EQUAL),
+            operator: constants::MQCFOP_NOT_EQUAL,
             value,
         }
     }
 
     pub const fn not_less(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_NOT_LESS),
+            operator: constants::MQCFOP_NOT_LESS,
             value,
         }
     }
 
     pub const fn contains(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_CONTAINS),
+            operator: constants::MQCFOP_CONTAINS,
             value,
         }
     }
 
     pub const fn excludes(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_EXCLUDES),
+            operator: constants::MQCFOP_EXCLUDES,
             value,
         }
     }
 
     pub const fn like(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_LIKE),
+            operator: constants::MQCFOP_LIKE,
             value,
         }
     }
 
     pub const fn not_like(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_NOT_LIKE),
+            operator: constants::MQCFOP_NOT_LIKE,
             value,
         }
     }
 
     pub const fn contains_gen(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_CONTAINS_GEN),
+            operator: constants::MQCFOP_CONTAINS_GEN,
             value,
         }
     }
 
     pub const fn excludes_gen(value: T) -> Self {
         Self {
-            operator: MQCFOP(sys::MQCFOP_EXCLUDES_GEN),
+            operator: constants::MQCFOP_EXCLUDES_GEN,
             value,
         }
     }

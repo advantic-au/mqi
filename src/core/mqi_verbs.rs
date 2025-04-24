@@ -1,11 +1,11 @@
 use std::ptr;
 
-use super::values::{CCSID, MQCO, MQDCC, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
+use crate::types::{MQCO, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
 use super::{
     ConnectionHandle, Library, MessageHandle, MqFunctions, MqiOutcome, MqiOutcomeVoid, ObjectHandle, ReadRaw, SubscriptionHandle,
     WriteRaw,
 };
-use crate::{sys, Error, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
+use crate::{sys, constants, Error, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::Mqi;
 
 #[cfg(feature = "tracing")]
@@ -440,12 +440,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
-        match outcome.rc.value() {
-            sys::MQRC_PROPERTY_VALUE_TOO_BIG => Err(error::MqInqError::Length(
+        match outcome.rc {
+            constants::MQRC_PROPERTY_VALUE_TOO_BIG => Err(error::MqInqError::Length(
                 outcome.value,
                 Error(outcome.cc, outcome.verb, outcome.rc),
             )),
-            sys::MQRC_PROPERTY_NAME_TOO_BIG => Err(error::MqInqError::Length(
+            constants::MQRC_PROPERTY_NAME_TOO_BIG => Err(error::MqInqError::Length(
                 inq_prop_opts.ReturnedName.VSLength,
                 Error(outcome.cc, outcome.verb, outcome.rc),
             )),
@@ -648,8 +648,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
-        match outcome.rc.value() {
-            sys::MQRC_PROPERTY_VALUE_TOO_BIG => Err(error::MqInqError::Length(
+        match outcome.rc {
+            constants::MQRC_PROPERTY_VALUE_TOO_BIG => Err(error::MqInqError::Length(
                 outcome.value,
                 Error(outcome.cc, outcome.verb, outcome.rc),
             )),
@@ -678,42 +678,6 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("buffer length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(buffer).cast_mut().cast(),
-                &mut outcome.value,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
-            );
-        }
-        #[cfg(feature = "tracing")]
-        tracing_outcome(&outcome);
-        outcome.into()
-    }
-
-    /// Converts characters from one character set to another
-    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(source, target, self)))]
-    pub fn mqxcnvc(
-        &self,
-        connection_handle: Option<ConnectionHandle>,
-        options: MQDCC,
-        source_ccsid: CCSID,
-        source: &[sys::MQCHAR],
-        target_ccsid: CCSID,
-        target: &mut (impl WriteRaw<sys::MQCHAR> + ?Sized),
-    ) -> ResultComp<sys::MQLONG> {
-        let mut outcome = MqiOutcome::with_verb("MQXCNVC");
-        unsafe {
-            self.0.lib().MQXCNVC(
-                connection_handle.map_or(sys::MQHC_DEF_HCONN, |h| h.raw_handle()),
-                options.value(),
-                source_ccsid.0,
-                size_of_val(source)
-                    .try_into()
-                    .expect("usize length of source should convert into MQLONG"),
-                ptr::from_ref(source).cast_mut().cast(),
-                target_ccsid.0,
-                size_of_val(target)
-                    .try_into()
-                    .expect("usize length of target should convert into MQLONG"),
-                ptr::from_mut(target).cast(),
                 &mut outcome.value,
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,

@@ -1,15 +1,12 @@
-use crate::{
-    headers::TextEnc,
-    sys,
-    values::{CCSID, MQENC, MQRC},
-    MqChar, MqStr,
-};
+use crate::{headers::TextEnc, sys, core::CCSID, MqChar, MqStr};
 use std::{
     fmt::{Debug, Display},
     ptr, str,
 };
 
 use libmqm_default as default;
+use crate::types::{MQENC, MQRC};
+use crate::constants;
 
 use super::{headers::fmt::MQFMT_NONE, MqStruct};
 
@@ -77,7 +74,7 @@ impl MessageFormat {
 
 pub const FORMAT_NONE: MessageFormat = MessageFormat {
     ccsid: CCSID(1208),
-    encoding: MQENC(sys::MQENC_NATIVE),
+    encoding: constants::MQENC_NATIVE,
     fmt: TextEnc::Ascii(MQFMT_NONE),
 };
 

@@ -1,4 +1,5 @@
-use crate::{values::MQXA, sys};
+use crate::types::MQXA;
+use crate::sys;
 
 use super::attribute::AttributeType;
 

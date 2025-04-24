@@ -1,9 +1,12 @@
+#![cfg(feature = "mqai")]
+
 use mqi::{
     admin::Bag,
+    constants,
     headers::{fmt, TextEnc},
     open_options,
     prelude::*,
-    sys, test, types, values, Object,
+    test, types, Object,
 };
 
 #[cfg(not(feature = "mock"))]
@@ -71,16 +74,16 @@ fn put_get_bag() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Open the queue
-    let object = Object::open(&connection, &(QUEUE, values::MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
+    let object = Object::open(&connection, &(QUEUE, constants::MQOO_INPUT_SHARED | constants::MQOO_OUTPUT))?;
 
     // Put an empty bag on the queue, return the message id
-    let bag = Bag::new_lib(connection.library(), values::MQCBO(sys::MQCBO_NONE)).warn_as_error()?;
+    let bag = Bag::new_lib(connection.library(), constants::MQCBO_NONE).warn_as_error()?;
     let mid: types::MessageId = object
         .put_bag_with(&(), TextEnc::Ascii(fmt::MQFMT_ADMIN), &bag)
         .warn_as_error()?;
 
     // Retrieve the bag from the queue by message id
-    let mut bag_from_queue = Bag::new_lib(connection.library(), values::MQCBO(sys::MQCBO_NONE)).warn_as_error()?;
+    let mut bag_from_queue = Bag::new_lib(connection.library(), constants::MQCBO_NONE).warn_as_error()?;
     assert!(object.get_bag(&mid, &mut bag_from_queue).warn_as_error()?);
 
     Ok(())
@@ -109,7 +112,7 @@ fn bag_no_message() -> Result<(), Box<dyn std::error::Error>> {
                 .returning(move |_, _, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
                 .times(1)
                 .in_sequence(&mut seq);
-            mock_library.get_bag_error(sys::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
+            mock_library.get_bag_error(constants::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
             mock_library
                 .expect_mqDeleteBag()
                 .returning(move |_, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
@@ -128,12 +131,12 @@ fn bag_no_message() -> Result<(), Box<dyn std::error::Error>> {
         &connection,
         &(
             QUEUE,
-            values::MQOO(sys::MQOO_INPUT_AS_Q_DEF),
+            constants::MQOO_INPUT_AS_Q_DEF,
             open_options::SelectionString("Root.MQMD.CorrelId = 0x0c0c0c0c"), // This should not exist
         ),
     )?;
 
-    let mut bag = Bag::new_lib(connection.library(), values::MQCBO(sys::MQCBO_NONE)).discard_warning()?;
+    let mut bag = Bag::new_lib(connection.library(), constants::MQCBO_NONE).discard_warning()?;
     assert!(!object.get_bag(&(), &mut bag).warn_as_error()?);
 
     Ok(())

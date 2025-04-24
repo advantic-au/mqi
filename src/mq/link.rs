@@ -4,9 +4,9 @@ use super::{connect_options::ConnectOption, ConnectAttr, ConnectValue, Connectio
 use crate::ResultComp;
 
 #[cfg(feature = "mqai")]
-use crate::{
-    admin::{Bag, Owned},
-    values::MQCBO,
+use {
+    crate::admin::{Bag, Owned},
+    crate::types::MQCBO,
 };
 
 /// Create a [`Connection`] to a queue manager using the compile time linked MQ library

@@ -1,11 +1,13 @@
 use crate::{
     prelude::*,
-    sys,
+    constants, sys,
     types::{QueueManagerName, QueueName},
-    values::{CCSID, MQOO, MQOT, MQPMO},
+    core::CCSID,
     Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned,
     macros::{all_multi_tuples, reverse_ident},
 };
+
+use crate::types::{MQOO, MQOT, MQPMO};
 
 use super::{impl_mqstruct_min_version, types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
 
@@ -96,7 +98,7 @@ impl<'b> OpenOption<'b, Self> for MQPMO {
 
 impl OpenOption<'_, MQOO> for AlternateUserId {
     fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQOO>) {
-        *options |= sys::MQOO_ALTERNATE_USER_AUTHORITY;
+        *options |= constants::MQOO_ALTERNATE_USER_AUTHORITY;
         mqod.set_min_version(sys::MQOD_VERSION_3);
         mqod.AlternateUserId = self.0.into();
     }
@@ -104,7 +106,7 @@ impl OpenOption<'_, MQOO> for AlternateUserId {
 
 impl OpenOption<'_, MQPMO> for AlternateUserId {
     fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQPMO>) {
-        *options |= sys::MQPMO_ALTERNATE_USER_AUTHORITY;
+        *options |= constants::MQPMO_ALTERNATE_USER_AUTHORITY;
         mqod.set_min_version(sys::MQOD_VERSION_3);
         mqod.AlternateUserId = self.0.into();
     }
@@ -214,7 +216,9 @@ mod open_impl {
     use crate::macros::all_multi_tuples;
 
     use super::{OpenAttr, OpenParam, OpenParamOption, OpenValue};
-    use crate::{values::MQOO, ResultComp, ResultCompErr};
+
+    use crate::types::MQOO;
+    use crate::{ResultComp, ResultCompErr};
     use crate::prelude::*;
 
     macro_rules! impl_openvalue_tuple {

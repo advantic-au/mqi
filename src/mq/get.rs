@@ -3,10 +3,11 @@ use std::{borrow::Cow, cmp, num::NonZero, str::Utf8Error};
 use libmqm_default as default;
 
 use crate::{
-    core::WriteRaw,
+    core::{WriteRaw, CCSID},
     headers::{ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     prelude::*,
-    sys, types, values, Buffer, Completion, Conn, Error, MqStruct, Object, ResultComp, ResultCompErr, StrCcsidCow,
+    constants, sys, types, Buffer, Completion, Conn, Error, MqStruct, Object, ResultComp, ResultCompErr, StrCcsidCow,
+    types::MQENC,
 };
 
 #[derive(Clone, Debug, derive_more::Constructor)]
@@ -65,7 +66,7 @@ pub enum GetStringError {
     #[display("Message parsing error: {_0}")]
     Utf8Parse(Utf8Error, Option<types::Warning>),
     #[display("Unexpected format or CCSID. Message format = '{_0}', CCSID = {_1}")]
-    UnexpectedFormat(TextEnc<types::Fmt>, values::CCSID, Option<types::Warning>),
+    UnexpectedFormat(TextEnc<types::Fmt>, CCSID, Option<types::Warning>),
     #[from]
     MQ(Error),
 }
@@ -88,7 +89,7 @@ pub enum GetWait {
 pub enum GetConvert {
     NoConvert,
     Convert,
-    ConvertTo(values::CCSID, values::MQENC),
+    ConvertTo(CCSID, MQENC),
 }
 
 pub struct GetParam {
@@ -192,7 +193,7 @@ mod mqai {
         admin::{Bag, Owned},
         core::Library,
         prelude::*,
-        sys, values, Completion, Conn, Error, MqStruct, Object, ResultComp,
+        constants, Completion, Conn, Error, MqStruct, Object, ResultComp,
     };
     use libmqm_default as default;
     use libmqm_sys::Mqai;
@@ -225,12 +226,9 @@ mod mqai {
                     &mut param.gmo,
                     Some(&*bag),
                 );
-                no_msg_available = mqi_get_bag.as_ref().is_err_and(|err| {
-                    matches!(
-                        err,
-                        &Error(values::MQCC(sys::MQCC_FAILED), _, values::MQRC(sys::MQRC_NO_MSG_AVAILABLE))
-                    )
-                });
+                no_msg_available = mqi_get_bag
+                    .as_ref()
+                    .is_err_and(|err| matches!(err, &Error(constants::MQCC_FAILED, _, constants::MQRC_NO_MSG_AVAILABLE)));
                 mqi_get_bag
             });
 
@@ -342,17 +340,14 @@ impl<C: Conn> Object<C> {
                         .try_into()
                         .expect("message length should be within positive usize range"),
                     format: types::MessageFormat {
-                        ccsid: values::CCSID(param.md.CodedCharSetId),
-                        encoding: values::MQENC(param.md.Encoding),
+                        ccsid: CCSID(param.md.CodedCharSetId),
+                        encoding: MQENC(param.md.Encoding),
                         fmt: TextEnc::Ascii(param.md.Format),
                     },
                 });
-            no_msg_available = mqi_get.as_ref().is_err_and(|e| {
-                matches!(
-                    e,
-                    &Error(values::MQCC(sys::MQCC_FAILED), _, values::MQRC(sys::MQRC_NO_MSG_AVAILABLE))
-                )
-            });
+            no_msg_available = mqi_get
+                .as_ref()
+                .is_err_and(|e| matches!(e, &Error(constants::MQCC_FAILED, _, constants::MQRC_NO_MSG_AVAILABLE)));
 
             mqi_get
         });

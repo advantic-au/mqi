@@ -1,11 +1,8 @@
 use std::{borrow::Cow, ptr};
 
-use crate::{conversion, sys, ResultComp, prelude::*};
+use crate::{conversion, sys, core::CCSID};
 
-use super::{
-    values::{self, CCSID},
-    Conn, MqStruct,
-};
+use super::MqStruct;
 
 use libmqm_default as default;
 
@@ -137,24 +134,31 @@ impl<'a, T: Into<Cow<'a, [sys::MQCHAR]>>> TryFrom<StringCcsid<T>> for Cow<'a, st
     }
 }
 
+#[cfg(feature = "exits")]
 impl<T: AsRef<[sys::MQCHAR]>> StringCcsid<T> {
-    pub fn try_mq_convert<'a, C: Conn>(
+    pub fn try_mq_convert<'a, C>(
         &self,
         ccsid: CCSID,
         conn: &C,
         target_le: bool,
         buffer: &'a mut [sys::MQCHAR],
-    ) -> ResultComp<StrCcsid<'a>> {
+    ) -> crate::ResultComp<StrCcsid<'a>>
+    where
+        C::Lib: crate::core::Library<MQ: libmqm_sys::Exits>,
+        C: super::Conn,
+    {
+        use crate::{constants, prelude::*};
+        
         let mut mqdcc = if self.le {
-            values::MQDCC(sys::MQDCC_SOURCE_ENC_REVERSED)
+            constants::MQDCC_SOURCE_ENC_REVERSED
         } else {
-            values::MQDCC(sys::MQDCC_SOURCE_ENC_NORMAL)
+            constants::MQDCC_SOURCE_ENC_NORMAL
         };
 
         mqdcc |= if target_le {
-            values::MQDCC(sys::MQDCC_TARGET_ENC_REVERSED)
+            constants::MQDCC_TARGET_ENC_REVERSED
         } else {
-            values::MQDCC(sys::MQDCC_TARGET_ENC_NORMAL)
+            constants::MQDCC_TARGET_ENC_NORMAL
         };
         conn.mq()
             .mqxcnvc(Some(conn.handle()), mqdcc, self.ccsid, self.data.as_ref(), ccsid, buffer)
@@ -235,7 +239,7 @@ impl<T: Default> Default for StringCcsid<T> {
 mod test {
     use std::{borrow::Cow, mem};
 
-    use crate::{sys, values::CCSID, StrCcsid, StrCcsidCow, StringCcsid};
+    use crate::{sys, core::CCSID, StrCcsid, StrCcsidCow, StringCcsid};
 
     use super::NATIVE_IS_LE;
 

@@ -1,10 +1,11 @@
-use crate::{macros::all_option_tuples, values, Error, ResultComp, ResultCompErr};
+use crate::{macros::all_option_tuples, Error, ResultComp, ResultCompErr};
 
 use super::{
     open_options::ObjectString, Conn, EncodedString, Object, SubscribeAttr, SubscribeOption, SubscribeParam,
     SubscribeRequestOption, SubscribeRequestParam, SubscribeState, SubscribeValue, Subscription,
 };
 use crate::prelude::*;
+use crate::types::{MQSO, MQCO, MQSR, MQSRO};
 
 all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>);
 all_option_tuples!(SubscribeRequestOption, SubscribeRequestParam);
@@ -24,28 +25,28 @@ impl<C: Conn> SubscribeOption<'_> for &Object<C> {
 }
 
 // Set the close options for the subscription when opening
-impl SubscribeOption<'_> for values::MQCO {
+impl SubscribeOption<'_> for MQCO {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam) {
         param.close_options |= *self;
     }
 }
 
-impl SubscribeOption<'_> for values::MQSO {
+impl SubscribeOption<'_> for MQSO {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam) {
-        param.sd.Options |= self.value();
+        param.sd.Options |= self.0;
     }
 }
 
-impl SubscribeRequestOption for values::MQSR {
+impl SubscribeRequestOption for MQSR {
     #[inline]
     fn apply_param(&self, param: &mut super::SubscribeRequestParam) {
         param.sr = *self;
     }
 }
 
-impl SubscribeRequestOption for values::MQSRO {
+impl SubscribeRequestOption for MQSRO {
     fn apply_param(&self, param: &mut super::SubscribeRequestParam) {
         param.sro.Options |= self.0;
     }
