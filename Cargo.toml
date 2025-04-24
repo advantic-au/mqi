@@ -17,7 +17,7 @@ crate-type = ["lib"]
 
 [features]
 default = ["link", "runnable", "mqc_9_2_0_0"]
-docsrs = ["libmqm-sys/docsrs", "mqai", "link", "dlopen2", "mqc_9_4_2_0"]
+docsrs = ["libmqm-sys/docsrs", "mqai", "exits", "link", "dlopen2", "mqc_9_4_2_0"]
 ## Minimal features to make the code runnable
 runnable = ["libmqm-sys/mqi_helpers"]
 ## Enable tracing in the MQI calls

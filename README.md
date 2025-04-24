@@ -92,7 +92,7 @@ Feature flags
 |----------------|---------|-------------|
 | link           | ✔ | Support linking the MQ library at compile-time |
 | tracing        |   | Add tracing to the MQI and MQAI calls using the tracing crate |
-| mqmgen         | ✔ | Ensure the dependent MQM bindings are refreshed from the C library |
+| mqm_generate   | ✔ | Ensure the dependent MQM bindings are refreshed from the C library |
 | dlopen2        |   | Support loading the MQ library at run-time using [`dlopen2`](https://crates.io/crates/dlopen2) |
 | mqai           |   | Expose the MQAI functions |
 | mqc_*          | mqc_9_2_0_0 | Enable features of a specific MQI library version eg `mqc_9_4_1_0` |

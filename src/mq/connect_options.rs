@@ -341,7 +341,12 @@ impl From<SuiteB> for [sys::MQLONG; 4] {
     }
 }
 
-#[allow(clippy::needless_lifetimes, reason = "pw lifetime is required for mqc_9_3_0_0")]
+#[allow(
+    unknown_lints,
+    clippy::needless_lifetimes,
+    clippy::elidable_lifetime_names,
+    reason = "pw lifetime is required for feature mqc_9_3_0_0"
+)]
 impl<'pw> Tls<'pw> {
     pub fn new(repo: &KeyRepo, label: Option<&CertificateLabel>, cipher: &CipherSpec) -> Self {
         let mut tls = Self::default();

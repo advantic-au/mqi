@@ -372,7 +372,11 @@ mod tests {
     use super::*;
     use crate::{admin::Bag, sys, test::mq_library, StrCcsidOwned};
 
-    #[allow(clippy::allow_attributes, clippy::needless_borrows_for_generic_args, reason="Borrow required when built with dlopen2")]
+    #[allow(
+        clippy::allow_attributes,
+        clippy::needless_borrows_for_generic_args,
+        reason = "Borrow required when built with dlopen2"
+    )]
     #[test]
     fn put_inq_bag_item_types() -> Result<(), Box<dyn std::error::Error>> {
         const BYTES: [u8; 2] = [0x0, 0x1];
