@@ -203,23 +203,23 @@ jobs:
       fail-fast: false
       matrix:
         toolchain: [stable]
-        feature: [all, none, default, exits, mqai, mqm_generate, dlopen2]
+        feature: [all, no_default, default, exits, mqai, mqm_generate, dlopen2]
         include:
           - feature: all
-            feature_args: --all-features
+            feature_args: "--all-features"
             toolchain: beta
-          - feature: none
-            feature_args: --no-default-features
+          - feature: no_default
+            feature_args: "--no-default-features"
             toolchain: beta
           - feature: default
           - feature: exits
-            feature_args: --no-default-features --features mock,exits,link
+            feature_args: "--no-default-features --features mock,exits,link"
           - feature: mqai
-            feature_args: --no-default-features --features mock,mqai,link
+            feature_args: "--no-default-features --features mock,mqai,link"
           - feature: mqm_generate
-            feature_args: --no-default-features --features mock,mqm_generate,link
+            feature_args: "--no-default-features --features mock,mqm_generate,link"
           - feature: dlopen2
-            feature_args: --no-default-features --features mock,mqai,exits,dlopen2
+            feature_args: "--no-default-features --features mock,mqai,exits,dlopen2"
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
