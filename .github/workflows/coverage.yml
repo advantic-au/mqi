@@ -31,13 +31,13 @@ jobs:
         id: mq-client
         with:
           client-version: latest
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
           toolchain: nightly
-      - uses: taiki-e/install-action@v2.49.0
+      - uses: taiki-e/install-action@914ac1e29db2d22aef69891f032778d9adc3990d # v2.49.34
         with:
           tool: nextest, cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
       - name: Generate code coverage
         run: |
           cargo llvm-cov --no-report nextest --profile ci --features mqai,dlopen2,mqc_9_4_2_0,mock
