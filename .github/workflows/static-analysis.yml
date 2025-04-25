@@ -27,10 +27,10 @@ jobs:
         uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
           toolchain: stable
+      - name: Install uv
+        uses: astral-sh/setup-uv@c7f87aa956e4c323abf06d5dec078e358f6b4d04 # v6.0
       - name: Install zizmor
-        uses: taiki-e/install-action@914ac1e29db2d22aef69891f032778d9adc3990d # v2.49.34
-        with:
-          tool: zizmor
+        run: uv tool install zizmor
       - name: zizmor static analysis check
         run: zizmor --format sarif . > results.sarif
         env:
