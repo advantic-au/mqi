@@ -208,9 +208,15 @@ jobs:
           - feature: all
             feature_args: "--all-features"
             toolchain: beta
+          - feature: all
+            feature_args: "--all-features"
+            toolchain: stable
           - feature: no_default
             feature_args: "--no-default-features"
             toolchain: beta
+          - feature: no_default
+            feature_args: "--no-default-features"
+            toolchain: stable
           - feature: default
           - feature: exits
             feature_args: "--no-default-features --features mock,exits,link"
