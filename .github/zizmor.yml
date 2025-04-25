@@ -1,0 +1,8 @@
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        advantic-au/action-mq-client: ref-pin
+        codecov/codecov-action: ref-pin
+        actions/*: ref-pin
+        github/*: ref-pin

@@ -21,11 +21,11 @@ jobs:
         id: mq-client
         with:
           client-version: latest
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2.49.0
+      - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
+      - uses: taiki-e/install-action@914ac1e29db2d22aef69891f032778d9adc3990d # v2.49.34
         with:
           tool: cargo-mutants
       - name: Mutant testing
