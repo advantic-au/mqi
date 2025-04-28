@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ptr};
 
-use crate::{conversion, sys, core::CCSID};
+use crate::{constants, conversion, sys, core::CCSID};
 
 use super::MqStruct;
 
@@ -23,7 +23,7 @@ pub type StrCcsid<'a> = StringCcsid<&'a [sys::MQCHAR]>;
 pub type StrCcsidOwned = StringCcsid<Vec<sys::MQCHAR>>;
 pub type StrCcsidCow<'a> = StringCcsid<Cow<'a, [sys::MQCHAR]>>;
 
-pub const NATIVE_IS_LE: bool = (sys::MQENC_NATIVE & sys::MQENC_INTEGER_REVERSED) != 0;
+pub const NATIVE_IS_LE: bool = constants::MQENC_NATIVE.contains(constants::MQENC_INTEGER_REVERSED);
 
 #[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
 pub enum FromStringCcsidError {
@@ -155,11 +155,11 @@ impl<T: AsRef<[sys::MQCHAR]>> StringCcsid<T> {
             constants::MQDCC_SOURCE_ENC_NORMAL
         };
 
-        mqdcc |= if target_le {
+        mqdcc.insert(if target_le {
             constants::MQDCC_TARGET_ENC_REVERSED
         } else {
             constants::MQDCC_TARGET_ENC_NORMAL
-        };
+        });
         conn.mq()
             .mqxcnvc(Some(conn.handle()), mqdcc, self.ccsid, self.data.as_ref(), ccsid, buffer)
             .map_completion(|length| StringCcsid {

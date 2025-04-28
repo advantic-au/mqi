@@ -140,7 +140,7 @@ impl<P: PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropI
             Err(e) => Some(Err(e)),
         };
 
-        self.options |= constants::MQIMPO_INQ_NEXT;
+        self.options.insert(constants::MQIMPO_INQ_NEXT);
 
         result
     }
@@ -264,7 +264,7 @@ impl<C: Conn> Properties<C> {
 
     pub fn delete_property(&self, name: &(impl EncodedString + ?Sized), options: MQDMPO) -> ResultComp<()> {
         let mut mqdmpo = MqStruct::new(default::MQDMPO_DEFAULT);
-        mqdmpo.Options = options.0;
+        *mqdmpo.Options.as_mut() = options;
 
         let name_mqcharv = MqStruct::from_encoded_str(name);
 
@@ -281,7 +281,7 @@ impl<C: Conn> Properties<C> {
     ) -> ResultComp<()> {
         let mut mqpd = MqStruct::new(default::MQPD_DEFAULT);
         let mut mqsmpo = MqStruct::new(default::MQSMPO_DEFAULT);
-        mqsmpo.Options = location.0;
+        *mqsmpo.Options.as_mut() = location;
         let (data, value_type) = value.apply_mqsetmp(&mut mqpd, &mut mqsmpo);
 
         let name_mqcharv = MqStruct::from_encoded_str(name);
@@ -310,10 +310,8 @@ impl<C: Conn> Properties<C> {
     ) -> ResultCompErr<(MessageFormat, A), core::MqInqError> {
         let read_only_options = options - constants::MQMHBO_DELETE_PROPERTIES;
         let mut buf = buffer;
-        let mhbo = MqStruct::new(sys::MQMHBO {
-            Options: read_only_options.0,
-            ..default::MQMHBO_DEFAULT
-        });
+        let mut mhbo = MqStruct::new(default::MQMHBO_DEFAULT);
+        *mhbo.Options.as_mut() = read_only_options;
         let mut mqmd = MqStruct::new(default::MQMD2_DEFAULT);
         let name_mqcharv = MqStruct::from_encoded_str(name);
 

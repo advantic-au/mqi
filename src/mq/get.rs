@@ -319,15 +319,15 @@ impl<C: Conn> Object<C> {
                 .map_completion(|length| {
                     (
                         length,
-                        match param.gmo.ReturnedLength {
-                            sys::MQRL_UNDEFINED => cmp::min(
+                        match types::MQRL(param.gmo.ReturnedLength) {
+                            constants::MQRL_UNDEFINED => cmp::min(
                                 write_area
                                     .len()
                                     .try_into()
                                     .expect("length of buffer should be within positive i32 range"),
                                 length,
                             ),
-                            returned_length => returned_length,
+                            returned_length => returned_length.0,
                         },
                     )
                 })

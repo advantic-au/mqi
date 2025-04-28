@@ -28,14 +28,15 @@ impl<C: Conn> SubscribeOption<'_> for &Object<C> {
 impl SubscribeOption<'_> for MQCO {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam) {
-        param.close_options |= *self;
+        param.close_options.insert(*self);
     }
 }
 
 impl SubscribeOption<'_> for MQSO {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam) {
-        param.sd.Options |= self.0;
+        let so_options: &mut Self = param.sd.Options.as_mut();
+        so_options.insert(*self);
     }
 }
 
@@ -48,7 +49,8 @@ impl SubscribeRequestOption for MQSR {
 
 impl SubscribeRequestOption for MQSRO {
     fn apply_param(&self, param: &mut super::SubscribeRequestParam) {
-        param.sro.Options |= self.0;
+        let sro_options: &mut Self = param.sro.Options.as_mut();
+        sro_options.insert(*self);
     }
 }
 

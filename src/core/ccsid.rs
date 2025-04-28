@@ -1,6 +1,7 @@
 use crate::{encoding, sys};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
+#[repr(transparent)]
 pub struct CCSID(pub sys::MQLONG);
 
 impl CCSID {
@@ -14,6 +15,20 @@ impl CCSID {
     pub fn is_ebcdic(self) -> Option<bool> {
         #[expect(clippy::cast_sign_loss)]
         encoding::ccsid_lookup(self.0 as u32).map(|(_, encoding, _)| *encoding == 1)
+    }
+}
+
+impl AsRef<CCSID> for sys::MQLONG {
+    fn as_ref(&self) -> &CCSID {
+        // SAFETY: CCSID is repr(transparent)
+        unsafe { &*(std::ptr::from_ref(self).cast()) }
+    }
+}
+
+impl AsMut<CCSID> for sys::MQLONG {
+    fn as_mut(&mut self) -> &mut CCSID {
+        // SAFETY: CCSID is repr(transparent)
+        unsafe { &mut *(std::ptr::from_mut(self).cast()) }
     }
 }
 

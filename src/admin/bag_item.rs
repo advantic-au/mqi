@@ -119,7 +119,7 @@ impl<T: EncodedString + ?Sized, L: Library<MQ: Mqai>> BagItemPut<L> for T {
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
         let bag_ccsid = CCSID(
             bag.mq
-                .mq_inquire_integer(bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .mq_inquire_integer(bag, constants::MQIASY_CODED_CHAR_SET_ID.into(), MQIND::default())
                 .warn_as_error()?,
         );
         if bag_ccsid != self.ccsid() {
@@ -131,7 +131,7 @@ impl<T: EncodedString + ?Sized, L: Library<MQ: Mqai>> BagItemPut<L> for T {
     fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
         let bag_ccsid = CCSID(
             bag.mq
-                .mq_inquire_integer(bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .mq_inquire_integer(bag, constants::MQIASY_CODED_CHAR_SET_ID.into(), MQIND::default())
                 .warn_as_error()?,
         );
         if bag_ccsid != self.ccsid() {
@@ -148,7 +148,7 @@ impl<T: EncodedString, L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<T> {
         let Self { operator, value } = self;
         let bag_ccsid = CCSID(
             bag.mq
-                .mq_inquire_integer(bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .mq_inquire_integer(bag, constants::MQIASY_CODED_CHAR_SET_ID.into(), MQIND::default())
                 .warn_as_error()?,
         );
         if bag_ccsid != value.ccsid() {
@@ -170,7 +170,7 @@ impl<T: EncodedString, L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<T> {
         let Self { operator, value } = self;
         let bag_ccsid = CCSID(
             bag.mq
-                .mq_inquire_integer(bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .mq_inquire_integer(bag, constants::MQIASY_CODED_CHAR_SET_ID.into(), MQIND::default())
                 .warn_as_error()?,
         );
         if bag_ccsid != value.ccsid() {
@@ -194,7 +194,7 @@ impl<L: Library<MQ: Mqai>, const N: usize> BagItemGet<L> for MqStr<N> {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error> {
         let bag_ccsid = CCSID(
             bag.mq
-                .mq_inquire_integer(bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default())
+                .mq_inquire_integer(bag, constants::MQIASY_CODED_CHAR_SET_ID.into(), MQIND::default())
                 .warn_as_error()?,
         );
         if bag_ccsid != 1208 {
@@ -404,12 +404,12 @@ mod tests {
             assert!(subject == Filter::greater(&*long_s));
         })?;
 
-        // (MqaiSelector, MQITEM)
+        // (Selector, MQITEM)
         test_put_inq_bag_item(&99i32, &lib, |subject: (Selector, MQITEM)| {
             assert_eq!(subject, (Selector(0), constants::MQITEM_INTEGER));
         })?;
 
-        // MqaiSelector
+        // Selector
         test_put_inq_bag_item(&88i32, &lib, |subject: Selector| {
             assert_eq!(subject, Selector(0));
         })?;

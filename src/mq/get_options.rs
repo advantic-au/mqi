@@ -19,20 +19,22 @@ impl_mqstruct_min_version!(sys::MQGMO);
 
 impl GetOption for types::MQGMO {
     fn apply_param(&self, param: &mut GetParam) {
-        param.gmo.Options |= self.0;
+        let gmo_options: &mut Self = param.gmo.Options.as_mut();
+        gmo_options.insert(*self);
     }
 }
 
 impl GetOption for GetWait {
     fn apply_param(&self, param: &mut GetParam) {
+        let gmo_options: &mut types::MQGMO = param.gmo.Options.as_mut();
         match self {
             Self::NoWait => {
-                param.gmo.Options &= !sys::MQGMO_WAIT;
-                param.gmo.Options |= sys::MQGMO_NO_WAIT;
+                gmo_options.remove(constants::MQGMO_WAIT);
+                gmo_options.insert(constants::MQGMO_NO_WAIT);
             }
             Self::Wait(interval) => {
-                param.gmo.Options &= !sys::MQGMO_NO_WAIT;
-                param.gmo.Options |= sys::MQGMO_WAIT;
+                gmo_options.remove(constants::MQGMO_NO_WAIT);
+                gmo_options.insert(constants::MQGMO_WAIT);
                 param.gmo.WaitInterval = *interval;
             }
         }
@@ -41,13 +43,14 @@ impl GetOption for GetWait {
 
 impl GetOption for GetConvert {
     fn apply_param(&self, param: &mut GetParam) {
+        let gmo_options: &mut types::MQGMO = param.gmo.Options.as_mut();
         match self {
-            Self::NoConvert => param.gmo.Options &= !sys::MQGMO_CONVERT,
-            Self::Convert => param.gmo.Options |= sys::MQGMO_CONVERT,
+            Self::NoConvert => gmo_options.remove(constants::MQGMO_CONVERT),
+            Self::Convert => gmo_options.insert(constants::MQGMO_CONVERT),
             Self::ConvertTo(ccsid, encoding) => {
-                param.gmo.Options |= sys::MQGMO_CONVERT;
-                param.md.CodedCharSetId = ccsid.0;
-                param.md.Encoding = encoding.0;
+                gmo_options.insert(constants::MQGMO_CONVERT);
+                *param.md.CodedCharSetId.as_mut() = *ccsid;
+                *param.md.Encoding.as_mut() = *encoding;
             }
         }
     }
@@ -56,7 +59,8 @@ impl GetOption for GetConvert {
 impl<C: Conn> GetOption for &mut Properties<C> {
     fn apply_param(&self, param: &mut GetParam) {
         param.gmo.set_min_version(sys::MQGMO_VERSION_4);
-        param.gmo.Options |= sys::MQGMO_PROPERTIES_IN_HANDLE;
+        let gmo_options: &mut types::MQGMO = param.gmo.Options.as_mut();
+        gmo_options.insert(constants::MQGMO_PROPERTIES_IN_HANDLE);
         param.gmo.MsgHandle = unsafe { self.handle().raw_handle() }
     }
 }
@@ -82,40 +86,48 @@ impl GetOption for MatchOptions<'_> {
             param.gmo.MsgToken = token.0;
         }
         param.gmo.set_min_version(sys::MQGMO_VERSION_2);
-        param.gmo.MatchOptions = self.correl_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_CORREL_ID)
-            | self.msg_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_ID)
-            | self.group_id.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_GROUP_ID)
-            | self.seq_number.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_SEQ_NUMBER)
-            | self.offset.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_OFFSET)
-            | self.token.map_or(sys::MQMO_NONE, |_| sys::MQMO_MATCH_MSG_TOKEN);
+        *param.gmo.MatchOptions.as_mut() = self
+            .correl_id
+            .map_or(constants::MQMO_NONE, |_| constants::MQMO_MATCH_CORREL_ID)
+            | self.msg_id.map_or(constants::MQMO_NONE, |_| constants::MQMO_MATCH_MSG_ID)
+            | self.group_id.map_or(constants::MQMO_NONE, |_| constants::MQMO_MATCH_GROUP_ID)
+            | self
+                .seq_number
+                .map_or(constants::MQMO_NONE, |_| constants::MQMO_MATCH_MSG_SEQ_NUMBER)
+            | self.offset.map_or(constants::MQMO_NONE, |_| constants::MQMO_MATCH_OFFSET)
+            | self.token.map_or(constants::MQMO_NONE, |_| constants::MQMO_MATCH_MSG_TOKEN);
     }
 }
 
 impl GetOption for types::CorrelationId {
     fn apply_param(&self, param: &mut GetParam) {
         param.md.CorrelId = *self.0;
-        param.gmo.MatchOptions |= sys::MQMO_MATCH_CORREL_ID;
+        let match_options: &mut types::MQMO = param.gmo.MatchOptions.as_mut();
+        match_options.insert(constants::MQMO_MATCH_CORREL_ID);
     }
 }
 
 impl GetOption for types::MessageId {
     fn apply_param(&self, param: &mut GetParam) {
         param.md.MsgId = *self.0;
-        param.gmo.MatchOptions |= sys::MQMO_MATCH_MSG_ID;
+        let match_options: &mut types::MQMO = param.gmo.MatchOptions.as_mut();
+        match_options.insert(constants::MQMO_MATCH_MSG_ID);
     }
 }
 
 impl GetOption for types::GroupId {
     fn apply_param(&self, param: &mut GetParam) {
         param.md.GroupId = *self.0;
-        param.gmo.MatchOptions |= sys::MQMO_MATCH_GROUP_ID;
+        let match_options: &mut types::MQMO = param.gmo.MatchOptions.as_mut();
+        match_options.insert(constants::MQMO_MATCH_GROUP_ID);
     }
 }
 
 impl GetOption for types::MsgToken {
     fn apply_param(&self, param: &mut GetParam) {
         param.gmo.MsgToken = self.0;
-        param.gmo.MatchOptions |= sys::MQMO_MATCH_MSG_TOKEN;
+        let match_options: &mut types::MQMO = param.gmo.MatchOptions.as_mut();
+        match_options.insert(constants::MQMO_MATCH_MSG_TOKEN);
     }
 }
 
@@ -264,7 +276,7 @@ impl<'b, B> GetValue<'b, u8, B> for StrCcsidCow<'b> {
 
         Ok(state.map(|state| Self {
             ccsid: state.format.ccsid,
-            le: (state.format.encoding & constants::MQENC_INTEGER_REVERSED) != 0,
+            le: state.format.encoding.contains(constants::MQENC_INTEGER_REVERSED),
             data: conversion::bytes_to_cow_mqchar(state.into_truncated_buffer().into_cow()),
         }))
     }

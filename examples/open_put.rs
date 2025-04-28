@@ -85,13 +85,13 @@ fn main() -> anyhow::Result<()> {
     // Additional MQOO options from the command line
     let mut oo = constants::MQOO_OUTPUT;
     for o in &args.oo {
-        oo |= types::MQOO::from_str(o).context("MQOO options are invalid")?;
+        oo.insert(types::MQOO::from_str(o).context("MQOO options are invalid")?);
     }
 
     // Additional MQPMO options from the command line
     let mut pmo = constants::MQPMO_NONE;
     for p in &args.pmo {
-        pmo |= types::MQPMO::from_str(p).context("MQPMO options are invalid")?;
+        pmo.insert(types::MQPMO::from_str(p).context("MQPMO options are invalid")?);
     }
 
     /* TODO: conversion from str -> TextEnc::Ascii is clunky */

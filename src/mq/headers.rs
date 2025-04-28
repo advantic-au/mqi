@@ -27,7 +27,7 @@ const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
     result
 }
 
-const INTEGER_NATIVE_MASK: types::MQENC = types::MQENC(sys::MQENC_NATIVE & sys::MQENC_INTEGER_MASK);
+const INTEGER_NATIVE_MASK: types::MQENC = constants::MQENC_NATIVE.intersection(constants::MQENC_INTEGER_MASK);
 
 pub mod fmt {
     use crate::{sys, types::Fmt};
@@ -147,7 +147,7 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
 
     #[must_use]
     fn struc_matches(&self) -> bool {
-        swap_to_native(T::raw_version(&self.raw_header), (self.encoding & INTEGER_NATIVE_MASK) != 0) == T::VERSION && {
+        swap_to_native(T::raw_version(&self.raw_header), self.encoding.contains(INTEGER_NATIVE_MASK)) == T::VERSION && {
             let struc_id = T::raw_struc_id(&self.raw_header);
             let ebcdic = self.ccsid.is_ebcdic().unwrap_or(false);
             (ebcdic && struc_id == T::STRUC_ID_EBCDIC) || (!ebcdic && struc_id == T::STRUC_ID_ASCII)
@@ -163,8 +163,8 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     }
 
     #[must_use]
-    fn native_mqlong(&self, value: sys::MQLONG) -> sys::MQLONG {
-        swap_to_native(value, (self.encoding & INTEGER_NATIVE_MASK) != 0)
+    const fn native_mqlong(&self, value: sys::MQLONG) -> sys::MQLONG {
+        swap_to_native(value, self.encoding.contains(INTEGER_NATIVE_MASK))
     }
 }
 
@@ -564,7 +564,7 @@ impl<'a> EncodedHeader<'a, sys::MQRFH2> {
         StringCcsid::new(
             conversion::slice_byte_to_mqchar(&self.tail[4..]), // Exclude 4 bytes for the length prelude
             CCSID(self.native_mqlong(self.raw_header.NameValueCCSID)),
-            (self.encoding & constants::MQENC_INTEGER_REVERSED) != 0,
+            self.encoding.contains(constants::MQENC_INTEGER_REVERSED),
         )
     }
 }
@@ -614,11 +614,11 @@ impl ChainedHeader for sys::MQRFH {
 
 impl<'a> EncodedHeader<'a, sys::MQRFH> {
     #[must_use]
-    pub fn name_value_data(&self) -> StrCcsid<'a> {
+    pub const fn name_value_data(&self) -> StrCcsid<'a> {
         StringCcsid::new(
             conversion::slice_byte_to_mqchar(self.tail),
             self.ccsid,
-            (self.encoding & constants::MQENC_INTEGER_REVERSED) != 0,
+            self.encoding.contains(constants::MQENC_INTEGER_REVERSED),
         )
     }
 }
