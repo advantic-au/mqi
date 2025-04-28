@@ -149,7 +149,8 @@ where
     };
     open_options.apply_param(&mut open_params);
     put(put_options, message, |(md, pmo), data| {
-        pmo.Options |= open_params.options.0;
+        let pmo_options: &mut MQPMO = pmo.Options.as_mut();
+        pmo_options.insert(open_params.options);
         functions.mqput1(handle, &mut open_params.mqod, Some(&mut **md), pmo, data)
     })
 }

@@ -234,9 +234,10 @@ impl<'m> ConnectOption<'m> for MqServer<'m> {
             cd.ConnectionName.as_mut(),
             conversion::slice_byte_to_mqchar(self.connection_name.as_bytes())
         ));
-        cd.TransportType = self.transport.0;
-        cno.Options &= !sys::MQCNO_LOCAL_BINDING;
-        cno.Options |= sys::MQCNO_CLIENT_BINDING;
+        *cd.TransportType.as_mut() = self.transport;
+        let cno_options: &mut types::MQCNO = cno.Options.as_mut();
+        cno_options.remove(constants::MQCNO_LOCAL_BINDING);
+        cno_options.insert(constants::MQCNO_CLIENT_BINDING);
         HAS_CD
     }
 }
@@ -258,12 +259,13 @@ impl ConnectOption<'_> for Binding {
     where
         'static: 'ptr,
     {
-        structs.cno.Options &= !(sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING);
-        structs.cno.Options |= match self {
-            Self::Default => sys::MQCNO_NONE,
-            Self::Local => sys::MQCNO_LOCAL_BINDING,
-            Self::Client => sys::MQCNO_CLIENT_BINDING,
-        };
+        let cno_options: &mut types::MQCNO = structs.cno.Options.as_mut();
+        cno_options.remove(constants::MQCNO_CLIENT_BINDING | constants::MQCNO_LOCAL_BINDING);
+        cno_options.insert(match self {
+            Self::Default => constants::MQCNO_NONE,
+            Self::Local => constants::MQCNO_LOCAL_BINDING,
+            Self::Client => constants::MQCNO_CLIENT_BINDING,
+        });
         HAS_CNO
     }
 }
@@ -465,15 +467,16 @@ impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'c
     where
         'cred: 'ptr,
     {
+        let auth_type = structs.csp.AuthenticationType.as_mut();
         match &self {
             CredentialsSecret::Default => {
                 // No authentication
-                structs.csp.AuthenticationType = sys::MQCSP_AUTH_NONE;
+                *auth_type = constants::MQCSP_AUTH_NONE;
             }
             CredentialsSecret::User(user, password, ..) => {
                 // UserId and Password authentication
                 let password = password.expose_secret();
-                structs.csp.AuthenticationType = sys::MQCSP_AUTH_USER_ID_AND_PWD;
+                *auth_type = constants::MQCSP_AUTH_USER_ID_AND_PWD;
                 structs.csp.attach_password(password);
                 structs.csp.attach_userid(user);
             }
@@ -481,7 +484,7 @@ impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'c
             CredentialsSecret::Token(token, ..) => {
                 // JWT authentication
                 let token = token.expose_secret();
-                structs.csp.AuthenticationType = sys::MQCSP_AUTH_ID_TOKEN;
+                *auth_type = constants::MQCSP_AUTH_ID_TOKEN;
                 structs.csp.attach_token(token);
             }
         }
@@ -508,7 +511,8 @@ impl ConnectOption<'_> for types::MQCNO {
     where
         'static: 'ptr,
     {
-        structs.cno.Options |= self.0;
+        let cno_options: &mut Self = structs.cno.Options.as_mut();
+        cno_options.insert(*self);
         HAS_CNO
     }
 }
@@ -565,8 +569,9 @@ impl<'url> ConnectOption<'url> for Ccdt<'url> {
     where
         'url: 'ptr,
     {
-        structs.cno.Options &= !sys::MQCNO_LOCAL_BINDING;
-        structs.cno.Options |= sys::MQCNO_CLIENT_BINDING;
+        let cno_options: &mut types::MQCNO = structs.cno.Options.as_mut();
+        cno_options.remove(constants::MQCNO_LOCAL_BINDING);
+        cno_options.insert(constants::MQCNO_CLIENT_BINDING);
         structs.cno.attach_ccdt(self.0);
 
         HAS_CNO
@@ -614,8 +619,9 @@ impl<'cd> ConnectOption<'cd> for MqStruct<'cd, sys::MQCD> {
     {
         self.clone_into(&mut structs.cd);
         structs.cno.set_min_version(sys::MQCNO_VERSION_2);
-        structs.cno.Options &= !sys::MQCNO_LOCAL_BINDING;
-        structs.cno.Options |= sys::MQCNO_CLIENT_BINDING;
+        let cno_options: &mut types::MQCNO = structs.cno.Options.as_mut();
+        cno_options.remove(constants::MQCNO_LOCAL_BINDING);
+        cno_options.insert(constants::MQCNO_CLIENT_BINDING);
         HAS_CD
     }
 }
@@ -637,7 +643,8 @@ impl<S> super::ConnectAttr<S> for ConnTag {
     where
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
-        param.Options |= sys::MQCNO_GENERATE_CONN_TAG;
+        let cno_options: &mut types::MQCNO = param.Options.as_mut();
+        cno_options.insert(constants::MQCNO_GENERATE_CONN_TAG);
         param.set_min_version(sys::MQCNO_VERSION_3);
         connect(param).map_completion(|state| (Self(param.ConnTag), state))
     }

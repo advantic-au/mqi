@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use libmqm_sys::Mqai;
-use crate::types::{Selector, MQIND, MQCBO};
+use crate::types::{Selector, MQIND, MQCBO, MQIA, MQCA};
 
 use crate::core::mqai::BagHandle;
 use crate::core::{mqai, Library, MqFunctions, MqInqError, WriteRaw};
@@ -27,15 +27,21 @@ impl InqSelect for Selector {
     }
 }
 
-impl InqSelect for sys::MQLONG {
+impl InqSelect for MQIA {
     fn selector(&self) -> Selector {
-        Selector(*self)
+        (*self).into()
     }
 }
 
-impl InqSelect for (Selector, MQIND) {
+impl InqSelect for MQCA {
     fn selector(&self) -> Selector {
-        self.0
+        (*self).into()
+    }
+}
+
+impl<T: Into<Selector> + Copy> InqSelect for (T, MQIND) {
+    fn selector(&self) -> Selector {
+        self.0.into()
     }
 
     fn index(&self) -> Option<MQIND> {
@@ -83,7 +89,7 @@ impl<L: Library<MQ: Mqai>> Bag<Owned, L> {
         let mq = MqFunctions(lib);
         let bag = mq.mq_create_bag(options)?;
 
-        mq.mq_set_integer(&bag, Selector(sys::MQIASY_CODED_CHAR_SET_ID), MQIND::default(), 1208)
+        mq.mq_set_integer(&bag, constants::MQIASY_CODED_CHAR_SET_ID.into(), MQIND::default(), 1208)
             .discard_warning()?;
 
         Ok(bag.map(|handle| Self {

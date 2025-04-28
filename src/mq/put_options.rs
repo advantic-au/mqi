@@ -57,7 +57,8 @@ impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
 
 impl PutOption<'_> for MQPMO {
     fn apply_param(&self, (.., pmo): &mut PutParam<'_>) {
-        pmo.Options |= self.0;
+        let pmo_options: &mut Self = pmo.Options.as_mut();
+        pmo_options.insert(*self);
     }
 }
 

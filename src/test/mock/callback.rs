@@ -5,7 +5,7 @@ use std::{
 };
 
 use super::MockFunctions;
-use crate::{sys, constants};
+use crate::{constants, sys, types};
 
 impl MockFunctions {
     #[must_use]
@@ -23,7 +23,8 @@ impl MockFunctions {
             .expect_MQCB()
             .withf(|_, _, cbd_ptr, _, _, _, _, _| {
                 let cbd = unsafe { cbd_ptr.cast::<sys::MQCBD>().as_ref().expect("MQCBD should be non-null") };
-                cbd.CallbackType == sys::MQCBT_EVENT_HANDLER && (cbd.Options & sys::MQCBDO_DEREGISTER_CALL != 0)
+                types::MQCBT(cbd.CallbackType) == constants::MQCBT_EVENT_HANDLER
+                    && types::MQCBDO(cbd.Options).contains(constants::MQCBDO_DEREGISTER_CALL)
             })
             .returning(move |_, _, cbd_ptr, _, _, _, cc, rc| {
                 let cbd = unsafe { cbd_ptr.cast::<sys::MQCBD>().as_ref().expect("MQCBD should be non-null") };

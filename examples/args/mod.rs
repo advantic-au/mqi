@@ -50,7 +50,7 @@ impl ConnectionArgs {
     pub fn cno(&self) -> Result<types::MQCNO, std::num::ParseIntError> {
         let mut cno_all = constants::MQCNO_NONE;
         for cno in &self.cno {
-            cno_all |= types::MQCNO::from_str(cno)?;
+            cno_all.insert(types::MQCNO::from_str(cno)?);
         }
         Ok(cno_all)
     }

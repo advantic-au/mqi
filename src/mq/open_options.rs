@@ -86,19 +86,19 @@ impl<O> OpenOption<'_, O> for QueueManagerName {
 
 impl<'b> OpenOption<'b, Self> for MQOO {
     fn apply_param(&self, param: &mut OpenParamOption<'b, Self>) {
-        param.options |= *self;
+        param.options.insert(*self);
     }
 }
 
 impl<'b> OpenOption<'b, Self> for MQPMO {
     fn apply_param(&self, param: &mut OpenParamOption<'b, Self>) {
-        param.options |= *self;
+        param.options.insert(*self);
     }
 }
 
 impl OpenOption<'_, MQOO> for AlternateUserId {
     fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQOO>) {
-        *options |= constants::MQOO_ALTERNATE_USER_AUTHORITY;
+        options.insert(constants::MQOO_ALTERNATE_USER_AUTHORITY);
         mqod.set_min_version(sys::MQOD_VERSION_3);
         mqod.AlternateUserId = self.0.into();
     }
@@ -106,7 +106,7 @@ impl OpenOption<'_, MQOO> for AlternateUserId {
 
 impl OpenOption<'_, MQPMO> for AlternateUserId {
     fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQPMO>) {
-        *options |= constants::MQPMO_ALTERNATE_USER_AUTHORITY;
+        options.insert(constants::MQPMO_ALTERNATE_USER_AUTHORITY);
         mqod.set_min_version(sys::MQOD_VERSION_3);
         mqod.AlternateUserId = self.0.into();
     }

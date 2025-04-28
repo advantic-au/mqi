@@ -1,7 +1,7 @@
 use libmqm_sys::Mqi;
 use libmqm_default as default;
 
-use crate::types::MQCBDO;
+use crate::types;
 use crate::{
     core::{Library, MqFunctions},
     sys, Error, MqStruct, constants,
@@ -10,7 +10,7 @@ use crate::{
 use super::{Conn as _, Connection, ConnectionRef};
 
 struct CallbackData<F, L> {
-    options: MQCBDO,
+    options: types::MQCBDO,
     closure: F,
     mq: MqFunctions<L>,
 }
@@ -31,10 +31,11 @@ extern "C" fn event_callback<L, H, F>(
                 options, closure, mq, ..
             }) = context.CallbackArea.cast::<CallbackData<F, L>>().as_mut()
             {
-                if (context.CallType != sys::MQCBCT_DEREGISTER_CALL) || (*options & constants::MQCBDO_DEREGISTER_CALL) != 0 {
+                let is_deregister = types::MQCBCT(context.CallType) == constants::MQCBCT_DEREGISTER_CALL;
+                if !is_deregister || options.contains(constants::MQCBDO_DEREGISTER_CALL) {
                     closure(ConnectionRef::from_parts(hconn.into(), mq.clone()), context);
                 }
-                if context.CallType == sys::MQCBCT_DEREGISTER_CALL {
+                if is_deregister {
                     // Recreate the box so it deallocates / drops
                     let _ = Box::<CallbackData<F, L>>::from_raw(context.CallbackArea.cast());
                 }
@@ -47,7 +48,7 @@ impl<L, H> Connection<L, H>
 where
     L: Library<MQ: Mqi> + Clone,
 {
-    pub fn register_event_handler<F>(&mut self, options: MQCBDO, closure: F) -> Result<(), Error>
+    pub fn register_event_handler<F>(&mut self, options: types::MQCBDO, closure: F) -> Result<(), Error>
     where
         F: FnMut(ConnectionRef<L, H>, &MqStruct<sys::MQCBC>),
     {
@@ -58,9 +59,9 @@ where
         }));
         let mut cbd = MqStruct::new(default::MQCBD_DEFAULT);
         cbd.CallbackArea = cb_data.cast();
-        cbd.Options = (options | constants::MQCBDO_DEREGISTER_CALL).0; // Always register for the deregister call
+        *cbd.Options.as_mut() = options | constants::MQCBDO_DEREGISTER_CALL; // Always register for the deregister call
         cbd.CallbackFunction = event_callback::<L, H, F> as *mut _;
-        cbd.CallbackType = sys::MQCBT_EVENT_HANDLER;
+        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
 
         self.mq()
             .mqcb(self.handle(), constants::MQOP_REGISTER, &cbd, None, None::<&sys::MQMD>, None)?;
