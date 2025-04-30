@@ -827,6 +827,25 @@ mod tests {
             })
             .is_ok_and(|Completion((value, _), ..)| &*value == b"test" && value.metadata.value_type == constants::MQTYPE_STRING)
         );
+
+        assert!(
+            execute_pv::<Raw<[u8; 4]>>(|param| {
+                assert_eq!(param.value_type, constants::MQTYPE_AS_SET);
+                param.value_type = constants::MQTYPE_STRING;
+                value_property_state(b"test")
+            })
+            .is_ok_and(|Completion((value, _), ..)| &*value == b"test" && value.metadata.value_type == constants::MQTYPE_STRING)
+        );
+
+        assert!(
+            execute_pv::<[u8; 4]>(|param| {
+                assert!(MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_TYPE));
+                assert_eq!(param.value_type, constants::MQTYPE_BYTE_STRING);
+                value_property_state(b"test")
+            })
+            .is_ok_and(|Completion((value, _), ..)| &value == b"test")
+        );
+
     }
 
     #[test]
