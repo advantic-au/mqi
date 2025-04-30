@@ -189,10 +189,12 @@ mod test {
             mock_library
                 .expect_MQSUBRQ()
                 .returning(|_, _, _, sro, cc, rc| {
-                    let mqsro: *mut MqStruct<sys::MQSRO> = sro.cast();
-                    unsafe {
-                        (*mqsro).NumPubs = 5;
-                    }
+                    let mqsro = unsafe {
+                        sro.cast::<MqStruct<sys::MQSRO>>()
+                            .as_mut()
+                            .expect("MQRSO should never be a null pointer")
+                    };
+                    mqsro.NumPubs = 5;
                     mock::MockFunctions::mqi_outcome_ok(cc, rc);
                 })
                 .once();
