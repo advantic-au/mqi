@@ -755,15 +755,22 @@ mod tests {
     #[test]
     #[allow(clippy::float_cmp)]
     fn property_value() {
+        const BOOL_BYTES: &[u8] = &1i32.to_ne_bytes();
+
         fn assert_primitive_pv<P: PropertyValue + std::cmp::PartialEq + Copy>(
             value: &[u8],
             expected_type: MQTYPE,
             expected_value: P,
         ) {
             assert!(
-                test_pv::<P>(value_property_state(value)).is_ok_and(|Completion((value, param, _), ..)| value == expected_value
-                    && MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_TYPE | constants::MQIMPO_CONVERT_VALUE)
-                    && param.value_type == expected_type)
+                execute_pv::<P>(|param| {
+                    assert!(
+                        MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_TYPE | constants::MQIMPO_CONVERT_VALUE)
+                    );
+                    assert_eq!(param.value_type, expected_type);
+                    value_property_state(value)
+                })
+                .is_ok_and(|Completion((value, _), ..)| value == expected_value)
             );
         }
 
@@ -775,15 +782,50 @@ mod tests {
         assert_primitive_pv(&99f64.to_ne_bytes(), constants::MQTYPE_FLOAT64, 99f64);
 
         assert!(
-            test_pv::<bool>(value_property_state(&1i32.to_ne_bytes())).is_ok_and(|Completion((value, param, _), ..)| value
-                && MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_TYPE)
-                && param.value_type == constants::MQTYPE_BOOLEAN)
+            execute_pv::<bool>(|param| {
+                assert!(MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_TYPE));
+                assert_eq!(param.value_type, constants::MQTYPE_BOOLEAN);
+                value_property_state(BOOL_BYTES)
+            })
+            .is_ok_and(|Completion((value, _), ..)| value)
         );
 
         assert!(
-            test_pv::<Vec<u8>>(value_property_state(b"test")).is_ok_and(|Completion((value, param, _), ..)| value == b"test"
-                && MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_TYPE)
-                && param.value_type == constants::MQTYPE_BYTE_STRING)
+            execute_pv::<Vec<u8>>(|param| {
+                assert!(MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_TYPE));
+                assert_eq!(param.value_type, constants::MQTYPE_BYTE_STRING);
+                value_property_state(b"test")
+            })
+            .is_ok_and(|Completion((value, _), ..)| value == b"test")
+        );
+
+        assert!(
+            execute_pv::<String>(|param| {
+                assert!(MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_TYPE | constants::MQIMPO_CONVERT_VALUE));
+                assert_eq!(param.value_type, constants::MQTYPE_STRING);
+                value_property_state(b"test")
+            })
+            .is_ok_and(|Completion((value, _), ..)| value == "test")
+        );
+
+        assert!(
+            execute_pv::<StrCcsidOwned>(|param| {
+                assert!(MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_TYPE));
+                assert!(!MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_VALUE));
+                assert_eq!(param.value_type, constants::MQTYPE_STRING);
+                param.impo.ReturnedCCSID = 1208;
+                value_property_state(b"test")
+            })
+            .is_ok_and(|Completion((value, _), ..)| value.ccsid == 1208 && value.data == slice_byte_to_mqchar(b"test"))
+        );
+
+        assert!(
+            execute_pv::<Raw<Vec<u8>>>(|param| {
+                assert_eq!(param.value_type, constants::MQTYPE_AS_SET);
+                param.value_type = constants::MQTYPE_STRING;
+                value_property_state(b"test")
+            })
+            .is_ok_and(|Completion((value, _), ..)| &*value == b"test" && value.metadata.value_type == constants::MQTYPE_STRING)
         );
     }
 
@@ -892,26 +934,23 @@ mod tests {
         f(&pd, &smpo, data, mq_type);
     }
 
-    fn test_pv<P: PropertyValue>(ps: ResultComp<PropertyState>) -> ResultCompErr<(P, PropertyParam, PropertyParam), P::Error> {
+    fn execute_pv<'a, P: PropertyValue>(
+        f: impl FnMut(&mut PropertyParam) -> ResultComp<PropertyState<'a>>,
+    ) -> ResultCompErr<(P, PropertyParam<'a>), P::Error> {
         let mut param = PropertyParam {
             impo: MqStruct::new(default::MQIMPO_DEFAULT),
             value_type: MQTYPE::default(),
             mqpd: MqStruct::new(default::MQPD_DEFAULT),
             name_required: NameUsage::default(),
         };
-        let mut param_before = param.clone();
-        P::property_consume(&mut param, |param| {
-            param_before = param.clone();
-            ps
-        })
-        .map_completion(|value| (value, param_before, param))
+        P::property_consume(&mut param, f).map_completion(|value| (value, param))
     }
 
     #[allow(clippy::unnecessary_wraps)]
-    fn value_property_state(bv: &[u8]) -> ResultComp<PropertyState> {
+    const fn value_property_state(bv: &[u8]) -> ResultComp<PropertyState> {
         Ok(Completion::new(PropertyState {
             name: None,
-            value: Cow::from(bv),
+            value: Cow::Borrowed(bv),
         }))
     }
 
