@@ -48,7 +48,7 @@ where
 {
     fn from(value: InqBuffer<'a, T>) -> Self {
         match value {
-            InqBuffer::Slice(s) => borrow::Cow::from(&*s),
+            InqBuffer::Slice(s) => borrow::Cow::Borrowed(&*s),
             InqBuffer::Owned(o) => o.into(),
         }
     }
@@ -79,7 +79,7 @@ impl<'a, T> Buffer<'a, T> for &'a mut [T] {
     where
         T: Clone,
     {
-        Cow::from(&*self)
+        Cow::Borrowed(&*self)
     }
 
     fn len(&self) -> usize {
