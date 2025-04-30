@@ -846,6 +846,22 @@ mod tests {
             .is_ok_and(|Completion((value, _), ..)| &value == b"test")
         );
 
+        assert!(
+            execute_pv::<Value>(|param| {
+                param.value_type = constants::MQTYPE_STRING;
+                param.impo.ReturnedCCSID = 1208;
+                value_property_state(b"test")
+            })
+            .is_ok_and(|Completion((value, _), ..)| matches!(value, Value::String(s) if s.ccsid == 1208 && s.data == slice_byte_to_mqchar(b"test")))
+        );
+
+        assert!(
+            execute_pv::<Value>(|param| {
+                param.value_type = constants::MQTYPE_NULL;
+                value_property_state(b"")
+            })
+            .is_ok_and(|Completion((value, _), ..)| matches!(value, Value::Null))
+        );
     }
 
     #[test]
