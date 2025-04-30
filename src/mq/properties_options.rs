@@ -141,7 +141,7 @@ pub enum Value {
 
 impl Metadata {
     #[must_use]
-    #[allow(clippy::missing_const_for_fn, reason="false positive - non-const deref")]
+    #[allow(clippy::missing_const_for_fn, reason = "false positive - non-const deref")]
     pub fn new(length: usize, impo: &MqStruct<sys::MQIMPO>, value_type: MQTYPE) -> Self {
         Self {
             length,

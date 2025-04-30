@@ -23,7 +23,9 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
 
     let admin_bag = Bag::new_lib(connection.library(), constants::MQCBO_ADMIN_BAG).warn_as_error()?;
     admin_bag.add(constants::MQCA_Q_NAME.into(), "*")?.discard_warning();
-    admin_bag.add(constants::MQIA_Q_TYPE.into(), &sys::MQQT_ALL)?.discard_warning();
+    admin_bag
+        .add(constants::MQIA_Q_TYPE.into(), &sys::MQQT_ALL)?
+        .discard_warning();
 
     let qm = mqi::connect_lib::<ThreadNone, _>(connection.library(), &()).warn_as_error()?;
     let execute_result = qm.execute(&admin_bag, &constants::MQCMD_INQUIRE_Q).warn_as_error()?;
