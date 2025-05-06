@@ -190,21 +190,36 @@ where
     let mut structs = ConnectStructs::default();
     let struct_mask = options.apply_param(&mut structs);
 
+    let cno_ptr = &raw const structs.cno;
     #[cfg(feature = "mqc_9_3_0_0")]
-    if struct_mask & connect_options::HAS_BNO != 0 {
-        structs.cno.attach_bno(&structs.bno);
+    if struct_mask & connect_options::CONNECT_HAS_BNO != connect_options::CONNECT_HAS_NONE {
+        structs.cno.set_min_version(sys::MQCNO_VERSION_8);
+        structs.cno.BalanceParmsOffset = unsafe { (&raw const structs.bno).byte_offset_from(cno_ptr) }
+            .try_into()
+            .expect("MQBNO offset from MQCNO should convert to i32");
     }
 
-    if struct_mask & connect_options::HAS_CD != 0 {
-        structs.cno.attach_cd(&structs.cd);
+    if struct_mask & connect_options::CONNECT_HAS_CD != connect_options::CONNECT_HAS_NONE {
+        structs.cno.set_min_version(sys::MQCNO_VERSION_2);
+        structs.cno.ClientConnOffset = unsafe { (&raw const structs.cd).byte_offset_from(cno_ptr) }
+            .try_into()
+            .expect("MQCD offset from MQCNO should convert to i32");
     }
 
-    if struct_mask & connect_options::HAS_SCO != 0 {
-        structs.cno.attach_sco(&structs.sco);
+    if struct_mask & connect_options::CONNECT_HAS_SCO != connect_options::CONNECT_HAS_NONE {
+        structs.cno.set_min_version(sys::MQCNO_VERSION_4);
+        structs.cno.SSLConfigOffset = unsafe { (&raw const structs.sco).byte_offset_from(cno_ptr) }
+            .try_into()
+            .expect("MQSCO offset from MQCNO should convert to i32");
     }
 
-    if struct_mask & connect_options::HAS_CSP != 0 {
-        structs.cno.attach_csp(&structs.csp);
+    if struct_mask & connect_options::CONNECT_HAS_CSP != connect_options::CONNECT_HAS_NONE {
+        {
+            structs.cno.set_min_version(sys::MQCNO_VERSION_5);
+            structs.cno.SecurityParmsOffset = unsafe { (&raw const structs.csp).byte_offset_from(cno_ptr) }
+                .try_into()
+                .expect("MQCSP offset from MQCNO should convert to i32");
+        };
     }
 
     R::connect_consume(&mut structs.cno, |param| {

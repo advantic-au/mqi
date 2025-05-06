@@ -8,7 +8,7 @@ use libmqm_default as default;
 use crate::types::{MQENC, MQRC};
 use crate::constants;
 
-use super::{headers::fmt::MQFMT_NONE, MqStruct};
+use super::{connect_options::{ProtectedSecret, Secret}, headers::fmt::MQFMT_NONE, MqStruct};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
 pub struct CorrelationId(pub Identifier<24>);
@@ -166,6 +166,21 @@ impl_from_str!(CipherSpec, MqStr<32>);
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct KeyRepo(pub MqStr<256>);
 impl_from_str!(KeyRepo, MqStr<256>);
+
+pub struct KeyRepoPassword<T: ?Sized>(pub T);
+
+impl<'a, Y: ?Sized, T: Secret<'a, Y>> Secret<'a, Y> for KeyRepoPassword<T> {
+    fn expose_secret(&self) -> &'a Y {
+        self.0.expose_secret()
+    }
+}
+
+impl<'a> KeyRepoPassword<ProtectedSecret<&'a str>> {
+    #[must_use]
+    pub const fn new(password: &'a str) -> Self {
+        Self(ProtectedSecret::new(password))
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 pub struct CryptoHardware(pub MqStr<256>);

@@ -116,11 +116,13 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
 // Functions to attach references to MQSCO
 impl<'ptr> MqStruct<'ptr, sys::MQSCO> {
     #[cfg(feature = "mqc_9_3_0_0")]
-    pub fn attach_repo_password(&mut self, password: Option<&'ptr str>) {
+    pub fn attach_repo_password<S: crate::connect_options::Secret<'ptr, str> + Copy>(&mut self, password: Option<S>) {
+
         self.set_min_version(sys::MQSCO_VERSION_6);
         if let Some(ps) = password {
-            self.KeyRepoPasswordPtr = mq_str_ptr(ps);
-            self.KeyRepoPasswordLength = ps
+            let exposed = ps.expose_secret();
+            self.KeyRepoPasswordPtr = mq_str_ptr(exposed);
+            self.KeyRepoPasswordLength = exposed
                 .len()
                 .try_into()
                 .expect("Password length should not exceed maximum positive MQLONG");
