@@ -685,7 +685,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     /// Converts the contents of the specified bag into a PCF message and sends the message to the specified queue.
     ///
     /// # Safety
-    /// Consumers of the [`mq_put_bag`] function must ensure the MQPMO structure is populated with valid pointers and offsets
+    /// Consumers of [`mq_put_bag`](MqFunctions::mq_put_bag) must ensure the [`MQPMO`](sys::MQPMO) structure is populated with valid pointers and offsets
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mq_put_bag(
         &self,
