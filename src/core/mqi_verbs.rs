@@ -56,7 +56,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Connects an application program to a queue manager. It provides control on the method of connection.
     ///
     /// # Safety
-    /// Consumers of the [`mqconnx`] function must ensure the MQCNO structure populated with valid pointers and offsets
+    /// Consumers of [`MqFunctions::mqconnx`](MqFunctions::mqconnx) must ensure the MQCNO structure is populated with valid pointers and offsets
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqconnx(&self, qm_name: &MqStr<48>, mqcno: &mut sys::MQCNO) -> ResultComp<ConnectionHandle> {
         let mut outcome = MqiOutcome::<ConnectionHandle>::with_verb("MQCONNX");
