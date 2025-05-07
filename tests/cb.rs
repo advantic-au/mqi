@@ -16,25 +16,27 @@ fn qm() -> Result<(), Box<dyn Error>> {
     let mock_library = MockFunctions::connect_ok_event_cb();
     let mut qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, &()).warn_as_error()?;
 
-    qm.register_event_handler(
-        MQCBDO(
-            sys::MQCBDO_NONE
-                | sys::MQCBDO_MC_EVENT_CALL
-                | sys::MQCBDO_EVENT_CALL
-                | sys::MQCBDO_REGISTER_CALL
-                | sys::MQCBDO_DEREGISTER_CALL,
-            // | sys::MQCBDO_START_CALL
-            // | sys::MQCBDO_STOP_CALL,
-        ),
-        |_, options| {
-            println!("{}", MQCBCT(options.CallType));
-            println!("{}", MQCS(options.State));
-            println!("{}", MQCC(options.CompCode));
-            println!("{}", MQRC(options.Reason));
-            println!("{}", MQCBCF(options.Flags));
-            println!("{}", MQRD(options.ReconnectDelay));
-        },
-    )?;
+    unsafe {
+        qm.register_event_handler(
+            MQCBDO(
+                sys::MQCBDO_NONE
+                    | sys::MQCBDO_MC_EVENT_CALL
+                    | sys::MQCBDO_EVENT_CALL
+                    | sys::MQCBDO_REGISTER_CALL
+                    | sys::MQCBDO_DEREGISTER_CALL,
+                // | sys::MQCBDO_START_CALL
+                // | sys::MQCBDO_STOP_CALL,
+            ),
+            |_, options| {
+                println!("{}", MQCBCT(options.CallType));
+                println!("{}", MQCS(options.State));
+                println!("{}", MQCC(options.CompCode));
+                println!("{}", MQRC(options.Reason));
+                println!("{}", MQCBCF(options.Flags));
+                println!("{}", MQRD(options.ReconnectDelay));
+            },
+        )
+    }?;
 
     qm.disconnect().warn_as_error()?;
     Ok(())
@@ -111,23 +113,27 @@ fn callback() -> Result<(), Box<dyn Error>> {
         });
 
         gmo.WaitInterval = 1500;
-        qm.mq()
-            .mqcb(
-                qm.handle(),
-                constants::MQOP_REGISTER,
-                &cbd,
-                Some(object.handle()),
-                Some(&*mqmd),
-                Some(&gmo),
-            )
-            .expect("mqcb should not fail");
+        unsafe {
+            qm.mq()
+                .mqcb(
+                    qm.handle(),
+                    constants::MQOP_REGISTER,
+                    &cbd,
+                    Some(object.handle()),
+                    Some(&*mqmd),
+                    Some(&gmo),
+                )
+                .expect("mqcb should not fail");
+        };
 
         let ctlo = MqStruct::new(default::MQCTLO_DEFAULT);
 
-        qm.mq()
-            .mqctl(qm.handle(), constants::MQOP_START_WAIT, &ctlo)
-            .warn_as_error()
-            .expect("mqctl should not fail");
+        unsafe {
+            qm.mq()
+                .mqctl(qm.handle(), constants::MQOP_START_WAIT, &ctlo)
+                .warn_as_error()
+                .expect("mqctl should not fail");
+        };
 
         // Disconnect.
         // object.close().warn_as_error().expect("Bad state");

@@ -95,7 +95,7 @@ pub trait SubscribeAttr<C: Conn> {
     message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
 )]
 /// # Safety
-/// This trait can directly manipulate the [`MQSD`](sys::MQSD) structure which is used by [`MQSUB`](libmqm_sys::function::Mqi::MQSUB).
+/// This trait can directly manipulate the [`MQSD`](sys::MQSD) structure which is used by [`MQSUB`](libmqm_sys::Mqi::MQSUB).
 /// Incorrect values in the [`MQSD`](sys::MQSD) can lead to undefined behaviour.
 ///
 /// Implementations of [`SubscribeOption`] must ensure that pointers and offsets contained in the structure point to active data.

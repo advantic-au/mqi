@@ -22,7 +22,7 @@ pub struct Object<C: Conn> {
     message = "{Self} does not implement `OpenOption` so it can't be used as an argument for MQI open"
 )]
 /// # Safety
-/// This trait can directly manipulate the [`MQOD`](sys::MQOD) structure which is used by the [`mqopen`] function.
+/// This trait can directly manipulate the [`MQOD`](sys::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
 /// Incorrect values in the [`MQOD`](sys::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenOption<'oo, T> {
@@ -30,7 +30,7 @@ pub unsafe trait OpenOption<'oo, T> {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQOD`](sys::MQOD) structure which is used by the [`mqopen`] function.
+/// This trait can directly manipulate the [`MQOD`](sys::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
 /// Incorrect values in the [`MQOD`](sys::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenValue<S> {
@@ -43,7 +43,7 @@ pub unsafe trait OpenValue<S> {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQOD`](sys::MQOD) structure which is used by the [`mqopen`] function.
+/// This trait can directly manipulate the [`MQOD`](sys::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
 /// Incorrect values in the [`MQOD`](sys::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenAttr<S, O> {

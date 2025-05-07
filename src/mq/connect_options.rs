@@ -68,7 +68,7 @@ pub struct ConnectStructs<'ptr> {
     message = "{Self} does not implement `ConnectOption` so it can't be used as an argument for MQI connect"
 )]
 /// # Safety
-/// This trait can directly manipulate the [`MQCNO`](sys::MQCNO) structure which is used by [`MQCONNX`](libmqm_sys::function::Mqi::MQCONNX).
+/// This trait can directly manipulate the [`MQCNO`](sys::MQCNO) structure which is used by [`MQCONNX`](libmqm_sys::Mqi::MQCONNX).
 /// Incorrect values in the [`MQCONNX`](sys::MQCONNX) can lead to undefined behaviour.
 ///
 /// Implementations of [`ConnectOption`] must ensure that pointers and offsets contained in the structure point to active data.
