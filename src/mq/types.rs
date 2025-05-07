@@ -8,7 +8,11 @@ use libmqm_default as default;
 use crate::types::{MQENC, MQRC};
 use crate::constants;
 
-use super::{connect_options::{ProtectedSecret, Secret}, headers::fmt::MQFMT_NONE, MqStruct};
+use super::{
+    connect_options::{ProtectedSecret, Secret},
+    headers::fmt::MQFMT_NONE,
+    MqStruct,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
 pub struct CorrelationId(pub Identifier<24>);

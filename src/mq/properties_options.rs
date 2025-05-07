@@ -29,7 +29,12 @@ pub struct PropertyParam<'p> {
     pub name_required: NameUsage,
 }
 
-pub trait PropertyValue {
+/// # Safety
+/// This trait can directly manipulate the [`MQIMPO`](sys::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::function::Mqi::MQINQMP) function.
+/// Incorrect values in the [`MQIMPO`](sys::MQIMPO) can lead to undefined behaviour.
+///
+/// Implementations of the [`PropertyValue`] trait must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait PropertyValue {
     type Error: From<Error> + Into<Error> + std::fmt::Debug;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
@@ -43,7 +48,12 @@ pub trait PropertyValue {
     }
 }
 
-pub trait PropertyAttr {
+/// # Safety
+/// This trait can directly manipulate the [`MQIMPO`](sys::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::function::Mqi::MQINQMP).
+/// Incorrect values in the [`MQIMPO`](sys::MQIMPO) can lead to undefined behaviour.
+///
+/// Implementations of the [`PropertyAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait PropertyAttr {
     fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
@@ -177,7 +187,7 @@ impl Metadata {
     }
 }
 
-impl PropertyAttr for Metadata {
+unsafe impl PropertyAttr for Metadata {
     #[inline]
     fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
@@ -187,7 +197,7 @@ impl PropertyAttr for Metadata {
     }
 }
 
-impl PropertyAttr for Attributes {
+unsafe impl PropertyAttr for Attributes {
     #[inline]
     fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
@@ -355,7 +365,7 @@ impl<T: PartialEq<Y>, Y> PartialEq<Name<Y>> for Name<T> {
     }
 }
 
-impl PropertyAttr for Name<String> {
+unsafe impl PropertyAttr for Name<String> {
     fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
@@ -379,7 +389,7 @@ impl PropertyAttr for Name<String> {
     }
 }
 
-impl<const N: usize> PropertyAttr for Name<MqStr<N>> {
+unsafe impl<const N: usize> PropertyAttr for Name<MqStr<N>> {
     fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
@@ -402,7 +412,7 @@ impl<const N: usize> PropertyAttr for Name<MqStr<N>> {
     }
 }
 
-impl PropertyAttr for Name<StrCcsidOwned> {
+unsafe impl PropertyAttr for Name<StrCcsidOwned> {
     fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
@@ -422,7 +432,7 @@ impl PropertyAttr for Name<StrCcsidOwned> {
     }
 }
 
-impl PropertyValue for Value {
+unsafe impl PropertyValue for Value {
     type Error = Error;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
@@ -455,7 +465,7 @@ impl PropertyValue for Value {
 macro_rules! impl_primitive_propertyvalue {
     ($type:ty, $mqtype:path) => {
         impl_as_primitive!($type);
-        impl PropertyValue for $type {
+        unsafe impl PropertyValue for $type {
             type Error = Error;
 
             fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
@@ -496,7 +506,7 @@ impl_primitive_propertyvalue!(i16, constants::MQTYPE_INT16);
 impl_primitive_propertyvalue!(sys::MQLONG, constants::MQTYPE_INT32);
 impl_primitive_propertyvalue!(sys::MQINT64, constants::MQTYPE_INT64);
 
-impl PropertyValue for bool {
+unsafe impl PropertyValue for bool {
     type Error = Error;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
@@ -514,7 +524,7 @@ impl PropertyValue for bool {
     }
 }
 
-impl PropertyValue for Vec<sys::MQBYTE> {
+unsafe impl PropertyValue for Vec<sys::MQBYTE> {
     type Error = Error;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
@@ -528,7 +538,7 @@ impl PropertyValue for Vec<sys::MQBYTE> {
     }
 }
 
-impl<const N: usize> PropertyValue for [u8; N] {
+unsafe impl<const N: usize> PropertyValue for [u8; N] {
     type Error = Error;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
@@ -550,7 +560,7 @@ impl<const N: usize> PropertyValue for [u8; N] {
     }
 }
 
-impl<const N: usize> PropertyValue for MqStr<N> {
+unsafe impl<const N: usize> PropertyValue for MqStr<N> {
     type Error = Error;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
@@ -580,7 +590,7 @@ impl<T: AsRef<[u8]>> SetProperty for Raw<T> {
     }
 }
 
-impl PropertyValue for Raw<Vec<u8>> {
+unsafe impl PropertyValue for Raw<Vec<u8>> {
     type Error = Error;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
@@ -597,7 +607,7 @@ impl PropertyValue for Raw<Vec<u8>> {
     }
 }
 
-impl<const N: usize> PropertyValue for Raw<[u8; N]> {
+unsafe impl<const N: usize> PropertyValue for Raw<[u8; N]> {
     type Error = Error;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
@@ -620,7 +630,7 @@ impl<const N: usize> PropertyValue for Raw<[u8; N]> {
     }
 }
 
-impl PropertyValue for String {
+unsafe impl PropertyValue for String {
     type Error = Error;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
@@ -641,7 +651,7 @@ impl PropertyValue for String {
     }
 }
 
-impl PropertyValue for StrCcsidOwned {
+unsafe impl PropertyValue for StrCcsidOwned {
     type Error = Error;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
@@ -668,7 +678,7 @@ mod impl_property {
     macro_rules! impl_propertyvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            impl<$first, $($ty),*> PropertyValue for ($first, $($ty),*)
+            unsafe impl<$first, $($ty),*> PropertyValue for ($first, $($ty),*)
             where
                 $first: PropertyValue,
                 $($ty: PropertyAttr),*
@@ -705,7 +715,7 @@ mod impl_property {
     macro_rules! impl_propertyattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            impl<$first, $($ty),*> PropertyAttr for ($first, $($ty),*)
+            unsafe impl<$first, $($ty),*> PropertyAttr for ($first, $($ty),*)
             where
                 $first: PropertyAttr,
                 $($ty: PropertyAttr),*

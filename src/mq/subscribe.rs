@@ -94,7 +94,12 @@ pub trait SubscribeAttr<C: Conn> {
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
 )]
-pub trait SubscribeOption<'so> {
+/// # Safety
+/// This trait can directly manipulate the [`MQSD`](sys::MQSD) structure which is used by [`MQSUB`](libmqm_sys::function::Mqi::MQSUB).
+/// Incorrect values in the [`MQSD`](sys::MQSD) can lead to undefined behaviour.
+///
+/// Implementations of [`SubscribeOption`] must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait SubscribeOption<'so> {
     fn apply_param(&self, param: &mut SubscribeParam<'so>);
 }
 
@@ -153,26 +158,27 @@ impl<C: Conn + Clone> Subscription<C> {
 
         R::subscribe_consume(&mut so, |param| {
             let mut obj_handle = ObjectHandle::from(param.provided_object);
-            connection
-                .mq()
-                .mqsub(connection.handle(), &mut param.sd, &mut obj_handle)
-                .map_completion(|sub_handle| {
-                    // Create an Object if there is a unique one issued from the call
-                    let new_raw_handle = unsafe { obj_handle.raw_handle() };
-                    let object = match (param.provided_object, new_raw_handle) {
-                        (_, sys::MQHO_NONE) => None,
-                        (original, new) if original == new => None,
-                        (_, new) => Some(unsafe { Object::from_parts(connection.clone(), ObjectHandle::from(new)) }),
-                    };
-                    SubscribeState {
-                        subscription: Self {
-                            handle: sub_handle,
-                            connection,
-                            close_options: param.close_options,
-                        },
-                        object,
-                    }
-                })
+
+            // SAFETY: Implementors of SubscribeOption must ensure the MQSD is populated correctly
+            let mqsub_result = unsafe { connection.mq().mqsub(connection.handle(), &mut param.sd, &mut obj_handle) };
+
+            mqsub_result.map_completion(|sub_handle| {
+                // Create an Object if there is a unique one issued from the call
+                let new_raw_handle = unsafe { obj_handle.raw_handle() };
+                let object = match (param.provided_object, new_raw_handle) {
+                    (_, sys::MQHO_NONE) => None,
+                    (original, new) if original == new => None,
+                    (_, new) => Some(unsafe { Object::from_parts(connection.clone(), ObjectHandle::from(new)) }),
+                };
+                SubscribeState {
+                    subscription: Self {
+                        handle: sub_handle,
+                        connection,
+                        close_options: param.close_options,
+                    },
+                    object,
+                }
+            })
         })
     }
 }

@@ -15,7 +15,7 @@ macro_rules! impl_putoption_tuple {
     ([$($rest:ident),*]) => {
         #[expect(non_snake_case)]
         #[diagnostic::do_not_recommend]
-        impl <'po, $($rest),*> PutOption<'po> for ($($rest),*)
+        unsafe impl <'po, $($rest),*> PutOption<'po> for ($($rest),*)
         where
             $($rest: PutOption<'po> ),*
         {
@@ -28,7 +28,7 @@ macro_rules! impl_putoption_tuple {
     };
 }
 
-impl PutOption<'_> for () {
+unsafe impl PutOption<'_> for () {
     fn apply_param(&self, _: &mut PutParam<'_>) {}
 }
 
@@ -41,13 +41,13 @@ pub enum PropertyAction<'handle, C: Conn, C2: Conn> {
     Report(&'handle Properties<C>, &'handle mut Properties<C2>),
 }
 
-impl<'po, C: Conn> PutOption<'po> for Context<&Object<C>> {
+unsafe impl<'po, C: Conn> PutOption<'po> for Context<&Object<C>> {
     fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
         pmo.Context = unsafe { self.0.handle.raw_handle() };
     }
 }
 
-impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
+unsafe impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
     fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
         pmo.set_min_version(sys::MQPMO_VERSION_3);
         pmo.Action = sys::MQACTP_NEW;
@@ -55,20 +55,20 @@ impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
     }
 }
 
-impl PutOption<'_> for MQPMO {
+unsafe impl PutOption<'_> for MQPMO {
     fn apply_param(&self, (.., pmo): &mut PutParam<'_>) {
         let pmo_options: &mut Self = pmo.Options.as_mut();
         pmo_options.insert(*self);
     }
 }
 
-impl PutOption<'_> for MqStruct<'static, sys::MQMD2> {
+unsafe impl PutOption<'_> for MqStruct<'static, sys::MQMD2> {
     fn apply_param(&self, param: &mut PutParam<'_>) {
         self.clone_into(&mut param.0);
     }
 }
 
-impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2> {
+unsafe impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2> {
     fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
         let (action, original, new) = match self {
             PropertyAction::Reply(original, new) => (sys::MQACTP_REPLY, original, new),
@@ -82,7 +82,7 @@ impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2> {
     }
 }
 
-impl PutAttr for MqStruct<'static, sys::MQMD2> {
+unsafe impl PutAttr for MqStruct<'static, sys::MQMD2> {
     #[inline]
     fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
@@ -95,7 +95,7 @@ impl PutAttr for MqStruct<'static, sys::MQMD2> {
     }
 }
 
-impl PutAttr for types::MessageId {
+unsafe impl PutAttr for types::MessageId {
     #[inline]
     fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
@@ -108,7 +108,7 @@ impl PutAttr for types::MessageId {
     }
 }
 
-impl PutAttr for types::CorrelationId {
+unsafe impl PutAttr for types::CorrelationId {
     #[inline]
     fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
@@ -121,7 +121,7 @@ impl PutAttr for types::CorrelationId {
     }
 }
 
-impl PutAttr for Option<types::UserIdentifier> {
+unsafe impl PutAttr for Option<types::UserIdentifier> {
     #[inline]
     fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
@@ -145,7 +145,7 @@ mod impl_put {
     macro_rules! impl_putattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            impl<$first, $($ty),*> PutAttr for ($first, $($ty),*)
+            unsafe impl<$first, $($ty),*> PutAttr for ($first, $($ty),*)
             where
                 $first: PutAttr,
                 $($ty: PutAttr),*
@@ -171,7 +171,7 @@ mod impl_put {
         }
     }
 
-    impl PutAttr for () {
+    unsafe impl PutAttr for () {
         #[inline]
         fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
         where

@@ -8,17 +8,19 @@ use clap::{Args, Parser};
 mod args;
 
 use mqi::{
-    connect_options::ApplName,
+    connect_options::{ApplName, Tls},
+    constants,
+    core::CCSID,
     headers::TextEnc,
     open_options::ObjectString,
     prelude::*,
-    core::CCSID,
-    types::{MessageFormat, QueueManagerName, QueueName},
-    types, constants, MqStr, Object, ThreadNone,
+    types::{CipherSpec, MessageFormat, QueueManagerName, QueueName, MQENC, MQOO, MQPMO},
+    MqStr, Object, ThreadNone,
 };
 use tracing::Level;
 
 const APP_NAME: ApplName = ApplName(mqstr!("open_put"));
+const DEFAULT_CIPHER: CipherSpec = CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")); // TLS 1.3 cipher
 
 #[derive(Parser, Debug)]
 struct Cli {
@@ -65,6 +67,12 @@ fn main() -> anyhow::Result<()> {
     let creds = args.connection.credentials();
     let cno = args.connection.cno().context("MQCNO options are invalid")?;
 
+    // Set up the tls connection parameters from the arguments
+    let tls = args.connection.tls(&DEFAULT_CIPHER).context("TLS options are not valid")?;
+    let tls_connect = tls
+        .as_ref()
+        .map(|(repo, cipher, label)| Tls::new(repo, label.as_ref(), cipher));
+
     // It will be either queue or topic but not both
     let target_topic = args.target.topic.as_deref().map(ObjectString);
     let target_queue = args
@@ -85,25 +93,25 @@ fn main() -> anyhow::Result<()> {
     // Additional MQOO options from the command line
     let mut oo = constants::MQOO_OUTPUT;
     for o in &args.oo {
-        oo.insert(types::MQOO::from_str(o).context("MQOO options are invalid")?);
+        oo.insert(MQOO::from_str(o).context("MQOO options are invalid")?);
     }
 
     // Additional MQPMO options from the command line
     let mut pmo = constants::MQPMO_NONE;
     for p in &args.pmo {
-        pmo.insert(types::MQPMO::from_str(p).context("MQPMO options are invalid")?);
+        pmo.insert(MQPMO::from_str(p).context("MQPMO options are invalid")?);
     }
 
     /* TODO: conversion from str -> TextEnc::Ascii is clunky */
     let fmt: MqStr<8> = (*args.format.unwrap_or_default()).try_into()?;
     let msg_fmt = MessageFormat {
         ccsid: CCSID(1208),
-        encoding: types::MQENC::default(),
+        encoding: MQENC::default(),
         fmt: TextEnc::Ascii(*fmt.as_mqchar()),
     };
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, qm_name, creds, cno, client_method))
+    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, qm_name, creds, cno, client_method))
         .warn_as_error()
         .context("Unable to connect to the queue manager")?;
 

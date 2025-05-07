@@ -227,11 +227,15 @@ where
         let mq = core::MqFunctions(lib);
         let qm_default = QueueManagerName::default(); // TODO: change to constant
         let qm = qm_name.as_ref().map_or(&qm_default, |qm| qm);
-        mq.mqconnx(qm, param).map_completion(|handle| Connection {
-            mq,
-            handle,
-            _share: PhantomData,
-        })
+
+        // SAFETY: Implementors of ConnectOption must ensure MQCNO and associated structures are correctly populated
+        unsafe {
+            mq.mqconnx(qm, param).map_completion(|handle| Connection {
+                mq,
+                handle,
+                _share: PhantomData,
+            })
+        }
     })
 }
 

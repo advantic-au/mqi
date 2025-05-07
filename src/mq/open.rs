@@ -32,7 +32,8 @@ impl<C: Conn> Object<C> {
             options: constants::MQOO_BIND_AS_Q_DEF,
         };
         open_option.apply_param(&mut oo);
-        R::open_consume(&mut oo, |OpenParamOption { mqod, options }| {
+        // SAFETY: Implementors of OpenOption must ensure MQOD structure is populated correctly for mqopen
+        R::open_consume(&mut oo, |OpenParamOption { mqod, options }| unsafe {
             connection
                 .mq()
                 .mqopen(connection.handle(), mqod, *options)

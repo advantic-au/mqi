@@ -35,7 +35,7 @@ impl<C: Conn> Drop for Properties<C> {
 }
 
 #[expect(clippy::too_many_arguments)]
-fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
+unsafe fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
     mq: &core::MqFunctions<A>,
     connection_handle: Option<core::ConnectionHandle>,
     message_handle: &core::MessageHandle,
@@ -57,15 +57,17 @@ fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
     }
 
     match (
-        mq.mqinqmp(
-            connection_handle,
-            message_handle,
-            mqimpo,
-            name,
-            mqpd,
-            value_type,
-            Some(value.as_mut()),
-        ),
+        unsafe {
+            mq.mqinqmp(
+                connection_handle,
+                message_handle,
+                mqimpo,
+                name,
+                mqpd,
+                value_type,
+                Some(value.as_mut()),
+            )
+        },
         returned_name,
     ) {
         (Err(core::MqInqError::Length(length, Error(.., constants::MQRC_PROPERTY_VALUE_TOO_BIG))), rn)
@@ -73,38 +75,42 @@ fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
         {
             let len = length.try_into().expect("length should convert to usize");
             let value_vec = InqBuffer::Owned(vec![0; len]);
-            inqmp(
-                mq,
-                connection_handle,
-                message_handle,
-                mqimpo,
-                name,
-                mqpd,
-                value_type,
-                value_vec,
-                max_value_size,
-                rn,
-                max_name_size,
-            )
+            unsafe {
+                inqmp(
+                    mq,
+                    connection_handle,
+                    message_handle,
+                    mqimpo,
+                    name,
+                    mqpd,
+                    value_type,
+                    value_vec,
+                    max_value_size,
+                    rn,
+                    max_name_size,
+                )
+            }
         }
         (Err(core::MqInqError::Length(length, Error(.., constants::MQRC_PROPERTY_NAME_TOO_BIG))), Some(rn))
             if max_name_size.is_none_or(|max_len| Into::<usize>::into(max_len) > rn.len()) =>
         {
             let len = length.try_into().expect("length should convert to usize");
             let name_vec = InqBuffer::Owned(vec![0; len]);
-            inqmp(
-                mq,
-                connection_handle,
-                message_handle,
-                mqimpo,
-                name,
-                mqpd,
-                value_type,
-                value,
-                max_value_size,
-                Some(name_vec),
-                max_name_size,
-            )
+            unsafe {
+                inqmp(
+                    mq,
+                    connection_handle,
+                    message_handle,
+                    mqimpo,
+                    name,
+                    mqpd,
+                    value_type,
+                    value,
+                    max_value_size,
+                    Some(name_vec),
+                    max_name_size,
+                )
+            }
         }
         (other, rn) => other.map_completion(|length| {
             (
@@ -229,24 +235,26 @@ impl<C: Conn> Properties<C> {
                     ..default::MQCHARV_DEFAULT
                 });
 
-            let mqi_inqmp = inqmp(
-                self.connection.mq(),
-                Some(self.connection.handle()),
-                &self.handle,
-                &mut param.impo,
-                &name,
-                &mut param.mqpd,
-                &mut param.value_type,
-                inq_value_buffer,
-                P::max_value_size(),
-                inq_name_buffer,
-                param.name_required.into(),
-            )
-            .map_err(Into::into) // Convert the error into an ordinary MQ error
-            .map_completion(|(value, name)| PropertyState {
-                name: name.map(Into::into),
-                value: value.into(),
-            });
+            let mqi_inqmp = unsafe {
+                inqmp(
+                    self.connection.mq(),
+                    Some(self.connection.handle()),
+                    &self.handle,
+                    &mut param.impo,
+                    &name,
+                    &mut param.mqpd,
+                    &mut param.value_type,
+                    inq_value_buffer,
+                    P::max_value_size(),
+                    inq_name_buffer,
+                    param.name_required.into(),
+                )
+                .map_err(Into::into) // Convert the error into an ordinary MQ error
+                .map_completion(|(value, name)| PropertyState {
+                    name: name.map(Into::into),
+                    value: value.into(),
+                })
+            };
 
             property_not_available = mqi_inqmp
                 .as_ref()
@@ -285,15 +293,18 @@ impl<C: Conn> Properties<C> {
         let (data, value_type) = value.apply_mqsetmp(&mut mqpd, &mut mqsmpo);
 
         let name_mqcharv = MqStruct::from_encoded_str(name);
-        self.connection.mq().mqsetmp(
-            Some(self.connection.handle()),
-            &self.handle,
-            &mqsmpo,
-            &name_mqcharv,
-            &mut mqpd,
-            value_type,
-            data,
-        )
+        // SAFETY: The name MQCHARV formed from reference
+        unsafe {
+            self.connection.mq().mqsetmp(
+                Some(self.connection.handle()),
+                &self.handle,
+                &mqsmpo,
+                &name_mqcharv,
+                &mut mqpd,
+                value_type,
+                data,
+            )
+        }
     }
 
     pub fn close(self) -> ResultErr<()> {
@@ -315,22 +326,25 @@ impl<C: Conn> Properties<C> {
         let mut mqmd = MqStruct::new(default::MQMD2_DEFAULT);
         let name_mqcharv = MqStruct::from_encoded_str(name);
 
-        self.connection
-            .mq()
-            .mqmhbuf(
-                Some(self.connection.handle()),
-                self.handle(),
-                &mhbo,
-                &name_mqcharv,
-                &mut *mqmd,
-                buf.as_mut(),
-            )
-            .map_completion(|len| {
-                (
-                    MessageFormat::from_mqmd2(&mqmd),
-                    buf.truncate(len.try_into().expect("length should convert to usize")),
+        // SAFETY: The name MQCHARV formed from references
+        unsafe {
+            self.connection
+                .mq()
+                .mqmhbuf(
+                    Some(self.connection.handle()),
+                    self.handle(),
+                    &mhbo,
+                    &name_mqcharv,
+                    &mut *mqmd,
+                    buf.as_mut(),
                 )
-            })
+                .map_completion(|len| {
+                    (
+                        MessageFormat::from_mqmd2(&mqmd),
+                        buf.truncate(len.try_into().expect("length should convert to usize")),
+                    )
+                })
+        }
     }
 
     pub fn to_buffer_mut<'a, A: Buffer<'a, impl WriteRaw<sys::MQBYTE>>>(
@@ -347,22 +361,25 @@ impl<C: Conn> Properties<C> {
         let mut mqmd = MqStruct::new(default::MQMD2_DEFAULT);
         let name_mqcharv = MqStruct::from_encoded_str(name);
 
-        self.connection
-            .mq()
-            .mqmhbuf(
-                Some(self.connection.handle()),
-                self.handle(),
-                &mhbo,
-                &name_mqcharv,
-                &mut *mqmd,
-                buf.as_mut(),
-            )
-            .map_completion(|len| {
-                (
-                    MessageFormat::from_mqmd2(&mqmd),
-                    buf.truncate(len.try_into().expect("length should convert to usize")),
+        // SAFETY: The name MQCHARV is formed from references
+        unsafe {
+            self.connection
+                .mq()
+                .mqmhbuf(
+                    Some(self.connection.handle()),
+                    self.handle(),
+                    &mhbo,
+                    &name_mqcharv,
+                    &mut *mqmd,
+                    buf.as_mut(),
                 )
-            })
+                .map_completion(|len| {
+                    (
+                        MessageFormat::from_mqmd2(&mqmd),
+                        buf.truncate(len.try_into().expect("length should convert to usize")),
+                    )
+                })
+        }
     }
 
     pub fn from_buffer(&mut self, options: MQBMHO, format: &MessageFormat, buffer: &[sys::MQBYTE]) -> ResultComp<()> {

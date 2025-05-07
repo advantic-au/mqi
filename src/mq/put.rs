@@ -90,9 +90,12 @@ mod mqai {
             put_options.apply_param(&mut put_param);
             R::put_bag_extract(&mut put_param, |(md, pmo)| {
                 let connection = self.connection();
-                connection
-                    .mq()
-                    .mq_put_bag(connection.handle(), self.handle(), &mut **md, &mut *pmo, bag.handle())
+                // SAFETY: Implementors of PutOption must ensure the MQPMO is correctly populate
+                unsafe {
+                    connection
+                        .mq()
+                        .mq_put_bag(connection.handle(), self.handle(), &mut **md, &mut *pmo, bag.handle())
+                }
             })
         }
     }
@@ -113,20 +116,33 @@ impl<C: Conn> Object<C> {
     {
         put(put_options, message, |(md, pmo), data| {
             let connection = self.connection();
-            connection
-                .mq()
-                .mqput(connection.handle(), self.handle(), Some(&mut **md), pmo, data)
+            // SAFETY: Implementors of PutOption must ensure the MQPMO is correctly populated
+            unsafe {
+                connection
+                    .mq()
+                    .mqput(connection.handle(), self.handle(), Some(&mut **md), pmo, data)
+            }
         })
     }
 }
 
 /// A trait that manipulates the parameters to the [`mqput`](`crate::core::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put")]
-pub trait PutOption<'po> {
+/// # Safety
+/// This trait can directly manipulate the [`MQPMO`](sys::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::function::Mqi::MQPUT)
+/// and [`MQPUT1`](libmqm_sys::function::Mqi::MQPUT1). Incorrect values in the [`MQPMO`](sys::MQPMO) can lead to undefined behaviour.
+///
+/// Implementations of the [`PutOption`] trait must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait PutOption<'po> {
     fn apply_param(&self, param: &mut PutParam<'po>);
 }
 
-pub trait PutAttr {
+/// # Safety
+/// This trait can directly manipulate the [`MQPMO`](sys::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::function::Mqi::MQPUT)
+/// and [`MQPUT1`](libmqm_sys::function::Mqi::MQPUT1). Incorrect values in the [`MQPMO`](sys::MQPMO) can lead to undefined behaviour.
+///
+/// Implementations of the [`PutAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait PutAttr {
     fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
@@ -151,7 +167,9 @@ where
     put(put_options, message, |(md, pmo), data| {
         let pmo_options: &mut MQPMO = pmo.Options.as_mut();
         pmo_options.insert(open_params.options);
-        functions.mqput1(handle, &mut open_params.mqod, Some(&mut **md), pmo, data)
+
+        // SAFETY: Implementors of OpenOption and PutOption must ensure the MQOD and MQPMO are populated correctly
+        unsafe { functions.mqput1(handle, &mut open_params.mqod, Some(&mut **md), pmo, data) }
     })
 }
 

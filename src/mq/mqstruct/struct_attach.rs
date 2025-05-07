@@ -117,7 +117,6 @@ impl<'ptr> MqStruct<'ptr, sys::MQCSP> {
 impl<'ptr> MqStruct<'ptr, sys::MQSCO> {
     #[cfg(feature = "mqc_9_3_0_0")]
     pub fn attach_repo_password<S: crate::connect_options::Secret<'ptr, str> + Copy>(&mut self, password: Option<S>) {
-
         self.set_min_version(sys::MQSCO_VERSION_6);
         if let Some(ps) = password {
             let exposed = ps.expose_secret();

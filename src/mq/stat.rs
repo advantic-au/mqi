@@ -124,9 +124,12 @@ pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: Connect
     );
     sts.ObjectString.VSPtr = (&raw mut *buffer).cast();
 
-    functions
-        .mqstat(handle, constants::MQSTAT_TYPE_ASYNC_ERROR, &mut sts)
-        .map_completion(|()| AsyncPutStat::new(&sts, buffer))
+    // SAFETY: MQSTS ObjectString MQCHARV constructed from buffer
+    unsafe {
+        functions
+            .mqstat(handle, constants::MQSTAT_TYPE_ASYNC_ERROR, &mut sts)
+            .map_completion(|()| AsyncPutStat::new(&sts, buffer))
+    }
 }
 
 pub fn stat_reconnection<L: Library<MQ: Mqi>>(
@@ -134,9 +137,13 @@ pub fn stat_reconnection<L: Library<MQ: Mqi>>(
     handle: ConnectionHandle,
 ) -> ResultComp<ReconnectionStat> {
     let mut sts = MqStruct::new(default::MQSTS_DEFAULT);
-    functions
-        .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION, &mut sts)
-        .map_completion(|()| ReconnectionStat::new(&sts))
+
+    // SAFETY: MQSTS No pointers populated
+    unsafe {
+        functions
+            .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION, &mut sts)
+            .map_completion(|()| ReconnectionStat::new(&sts))
+    }
 }
 
 pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
@@ -166,9 +173,12 @@ pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
     );
     sts.SubName.VSPtr = (&raw mut *sub_name_buffer).cast();
 
-    functions
-        .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION_ERROR, &mut sts)
-        .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
+    // SAFETY: MQSTS ObjectString and SubName MQCHARV constructed from buffers
+    unsafe {
+        functions
+            .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION_ERROR, &mut sts)
+            .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
+    }
 }
 
 const DEFAULT_OBJECTSTRING_LENGTH: sys::MQLONG = 4096;

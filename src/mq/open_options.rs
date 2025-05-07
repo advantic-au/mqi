@@ -11,7 +11,7 @@ use crate::types::{MQOO, MQOT, MQPMO};
 
 use super::{impl_mqstruct_min_version, types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
 
-impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
+unsafe impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
     fn apply_param(&self, param: &mut OpenParamOption<'oo, O>) {
         if let Some(value) = self {
             value.apply_param(param);
@@ -19,7 +19,7 @@ impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
     }
 }
 
-impl<'oo, O> OpenOption<'oo, O> for () {
+unsafe impl<'oo, O> OpenOption<'oo, O> for () {
     fn apply_param(&self, _param: &mut OpenParamOption<'oo, O>) {}
 }
 
@@ -27,7 +27,7 @@ macro_rules! impl_openoption_tuple {
     ([$($rest:ident),*]) => {
         #[expect(non_snake_case)]
         #[diagnostic::do_not_recommend]
-        impl <'oo, O, $($rest),*> OpenOption<'oo, O> for ($($rest),*)
+        unsafe impl <'oo, O, $($rest),*> OpenOption<'oo, O> for ($($rest),*)
         where
             $($rest: OpenOption<'oo, O> ),*
         {
@@ -55,7 +55,7 @@ impl_from_str!(AlternateUserId, MqStr<12>);
 #[derive(Debug, Clone)]
 pub struct ResObjectString(pub StrCcsidOwned);
 
-impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for SelectionString<&'a T> {
+unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for SelectionString<&'a T> {
     fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
         mqod.attach_selection_string(self.0);
     }
@@ -63,40 +63,40 @@ impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for SelectionString<&'a
 
 impl_mqstruct_min_version!(sys::MQOD);
 
-impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString<&'a T> {
+unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString<&'a T> {
     fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
         mqod.ObjectType = sys::MQOT_TOPIC;
         mqod.attach_object_string(self.0);
     }
 }
 
-impl<O> OpenOption<'_, O> for QueueName {
+unsafe impl<O> OpenOption<'_, O> for QueueName {
     fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
         mqod.ObjectName = self.0.into();
         mqod.ObjectType = sys::MQOT_Q;
     }
 }
 
-impl<O> OpenOption<'_, O> for QueueManagerName {
+unsafe impl<O> OpenOption<'_, O> for QueueManagerName {
     fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
         mqod.ObjectQMgrName = self.0.into();
         mqod.ObjectType = sys::MQOT_Q_MGR;
     }
 }
 
-impl<'b> OpenOption<'b, Self> for MQOO {
+unsafe impl<'b> OpenOption<'b, Self> for MQOO {
     fn apply_param(&self, param: &mut OpenParamOption<'b, Self>) {
         param.options.insert(*self);
     }
 }
 
-impl<'b> OpenOption<'b, Self> for MQPMO {
+unsafe impl<'b> OpenOption<'b, Self> for MQPMO {
     fn apply_param(&self, param: &mut OpenParamOption<'b, Self>) {
         param.options.insert(*self);
     }
 }
 
-impl OpenOption<'_, MQOO> for AlternateUserId {
+unsafe impl OpenOption<'_, MQOO> for AlternateUserId {
     fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQOO>) {
         options.insert(constants::MQOO_ALTERNATE_USER_AUTHORITY);
         mqod.set_min_version(sys::MQOD_VERSION_3);
@@ -104,7 +104,7 @@ impl OpenOption<'_, MQOO> for AlternateUserId {
     }
 }
 
-impl OpenOption<'_, MQPMO> for AlternateUserId {
+unsafe impl OpenOption<'_, MQPMO> for AlternateUserId {
     fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQPMO>) {
         options.insert(constants::MQPMO_ALTERNATE_USER_AUTHORITY);
         mqod.set_min_version(sys::MQOD_VERSION_3);
@@ -112,7 +112,7 @@ impl OpenOption<'_, MQPMO> for AlternateUserId {
     }
 }
 
-impl<S, O> OpenAttr<S, O> for Option<QueueName> {
+unsafe impl<S, O> OpenAttr<S, O> for Option<QueueName> {
     #[inline]
     fn open_extract<'b, F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
@@ -128,7 +128,7 @@ impl<S, O> OpenAttr<S, O> for Option<QueueName> {
     }
 }
 
-impl<S, O> OpenAttr<S, O> for MQOT {
+unsafe impl<S, O> OpenAttr<S, O> for MQOT {
     #[inline]
     fn open_extract<'b, F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
@@ -139,7 +139,7 @@ impl<S, O> OpenAttr<S, O> for MQOT {
     }
 }
 
-impl<C: Conn> OpenValue<Self> for Object<C> {
+unsafe impl<C: Conn> OpenValue<Self> for Object<C> {
     type Error = Error;
 
     #[inline]
@@ -151,7 +151,7 @@ impl<C: Conn> OpenValue<Self> for Object<C> {
     }
 }
 
-impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
+unsafe impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
     #[inline]
     fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
     where
@@ -169,7 +169,7 @@ impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
 
 const DEFAULT_RESOBJECTSTRING_LENGTH: sys::MQLONG = 4096;
 
-impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
+unsafe impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
     fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
@@ -224,7 +224,7 @@ mod open_impl {
     macro_rules! impl_openvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            impl<S, $first, $($ty),*> OpenValue<S> for ($first, $($ty),*)
+            unsafe impl<S, $first, $($ty),*> OpenValue<S> for ($first, $($ty),*)
             where
                 $first: OpenValue<S>,
                 $($ty: OpenAttr<S, MQOO>),*
@@ -256,7 +256,7 @@ mod open_impl {
     macro_rules! impl_openattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            impl<S, O, $first, $($ty),*> OpenAttr<S, O> for ($first, $($ty),*)
+            unsafe impl<S, O, $first, $($ty),*> OpenAttr<S, O> for ($first, $($ty),*)
             where
                 $first: OpenAttr<S, O>,
                 $($ty: OpenAttr<S, O>),*

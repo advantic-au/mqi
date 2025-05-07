@@ -116,8 +116,6 @@ derive_more = { version = "2.0.1", features = [
     "error",
     "display",
     "constructor",
-    "add",
-    "add_assign",
 ] }
 maybe-owned = "0.3.4"
 mockall = { version = "0.13.0", optional = true }

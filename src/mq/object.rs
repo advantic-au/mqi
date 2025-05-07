@@ -21,11 +21,19 @@ pub struct Object<C: Conn> {
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `OpenOption` so it can't be used as an argument for MQI open"
 )]
-pub trait OpenOption<'oo, T> {
+/// # Safety
+/// This trait can directly manipulate the [`MQOD`](sys::MQOD) structure which is used by the [`mqopen`] function.
+/// Incorrect values in the [`MQOD`](sys::MQOD) can lead to undefined behaviour.
+/// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait OpenOption<'oo, T> {
     fn apply_param(&self, param: &mut OpenParamOption<'oo, T>);
 }
 
-pub trait OpenValue<S> {
+/// # Safety
+/// This trait can directly manipulate the [`MQOD`](sys::MQOD) structure which is used by the [`mqopen`] function.
+/// Incorrect values in the [`MQOD`](sys::MQOD) can lead to undefined behaviour.
+/// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait OpenValue<S> {
     type Error: From<Error> + std::fmt::Debug;
 
     fn open_consume<'oo, F>(param: &mut OpenParam<'oo>, mqi: F) -> ResultCompErr<Self, Self::Error>
@@ -34,7 +42,11 @@ pub trait OpenValue<S> {
         Self: std::marker::Sized;
 }
 
-pub trait OpenAttr<S, O> {
+/// # Safety
+/// This trait can directly manipulate the [`MQOD`](sys::MQOD) structure which is used by the [`mqopen`] function.
+/// Incorrect values in the [`MQOD`](sys::MQOD) can lead to undefined behaviour.
+/// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait OpenAttr<S, O> {
     fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
