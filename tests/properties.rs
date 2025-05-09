@@ -5,8 +5,8 @@ use std::error::Error;
 use test::mock::MockFunctions;
 use mqi::{
     sys, test,
-    types::{MQIMPO, MQSMPO, MQCMHO},
-    Properties, StrCcsidOwned,
+    types::{MQSMPO, MQCMHO},
+    Properties,
     prelude::*,
 };
 
@@ -30,26 +30,6 @@ fn set_property() -> Result<(), Box<dyn Error>> {
     let properties = Properties::new(connection, MQCMHO::default())?;
 
     properties.set_property("key", "value", MQSMPO::default()).warn_as_error()?;
-
-    Ok(())
-}
-
-#[test]
-fn inq_property() -> Result<(), Box<dyn Error>> {
-    let connection = test::mock::connect_ok(|mock_library| {
-        let mut seq = mockall::Sequence::new();
-        mock_library.properties_ok(0x0d0d, 1, &mut seq);
-        mock_library
-            .expect_MQINQMP()
-            .returning(|_, _, _, _, _, typ, _, _, _, comp_code, reason| {
-                assert_eq!(unsafe { *typ }, sys::MQTYPE_STRING);
-                MockFunctions::mqi_outcome_ok(comp_code, reason);
-            });
-    });
-
-    let properties = Properties::new(connection, MQCMHO::default())?;
-
-    let _: Option<StrCcsidOwned> = properties.property("name", MQIMPO::default()).warn_as_error()?;
 
     Ok(())
 }

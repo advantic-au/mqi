@@ -427,24 +427,57 @@ impl<C: Conn> Properties<C> {
 mod test {
     use std::{error::Error, rc::Rc};
 
-    use crate::{
-        headers::{fmt::MQFMT_NONE, TextEnc},
-        core::CCSID,
-        prelude::*,
-        constants,
-        test::mock::{self, MockFunctions},
-        types::MessageFormat,
-        Completion, Connection, ResultComp, ThreadNone,
+    use crate::constants::{
+        MQCC_FAILED, MQCC_OK, MQRC_CALL_IN_PROGRESS, MQRC_NONE, MQRC_PROPERTY_NOT_AVAILABLE, MQRC_PROPERTY_VALUE_TOO_BIG,
+        MQTYPE_BYTE_STRING,
     };
-    use crate::types::MQENC;
 
-    use super::Properties;
+    use crate::{
+        constants,
+        core::CCSID,
+        headers::{fmt::MQFMT_NONE, TextEnc},
+        test::mock::{self, MockFunctions},
+        types::{MQRC, MQCC, MessageFormat},
+        Connection, ResultErr, ThreadNone,
+    };
 
-    fn with_mqmhbuf_mocked<F>(mock_data: &'static [u8], f: F) -> ResultComp<()>
-    where
-        F: FnOnce(&mut Properties<Connection<Rc<MockFunctions>, ThreadNone>>) -> ResultComp<()>,
-    {
-        let mock_connection = mock::connect_ok(|mock_library| {
+    use super::*;
+
+    /// Set up mocks for the MQINQMP function
+    fn mqinqmp(mock_list: &[(MQTYPE, &[u8], MQCC, MQRC)]) -> impl Fn(&mut MockFunctions) {
+        |mock_library| {
+            let mut seq = mockall::Sequence::new();
+            mock_library.properties_ok(0xf0f0, 1, &mut seq);
+
+            for (data_typ, data, cc, rc) in mock_list.iter().copied() {
+                let data = data.to_owned();
+                mock_library.expect_MQINQMP().once().in_sequence(&mut seq).returning(
+                    move |_, _, _, _, _, typ, value_length, value, real_length, comp_code, reason| {
+                        let mut_typ = unsafe { &mut *typ };
+                        let mut_real_length = unsafe { &mut *real_length };
+
+                        // Set the returned real length
+                        *mut_real_length = data.len().try_into().expect("i32 in range of usize");
+
+                        // Copy the supplied data into the returned value
+                        let copied_length = std::cmp::min(*mut_real_length, value_length)
+                            .try_into()
+                            .expect("i32 in range of usize");
+                        let mut_value: &mut [u8] = unsafe { std::slice::from_raw_parts_mut(value.cast(), copied_length) };
+                        mut_value.copy_from_slice(&data[..copied_length]);
+
+                        // Set the data type
+                        *mut_typ.as_mut() = data_typ;
+
+                        MockFunctions::mqi_outcome(comp_code, reason, cc, rc);
+                    },
+                );
+            }
+        }
+    }
+
+    fn mqmhbuf(mock_data: &'static [u8]) -> impl Fn(&mut MockFunctions) {
+        |mock_library| {
             let mut seq = mockall::Sequence::new();
             mock_library.properties_ok(0xf0f0, 1, &mut seq);
             mock_library
@@ -455,91 +488,98 @@ mod test {
                 })
                 .once()
                 .in_sequence(&mut seq);
-        });
+        }
+    }
 
-        let mut properties = Properties::new(mock_connection, constants::MQCMHO_NONE)?;
+    fn mqbufmh(mock_library: &mut MockFunctions) {
+        let mut seq = mockall::Sequence::new();
 
-        f(&mut properties).warn_as_error()?;
+        mock_library.properties_ok(0xf0f0, 1, &mut seq);
+        mock_library
+            .expect_MQBUFMH()
+            .returning(|_, _, _, _, buffer_len, _, data_len, cc, rc| {
+                unsafe {
+                    *data_len = buffer_len;
+                }
+                MockFunctions::mqi_outcome_ok(cc, rc);
+            })
+            .once()
+            .in_sequence(&mut seq);
+    }
 
-        Ok(Completion::new(()))
+    fn properties_mocked(m: impl Fn(&mut MockFunctions)) -> ResultErr<Properties<Connection<Rc<MockFunctions>, ThreadNone>>> {
+        Properties::new(mock::connect_ok(m), constants::MQCMHO_NONE)
     }
 
     #[test]
-    pub fn to_buffer() -> Result<(), Box<dyn Error>> {
-        const MOCK_DATA: &[u8] = b"MOCK";
-        with_mqmhbuf_mocked(MOCK_DATA, |prop| {
-            let buffer = vec![0u8; usize::pow(2, 16)]; // 64k
-            let (_, prop_buffer) = prop.to_buffer_mut("%", constants::MQMHBO_NONE, buffer).warn_as_error()?;
-            assert_eq!(MOCK_DATA, prop_buffer);
-            Ok(Completion::new(()))
-        })
-        .warn_as_error()?;
+    fn property() -> Result<(), Box<dyn Error>> {
+        // Test basic succesful retrieval of a byte property
+        let value: Option<Vec<u8>> = properties_mocked(mqinqmp(&[(MQTYPE_BYTE_STRING, b"data", MQCC_OK, MQRC_NONE)]))?
+            .property("_", MQIMPO::default())
+            .warn_as_error()?;
+        assert_ne!(value, None);
 
-        with_mqmhbuf_mocked(MOCK_DATA, |prop| {
-            let buffer = vec![0u8; usize::pow(2, 16)]; // 64k
-            let (_, prop_buffer) = prop.to_buffer("%", constants::MQMHBO_NONE, buffer).warn_as_error()?;
-            assert_eq!(MOCK_DATA, prop_buffer);
-            Ok(Completion::new(()))
-        })
+        // Property does not exist
+        let value: Option<Vec<u8>> = properties_mocked(mqinqmp(&[(MQTYPE(0), b"", MQCC_FAILED, MQRC_PROPERTY_NOT_AVAILABLE)]))?
+            .property("_", MQIMPO::default())
+            .warn_as_error()?;
+        assert_eq!(value, None);
+
+        // Failure response
+        let result: ResultErr<Option<Vec<u8>>> =
+            properties_mocked(mqinqmp(&[(MQTYPE(0), b"", MQCC_FAILED, MQRC_CALL_IN_PROGRESS)]))?
+                .property("_", MQIMPO::default())
+                .warn_as_error();
+        assert!(result.is_err_and(|err| matches!(err, Error(MQCC_FAILED, _, MQRC_CALL_IN_PROGRESS))));
+
+        // Value too big for initial buffer - mqinqmp should be called twice
+        let value: Option<Vec<u8>> = properties_mocked(mqinqmp(&[
+            (MQTYPE_BYTE_STRING, b"data", MQCC_FAILED, MQRC_PROPERTY_VALUE_TOO_BIG),
+            (MQTYPE_BYTE_STRING, b"data", MQCC_OK, MQRC_NONE),
+        ]))?
+        .property("_", MQIMPO::default())
         .warn_as_error()?;
+        assert_ne!(value, None);
 
         Ok(())
     }
 
-    pub fn with_mqbufmh_mocked<F>(data: &'static [u8], f: F) -> ResultComp<()>
-    where
-        F: FnOnce(&mut Properties<Connection<Rc<MockFunctions>, ThreadNone>>, MessageFormat, &mut [u8]) -> ResultComp<()>,
-    {
-        let connection = mock::connect_ok(|mock_library| {
-            let mut seq = mockall::Sequence::new();
+    #[test]
+    fn to_buffer() -> Result<(), Box<dyn Error>> {
+        const MOCK_DATA: &[u8] = b"MOCK";
 
-            mock_library.properties_ok(0xf0f0, 1, &mut seq);
-            mock_library
-                .expect_MQBUFMH()
-                .returning(|_, _, _, _, buffer_len, _, data_len, cc, rc| {
-                    unsafe {
-                        *data_len = buffer_len;
-                    }
-                    MockFunctions::mqi_outcome_ok(cc, rc);
-                })
-                .once()
-                .in_sequence(&mut seq);
-        });
+        let mut prop = properties_mocked(mqmhbuf(MOCK_DATA))?;
+        let buffer = vec![0u8; usize::pow(2, 16)]; // 64k
+        let (_, prop_buffer) = prop.to_buffer_mut("%", constants::MQMHBO_NONE, buffer).warn_as_error()?;
+        assert_eq!(MOCK_DATA, prop_buffer);
 
-        let mut properties = Properties::new(connection, constants::MQCMHO_NONE)?;
+        let prop = properties_mocked(mqmhbuf(MOCK_DATA))?;
+        let buffer = vec![0u8; usize::pow(2, 16)]; // 64k
+        let (_, prop_buffer) = prop.to_buffer("%", constants::MQMHBO_NONE, buffer).warn_as_error()?;
+        assert_eq!(MOCK_DATA, prop_buffer);
 
-        let mut buffer = data.to_owned();
-
-        let mf = MessageFormat {
-            ccsid: CCSID(1208),
-            encoding: MQENC::default(),
-            fmt: TextEnc::Ascii(MQFMT_NONE),
-        };
-
-        f(&mut properties, mf, &mut buffer).warn_as_error()?;
-
-        Ok(Completion::new(()))
+        Ok(())
     }
 
     #[test]
-    pub fn from_buffer() -> Result<(), Box<dyn Error>> {
+    fn from_buffer() -> Result<(), Box<dyn Error>> {
         const MOCK_DATA: &[u8] = b"MOCK_FROM_BUFFER";
+        const MOCK_MF: &MessageFormat = &MessageFormat {
+            ccsid: CCSID(1208),
+            encoding: constants::MQENC_NATIVE,
+            fmt: TextEnc::Ascii(MQFMT_NONE),
+        };
 
-        with_mqbufmh_mocked(MOCK_DATA, |properties, mf, buffer| {
-            let buffer_clone = buffer.to_owned();
-            let (same_format, same_buffer) = properties
-                .from_buffer_mut(constants::MQBMHO_NONE, &mf, buffer)
-                .warn_as_error()?;
-            assert_eq!(same_buffer, buffer_clone);
-            assert_eq!(same_format, mf);
-            Ok(Completion::new(()))
-        })
-        .warn_as_error()?;
+        let mut prop = properties_mocked(mqbufmh)?;
+        let mut buffer_clone = MOCK_DATA.to_owned();
+        let (same_format, same_buffer) = prop
+            .from_buffer_mut(constants::MQBMHO_NONE, MOCK_MF, &mut buffer_clone)
+            .warn_as_error()?;
+        assert_eq!(same_buffer, MOCK_DATA);
+        assert_eq!(&same_format, MOCK_MF);
 
-        with_mqbufmh_mocked(MOCK_DATA, |properties, mf, buffer| {
-            properties.from_buffer(constants::MQBMHO_NONE, &mf, buffer)
-        })
-        .warn_as_error()?;
+        let mut prop = properties_mocked(mqbufmh)?;
+        prop.from_buffer(constants::MQBMHO_NONE, MOCK_MF, MOCK_DATA).warn_as_error()?;
 
         Ok(())
     }
