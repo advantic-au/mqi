@@ -429,9 +429,10 @@ mod test {
 
     use crate::constants::{
         MQCC_FAILED, MQCC_OK, MQRC_CALL_IN_PROGRESS, MQRC_NONE, MQRC_PROPERTY_NOT_AVAILABLE, MQRC_PROPERTY_VALUE_TOO_BIG,
-        MQTYPE_BYTE_STRING,
+        MQRC_PROPERTY_NAME_TOO_BIG, MQTYPE_BYTE_STRING,
     };
 
+    use crate::properties_options::Name;
     use crate::{
         constants,
         core::CCSID,
@@ -444,20 +445,37 @@ mod test {
     use super::*;
 
     /// Set up mocks for the MQINQMP function
-    fn mqinqmp(mock_list: &[(MQTYPE, &[u8], MQCC, MQRC)]) -> impl Fn(&mut MockFunctions) {
+    fn mqinqmp(mock_list: &[(&str, MQTYPE, &[u8], MQCC, MQRC)]) -> impl Fn(&mut MockFunctions) {
         |mock_library| {
             let mut seq = mockall::Sequence::new();
             mock_library.properties_ok(0xf0f0, 1, &mut seq);
 
-            for (data_typ, data, cc, rc) in mock_list.iter().copied() {
+            for (name, data_typ, data, cc, rc) in mock_list.iter().copied() {
                 let data = data.to_owned();
+                let name = name.to_owned();
                 mock_library.expect_MQINQMP().once().in_sequence(&mut seq).returning(
-                    move |_, _, _, _, _, typ, value_length, value, real_length, comp_code, reason| {
+                    move |_, _, mqimpo, _, _, typ, value_length, value, real_length, comp_code, reason| {
                         let mut_typ = unsafe { &mut *typ };
                         let mut_real_length = unsafe { &mut *real_length };
+                        let mut_impo: &mut sys::MQIMPO = unsafe { &mut *mqimpo.cast() };
+                        let maybe_name_mqcharv: Option<&mut sys::MQCHARV> =
+                            unsafe { mut_impo.ReturnedName.VSPtr.as_mut().map(|_| &mut mut_impo.ReturnedName) };
 
                         // Set the returned real length
                         *mut_real_length = data.len().try_into().expect("i32 in range of usize");
+
+                        // Copy the supplied name
+                        if let Some(mut_name_mqcharv) = maybe_name_mqcharv {
+                            let name_copied_length = std::cmp::min(
+                                mut_name_mqcharv.VSBufSize.try_into().expect("i32 in range of usize"),
+                                name.len(),
+                            );
+                            let mut_name: &mut [u8] =
+                                unsafe { std::slice::from_raw_parts_mut(mut_name_mqcharv.VSPtr.cast(), name_copied_length) };
+                            mut_name.copy_from_slice(&name.as_bytes()[..name_copied_length]);
+                            mut_name_mqcharv.VSCCSID = 1208;
+                            mut_name_mqcharv.VSLength = name_copied_length.try_into().expect("i32 in range of usize");
+                        }
 
                         // Copy the supplied data into the returned value
                         let copied_length = std::cmp::min(*mut_real_length, value_length)
@@ -514,28 +532,48 @@ mod test {
     #[test]
     fn property() -> Result<(), Box<dyn Error>> {
         // Test basic succesful retrieval of a byte property
-        let value: Option<Vec<u8>> = properties_mocked(mqinqmp(&[(MQTYPE_BYTE_STRING, b"data", MQCC_OK, MQRC_NONE)]))?
+        let value: Option<Vec<u8>> = properties_mocked(mqinqmp(&[("name", MQTYPE_BYTE_STRING, b"data", MQCC_OK, MQRC_NONE)]))?
             .property("_", MQIMPO::default())
             .warn_as_error()?;
         assert_ne!(value, None);
 
         // Property does not exist
-        let value: Option<Vec<u8>> = properties_mocked(mqinqmp(&[(MQTYPE(0), b"", MQCC_FAILED, MQRC_PROPERTY_NOT_AVAILABLE)]))?
-            .property("_", MQIMPO::default())
-            .warn_as_error()?;
+        let value: Option<Vec<u8>> =
+            properties_mocked(mqinqmp(&[("", MQTYPE(0), b"", MQCC_FAILED, MQRC_PROPERTY_NOT_AVAILABLE)]))?
+                .property("_", MQIMPO::default())
+                .warn_as_error()?;
         assert_eq!(value, None);
 
         // Failure response
         let result: ResultErr<Option<Vec<u8>>> =
-            properties_mocked(mqinqmp(&[(MQTYPE(0), b"", MQCC_FAILED, MQRC_CALL_IN_PROGRESS)]))?
+            properties_mocked(mqinqmp(&[("", MQTYPE(0), b"", MQCC_FAILED, MQRC_CALL_IN_PROGRESS)]))?
                 .property("_", MQIMPO::default())
                 .warn_as_error();
         assert!(result.is_err_and(|err| matches!(err, Error(MQCC_FAILED, _, MQRC_CALL_IN_PROGRESS))));
 
         // Value too big for initial buffer - mqinqmp should be called twice
         let value: Option<Vec<u8>> = properties_mocked(mqinqmp(&[
-            (MQTYPE_BYTE_STRING, b"data", MQCC_FAILED, MQRC_PROPERTY_VALUE_TOO_BIG),
-            (MQTYPE_BYTE_STRING, b"data", MQCC_OK, MQRC_NONE),
+            ("name", MQTYPE_BYTE_STRING, b"data", MQCC_FAILED, MQRC_PROPERTY_VALUE_TOO_BIG),
+            ("name", MQTYPE_BYTE_STRING, b"data", MQCC_OK, MQRC_NONE),
+        ]))?
+        .property("_", MQIMPO::default())
+        .warn_as_error()?;
+        assert_ne!(value, None);
+
+        // Value too big for initial buffer - mqinqmp should be called twice
+        let value: Option<(Vec<u8>, Name<String>)> = properties_mocked(mqinqmp(&[
+            ("name", MQTYPE_BYTE_STRING, b"data", MQCC_FAILED, MQRC_PROPERTY_NAME_TOO_BIG),
+            ("name", MQTYPE_BYTE_STRING, b"data", MQCC_OK, MQRC_NONE),
+        ]))?
+        .property("_", MQIMPO::default())
+        .warn_as_error()?;
+        assert_ne!(value, None);
+
+        // Name and value too big for initial buffer - mqinqmp should be called three times
+        let value: Option<(Vec<u8>, Name<String>)> = properties_mocked(mqinqmp(&[
+            ("name", MQTYPE_BYTE_STRING, b"data", MQCC_FAILED, MQRC_PROPERTY_VALUE_TOO_BIG),
+            ("name", MQTYPE_BYTE_STRING, b"data", MQCC_FAILED, MQRC_PROPERTY_NAME_TOO_BIG),
+            ("name", MQTYPE_BYTE_STRING, b"data", MQCC_OK, MQRC_NONE),
         ]))?
         .property("_", MQIMPO::default())
         .warn_as_error()?;
