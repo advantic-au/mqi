@@ -44,8 +44,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
             self.0.lib().MQCONN(
                 AsRef::<MqChar<48>>::as_ref(qm_name).as_ptr().cast_mut(),
                 outcome.mut_raw_handle(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -65,8 +65,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 AsRef::<MqChar<48>>::as_ref(qm_name).as_ptr().cast_mut(),
                 ptr::from_mut(mqcno).cast(),
                 outcome.mut_raw_handle(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -82,7 +82,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         unsafe {
             self.0
                 .lib()
-                .MQDISC(connection.mut_raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
+                .MQDISC(connection.mut_raw_handle(), &raw mut outcome.cc.0, &raw mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -108,8 +108,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 ptr::from_mut(mqod).cast(),
                 options.0,
                 outcome.mut_raw_handle(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -142,8 +142,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("body length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(body).cast_mut().cast(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -165,8 +165,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 connection_handle.raw_handle(),
                 object_handle.mut_raw_handle(),
                 options.0,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -182,7 +182,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         unsafe {
             self.0
                 .lib()
-                .MQCMIT(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
+                .MQCMIT(connection_handle.raw_handle(), &raw mut outcome.cc.0, &raw mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -215,8 +215,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("body length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(body).cast_mut().cast(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -245,9 +245,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("body length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(body).cast(),
-                &mut outcome.value,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.value,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -285,8 +285,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("text_attr count should not exceed maximum positive MQLONG"),
                 ptr::from_mut(text_attr).cast(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -311,8 +311,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 ptr::from_mut(mqsd).cast(),
                 object_handle.mut_raw_handle(),
                 outcome.mut_raw_handle(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -337,8 +337,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 subscription_handle.raw_handle(),
                 action.0,
                 ptr::from_mut(mqsro).cast(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -355,8 +355,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
             self.0.lib().MQBEGIN(
                 connection_handle.raw_handle(),
                 ptr::from_mut(mqbo).cast(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -372,7 +372,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         unsafe {
             self.0
                 .lib()
-                .MQBACK(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
+                .MQBACK(connection_handle.raw_handle(), &raw mut outcome.cc.0, &raw mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -388,8 +388,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 ptr::from_ref(cmho).cast_mut().cast(),
                 outcome.mut_raw_handle(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -411,8 +411,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.mut_raw_handle(),
                 ptr::from_ref(dmho).cast_mut().cast(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -455,9 +455,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 ptr::from_mut(prop_type).cast(),
                 out_len,
                 out,
-                &mut outcome.value,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.value,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -491,8 +491,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 message_handle.raw_handle(),
                 ptr::from_ref(delete_prop_opts).cast_mut().cast(),
                 ptr::from_ref(name).cast_mut().cast(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -513,8 +513,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 connection_handle.raw_handle(),
                 stat_type.0,
                 ptr::from_mut(sts).cast(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -551,8 +551,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -590,8 +590,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("text_attr count should not exceed maximum positive MQLONG"),
                 text_attr.as_ptr().cast_mut(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -622,8 +622,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 object_handle.map_or(sys::MQHO_NONE, |h| h.raw_handle()),
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::from_ref(md).cast_mut().cast()),
                 gmo.map_or_else(ptr::null_mut, |mo| ptr::from_ref(mo).cast_mut().cast()),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -648,8 +648,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 connection_handle.raw_handle(),
                 operation.0,
                 ptr::from_ref(control_options).cast_mut().cast(),
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -683,9 +683,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("buffer length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(buffer).cast(),
-                &mut outcome.value,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.value,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -720,9 +720,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("buffer length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(buffer).cast_mut().cast(),
-                &mut outcome.value,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.value,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]

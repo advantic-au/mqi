@@ -356,7 +356,7 @@ impl From<SuiteB> for [sys::MQLONG; 4] {
     reason = "pw lifetime is required for feature mqc_9_3_0_0"
 )]
 impl<'pw> Tls<'pw> {
-    /// Create a TLS connection option for use with [`mqi::connect`]
+    /// Create a TLS connection option for use with [`connect`](crate::connect) family of functions.
     ///
     /// # Example
     /// Create a TLS connection

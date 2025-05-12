@@ -471,7 +471,7 @@ mod test {
         }
     }
 
-    fn default_getparam() -> GetParam {
+    const fn default_getparam() -> GetParam {
         GetParam {
             md: MqStruct::new(default::MQMD2_DEFAULT),
             gmo: MqStruct::new(default::MQGMO_DEFAULT),

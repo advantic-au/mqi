@@ -36,9 +36,9 @@ impl<L: Library<MQ: Exits>> MqFunctions<L> {
                     .try_into()
                     .expect("usize length of target should convert into MQLONG"),
                 ptr::from_mut(target).cast(),
-                &mut outcome.value,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.value,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
