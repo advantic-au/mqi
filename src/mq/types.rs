@@ -1,27 +1,83 @@
 use crate::{headers::TextEnc, sys, core::CCSID, MqChar, MqStr};
 use std::{
     fmt::{Debug, Display},
-    ptr, str,
+    str,
 };
 
 use libmqm_default as default;
 use crate::types::{MQENC, MQRC};
 use crate::constants;
 
-use super::{
-    connect_options::{ProtectedSecret, Secret},
-    headers::fmt::MQFMT_NONE,
-    MqStruct,
-};
+use super::{connect_options::ProtectedSecret, headers::fmt::MQFMT_NONE, MqStruct};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
+macro_rules! impl_equivalent_type {
+    ($new_type:path, [$($other_type:path),*]) => {
+        $(
+            impl_equivalent_type!($new_type, $other_type);
+        )*
+    };
+    ($new_type:path, $other_type:path) => {
+        impl PartialEq<$other_type> for $new_type {
+            fn eq(&self, other: &$other_type) -> bool {
+                other.0 == self.0
+            }
+        }
+
+        impl From<$other_type> for $new_type {
+            fn from(value: $other_type) -> Self {
+                Self(value.0)
+            }
+        }
+
+        impl AsRef<$new_type> for $other_type {
+            fn as_ref(&self) -> &$new_type {
+                // SAFETY: repr(transparent) ensures new type has same memory layout
+                unsafe { &*std::ptr::from_ref(self).cast() }
+            }
+        }
+
+        impl AsMut<$new_type> for $other_type {
+            fn as_mut(&mut self) -> &mut $new_type {
+                // SAFETY: repr(transparent) ensures new type has same memory layout
+                unsafe { &mut *std::ptr::from_mut(self).cast() }
+            }
+        }
+    };
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
+#[repr(transparent)]
 pub struct CorrelationId(pub Identifier<24>);
-#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
+#[repr(transparent)]
 pub struct MessageId(pub Identifier<24>);
-#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::Display, derive_more::From)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
+#[repr(transparent)]
 pub struct GroupId(pub Identifier<24>);
 #[derive(Debug, Clone, Copy)]
+#[repr(transparent)]
 pub struct MsgToken(pub [u8; sys::MQ_MSG_TOKEN_LENGTH]);
+
+impl_equivalent_type!(CorrelationId, MessageId);
+impl_equivalent_type!(MessageId, CorrelationId);
+
+impl Display for CorrelationId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(AsRef::<DisplayId<24>>::as_ref(&self.0), f)
+    }
+}
+
+impl Display for MessageId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(AsRef::<DisplayId<24>>::as_ref(&self.0), f)
+    }
+}
+
+impl Display for GroupId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(AsRef::<DisplayId<24>>::as_ref(&self.0), f)
+    }
+}
 
 /// Delegates `FromStr` to wrapped type implementation
 macro_rules! impl_from_str {
@@ -39,6 +95,7 @@ macro_rules! impl_from_str {
 pub(crate) use impl_from_str;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
 pub struct UserIdentifier(pub MqStr<12>);
 impl_from_str!(UserIdentifier, MqStr<12>);
 
@@ -82,16 +139,19 @@ pub const FORMAT_NONE: MessageFormat = MessageFormat {
     fmt: TextEnc::Ascii(MQFMT_NONE),
 };
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From, derive_more::Deref)]
+pub type Identifier<const N: usize> = [sys::MQBYTE; N];
+
 #[repr(transparent)]
-pub struct Identifier<const N: usize>(pub [sys::MQBYTE; N]);
+pub(super) struct DisplayId<const N: usize>(Identifier<N>);
 
-impl<const N: usize> Identifier<N> {
-    #[must_use]
-    pub const fn from_ref(source: &[sys::MQBYTE; N]) -> &Self {
-        unsafe { &*ptr::from_ref(source).cast() }
+impl<const N: usize> AsRef<DisplayId<N>> for Identifier<N> {
+    fn as_ref(&self) -> &DisplayId<N> {
+        // SAFETY: repr(transparent) ensures new type has same memory layout
+        unsafe { &*std::ptr::from_ref(self).cast() }
     }
+}
 
+impl<const N: usize> DisplayId<N> {
     fn hex_fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         for byte in self.0 {
             write!(fmt, "{byte:02x}")?;
@@ -100,41 +160,34 @@ impl<const N: usize> Identifier<N> {
     }
 }
 
-impl<const N: usize> Display for Identifier<N> {
+impl<const N: usize> Display for DisplayId<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "ID:")?;
         self.hex_fmt(f)
     }
 }
 
-impl<const N: usize> Debug for Identifier<N> {
+impl<const N: usize> Debug for DisplayId<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.debug_tuple("Identifier").field(&format_args!("{self}")).finish()
     }
 }
 
-impl CorrelationId {
-    #[must_use]
-    pub const fn from_ref(src: &[sys::MQBYTE; sys::MQ_CORREL_ID_LENGTH]) -> &Self {
-        unsafe { &*ptr::from_ref(src).cast() }
-    }
-}
-
 impl Debug for CorrelationId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("CorrelationId").field(&format_args!("{}", self.0)).finish()
+        f.debug_tuple("CorrelationId").field(&format_args!("{self}")).finish()
     }
 }
 
 impl Debug for MessageId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("MessageId").field(&format_args!("{}", self.0)).finish()
+        f.debug_tuple("MessageId").field(&format_args!("{self}")).finish()
     }
 }
 
 impl Debug for GroupId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("GroupId").field(&format_args!("{}", self.0)).finish()
+        f.debug_tuple("GroupId").field(&format_args!("{self}")).finish()
     }
 }
 
@@ -148,36 +201,83 @@ impl UserIdentifier {
 pub type ObjectName = MqStr<48>;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
 pub struct ConnectionName(pub MqStr<264>);
 impl_from_str!(ConnectionName, MqStr<264>);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
 pub struct ChannelName(pub MqStr<20>);
 impl_from_str!(ChannelName, MqStr<20>);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
 pub struct QueueName(pub ObjectName);
 impl_from_str!(QueueName, ObjectName);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
 pub struct QueueManagerName(pub ObjectName);
 impl_from_str!(QueueManagerName, ObjectName);
 
+impl_equivalent_type!(QueueManagerName, ReplyToQueueManagerName);
+impl_equivalent_type!(ReplyToQueueManagerName, QueueManagerName);
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
+pub struct ReplyToQueueManagerName(pub ObjectName);
+impl_from_str!(ReplyToQueueManagerName, ObjectName);
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
+pub struct ReplyToQueueName(pub ObjectName);
+impl_from_str!(ReplyToQueueName, ObjectName);
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
 pub struct CipherSpec(pub MqStr<32>);
 impl_from_str!(CipherSpec, MqStr<32>);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
 pub struct KeyRepo(pub MqStr<256>);
 impl_from_str!(KeyRepo, MqStr<256>);
 
-pub struct KeyRepoPassword<T: ?Sized>(pub T);
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
+pub struct ApplName(pub MqStr<28>);
+impl_from_str!(ApplName, MqStr<28>);
 
-impl<'a, Y: ?Sized, T: Secret<'a, Y>> Secret<'a, Y> for KeyRepoPassword<T> {
-    fn expose_secret(&self) -> &'a Y {
-        self.0.expose_secret()
-    }
-}
+#[derive(
+    Debug, Clone, Copy, Default, PartialOrd, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From,
+)]
+#[repr(transparent)]
+pub struct PutDate(pub MqStr<8>);
+impl_from_str!(PutDate, MqStr<8>);
+
+#[derive(
+    Debug, Clone, Copy, Default, PartialOrd, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From,
+)]
+#[repr(transparent)]
+pub struct PutTime(pub MqStr<8>);
+impl_from_str!(PutTime, MqStr<8>);
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+pub struct AccountingToken(pub [sys::MQBYTE; sys::MQ_ACCOUNTING_TOKEN_LENGTH]);
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
+pub struct ApplIdentityData(pub MqStr<32>);
+impl_from_str!(ApplIdentityData, MqStr<32>);
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
+pub struct ApplOriginData(pub MqStr<4>);
+impl_from_str!(ApplOriginData, MqStr<4>);
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut)]
+#[repr(transparent)]
+pub struct KeyRepoPassword<T: ?Sized>(pub T);
 
 impl<'a> KeyRepoPassword<ProtectedSecret<&'a str>> {
     #[must_use]
@@ -187,10 +287,12 @@ impl<'a> KeyRepoPassword<ProtectedSecret<&'a str>> {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
 pub struct CryptoHardware(pub MqStr<256>);
 impl_from_str!(CryptoHardware, MqStr<256>);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
+#[repr(transparent)]
 pub struct CertificateLabel(pub MqStr<64>);
 impl_from_str!(CertificateLabel, MqStr<64>);
 
@@ -199,11 +301,9 @@ impl_from_str!(CertificateLabel, MqStr<64>);
 mod tests {
     use crate::types::CorrelationId;
 
-    use super::Identifier;
-
     #[test]
     fn correlation_id() {
-        let cid = CorrelationId(Identifier([0; 24]));
+        let cid = CorrelationId([0; 24]);
         assert_eq!(format!("{cid}"), "ID:000000000000000000000000000000000000000000000000");
         assert_eq!(
             format!("{cid:?}"),

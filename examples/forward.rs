@@ -5,12 +5,12 @@ mod args;
 use anyhow::Context as _;
 use clap::{Parser, ValueEnum};
 use mqi::{
-    connect_options::{ApplName, Tls},
+    connect_options::Tls,
     constants,
     prelude::*,
     put_options::{Context, PropertyAction},
     sys,
-    types::{self, CipherSpec, MessageFormat, QueueManagerName, QueueName},
+    types::{ApplName, CipherSpec, MessageFormat, QueueManagerName, QueueName, MQCMHO},
     MqStruct, Object, Properties, Syncpoint, ThreadNone,
 };
 
@@ -98,7 +98,7 @@ fn main() -> anyhow::Result<()> {
     let buf_write = buffer.spare_capacity_mut();
     let syncpoint = Syncpoint::new(qm_ref);
 
-    let mut properties = Properties::new(&qm, types::MQCMHO::default())?;
+    let mut properties = Properties::new(&qm, MQCMHO::default())?;
     let message: Option<(_, MqStruct<sys::MQMD2>)> = obj
         .get_data_with(
             &(
@@ -115,7 +115,7 @@ fn main() -> anyhow::Result<()> {
         unsafe {
             buffer.set_len(len);
         }
-        let mut target_properties = Properties::new(&qm, types::MQCMHO::default())?; // Create a placeholder for target properties
+        let mut target_properties = Properties::new(&qm, MQCMHO::default())?; // Create a placeholder for target properties
         let fmt = MessageFormat::from_mqmd2(&md);
         qm_ref
             .put_message(

@@ -8,13 +8,13 @@ use clap::{Args, Parser};
 mod args;
 
 use mqi::{
-    connect_options::{ApplName, Tls},
+    connect_options::Tls,
     constants,
     core::CCSID,
     headers::TextEnc,
     open_options::ObjectString,
     prelude::*,
-    types::{CipherSpec, MessageFormat, QueueManagerName, QueueName, MQENC, MQOO, MQPMO},
+    types::{ApplName, CipherSpec, MessageFormat, QueueManagerName, QueueName, MQENC, MQOO, MQPMO},
     MqStr, Object, ThreadNone,
 };
 use tracing::Level;

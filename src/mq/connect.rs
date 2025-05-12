@@ -12,13 +12,13 @@ use crate::ResultComp;
 use crate::prelude::*;
 
 use super::connect_options::{self, ConnectOption, ConnectStructs};
-use super::types::{Identifier, QueueManagerName};
+use super::types::{DisplayId, Identifier, QueueManagerName};
 use super::MqStruct;
 
 #[cfg(feature = "link")]
 pub use super::link::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref, derive_more::Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
 pub struct ConnectionId(pub Identifier<24>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
 pub struct ConnTag(pub [sys::MQBYTE; sys::MQ_CONN_TAG_LENGTH]);
@@ -61,6 +61,12 @@ trait Sealed {}
 pub trait Threading: Sealed {
     /// One of the `MQCNO_HANDLE_SHARE_*` MQ constants
     const MQCNO_HANDLE_SHARE: sys::MQLONG;
+}
+
+impl std::fmt::Display for ConnectionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(AsRef::<DisplayId<24>>::as_ref(&self.0), f)
+    }
 }
 
 impl<L, H> Connection<L, H>

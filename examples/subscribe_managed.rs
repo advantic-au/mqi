@@ -8,12 +8,12 @@ mod args;
 use anyhow::Context as _;
 use clap::Parser;
 use mqi::{
-    connect_options::{ApplName, Tls},
+    connect_options::Tls,
     constants,
     get::GetWait,
     open_options::ObjectString,
     prelude::*,
-    types::{CipherSpec, MessageFormat},
+    types::{ApplName, CipherSpec, MessageFormat},
     Subscription, ThreadNone,
 };
 use tracing::Level;

@@ -14,9 +14,7 @@ use crate::{
 
 use super::{
     impl_mqstruct_min_version,
-    types::{
-        impl_from_str, CertificateLabel, ChannelName, CipherSpec, ConnectionName, CryptoHardware, KeyRepo, QueueManagerName,
-    },
+    types::{CertificateLabel, ChannelName, CipherSpec, ConnectionName, CryptoHardware, KeyRepo, QueueManagerName},
     ConnTag, ConnectParam, ConnectionId, MqStruct,
 };
 
@@ -187,10 +185,6 @@ impl_mqstruct_min_version!(sys::MQSCO);
 impl_mqstruct_min_version!(sys::MQCD);
 impl_mqstruct_min_version!(sys::MQCNO);
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
-pub struct ApplName(pub MqStr<28>);
-impl_from_str!(ApplName, MqStr<28>);
-
 /// Client Channel Definition Table URL connection option. Sets the connection as `MQCNO_CLIENT_BINDING`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::From)]
 pub struct Ccdt<'url>(pub &'url str);
@@ -311,6 +305,9 @@ impl<T> ProtectedSecret<T> {
     }
 }
 
+/// Holds TLS parameters for use with [`connect`](crate::connect).
+///
+/// It is a wrapper around the [`MQSCO`](sys::MQSCO) structure.
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct Tls<'pw>(MqStruct<'pw, sys::MQSCO>, CipherSpec);
@@ -359,6 +356,27 @@ impl From<SuiteB> for [sys::MQLONG; 4] {
     reason = "pw lifetime is required for feature mqc_9_3_0_0"
 )]
 impl<'pw> Tls<'pw> {
+    /// Create a TLS connection option for use with [`mqi::connect`]
+    ///
+    /// # Example
+    /// Create a TLS connection
+    /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use mqi::types::{KeyRepo, CipherSpec};
+    /// use mqi::{ThreadNone, mqstr};
+    /// use mqi::connect_options::{MqServer, Tls};
+    ///
+    /// // Set up the Tls connection options
+    /// let tls_options = Tls::new(
+    ///     &KeyRepo(mqstr!("tls.kdb")), // Key repository for TLS
+    ///     None, // No certificate label
+    ///     &CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")) // Cipher spec
+    /// );
+    /// // Connect to a remote server with TLS
+    /// let connection = mqi::connect::<ThreadNone>(&(tls_options, MqServer::try_from("DEV.APP.SVRCONN/TCP/mq.example.com")?))?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn new(repo: &KeyRepo, label: Option<&CertificateLabel>, cipher: &CipherSpec) -> Self {
         let mut tls = Self::default();
         tls.key_repo(repo);
@@ -556,7 +574,7 @@ macro_rules! impl_connectoptions {
 
 all_multi_tuples!(impl_connectoptions);
 
-unsafe impl ConnectOption<'_> for ApplName {
+unsafe impl ConnectOption<'_> for types::ApplName {
     fn apply_param(&self, structs: &mut ConnectStructs<'_>) -> ConnectStructFlags {
         structs.cno.set_min_version(sys::MQCNO_VERSION_7);
         self.0.as_mqchar().clone_into(&mut structs.cno.ApplName);
@@ -618,7 +636,7 @@ impl<S> super::ConnectAttr<S> for ConnectionId {
         F: FnOnce(&mut ConnectParam<'b>) -> crate::ResultComp<S>,
     {
         param.set_min_version(sys::MQCNO_VERSION_5);
-        connect(param).map_completion(|state| (Self(param.ConnectionId.into()), state))
+        connect(param).map_completion(|state| (Self(param.ConnectionId), state))
     }
 }
 
@@ -784,7 +802,7 @@ mod tests {
 
     #[test]
     fn appl_name() {
-        const APP: ApplName = ApplName(mqstr!("MYAPP"));
+        const APP: types::ApplName = types::ApplName(mqstr!("MYAPP"));
         test_co(&APP, |bf, _, cs| {
             assert!(cs.cno.Version >= sys::MQCNO_VERSION_7);
             assert_eq!(&cs.cno.ApplName, APP.as_mqchar());

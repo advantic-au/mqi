@@ -1,8 +1,8 @@
 use std::error::Error;
 use mqi::{
-    connect_options::{ApplName, Credentials},
+    connect_options::Credentials,
     prelude::*,
-    types::QueueName,
+    types::{ApplName, QueueName},
     ThreadNone,
 };
 
