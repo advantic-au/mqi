@@ -43,7 +43,7 @@ fn qm() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-#[ignore]
+#[ignore = "experimental, and mocks not set up correctly"]
 fn callback() -> Result<(), Box<dyn Error>> {
     fn register_cb<F, M>(cbd: &mut MqStruct<sys::MQCBD>, cb: F)
     where
