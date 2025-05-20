@@ -16,10 +16,8 @@ path = "src/lib.rs"
 crate-type = ["lib"]
 
 [features]
-default = ["link", "runnable", "mqc_9_2_0_0"]
+default = ["link", "mqc_9_2_0_0"]
 docsrs = ["libmqm-sys/docsrs", "mqai", "exits", "link", "dlopen2", "mqc_9_4_2_0"]
-## Minimal features to make the code runnable
-runnable = ["libmqm-sys/mqi_helpers"]
 ## Enable tracing in the MQI calls
 tracing = ["dep:tracing"]
 ## Enable the administrative API
@@ -156,16 +154,16 @@ ctrlc = "3.4"
 
 [[example]]
 name = "subscribe_managed"
-required-features = ["link", "runnable"]
+required-features = ["link"]
 
 [[example]]
 name = "readme"
-required-features = ["link", "runnable"]
+required-features = ["link"]
 
 [[example]]
 name = "open_put"
-required-features = ["link", "runnable"]
+required-features = ["link"]
 
 [[example]]
 name = "forward"
-required-features = ["link", "runnable"]
+required-features = ["link"]
