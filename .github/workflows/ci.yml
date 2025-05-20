@@ -99,7 +99,7 @@ jobs:
         include:
           - toolchain: stable
             os: ubuntu-24.04-arm
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -220,6 +220,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: advantic-au/action-mq-client@stable
+        id: mq-client
+        with:
+          client-version: latest
       - uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
           toolchain: ${{ matrix.toolchain }}
@@ -235,8 +239,10 @@ jobs:
           cargo clippy --tests --examples --no-default-features --features mock,exits,link --
           cargo clippy --tests --examples --no-default-features --features mock,mqai,link --
           cargo clippy --tests --examples --no-default-features --features mock,mqai,exits,dlopen2 --
+          cargo clippy --tests --examples --no-default-features --features mock,mqm_generate,link --
         env:
           RUSTFLAGS: -Dwarnings
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
   minimum:
     runs-on: ubuntu-24.04
