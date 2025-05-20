@@ -80,7 +80,7 @@ jobs:
         with:
           tool: nextest
       - name: Test
-        run: cargo nextest run --profile ci --no-default-features --features runnable,link,mqai,exits,mqc_9_4_2_0
+        run: cargo nextest run --profile ci --no-default-features --features link,mqai,exits,mqc_9_4_2_0
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
           MQSERVER: DEV.APP.SVRCONN/TCP/localhost(1414)
@@ -92,7 +92,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [nightly, beta, stable]
+        toolchain:
+          - stable
+          - nightly
+        os: [ubuntu-24.04]
+        include:
+          - toolchain: stable
+            os: ubuntu-24.04-arm
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -206,39 +212,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [stable]
-        feature: [all, no_default, default, exits, mqai, mqm_generate, dlopen2]
-        include:
-          - feature: all
-            feature_args: "--all-features"
-            toolchain: beta
-          - feature: all
-            feature_args: "--all-features"
-            toolchain: stable
-          - feature: no_default
-            feature_args: "--no-default-features"
-            toolchain: beta
-          - feature: no_default
-            feature_args: "--no-default-features"
-            toolchain: stable
-          - feature: default
-          - feature: exits
-            feature_args: "--no-default-features --features mock,exits,link"
-          - feature: mqai
-            feature_args: "--no-default-features --features mock,mqai,link"
-          - feature: mqm_generate
-            feature_args: "--no-default-features --features mock,mqm_generate,link"
-          - feature: dlopen2
-            feature_args: "--no-default-features --features mock,mqai,exits,dlopen2"
+        toolchain:
+          - stable
+          - beta
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@stable
-        id: mq-client
-        with:
-          client-version: latest
       - uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
           toolchain: ${{ matrix.toolchain }}
@@ -247,10 +228,15 @@ jobs:
         with:
           shared-key: "build"
       - name: Run clippy
-        run: cargo clippy --tests --examples ${{ matrix.feature_args }} --
+        run: |
+          set -x
+          cargo clippy --tests --examples --all-features --
+          cargo clippy --tests --examples --
+          cargo clippy --tests --examples --no-default-features --features mock,exits,link --
+          cargo clippy --tests --examples --no-default-features --features mock,mqai,link --
+          cargo clippy --tests --examples --no-default-features --features mock,mqai,exits,dlopen2 --
         env:
           RUSTFLAGS: -Dwarnings
-          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
   minimum:
     runs-on: ubuntu-24.04
