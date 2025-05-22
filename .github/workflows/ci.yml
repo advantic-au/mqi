@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       mq:
-        image: icr.io/ibm-messaging/mq:latest
+        image: icr.io/ibm-messaging/mq:9.4.2.1-r2
         env:
           MQ_ENABLE_EMBEDDED_WEB_SERVER: false
           LICENSE: accept
@@ -88,7 +88,7 @@ jobs:
           MQ_PASSWORD: app
 
   test:
-    name: "Test rust ${{matrix.toolchain}}"
+    name: "test (${{ matrix.toolchain }}, ${{ matrix.os }})"
     strategy:
       fail-fast: false
       matrix:

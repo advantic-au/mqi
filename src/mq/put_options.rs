@@ -1,45 +1,10 @@
 use crate::{macros::all_multi_tuples, prelude::*, sys, types, Conn, MqStr, MqStruct, Properties, ResultComp};
 
 use super::{
-    impl_mqstruct_min_version,
-    put::{PutAttr, PutOption, PutParam},
-    Object,
+    impl_mqstruct_min_version, put::{PutAttr, PutOption, PutParam}, Object
 };
 
 impl_mqstruct_min_version!(sys::MQPMO);
-
-trait AsLogical {
-    type Logical;
-
-    fn as_value(&self) -> &Self::Logical;
-    fn as_optional(&self) -> Option<&Self::Logical>;
-}
-
-impl<const N: usize> AsLogical for [sys::MQCHAR; N] {
-    type Logical = MqStr<N>;
-
-    #[inline]
-    fn as_optional(&self) -> Option<&Self::Logical> {
-        Some(self.as_value()).filter(|v: &&Self::Logical| v.has_value())
-    }
-
-    #[inline]
-    fn as_value(&self) -> &Self::Logical {
-        self.as_ref()
-    }
-}
-
-impl<const N: usize> AsLogical for [sys::MQBYTE; N] {
-    type Logical = Self;
-
-    fn as_optional(&self) -> Option<&Self::Logical> {
-        Some(self).filter(|v| *v != &[0; N])
-    }
-
-    fn as_value(&self) -> &Self::Logical {
-        self
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Context<T>(pub T);
@@ -197,9 +162,9 @@ unsafe impl PutAttr for MqStruct<'static, sys::MQMD2> {
     }
 }
 
-macro_rules! impl_putattr_mqmd_optional {
+macro_rules! impl_putattr_mqmd_mqstr {
     ($field:tt, $ty:ty) => {
-        unsafe impl PutAttr for Option<$ty> {
+        unsafe impl PutAttr for $ty {
             #[inline]
             fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
             where
@@ -207,7 +172,7 @@ macro_rules! impl_putattr_mqmd_optional {
             {
                 put(param).map_completion(|()| {
                     let (md, ..) = param;
-                    md.$field.as_optional().map(|v| Into::<$ty>::into(*v))
+                    MqStr::from(md.$field).into()
                 })
             }
         }
@@ -224,22 +189,22 @@ macro_rules! impl_putattr_mqmd {
             {
                 put(param).map_completion(|()| {
                     let (md, ..) = param;
-                    (*md.$field.as_value()).into()
+                    md.$field.into()
                 })
             }
         }
     };
 }
 
-impl_putattr_mqmd!(PutDate, types::PutDate);
-impl_putattr_mqmd!(PutTime, types::PutTime);
+impl_putattr_mqmd_mqstr!(PutDate, types::PutDate);
+impl_putattr_mqmd_mqstr!(PutTime, types::PutTime);
 impl_putattr_mqmd!(MsgId, types::MessageId);
-impl_putattr_mqmd!(UserIdentifier, types::UserIdentifier);
+impl_putattr_mqmd_mqstr!(UserIdentifier, types::UserIdentifier);
 impl_putattr_mqmd!(AccountingToken, types::AccountingToken);
-impl_putattr_mqmd!(ApplIdentityData, types::ApplIdentityData);
-impl_putattr_mqmd_optional!(CorrelId, types::CorrelationId);
-impl_putattr_mqmd_optional!(GroupId, types::GroupId);
-impl_putattr_mqmd_optional!(ApplOriginData, types::ApplOriginData);
+impl_putattr_mqmd_mqstr!(ApplIdentityData, types::ApplIdentityData);
+impl_putattr_mqmd!(CorrelId, types::CorrelationId);
+impl_putattr_mqmd!(GroupId, types::GroupId);
+impl_putattr_mqmd_mqstr!(ApplOriginData, types::ApplOriginData);
 
 #[expect(unused_parens)]
 mod impl_put {

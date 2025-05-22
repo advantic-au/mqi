@@ -404,7 +404,7 @@ unsafe impl<const N: usize> PropertyAttr for Name<MqStr<N>> {
             other => Ok(other.map(|state| {
                 let name = state.name.as_ref().expect("Name should not be None");
                 (
-                    Self(MqStr::from_mqchar_slice(name).expect("buffer size should equal required length")),
+                    Self(*MqStr::from_mqchar_slice(name).expect("buffer size should equal required length")),
                     state,
                 )
             })),
@@ -571,7 +571,7 @@ unsafe impl<const N: usize> PropertyValue for MqStr<N> {
         impo_options.insert(constants::MQIMPO_CONVERT_VALUE | constants::MQIMPO_CONVERT_TYPE);
         param.value_type = constants::MQTYPE_BYTE_STRING;
         mqinqmp(param)
-            .map_completion(|state| Self::from_byte_slice(&state.value).expect("buffer size should equal required length"))
+            .map_completion(|state| *Self::from_mqchar_slice(conversion::slice_byte_to_mqchar(&state.value)).expect("buffer size should equal required length"))
     }
 
     fn max_value_size() -> Option<NonZero<usize>> {

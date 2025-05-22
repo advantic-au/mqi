@@ -60,23 +60,11 @@ impl<const N: usize, const Y: usize> PartialOrd<MqStr<Y>> for MqStr<N> {
 }
 
 impl<const N: usize> MqStr<N> {
-    pub const fn from_byte_slice(value: &[u8]) -> Result<Self, MqStrError> {
-        Self::from_mqchar_slice(conversion::slice_byte_to_mqchar(value))
-    }
-
-    pub const fn from_mqchar_slice(value: &[sys::MQCHAR]) -> Result<Self, MqStrError> {
-        let length = value.len();
-        if N < length {
-            return Err(MqStrError::Length { length, max: N });
+    pub const fn from_mqchar_slice(value: &[sys::MQCHAR]) -> Result<&Self, MqStrError> {
+        match value.split_first_chunk::<N>() {
+            Some((val, _)) => Ok(unsafe { &*val.as_ptr().cast() }),
+            None => Err(MqStrError::Length { length: value.len(), max: N })
         }
-        let mut result = Self::empty();
-        let mut i = 0;
-        let l = [length, N][(length > N) as usize]; // Const trick to find the max value
-        while i < l {
-            result.data[i] = value[i];
-            i += 1;
-        }
-        Ok(result)
     }
 
     #[must_use]
@@ -95,12 +83,28 @@ impl<const N: usize> MqStr<N> {
         Self { data: [0x20; N] } // Initialise with spaces
     }
 
+    pub const fn from_str(value: &str) -> Result<Self, MqStrError> {
+        let length = value.len();
+        if length <= N {
+            let mut result = Self::empty();
+            let l = [length, N][(length > N) as usize];
+            let (target, _) = unsafe { result.data.split_at_mut_unchecked(l) };
+            let (source, _) = unsafe { value.as_bytes().split_at_unchecked(l) };
+            target.copy_from_slice(conversion::slice_byte_to_mqchar(source));
+            Ok(result)
+        }
+        else {
+            Err(MqStrError::Length { length, max: N })
+        }
+    }
+
+
     /// Use when defining `MqStr` from const or literal `&str`. Panics on invalid `MqStr`.
     #[must_use]
     pub const fn def_from_str(value: &str) -> Self {
-        match Self::from_byte_slice(value.as_bytes()) {
-            Ok(result) => result,
-            Err(MqStrError::Length { .. }) => panic!("Invalid length"),
+        match Self::from_str(value) {
+            Ok(value) => value,
+            Err(_) => panic!("value length exceeded MqStr length"),
         }
     }
 
@@ -140,7 +144,7 @@ impl<const N: usize> FromStr for MqStr<N> {
     type Err = MqStrError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_byte_slice(s.as_bytes())
+        Self::from_str(s)
     }
 }
 
@@ -162,19 +166,7 @@ impl<const N: usize> AsRef<MqChar<N>> for MqStr<N> {
     }
 }
 
-impl<const N: usize> AsRef<[u8; N]> for MqStr<N> {
-    fn as_ref(&self) -> &[u8; N] {
-        self.as_bytes()
-    }
-}
-
 impl<const N: usize> AsRef<MqStr<N>> for MqChar<N> {
-    fn as_ref(&self) -> &MqStr<N> {
-        unsafe { &*self.as_ptr().cast() }
-    }
-}
-
-impl<const N: usize> AsRef<MqStr<N>> for [u8; N] {
     fn as_ref(&self) -> &MqStr<N> {
         unsafe { &*self.as_ptr().cast() }
     }
@@ -196,7 +188,7 @@ impl<const N: usize> TryFrom<&str> for MqStr<N> {
     type Error = MqStrError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::from_byte_slice(value.as_bytes())
+        Self::from_str(value)
     }
 }
 
