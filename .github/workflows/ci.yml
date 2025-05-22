@@ -314,7 +314,7 @@ jobs:
             exit 1
           fi
         env:
-          NEEDS_RESULT: ${{ need.miri.result }}
+          NEEDS_RESULT: ${{ needs.miri.result }}
 
   test_outcome:
     if: ${{ always() }}
@@ -330,4 +330,4 @@ jobs:
             exit 1
           fi
         env:
-          NEEDS_RESULT: ${{ need.test.result }}
+          NEEDS_RESULT: ${{ needs.test.result }}
