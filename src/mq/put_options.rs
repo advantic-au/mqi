@@ -1,7 +1,9 @@
 use crate::{macros::all_multi_tuples, prelude::*, sys, types, Conn, MqStr, MqStruct, Properties, ResultComp};
 
 use super::{
-    impl_mqstruct_min_version, put::{PutAttr, PutOption, PutParam}, Object
+    impl_mqstruct_min_version,
+    put::{PutAttr, PutOption, PutParam},
+    Object,
 };
 
 impl_mqstruct_min_version!(sys::MQPMO);

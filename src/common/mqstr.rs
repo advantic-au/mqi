@@ -63,7 +63,10 @@ impl<const N: usize> MqStr<N> {
     pub const fn from_mqchar_slice(value: &[sys::MQCHAR]) -> Result<&Self, MqStrError> {
         match value.split_first_chunk::<N>() {
             Some((val, _)) => Ok(unsafe { &*val.as_ptr().cast() }),
-            None => Err(MqStrError::Length { length: value.len(), max: N })
+            None => Err(MqStrError::Length {
+                length: value.len(),
+                max: N,
+            }),
         }
     }
 
@@ -92,12 +95,10 @@ impl<const N: usize> MqStr<N> {
             let (source, _) = unsafe { value.as_bytes().split_at_unchecked(l) };
             target.copy_from_slice(conversion::slice_byte_to_mqchar(source));
             Ok(result)
-        }
-        else {
+        } else {
             Err(MqStrError::Length { length, max: N })
         }
     }
-
 
     /// Use when defining `MqStr` from const or literal `&str`. Panics on invalid `MqStr`.
     #[must_use]

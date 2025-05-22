@@ -919,8 +919,7 @@ mod tests {
 
         wally[0] = 9;
 
-        //dbg!(mq_lib.mq_add_string(&bag_attached, 2, "hello".as_bytes())).expect("BLA2");
-        let mut data = vec![0i8; 4096];
+        let mut data: Vec<sys::MQCHAR> = vec![0; 4096];
         let (length, ..) = dbg!(mq_lib.mq_inquire_string(&bag_attached, Selector(1), MQIND(0), data.as_mut_slice()))
             .warn_as_error()
             .expect("BLA2");

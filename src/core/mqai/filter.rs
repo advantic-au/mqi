@@ -119,7 +119,7 @@ impl<T> Filter<T> {
 
 impl<T> Filter<Vec<T>> {
     #[must_use]
-    pub fn as_slice(&self) -> Filter<&[T]> {
+    pub const fn as_slice(&self) -> Filter<&[T]> {
         Filter {
             operator: self.operator,
             value: self.value.as_slice(),
