@@ -141,7 +141,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
           toolchain: nightly
-          components: miri
+          components: miri, rust-src
       - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
         with:
           shared-key: "build"
@@ -299,3 +299,35 @@ jobs:
           fi
         env:
           NEEDS_RESULT: ${{ needs.clippy.result }}
+
+  miri_outcome:
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    name: Miri outcome
+    needs: [miri]
+    steps:
+      - run: |
+          result="${NEEDS_RESULT}"
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi
+        env:
+          NEEDS_RESULT: ${{ need.miri.result }}
+
+  test_outcome:
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    name: Test outcome
+    needs: [test]
+    steps:
+      - run: |
+          result="${NEEDS_RESULT}"
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi
+        env:
+          NEEDS_RESULT: ${{ need.test.result }}
