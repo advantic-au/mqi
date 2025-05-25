@@ -72,9 +72,9 @@ impl ConnectionArgs {
 
     pub fn credentials(&self) -> Option<Credentials<&str>> {
         if self.username.is_some() | self.password.is_some() {
-            Some(Credentials::user(
+            Some(Credentials::User(
                 self.username.as_deref().unwrap_or(""),
-                self.password.as_deref().unwrap_or(""),
+                self.password.as_deref().unwrap_or("").into(),
             ))
         } else {
             None

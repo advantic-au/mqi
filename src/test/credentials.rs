@@ -12,7 +12,7 @@ pub fn credentials() -> Option<(String, String)> {
 impl<'cred> From<Option<&'cred (String, String)>> for Credentials<'cred, &'cred str> {
     fn from(value: Option<&'cred (String, String)>) -> Self {
         match value {
-            Some((user, password)) => Credentials::user(user.as_str(), password.as_str()),
+            Some((user, password)) => Credentials::User(user.as_str(), password.as_str().into()),
             None => Credentials::Default,
         }
     }

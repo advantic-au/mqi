@@ -279,26 +279,27 @@ unsafe impl ConnectOption<'_> for QueueManagerName {
     }
 }
 
+#[cfg(feature = "mqc_9_3_0_0")]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut)]
+#[repr(transparent)]
+pub struct InitialKeySecret<S>(S);
+
+pub type InitialKey<S> = InitialKeySecret<ProtectedSecret<S>>;
+
 #[derive(Default, Debug, Clone, Copy)]
 pub enum CredentialsSecret<'cred, S> {
     #[default]
     Default,
-    User(&'cred str, S, Option<S>),
+    User(&'cred str, S),
     #[cfg(feature = "mqc_9_3_4_0")]
-    Token(S, Option<S>),
-}
-
-impl<'cred, S> CredentialsSecret<'cred, S> {
-    pub fn user(user: &'cred str, password: impl Into<S>) -> Self {
-        Self::User(user, password.into(), None)
-    }
+    Token(S),
 }
 
 pub type Credentials<'cred, S> = CredentialsSecret<'cred, ProtectedSecret<S>>;
 
 #[derive(Clone, Copy, Default)]
 #[repr(transparent)]
-pub struct ProtectedSecret<T>(T);
+pub struct ProtectedSecret<T: ?Sized>(T);
 
 impl<T> ProtectedSecret<T> {
     pub const fn new(secret: T) -> Self {
@@ -492,6 +493,16 @@ impl<T> From<T> for ProtectedSecret<T> {
     }
 }
 
+#[cfg(feature = "mqc_9_3_0_0")]
+unsafe impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for InitialKeySecret<S> {
+    fn apply_param(&self, structs: &mut ConnectStructs<'cred>) -> ConnectStructFlags {
+        let initial_key = self.expose_secret();
+        structs.csp.attach_initial_key(initial_key);
+
+        CONNECT_HAS_CSP
+    }
+}
+
 unsafe impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSecret<'cred, S> {
     fn apply_param(&self, structs: &mut ConnectStructs<'cred>) -> ConnectStructFlags {
         let auth_type = structs.csp.AuthenticationType.as_mut();
@@ -500,7 +511,7 @@ unsafe impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSe
                 // No authentication
                 *auth_type = constants::MQCSP_AUTH_NONE;
             }
-            CredentialsSecret::User(user, password, ..) => {
+            CredentialsSecret::User(user, password) => {
                 // UserId and Password authentication
                 let password = password.expose_secret();
                 *auth_type = constants::MQCSP_AUTH_USER_ID_AND_PWD;
@@ -508,25 +519,12 @@ unsafe impl<'cred, S: Secret<'cred, str>> ConnectOption<'cred> for CredentialsSe
                 structs.csp.attach_userid(user);
             }
             #[cfg(feature = "mqc_9_3_4_0")]
-            CredentialsSecret::Token(token, ..) => {
+            CredentialsSecret::Token(token) => {
                 // JWT authentication
                 let token = token.expose_secret();
                 *auth_type = constants::MQCSP_AUTH_ID_TOKEN;
                 structs.csp.attach_token(token);
             }
-        }
-
-        // Populate the initial key
-        #[cfg(feature = "mqc_9_3_0_0")]
-        if let CredentialsSecret::User(.., Some(initial_key)) = &self {
-            let initial_key = initial_key.expose_secret();
-            structs.csp.attach_initial_key(initial_key);
-        }
-
-        #[cfg(feature = "mqc_9_3_4_0")]
-        if let CredentialsSecret::Token(.., Some(initial_key)) = &self {
-            let initial_key = initial_key.expose_secret();
-            structs.csp.attach_initial_key(initial_key);
         }
 
         CONNECT_HAS_CSP
@@ -833,13 +831,24 @@ mod tests {
         });
     }
 
+    #[cfg(feature = "mqc_9_3_0_0")]
+    #[test]
+    fn initial_key() {
+        let initial_key: InitialKey<_> = InitialKeySecret("key".into());
+        test_co(&initial_key, |bf, _, cs| {
+            assert_eq!(cs.csp.InitialKeyLength, 3);
+            assert!(!cs.csp.InitialKeyPtr.is_null());
+            assert_eq!(bf & CONNECT_HAS_CSP, CONNECT_HAS_CSP);
+        });
+    }
+
     #[test]
     fn credentials() {
         test_co(&Credentials::<'_, &str>::Default, |bf, _, cs| {
             assert_eq!(cs.csp.AuthenticationType, sys::MQCSP_AUTH_NONE);
             assert_eq!(bf & CONNECT_HAS_CSP, CONNECT_HAS_CSP);
         });
-        test_co(&Credentials::user("user", "password"), |bf, _, cs| {
+        test_co(&Credentials::User("user", "password".into()), |bf, _, cs| {
             assert_eq!(types::MQCSP(cs.csp.AuthenticationType), constants::MQCSP_AUTH_USER_ID_AND_PWD);
             assert_eq!(cs.csp.CSPUserIdLength, 4);
             assert!(!cs.csp.CSPUserIdPtr.is_null());
@@ -847,24 +856,14 @@ mod tests {
             assert!(!cs.csp.CSPPasswordPtr.is_null());
             assert_eq!(bf & CONNECT_HAS_CSP, CONNECT_HAS_CSP);
         });
-        test_co(
-            &Credentials::User("user", "password".into(), Some("key".into())),
-            |_, _, cs| {
-                assert_eq!(cs.csp.InitialKeyLength, 3);
-                assert!(!cs.csp.InitialKeyPtr.is_null());
-            },
-        );
+
         #[cfg(feature = "mqc_9_3_4_0")]
         {
-            test_co(&Credentials::Token("token".into(), None), |bf, _, cs| {
+            test_co(&Credentials::Token("token".into()), |bf, _, cs| {
                 assert_eq!(cs.csp.AuthenticationType, sys::MQCSP_AUTH_ID_TOKEN);
                 assert_eq!(cs.csp.TokenLength, 5);
                 assert!(!cs.csp.TokenPtr.is_null());
                 assert_eq!(bf & CONNECT_HAS_CSP, CONNECT_HAS_CSP);
-            });
-            test_co(&Credentials::Token("token".into(), Some("key".into())), |_, _, cs| {
-                assert_eq!(cs.csp.InitialKeyLength, 3);
-                assert!(!cs.csp.InitialKeyPtr.is_null());
             });
         }
     }

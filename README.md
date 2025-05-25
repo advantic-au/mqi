@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // User credentials and application name.
     // MQI will use the C API defaults of using MQSERVER environment variable
-    let connect_options = (ApplName(mqstr!("readme_example")), Credentials::user("user", "password"));
+    let connect_options = (ApplName(mqstr!("readme_example")), Credentials::User("user", "password".into()));
 
     // Connect to the queue manager. Make all MQ warnings as a rust Result::Err
     let queue_manager = mqi::connect::<ThreadNone>(&connect_options).warn_as_error()?;
