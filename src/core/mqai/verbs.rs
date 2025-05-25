@@ -2,11 +2,12 @@ use std::mem::size_of_val;
 use std::ptr;
 
 use libmqm_sys::Mqai;
+use libmqm_sys::lib as sys;
 
 use crate::core::{CCSID, ConnectionHandle, Library, MqFunctions, MqInqError, MqiOutcome, MqiOutcomeVoid, ObjectHandle, WriteRaw};
 use crate::{Error, ResultCompErr, MQMD};
-use crate::{sys, constants, ResultComp};
-use crate::types::{Selector, MQCBO, MQCFOP, MQCMD, MQIND, MQITEM};
+use crate::{constants, ResultComp};
+use crate::types::{MQLONG, Selector, MQCBO, MQCFOP, MQCMD, MQIND, MQITEM};
 use super::{BagHandle, Filter};
 
 #[cfg(feature = "tracing")]
@@ -73,7 +74,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_add_integer(&self, bag: &BagHandle, selector: Selector, value: sys::MQLONG) -> ResultComp<()> {
+    pub fn mq_add_integer(&self, bag: &BagHandle, selector: Selector, value: MQLONG) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddInteger");
         unsafe {
             self.0.lib().mqAddInteger(
@@ -94,7 +95,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         &self,
         bag: &BagHandle,
         selector: Selector,
-        Filter { value, operator }: Filter<sys::MQLONG>,
+        Filter { value, operator }: Filter<MQLONG>,
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddIntegerFilter");
         unsafe {
@@ -262,7 +263,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         bag: &BagHandle,
         selector: Selector,
         index: MQIND,
-        Filter { value, operator }: Filter<sys::MQLONG>,
+        Filter { value, operator }: Filter<MQLONG>,
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqSetIntegerFilter");
         unsafe {
@@ -398,7 +399,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_inquire_integer(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<sys::MQLONG> {
+    pub fn mq_inquire_integer(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<MQLONG> {
         let mut outcome = MqiOutcome::with_verb("mqInquireInteger");
         unsafe {
             self.0.lib().mqInquireInteger(
@@ -416,12 +417,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_inquire_integer_filter(
-        &self,
-        bag: &BagHandle,
-        selector: Selector,
-        index: MQIND,
-    ) -> ResultComp<Filter<sys::MQLONG>> {
+    pub fn mq_inquire_integer_filter(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<Filter<MQLONG>> {
         let mut outcome = MqiOutcome::new("mqInquireIntegerFilter", Filter::new(0, MQCFOP(0)));
         unsafe {
             self.0.lib().mqInquireIntegerFilter(
@@ -464,7 +460,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
         selector: Selector,
         index: MQIND,
         value: &mut (impl WriteRaw<sys::MQBYTE> + ?Sized),
-    ) -> ResultComp<sys::MQLONG> {
+    ) -> ResultComp<MQLONG> {
         let mut outcome = MqiOutcome::with_verb("mqInquireByteString");
         unsafe {
             self.0.lib().mqInquireByteString(
@@ -595,7 +591,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     }
 
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mq_count_items(&self, bag: &BagHandle, selector: Selector) -> ResultComp<sys::MQLONG> {
+    pub fn mq_count_items(&self, bag: &BagHandle, selector: Selector) -> ResultComp<MQLONG> {
         let mut outcome = MqiOutcome::with_verb("mqCountItems");
         unsafe {
             self.0.lib().mqCountItems(

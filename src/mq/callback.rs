@@ -1,13 +1,16 @@
 use libmqm_sys::Mqi;
+use libmqm_sys::lib as sys;
 use libmqm_default as default;
 
 use crate::types;
 use crate::{
     core::{Library, MqFunctions},
-    sys, Error, MqStruct, constants,
+    Error, constants,
+    prelude::*,
+    structs,
 };
 
-use super::{Conn as _, Connection, ConnectionRef};
+use super::{Connection, ConnectionRef};
 
 struct CallbackData<F, L> {
     options: types::MQCBDO,
@@ -23,11 +26,11 @@ unsafe extern "C" fn event_callback<L, H, F>(
     cbc: *const sys::MQCBC,
 ) where
     L: Library<MQ: Mqi> + Clone,
-    F: FnMut(ConnectionRef<L, H>, &MqStruct<sys::MQCBC>),
+    F: FnMut(ConnectionRef<L, H>, &structs::MQCBC),
 {
     // unsafe {
     // SAFETY: MQCBC will always be non-null
-    if let Some(context) = unsafe { cbc.cast::<MqStruct<sys::MQCBC>>().as_ref() } {
+    if let Some(context) = unsafe { cbc.cast::<structs::MQCBC>().as_ref() } {
         // SAFETY: CallbackArea is always set by `register_event_handler`
         if let Some(CallbackData { options, closure, mq }) = unsafe { context.CallbackArea.cast::<CallbackData<F, L>>().as_mut() }
         {
@@ -53,14 +56,14 @@ where
     /// Consumers of [`register_event_handler`](Connection::register_event_handler) must handle and read the pointers in [`MQCBDO`](types::MQCBDO) correctly
     pub unsafe fn register_event_handler<F>(&mut self, options: types::MQCBDO, closure: F) -> Result<(), Error>
     where
-        F: FnMut(ConnectionRef<L, H>, &MqStruct<sys::MQCBC>),
+        F: FnMut(ConnectionRef<L, H>, &structs::MQCBC),
     {
         let cb_data: *mut CallbackData<F, L> = Box::into_raw(Box::from(CallbackData {
             options,
             closure,
             mq: self.mq().clone(),
         }));
-        let mut cbd = MqStruct::new(default::MQCBD_DEFAULT);
+        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
         cbd.CallbackArea = cb_data.cast();
         *cbd.Options.as_mut() = options | constants::MQCBDO_DEREGISTER_CALL; // Always register for the deregister call
         cbd.CallbackFunction = event_callback::<L, H, F> as *mut _;

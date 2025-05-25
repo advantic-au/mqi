@@ -1,15 +1,15 @@
 use crate::{
     prelude::*,
-    constants, sys,
-    types::{QueueManagerName, QueueName},
+    constants, structs,
+    types::{MQLONG, MQOO, MQOT, MQPMO, QueueManagerName, QueueName},
     core::CCSID,
     Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned,
     macros::{all_multi_tuples, reverse_ident},
 };
 
-use crate::types::{MQOO, MQOT, MQPMO};
+use libmqm_sys::lib as sys;
 
-use super::{impl_mqstruct_min_version, types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
+use super::{impl_min_version, types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
 
 unsafe impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
     fn apply_param(&self, param: &mut OpenParamOption<'oo, O>) {
@@ -61,11 +61,11 @@ unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for SelectionStr
     }
 }
 
-impl_mqstruct_min_version!(sys::MQOD);
+impl_min_version!(['a], structs::MQOD<'a>);
 
 unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString<&'a T> {
     fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
-        mqod.ObjectType = sys::MQOT_TOPIC;
+        *mqod.ObjectType.as_mut() = constants::MQOT_TOPIC;
         mqod.attach_object_string(self.0);
     }
 }
@@ -73,14 +73,14 @@ unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString
 unsafe impl<O> OpenOption<'_, O> for QueueName {
     fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
         mqod.ObjectName = self.0.into();
-        mqod.ObjectType = sys::MQOT_Q;
+        *mqod.ObjectType.as_mut() = constants::MQOT_Q;
     }
 }
 
 unsafe impl<O> OpenOption<'_, O> for QueueManagerName {
     fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
         mqod.ObjectQMgrName = self.0.into();
-        mqod.ObjectType = sys::MQOT_Q_MGR;
+        *mqod.ObjectType.as_mut() = constants::MQOT_Q_MGR;
     }
 }
 
@@ -167,7 +167,7 @@ unsafe impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
     }
 }
 
-const DEFAULT_RESOBJECTSTRING_LENGTH: sys::MQLONG = 4096;
+const DEFAULT_RESOBJECTSTRING_LENGTH: MQLONG = 4096;
 
 unsafe impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
     fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>

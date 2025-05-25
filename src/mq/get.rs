@@ -6,7 +6,7 @@ use crate::{
     core::{WriteRaw, CCSID},
     headers::{ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     prelude::*,
-    constants, sys, types, Buffer, Completion, Conn, Error, MqStruct, Object, ResultComp, ResultCompErr, StrCcsidCow,
+    structs, constants, types, Buffer, Completion, Conn, Error, Object, ResultComp, ResultCompErr, StrCcsidCow,
     types::MQENC,
 };
 
@@ -46,8 +46,8 @@ pub struct MatchOptions<'a> {
     pub msg_id: Option<&'a types::MessageId>,
     pub correl_id: Option<&'a types::CorrelationId>,
     pub group_id: Option<&'a types::GroupId>,
-    pub seq_number: Option<sys::MQLONG>,
-    pub offset: Option<sys::MQLONG>,
+    pub seq_number: Option<types::MQLONG>,
+    pub offset: Option<types::MQLONG>,
     pub token: Option<&'a types::MsgToken>,
 }
 
@@ -83,7 +83,7 @@ pub enum GetStringCcsidError {
 pub enum GetWait {
     #[default]
     NoWait,
-    Wait(sys::MQLONG),
+    Wait(types::MQLONG),
 }
 
 pub enum GetConvert {
@@ -93,8 +93,8 @@ pub enum GetConvert {
 }
 
 pub struct GetParam {
-    pub md: MqStruct<'static, sys::MQMD2>,
-    pub gmo: MqStruct<'static, sys::MQGMO>,
+    pub md: structs::MQMD2,
+    pub gmo: structs::MQGMO,
 }
 
 pub struct GetState<B> {
@@ -193,7 +193,7 @@ mod mqai {
         admin::{Bag, Owned},
         core::Library,
         prelude::*,
-        constants, Completion, Conn, Error, MqStruct, Object, ResultComp,
+        structs, constants, Completion, Conn, Error, Object, ResultComp,
     };
     use libmqm_default as default;
     use libmqm_sys::Mqai;
@@ -210,8 +210,8 @@ mod mqai {
             bag: &mut Bag<Owned, impl Library<MQ: Mqai>>,
         ) -> ResultComp<Option<R>> {
             let mut param = GetParam {
-                md: MqStruct::new(default::MQMD2_DEFAULT),
-                gmo: MqStruct::new(default::MQGMO_DEFAULT),
+                md: structs::MQMD2::new(default::MQMD2_DEFAULT),
+                gmo: structs::MQGMO::new(default::MQGMO_DEFAULT),
             };
             let mut no_msg_available = false;
 
@@ -288,9 +288,11 @@ impl<C: Conn> Object<C> {
         V: GetValue<'b, R, B>,
         R: WriteRaw<u8>,
     {
+        use libmqm_sys::lib as sys;
+
         let mut param = GetParam {
-            md: MqStruct::new(default::MQMD2_DEFAULT),
-            gmo: MqStruct::new(sys::MQGMO {
+            md: structs::MQMD2::new(default::MQMD2_DEFAULT),
+            gmo: structs::MQGMO::new(sys::MQGMO {
                 Version: sys::MQGMO_VERSION_3, // Version 3 for ReturnedLength
                 ..default::MQGMO_DEFAULT
             }),

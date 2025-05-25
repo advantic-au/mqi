@@ -1,14 +1,17 @@
-use crate::{headers::TextEnc, sys, core::CCSID, MqChar, MqStr};
+use crate::{structs, headers::TextEnc, core::CCSID, MqChar, MqStr};
+use crate::types::{MQBYTE, MQCHAR};
 use std::{
     fmt::{Debug, Display},
     str,
 };
 
 use libmqm_default as default;
+use libmqm_sys::lib as sys;
+
 use crate::types::{MQENC, MQRC};
 use crate::constants;
 
-use super::{connect_options::ProtectedSecret, headers::fmt::MQFMT_NONE, MqStruct};
+use super::{connect_options::ProtectedSecret, headers::fmt::MQFMT_NONE};
 
 macro_rules! impl_equivalent_type {
     ($new_type:path, [$($other_type:path),*]) => {
@@ -114,7 +117,7 @@ pub struct MessageFormat {
 impl MessageFormat {
     #[must_use]
     #[allow(clippy::allow_attributes, clippy::missing_const_for_fn)]
-    pub fn from_mqmd2(md: &MqStruct<sys::MQMD2>) -> Self {
+    pub fn from_mqmd2(md: &structs::MQMD2) -> Self {
         Self {
             ccsid: CCSID(md.CodedCharSetId),
             encoding: MQENC(md.Encoding),
@@ -123,8 +126,8 @@ impl MessageFormat {
     }
 
     #[must_use]
-    pub fn into_mqmd2(&self) -> MqStruct<sys::MQMD2> {
-        MqStruct::new(sys::MQMD2 {
+    pub fn into_mqmd2(&self) -> structs::MQMD2 {
+        structs::MQMD2::new(sys::MQMD2 {
             CodedCharSetId: self.ccsid.0,
             Encoding: self.encoding.0,
             Format: *self.fmt.into_ascii().as_ref(),
@@ -139,7 +142,7 @@ pub const FORMAT_NONE: MessageFormat = MessageFormat {
     fmt: TextEnc::Ascii(MQFMT_NONE),
 };
 
-pub type Identifier<const N: usize> = [sys::MQBYTE; N];
+pub type Identifier<const N: usize> = [MQBYTE; N];
 
 #[repr(transparent)]
 pub(super) struct DisplayId<const N: usize>(Identifier<N>);
@@ -193,7 +196,7 @@ impl Debug for GroupId {
 
 impl UserIdentifier {
     #[must_use]
-    pub fn new(source: [sys::MQCHAR; sys::MQ_USER_ID_LENGTH]) -> Option<Self> {
+    pub fn new(source: [MQCHAR; sys::MQ_USER_ID_LENGTH]) -> Option<Self> {
         Some(MqStr::from(source)).filter(MqStr::has_value).map(UserIdentifier)
     }
 }
@@ -263,7 +266,7 @@ pub struct PutTime(pub MqStr<8>);
 impl_from_str!(PutTime, MqStr<8>);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
-pub struct AccountingToken(pub [sys::MQBYTE; sys::MQ_ACCOUNTING_TOKEN_LENGTH]);
+pub struct AccountingToken(pub [MQBYTE; sys::MQ_ACCOUNTING_TOKEN_LENGTH]);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]

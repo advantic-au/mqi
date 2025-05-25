@@ -2,12 +2,13 @@ use std::borrow::Cow;
 
 use libmqm_default as default;
 use libmqm_sys::Mqi;
+use libmqm_sys::lib::MQMD2;
 
 use crate::core::{ConnectionHandle, Library, MqFunctions, CCSID};
 use crate::types::MQPMO;
 use crate::headers::{fmt, TextEnc};
 use crate::types::MessageFormat;
-use crate::{sys, constants, Conn, MqStruct, Object, ResultComp};
+use crate::{constants, structs, Conn, Object, ResultComp};
 
 use super::{OpenOption, OpenParamOption};
 
@@ -18,7 +19,7 @@ pub trait PutMessage {
     fn format(&self) -> MessageFormat;
 }
 
-pub type PutParam<'a> = (MqStruct<'static, sys::MQMD2>, MqStruct<'a, sys::MQPMO>);
+pub type PutParam<'a> = (structs::MQMD2, structs::MQPMO<'a>);
 
 impl PutMessage for str {
     fn render(&self) -> Cow<[u8]> {
@@ -47,13 +48,15 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
 #[cfg(feature = "mqai")]
 mod mqai {
     use libmqm_sys::Mqai;
+    use libmqm_sys::lib::MQMD2;
     use libmqm_default as default;
 
     use crate::{
         admin::{Bag, BagDrop},
+        structs,
         core::Library,
         headers::TextEnc,
-        sys, types, Conn, MqStruct, Object, ResultComp,
+        types, Conn, Object, ResultComp,
     };
 
     use super::{PutAttr, PutOption};
@@ -80,11 +83,11 @@ mod mqai {
         where
             R: PutAttr,
         {
-            let md = MqStruct::new(sys::MQMD2 {
+            let md = structs::MQMD2::new(MQMD2 {
                 Format: format.into_ascii().into(),
                 ..default::MQMD2_DEFAULT
             });
-            let mqpmo = MqStruct::new(default::MQPMO_DEFAULT);
+            let mqpmo = structs::MQPMO::new(default::MQPMO_DEFAULT);
 
             let mut put_param = (md, mqpmo);
             put_options.apply_param(&mut put_param);
@@ -160,7 +163,7 @@ where
     R: PutAttr,
 {
     let mut open_params = OpenParamOption {
-        mqod: MqStruct::new(default::MQOD_DEFAULT),
+        mqod: structs::MQOD::new(default::MQOD_DEFAULT),
         options: MQPMO::default(),
     };
     open_options.apply_param(&mut open_params);
@@ -183,13 +186,13 @@ where
         encoding,
         fmt,
     } = message.format();
-    let md = MqStruct::new(sys::MQMD2 {
+    let md = structs::MQMD2::new(MQMD2 {
         CodedCharSetId: ccsid,
         Encoding: encoding.0,
         Format: *fmt.into_ascii().as_ref(),
         ..default::MQMD2_DEFAULT
     });
-    let mqpmo = MqStruct::new(default::MQPMO_DEFAULT);
+    let mqpmo = structs::MQPMO::new(default::MQPMO_DEFAULT);
 
     let mut put_param = (md, mqpmo);
 

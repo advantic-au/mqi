@@ -79,28 +79,14 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=reference-mqai-calls>
 | mqTrim                    | Trim the blanks from a blank-padded string, then terminates it with a null | ✘ |   | Can be trivially implemented in safe rust |
 | mqPad                     | Pad a null-terminated string with blanks                               | ✘  |   | Can be trivially implemented in safe rust |
 
-Examples
-========
+Further work required
+=====================
 
-| Name              | Description                        | Status |
-|-------------------|------------------------------------|--------|
-| Amqsbo            | Handling a poison message - MQGMO_SYNCPOINT | |
-| amqscb            | Callback handling instead of MQGET | |
-| amqsconn          | Connect to remote QM              | |
-| amqsconntls       | TLS connection                    | |
-| amqsdlh           | put and get message with DLH      | |
-| amqsgbr           | browse loop                       | |
-| amqsget           | get loop                          | |
-| amqsinq           | inquire queue attributes          | |
-| amqsjwt           | token authentication              | |
-| amqspcf           | equivalent to DISPLAY Q(x) ALL.   | |
-| amqsprop          | manipulate message properties (put and get) | |
-| amqspub           | publish to a topic                | |
-| amqsset           | set queue attributes (MQSET)      | |
-| amqssub           | subscribe (managed, non-durable)  | |
-| rust async        | | |
-| handling headers. | | |
-| Request Reply (provider) | | |
-| request/reply (consumer) | | |
-| additional attributes on connect / get / put | | |
-| Function for a parameter | | |
+- More examples demonstrating functionality
+- MQ callbacks to receive messages
+- MQ asynchronous API calls
+- PCF structure handling
+- MQ exit registration, structures
+- rustdoc annotations to many functions
+- doctests
+- Increase unit test coverage

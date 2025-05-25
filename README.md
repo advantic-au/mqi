@@ -1,4 +1,4 @@
-mqi
+mqi - Rust API's for IBM MQ
 ===
 
 [![Latest version](https://img.shields.io/crates/v/mqi.svg)](https://crates.io/crates/mqi)
@@ -19,15 +19,18 @@ Key Features
 
 - **MQI Integration**: Connect to IBM MQ servers to send and receive messages synchronously using robust MQI functions.
 - **MQAI Administration**: Administer IBM MQ servers through the comprehensive MQAI functions.
+- **Cross Platform**: Supports Windows, MacOS, and Linux.
 - **Stability**: Built on the [libmqm-sys](https://crates.io/crates/libmqm-sys) crate, ensuring reliable connectivity to MQ queue managers using the IBM-supplied libraries.
 
 Usage
 -----
 
-1. As per `libmqm-sys` crate, download and install the redistributable client from IBM:
-  <https://ibm.biz/mq94redistclients>
+1. Download and install the client from IBM:
+   - Windows/Linux x86-64 redistributable - <https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/>
+   - MacOS (x86-64/ARM64) toolkit - <https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/mactoolkit/>
+   - Linux (x86-64/ARM64/PowerPC64le/S390X) MQ Advanced Developer - <https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqadv/>
 
-2. Install the client in `/opt/mqm` or another location.
+2. Extract and install the MQ client in any location.
 
 3. Set the MQ_HOME environment variable to the installed location.
 
@@ -37,10 +40,21 @@ Usage
     cargo add mqi
     ```
 
+5. Ensure the MQ libraries are in the library search path. On Linux, this can
+   be achieved by setting the `LD_LIBRARY_PATH` environment variable.
+
+An easy way of running an MQ server for development and testing is to run the IBM supplied docker container:
+
+```sh
+docker run -d --publish 1414:1414 icr.io/ibm-messaging/mq:latest
+```
+
+Refer to <https://github.com/ibm-messaging/mq-container/blob/master/docs/usage.md>
+
 Example
 -------
 
-Connect to the default queue manager using the `MQSERVER` environment variable.
+Connect to the default queue manager using the `MQSERVER` environment variable with username and password authentication.
 
 ```rust
 use std::error::Error;
@@ -91,16 +105,17 @@ Feature flags
 | Feature        | Default | Description |
 |----------------|---------|-------------|
 | link           | ✔ | Support linking the MQ library at compile-time |
-| tracing        |   | Add tracing to the MQI and MQAI calls using the tracing crate |
-| mqm_generate   | ✔ | Ensure the dependent MQM bindings are refreshed from the C library |
 | dlopen2        |   | Support loading the MQ library at run-time using [`dlopen2`](https://crates.io/crates/dlopen2) |
-| mqai           |   | Expose the MQAI functions |
+| tracing        |   | Add tracing to the MQI and MQAI calls using the tracing crate |
+| mqai           |   | Expose functions and structures related to MQAI |
+| exits          |   | Expose functions and structures related to MQ exits |
 | mqc_*          | mqc_9_2_0_0 | Enable features of a specific MQI library version eg `mqc_9_4_1_0` |
+| mqm_generate   |   | Ensure the dependent MQM bindings are refreshed from the C library |
 
 Version Compatibility
 ---------------------
 
-- The current MSRV is 1.85. No MSRV policy has been established.
+- The current MSRV is 1.87. No MSRV policy has been established.
 - IBM MQ client support is in line with IBM's support for MQ client. This crate supports IBM MQ client 9.2 to 9.4. Version specific features can be enabled using the `mqc_*` feature flags.
 
 Status

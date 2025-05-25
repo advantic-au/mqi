@@ -4,11 +4,14 @@ use std::error::Error;
 
 use test::mock::MockFunctions;
 use mqi::{
-    sys, test,
-    types::{MQSMPO, MQCMHO},
-    Properties,
+    constants,
     prelude::*,
+    test,
+    types::{MQCMHO, MQSMPO},
+    Properties,
 };
+
+use libmqm_sys::lib as sys;
 
 #[test]
 fn set_property() -> Result<(), Box<dyn Error>> {
@@ -20,7 +23,7 @@ fn set_property() -> Result<(), Box<dyn Error>> {
             .returning(|_, _, mqsmpo, _, _, typ, _, _, comp_code, reason| {
                 let mqsmpo = unsafe { *mqsmpo.cast::<sys::MQSMPO>() };
 
-                assert_eq!(typ, sys::MQTYPE_STRING);
+                assert_eq!(constants::MQTYPE_STRING, typ);
                 assert_eq!(MQSMPO::default(), mqsmpo.Options);
                 assert_eq!(mqsmpo.ValueCCSID, 1208);
                 MockFunctions::mqi_outcome_ok(comp_code, reason);

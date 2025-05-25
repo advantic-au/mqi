@@ -5,7 +5,9 @@ use std::{
 };
 
 use super::MockFunctions;
-use crate::{constants, sys, types};
+use crate::{constants, types, structs};
+
+use libmqm_sys::lib as sys;
 
 impl MockFunctions {
     #[must_use]
@@ -22,12 +24,12 @@ impl MockFunctions {
         mock_library
             .expect_MQCB()
             .withf(|_, _, cbd_ptr, _, _, _, _, _| {
-                let cbd = unsafe { cbd_ptr.cast::<sys::MQCBD>().as_ref().expect("MQCBD should be non-null") };
+                let cbd = unsafe { cbd_ptr.cast::<structs::MQCBD>().as_ref().expect("MQCBD should be non-null") };
                 types::MQCBT(cbd.CallbackType) == constants::MQCBT_EVENT_HANDLER
                     && types::MQCBDO(cbd.Options).contains(constants::MQCBDO_DEREGISTER_CALL)
             })
             .returning(move |_, _, cbd_ptr, _, _, _, cc, rc| {
-                let cbd = unsafe { cbd_ptr.cast::<sys::MQCBD>().as_ref().expect("MQCBD should be non-null") };
+                let cbd = unsafe { cbd_ptr.cast::<structs::MQCBD>().as_ref().expect("MQCBD should be non-null") };
                 cb_init
                     .lock()
                     .expect("mutex retrieval should succeed")

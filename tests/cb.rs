@@ -4,12 +4,14 @@ use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
 use mqi::test::mock::MockFunctions;
-use mqi::{core::ConnectionHandle, sys, MqStruct, Object, ThreadBlock, ThreadNone, MQMD};
+use mqi::{core::ConnectionHandle, Object, ThreadBlock, ThreadNone, MQMD};
 use mqi::prelude::*;
-use mqi::types::{MQCBDO, MQCBCT, MQCS, MQCBCF, MQRD, MQRC, MQCC};
+use mqi::types::{MQCBCT, MQCS, MQCBCF, MQRD, MQRC, MQCC};
+use mqi::structs;
 use mqi::constants;
 
 use libmqm_default as default;
+use libmqm_sys::lib as sys;
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
@@ -18,15 +20,13 @@ fn qm() -> Result<(), Box<dyn Error>> {
 
     unsafe {
         qm.register_event_handler(
-            MQCBDO(
-                sys::MQCBDO_NONE
-                    | sys::MQCBDO_MC_EVENT_CALL
-                    | sys::MQCBDO_EVENT_CALL
-                    | sys::MQCBDO_REGISTER_CALL
-                    | sys::MQCBDO_DEREGISTER_CALL,
-                // | sys::MQCBDO_START_CALL
-                // | sys::MQCBDO_STOP_CALL,
-            ),
+            constants::MQCBDO_NONE
+                | constants::MQCBDO_MC_EVENT_CALL
+                | constants::MQCBDO_EVENT_CALL
+                | constants::MQCBDO_REGISTER_CALL
+                | constants::MQCBDO_DEREGISTER_CALL,
+            // | constants::MQCBDO_START_CALL
+            // | constants::MQCBDO_STOP_CALL,
             |_, options| {
                 println!("{}", MQCBCT(options.CallType));
                 println!("{}", MQCS(options.State));
@@ -45,15 +45,15 @@ fn qm() -> Result<(), Box<dyn Error>> {
 #[test]
 #[ignore = "experimental, and mocks not set up correctly"]
 fn callback() -> Result<(), Box<dyn Error>> {
-    fn register_cb<F, M>(cbd: &mut MqStruct<sys::MQCBD>, cb: F)
+    fn register_cb<F, M>(cbd: &mut structs::MQCBD, cb: F)
     where
-        F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>) + 'static,
+        F: FnMut(ConnectionHandle, Option<&M>, Option<&structs::MQGMO>, Option<&[u8]>, &structs::MQCBC) + 'static,
         M: MQMD,
     {
         let data = Box::into_raw(Box::new(cb));
         cbd.CallbackArea = data.cast();
         cbd.CallbackFunction = call_closure::<F, M> as *mut _;
-        cbd.CallbackType = sys::MQCBT_MESSAGE_CONSUMER;
+        *cbd.CallbackType.as_mut() = constants::MQCBT_MESSAGE_CONSUMER;
     }
 
     unsafe extern "C" fn call_closure<F, M>(
@@ -63,17 +63,17 @@ fn callback() -> Result<(), Box<dyn Error>> {
         buffer: sys::PMQVOID,
         cbc: *const sys::MQCBC,
     ) where
-        F: FnMut(ConnectionHandle, Option<&M>, Option<&MqStruct<sys::MQGMO>>, Option<&[u8]>, &MqStruct<sys::MQCBC>) + 'static,
+        F: FnMut(ConnectionHandle, Option<&M>, Option<&structs::MQGMO>, Option<&[u8]>, &structs::MQCBC) + 'static,
         M: MQMD,
     {
         unsafe {
-            if let Some(context) = cbc.cast::<MqStruct<sys::MQCBC>>().as_ref() {
+            if let Some(context) = cbc.cast::<structs::MQCBC>().as_ref() {
                 let cb_ptr = context.CallbackArea.cast::<F>();
                 let cb = &mut *cb_ptr;
                 cb(
                     conn.into(),
                     mqmd.cast::<M>().as_ref(),
-                    gmo.cast::<MqStruct<sys::MQGMO>>().as_ref(),
+                    gmo.cast::<structs::MQGMO>().as_ref(),
                     buffer.as_ref().map(|buffer_ref| {
                         slice::from_raw_parts(
                             ptr::from_ref(buffer_ref).cast(),
@@ -105,9 +105,9 @@ fn callback() -> Result<(), Box<dyn Error>> {
         println!("{:?}", object.handle());
         let b = 2;
 
-        let mut cbd = MqStruct::new(default::MQCBD_DEFAULT);
-        let mqmd = MqStruct::new(default::MQMD2_DEFAULT);
-        let mut gmo = MqStruct::new(default::MQGMO_DEFAULT);
+        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
+        let mqmd = structs::MQMD2::new(default::MQMD2_DEFAULT);
+        let mut gmo = structs::MQGMO::new(default::MQGMO_DEFAULT);
         register_cb(&mut cbd, move |_a, _b: Option<&sys::MQMD2>, _c, _d, _e| {
             println!("{b}");
         });
@@ -126,7 +126,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
                 .expect("mqcb should not fail");
         };
 
-        let ctlo = MqStruct::new(default::MQCTLO_DEFAULT);
+        let ctlo = structs::MQCTLO::new(default::MQCTLO_DEFAULT);
 
         unsafe {
             qm.mq()

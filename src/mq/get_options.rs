@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::{
-    constants, conversion, macros::all_option_tuples, prelude::*, sys, types, Completion, Conn, Error, Properties, ResultComp,
-    ResultCompErr,
+    constants, conversion, macros::all_option_tuples, prelude::*, structs, types, Completion, Conn, Error, Properties,
+    ResultComp, ResultCompErr,
 };
 
 use super::{
@@ -10,12 +10,14 @@ use super::{
         GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait, Headers,
         MatchOptions,
     },
-    headers, impl_mqstruct_min_version, Buffer, MqStruct, StrCcsidCow,
+    headers, impl_min_version, Buffer, StrCcsidCow,
 };
+
+use libmqm_sys::lib as sys;
 
 all_option_tuples!(GetOption, GetParam);
 
-impl_mqstruct_min_version!(sys::MQGMO);
+impl_min_version!([], structs::MQGMO);
 
 impl GetOption for types::MQGMO {
     fn apply_param(&self, param: &mut GetParam) {
@@ -409,7 +411,7 @@ impl<'b, R> GetAttr<'b, R> for types::MessageFormat {
     }
 }
 
-impl<'b, R> GetAttr<'b, R> for MqStruct<'static, sys::MQMD2> {
+impl<'b, R> GetAttr<'b, R> for structs::MQMD2 {
     #[inline]
     fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
@@ -473,8 +475,8 @@ mod test {
 
     const fn default_getparam() -> GetParam {
         GetParam {
-            md: MqStruct::new(default::MQMD2_DEFAULT),
-            gmo: MqStruct::new(default::MQGMO_DEFAULT),
+            md: structs::MQMD2::new(default::MQMD2_DEFAULT),
+            gmo: structs::MQGMO::new(default::MQGMO_DEFAULT),
         }
     }
 
@@ -608,7 +610,7 @@ mod test {
         const ID: Identifier<24> = [0xC; 24];
         test_get_option(&mut default_getparam(), &CorrelationId(ID), |p| {
             assert_eq!(p.md.CorrelId, ID);
-            assert_ne!(p.gmo.MatchOptions & sys::MQMO_MATCH_CORREL_ID, 0);
+            assert!(types::MQMO(p.gmo.MatchOptions).contains(constants::MQMO_MATCH_CORREL_ID));
         });
         let mut get_param = default_getparam();
         get_param.gmo.MatchOptions = !0;
@@ -620,7 +622,7 @@ mod test {
         const ID: Identifier<24> = [0xC; 24];
         test_get_option(&mut default_getparam(), &types::MessageId(ID), |p| {
             assert_eq!(p.md.MsgId, ID);
-            assert_ne!(p.gmo.MatchOptions & sys::MQMO_MATCH_MSG_ID, 0);
+            assert!(types::MQMO(p.gmo.MatchOptions).contains(constants::MQMO_MATCH_MSG_ID));
         });
         let mut get_param = default_getparam();
         get_param.gmo.MatchOptions = !0;
@@ -631,7 +633,7 @@ mod test {
         const ID: Identifier<24> = [0xC; 24];
         test_get_option(&mut default_getparam(), &types::GroupId(ID), |p| {
             assert_eq!(p.md.GroupId, ID);
-            assert_ne!(p.gmo.MatchOptions & sys::MQMO_MATCH_GROUP_ID, 0);
+            assert!(types::MQMO(p.gmo.MatchOptions).contains(constants::MQMO_MATCH_GROUP_ID));
         });
         let mut get_param = default_getparam();
         get_param.gmo.MatchOptions = !0;
@@ -643,7 +645,7 @@ mod test {
         const TOKEN: [u8; 16] = [0xa; 16];
         test_get_option(&mut default_getparam(), &types::MsgToken(TOKEN), |p| {
             assert_eq!(p.gmo.MsgToken, TOKEN);
-            assert_ne!(p.gmo.MatchOptions & sys::MQMO_MATCH_MSG_TOKEN, 0);
+            assert!(types::MQMO(p.gmo.MatchOptions).contains(constants::MQMO_MATCH_MSG_TOKEN));
         });
         let mut get_param = default_getparam();
         get_param.gmo.MatchOptions = !0;
@@ -657,11 +659,11 @@ mod test {
         let mut get_param = default_getparam();
         get_param.gmo.MatchOptions = !0;
         test_get_option(&mut get_param, &GetWait::NoWait, |p| {
-            assert_eq!(p.gmo.Options & sys::MQGMO_WAIT, 0);
+            assert!(!types::MQGMO(p.gmo.Options).contains(constants::MQGMO_WAIT));
         });
         get_param.gmo.MatchOptions = !0;
         test_get_option(&mut get_param, &GetWait::Wait(50), |p| {
-            assert_ne!(p.gmo.Options & sys::MQGMO_WAIT, 0);
+            assert!(types::MQGMO(p.gmo.Options).contains(constants::MQGMO_WAIT));
             assert_eq!(p.gmo.WaitInterval, 50);
         });
     }

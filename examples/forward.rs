@@ -8,10 +8,10 @@ use mqi::{
     connect_options::Tls,
     constants,
     prelude::*,
+    structs,
     put_options::{Context, PropertyAction},
-    sys,
     types::{ApplName, CipherSpec, MessageFormat, QueueManagerName, QueueName, MQCMHO},
-    MqStruct, Object, Properties, Syncpoint, ThreadNone,
+    Object, Properties, Syncpoint, ThreadNone,
 };
 
 const APP_NAME: ApplName = ApplName(mqstr!("forward"));
@@ -99,7 +99,7 @@ fn main() -> anyhow::Result<()> {
     let syncpoint = Syncpoint::new(qm_ref);
 
     let mut properties = Properties::new(&qm, MQCMHO::default())?;
-    let message: Option<(_, MqStruct<sys::MQMD2>)> = obj
+    let message: Option<(_, structs::MQMD2)> = obj
         .get_data_with(
             &(
                 constants::MQGMO_SYNCPOINT, // Must use the syncpoint option

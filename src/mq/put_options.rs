@@ -1,12 +1,14 @@
-use crate::{macros::all_multi_tuples, prelude::*, sys, types, Conn, MqStr, MqStruct, Properties, ResultComp};
+use libmqm_sys::lib as sys;
+
+use crate::{macros::all_multi_tuples, prelude::*, structs, types, constants, Conn, MqStr, Properties, ResultComp};
 
 use super::{
-    impl_mqstruct_min_version,
+    impl_min_version,
     put::{PutAttr, PutOption, PutParam},
     Object,
 };
 
-impl_mqstruct_min_version!(sys::MQPMO);
+impl_min_version!(['a], structs::MQPMO<'a>);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Context<T>(pub T);
@@ -50,7 +52,7 @@ unsafe impl<'po, C: Conn> PutOption<'po> for Context<&Object<C>> {
 unsafe impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
     fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
         pmo.set_min_version(sys::MQPMO_VERSION_3);
-        pmo.Action = sys::MQACTP_NEW;
+        *pmo.Action.as_mut() = constants::MQACTP_NEW;
         pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
     }
 }
@@ -83,7 +85,7 @@ unsafe impl PutOption<'_> for types::MQPMO {
     }
 }
 
-unsafe impl PutOption<'_> for MqStruct<'static, sys::MQMD2> {
+unsafe impl PutOption<'_> for structs::MQMD2 {
     fn apply_param(&self, param: &mut PutParam<'_>) {
         self.clone_into(&mut param.0);
     }
@@ -140,18 +142,18 @@ impl_putoption_mqchar!(ApplOriginData, types::ApplOriginData);
 unsafe impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2> {
     fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
         let (action, original, new) = match self {
-            PropertyAction::Reply(original, new) => (sys::MQACTP_REPLY, original, new),
-            PropertyAction::Forward(original, new) => (sys::MQACTP_FORWARD, original, new),
-            PropertyAction::Report(original, new) => (sys::MQACTP_REPORT, original, new),
+            PropertyAction::Reply(original, new) => (constants::MQACTP_REPLY, original, new),
+            PropertyAction::Forward(original, new) => (constants::MQACTP_FORWARD, original, new),
+            PropertyAction::Report(original, new) => (constants::MQACTP_REPORT, original, new),
         };
         pmo.set_min_version(sys::MQPMO_VERSION_3);
-        pmo.Action = action;
+        *pmo.Action.as_mut() = action;
         pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
         pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };
     }
 }
 
-unsafe impl PutAttr for MqStruct<'static, sys::MQMD2> {
+unsafe impl PutAttr for structs::MQMD2 {
     #[inline]
     fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
     where
@@ -282,7 +284,10 @@ mod test {
             mock_library.properties_ok(0x0e0e, 1, &mut seq);
         });
 
-        let mut put_param = (MqStruct::new(default::MQMD2_DEFAULT), MqStruct::new(default::MQPMO_DEFAULT));
+        let mut put_param = (
+            structs::MQMD2::new(default::MQMD2_DEFAULT),
+            structs::MQPMO::new(default::MQPMO_DEFAULT),
+        );
 
         let source = Properties::new(&qm, MQCMHO::default())?;
         let mut outcome = Properties::new(&qm, MQCMHO::default())?;

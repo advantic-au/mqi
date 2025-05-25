@@ -1,15 +1,16 @@
 use std::{marker::PhantomData, num::NonZero, ptr};
 
 use libmqm_sys::Mqi;
+use libmqm_sys::lib as sys;
 use libmqm_default as default;
-use crate::types::{MQCMHO, MQDMPO, MQIMPO, MQSMPO, MQTYPE, MQMHBO, MQBMHO};
+use crate::types::{MQBYTE, MQCHAR, MQBMHO, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE};
 
-use crate::prelude::*;
+use crate::{prelude::*, structs};
 use crate::core::{MessageHandle, WriteRaw};
 use crate::properties_options::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetProperty};
-use crate::{core, sys, constants, Completion, Conn, InqBuffer};
+use crate::{core, constants, Completion, Conn, InqBuffer};
 
-use crate::{EncodedString, Error, MqStruct};
+use crate::{EncodedString, Error};
 use crate::{ResultComp, ResultCompErr, ResultErr};
 
 use super::types::MessageFormat;
@@ -39,15 +40,15 @@ unsafe fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
     mq: &core::MqFunctions<A>,
     connection_handle: Option<core::ConnectionHandle>,
     message_handle: &core::MessageHandle,
-    mqimpo: &mut MqStruct<sys::MQIMPO>,
-    name: &MqStruct<sys::MQCHARV>,
-    mqpd: &mut MqStruct<sys::MQPD>,
+    mqimpo: &mut structs::MQIMPO,
+    name: &structs::MQCHARV,
+    mqpd: &mut structs::MQPD,
     value_type: &mut MQTYPE,
     mut value: InqBuffer<'a, u8>,
     max_value_size: Option<NonZero<usize>>,
-    mut returned_name: Option<InqBuffer<'b, sys::MQCHAR>>,
+    mut returned_name: Option<InqBuffer<'b, MQCHAR>>,
     max_name_size: Option<NonZero<usize>>,
-) -> ResultCompErr<(InqBuffer<'a, u8>, Option<InqBuffer<'b, sys::MQCHAR>>), core::MqInqError> {
+) -> ResultCompErr<(InqBuffer<'a, u8>, Option<InqBuffer<'b, MQCHAR>>), core::MqInqError> {
     if let Some(rn) = returned_name.as_mut() {
         let rn_ref = rn.as_mut();
         mqimpo.ReturnedName.VSPtr = rn_ref.as_mut_ptr().cast();
@@ -158,7 +159,7 @@ impl<C: Conn> Properties<C> {
     }
 
     pub fn new(connection: C, options: MQCMHO) -> ResultErr<Self> {
-        let mqcmho = sys::MQCMHO {
+        let mqcmho = libmqm_sys::lib::MQCMHO {
             Options: options.0,
             ..default::MQCMHO_DEFAULT
         };
@@ -196,12 +197,12 @@ impl<C: Conn> Properties<C> {
         let mut property_not_available = false;
 
         let mut param = PropertyParam {
-            impo: MqStruct::new(sys::MQIMPO {
+            impo: structs::MQIMPO::new(sys::MQIMPO {
                 Options: options.0,
                 ..default::MQIMPO_DEFAULT
             }),
             value_type: MQTYPE::default(),
-            mqpd: MqStruct::new(default::MQPD_DEFAULT),
+            mqpd: structs::MQPD::new(default::MQPD_DEFAULT),
             name_required: NameUsage::default(),
         };
 
@@ -210,7 +211,7 @@ impl<C: Conn> Properties<C> {
             Some(max_size) => inq_value_buffer.truncate(max_size.into()),
             None => inq_value_buffer,
         };
-        let name = MqStruct::from_encoded_str(name);
+        let name = structs::MQCHARV::from_encoded_str(name);
 
         let result = P::property_consume(&mut param, |param| {
             let mut inq_name_buffer = match param.name_required {
@@ -271,10 +272,10 @@ impl<C: Conn> Properties<C> {
     }
 
     pub fn delete_property(&self, name: &(impl EncodedString + ?Sized), options: MQDMPO) -> ResultComp<()> {
-        let mut mqdmpo = MqStruct::new(default::MQDMPO_DEFAULT);
+        let mut mqdmpo = structs::MQDMPO::new(default::MQDMPO_DEFAULT);
         *mqdmpo.Options.as_mut() = options;
 
-        let name_mqcharv = MqStruct::from_encoded_str(name);
+        let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
 
         self.connection
             .mq()
@@ -287,12 +288,12 @@ impl<C: Conn> Properties<C> {
         value: &(impl SetProperty + ?Sized),
         location: MQSMPO,
     ) -> ResultComp<()> {
-        let mut mqpd = MqStruct::new(default::MQPD_DEFAULT);
-        let mut mqsmpo = MqStruct::new(default::MQSMPO_DEFAULT);
+        let mut mqpd = structs::MQPD::new(default::MQPD_DEFAULT);
+        let mut mqsmpo = structs::MQSMPO::new(default::MQSMPO_DEFAULT);
         *mqsmpo.Options.as_mut() = location;
         let (data, value_type) = value.apply_mqsetmp(&mut mqpd, &mut mqsmpo);
 
-        let name_mqcharv = MqStruct::from_encoded_str(name);
+        let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
         // SAFETY: The name MQCHARV formed from reference
         unsafe {
             self.connection.mq().mqsetmp(
@@ -313,7 +314,7 @@ impl<C: Conn> Properties<C> {
         s.connection.mq().mqdltmh(Some(s.connection.handle()), &mut s.handle, &mqdmho)
     }
 
-    pub fn to_buffer<'a, A: Buffer<'a, impl WriteRaw<sys::MQBYTE>>>(
+    pub fn to_buffer<'a, A: Buffer<'a, impl WriteRaw<MQBYTE>>>(
         &self,
         name: &(impl EncodedString + ?Sized),
         options: MQMHBO,
@@ -321,10 +322,10 @@ impl<C: Conn> Properties<C> {
     ) -> ResultCompErr<(MessageFormat, A), core::MqInqError> {
         let read_only_options = options - constants::MQMHBO_DELETE_PROPERTIES;
         let mut buf = buffer;
-        let mut mhbo = MqStruct::new(default::MQMHBO_DEFAULT);
+        let mut mhbo = structs::MQMHBO::new(default::MQMHBO_DEFAULT);
         *mhbo.Options.as_mut() = read_only_options;
-        let mut mqmd = MqStruct::new(default::MQMD2_DEFAULT);
-        let name_mqcharv = MqStruct::from_encoded_str(name);
+        let mut mqmd = structs::MQMD2::new(default::MQMD2_DEFAULT);
+        let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
 
         // SAFETY: The name MQCHARV formed from references
         unsafe {
@@ -347,19 +348,19 @@ impl<C: Conn> Properties<C> {
         }
     }
 
-    pub fn to_buffer_mut<'a, A: Buffer<'a, impl WriteRaw<sys::MQBYTE>>>(
+    pub fn to_buffer_mut<'a, A: Buffer<'a, impl WriteRaw<MQBYTE>>>(
         &mut self,
         name: &(impl EncodedString + ?Sized),
         options: MQMHBO,
         buffer: A,
     ) -> ResultCompErr<(MessageFormat, A), core::MqInqError> {
         let mut buf = buffer;
-        let mhbo = MqStruct::new(sys::MQMHBO {
+        let mhbo = structs::MQMHBO::new(sys::MQMHBO {
             Options: options.0,
             ..default::MQMHBO_DEFAULT
         });
-        let mut mqmd = MqStruct::new(default::MQMD2_DEFAULT);
-        let name_mqcharv = MqStruct::from_encoded_str(name);
+        let mut mqmd = structs::MQMD2::new(default::MQMD2_DEFAULT);
+        let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
 
         // SAFETY: The name MQCHARV is formed from references
         unsafe {
@@ -382,11 +383,11 @@ impl<C: Conn> Properties<C> {
         }
     }
 
-    pub fn from_buffer(&mut self, options: MQBMHO, format: &MessageFormat, buffer: &[sys::MQBYTE]) -> ResultComp<()> {
+    pub fn from_buffer(&mut self, options: MQBMHO, format: &MessageFormat, buffer: &[MQBYTE]) -> ResultComp<()> {
         // Drop the delete properties option as this fn does not modify the buffer
         let options_read_only = options - constants::MQBMHO_DELETE_PROPERTIES;
         let mut mqmd = format.into_mqmd2();
-        let bmho = MqStruct::new(sys::MQBMHO {
+        let bmho = structs::MQBMHO::new(sys::MQBMHO {
             Options: options_read_only.0,
             ..default::MQBMHO_DEFAULT
         });
@@ -401,10 +402,10 @@ impl<C: Conn> Properties<C> {
         &mut self,
         options: MQBMHO,
         format: &MessageFormat,
-        buffer: &'a mut [sys::MQBYTE],
-    ) -> ResultComp<(MessageFormat, &'a [sys::MQBYTE])> {
+        buffer: &'a mut [MQBYTE],
+    ) -> ResultComp<(MessageFormat, &'a [MQBYTE])> {
         let mut mqmd = format.into_mqmd2();
-        let bmho = MqStruct::new(sys::MQBMHO {
+        let bmho = structs::MQBMHO::new(sys::MQBMHO {
             Options: options.0,
             ..default::MQBMHO_DEFAULT
         });
@@ -457,7 +458,7 @@ mod test {
                     move |_, _, mqimpo, _, _, typ, value_length, value, real_length, comp_code, reason| {
                         let mut_typ = unsafe { &mut *typ };
                         let mut_real_length = unsafe { &mut *real_length };
-                        let mut_impo: &mut sys::MQIMPO = unsafe { &mut *mqimpo.cast() };
+                        let mut_impo: &mut structs::MQIMPO = unsafe { &mut *mqimpo.cast() };
                         let maybe_name_mqcharv: Option<&mut sys::MQCHARV> =
                             unsafe { mut_impo.ReturnedName.VSPtr.as_mut().map(|_| &mut mut_impo.ReturnedName) };
 

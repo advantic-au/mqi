@@ -1,12 +1,13 @@
 use std::ptr;
 
-use crate::types::{MQCO, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
+use crate::types::{MQLONG, MQCO, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
 use super::{
     ConnectionHandle, Library, MessageHandle, MqFunctions, MqiOutcome, MqiOutcomeVoid, ObjectHandle, ReadRaw, SubscriptionHandle,
     WriteRaw,
 };
-use crate::{sys, constants, Error, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
+use crate::{constants, Error, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::Mqi;
+use libmqm_sys::lib as sys;
 
 #[cfg(feature = "tracing")]
 use {
@@ -15,12 +16,13 @@ use {
 };
 
 pub mod error {
-    use crate::{sys, Error};
+    use super::MQLONG;
+    use crate::Error;
 
     #[derive(Debug, derive_more::From, derive_more::Error, derive_more::Display)]
     pub enum MqInqError {
         #[display("{}, length: {}", _1, _0)]
-        Length(sys::MQLONG, Error),
+        Length(MQLONG, Error),
         #[from]
         #[display("{_0}")]
         MQ(Error),
@@ -233,7 +235,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         mqmd: Option<&mut impl MQMD>,
         gmo: &mut sys::MQGMO,
         body: &mut (impl WriteRaw<sys::MQBYTE> + ?Sized),
-    ) -> ResultComp<sys::MQLONG> {
+    ) -> ResultComp<MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQGET");
         unsafe {
             self.0.lib().MQGET(
@@ -263,7 +265,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         selectors: &[MQXA],
-        int_attr: &mut [impl WriteRaw<sys::MQLONG>],
+        int_attr: &mut [impl WriteRaw<MQLONG>],
         text_attr: &mut [impl WriteRaw<sys::MQCHAR>],
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQINQ");
@@ -708,7 +710,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         bufmh_options: &sys::MQBMHO,
         mqmd: &mut impl MQMD,
         buffer: &[sys::MQBYTE],
-    ) -> ResultComp<sys::MQLONG> {
+    ) -> ResultComp<MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQBUFMH");
         unsafe {
             self.0.lib().MQBUFMH(

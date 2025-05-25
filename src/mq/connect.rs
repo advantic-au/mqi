@@ -5,15 +5,16 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use libmqm_sys::Mqi;
+use libmqm_sys::lib as sys;
 
 use crate::core::{self, ConnectionHandle, Library, MqFunctions};
-use crate::sys;
 use crate::ResultComp;
+use crate::structs;
+use crate::types;
 use crate::prelude::*;
 
 use super::connect_options::{self, ConnectOption, ConnectStructs};
 use super::types::{DisplayId, Identifier, QueueManagerName};
-use super::MqStruct;
 
 #[cfg(feature = "link")]
 pub use super::link::*;
@@ -21,7 +22,7 @@ pub use super::link::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
 pub struct ConnectionId(pub Identifier<24>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
-pub struct ConnTag(pub [sys::MQBYTE; sys::MQ_CONN_TAG_LENGTH]);
+pub struct ConnTag(pub [types::MQBYTE; sys::MQ_CONN_TAG_LENGTH]);
 
 /// Associated connection handle and MQ library
 pub trait Conn {
@@ -47,7 +48,7 @@ pub struct ConnectionRef<'conn, L: Library<MQ: Mqi>, H> {
 }
 
 /// MQCNO parameter used to define the connection
-pub type ConnectParam<'a> = MqStruct<'a, sys::MQCNO>;
+pub type ConnectParam<'a> = structs::MQCNO<'a>;
 
 trait Sealed {}
 
@@ -60,7 +61,7 @@ trait Sealed {}
 #[expect(private_bounds, reason = "sealed trait pattern")]
 pub trait Threading: Sealed {
     /// One of the `MQCNO_HANDLE_SHARE_*` MQ constants
-    const MQCNO_HANDLE_SHARE: sys::MQLONG;
+    const MQCNO_HANDLE_SHARE: types::MQLONG;
 }
 
 impl std::fmt::Display for ConnectionId {
@@ -122,15 +123,15 @@ impl Sealed for ThreadBlock {}
 unsafe impl Send for ThreadNoBlock {}
 
 impl Threading for ThreadNone {
-    const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_NONE;
+    const MQCNO_HANDLE_SHARE: types::MQLONG = sys::MQCNO_HANDLE_SHARE_NONE;
 }
 
 impl Threading for ThreadBlock {
-    const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_BLOCK;
+    const MQCNO_HANDLE_SHARE: types::MQLONG = sys::MQCNO_HANDLE_SHARE_BLOCK;
 }
 
 impl Threading for ThreadNoBlock {
-    const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_NO_BLOCK;
+    const MQCNO_HANDLE_SHARE: types::MQLONG = sys::MQCNO_HANDLE_SHARE_NO_BLOCK;
 }
 
 impl<L: Library<MQ: Mqi>, H> Drop for Connection<L, H> {

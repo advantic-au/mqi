@@ -8,24 +8,25 @@ use crate::conversion;
 use crate::core::{ReadRaw, CCSID};
 use crate::macros::{all_multi_tuples, reverse_ident};
 use crate::{prelude::*, ResultCompErr};
-use crate::{sys, Completion, Error, MqStr, MqStruct, ResultComp, StrCcsidOwned, StringCcsid};
+use crate::{Completion, Error, MqStr, ResultComp, StrCcsidOwned, StringCcsid};
 use crate::constants;
-use crate::types::{MQENC, MQTYPE, MQPD, MQCOPY, MQIMPO};
+use crate::structs;
+use crate::types::{MQLONG, MQINT64, MQBYTE, MQCHAR, MQENC, MQTYPE, MQPD, MQCOPY, MQIMPO};
 
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
 
 #[derive(Debug, Clone)]
 pub struct PropertyState<'s> {
-    pub name: Option<Cow<'s, [sys::MQCHAR]>>,
+    pub name: Option<Cow<'s, [MQCHAR]>>,
     pub value: Cow<'s, [u8]>,
 }
 
 #[derive(Clone, Debug)]
 pub struct PropertyParam<'p> {
     pub value_type: MQTYPE,
-    pub impo: MqStruct<'p, sys::MQIMPO>,
-    pub mqpd: MqStruct<'static, sys::MQPD>,
+    pub impo: structs::MQIMPO<'p>,
+    pub mqpd: structs::MQPD,
     pub name_required: NameUsage,
 }
 
@@ -62,11 +63,11 @@ pub unsafe trait PropertyAttr {
 
 pub trait SetProperty {
     type Data: ReadRaw + ?Sized;
-    fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE);
+    fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE);
 }
 
 pub trait SetPropertyAttr {
-    fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>);
+    fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO);
 }
 
 macro_rules! impl_setproperty_tuple {
@@ -80,7 +81,7 @@ macro_rules! impl_setproperty_tuple {
             type Data = $first::Data;
 
             #[allow(non_snake_case,unused_parens)]
-            fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
+            fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
                 let reverse_ident!($first, $($ty),*) = self;
                 $first.apply_mqsetmp(pd, smpo);
                 $($ty.apply_mqsetmp(pd, smpo));*
@@ -90,7 +91,7 @@ macro_rules! impl_setproperty_tuple {
 }
 
 impl SetPropertyAttr for Attributes {
-    fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, _smpo: &mut MqStruct<sys::MQSMPO>) {
+    fn apply_mqsetmp(&self, pd: &mut structs::MQPD, _smpo: &mut structs::MQSMPO) {
         self.mqpd.clone_into(pd);
     }
 }
@@ -99,7 +100,7 @@ all_multi_tuples!(impl_setproperty_tuple);
 
 #[derive(Debug, Clone)]
 pub struct Attributes {
-    mqpd: MqStruct<'static, sys::MQPD>,
+    mqpd: structs::MQPD,
 }
 
 #[derive(Debug, Clone)]
@@ -144,7 +145,7 @@ pub enum Value {
     Int64(i64),
     Float32(f32),
     Float64(f64),
-    ByteString(Vec<sys::MQBYTE>),
+    ByteString(Vec<MQBYTE>),
     String(StrCcsidOwned),
     Null,
 }
@@ -152,7 +153,7 @@ pub enum Value {
 impl Metadata {
     #[must_use]
     #[allow(clippy::missing_const_for_fn, reason = "false positive - non-const deref")]
-    pub fn new(length: usize, impo: &MqStruct<sys::MQIMPO>, value_type: MQTYPE) -> Self {
+    pub fn new(length: usize, impo: &structs::MQIMPO, value_type: MQTYPE) -> Self {
         Self {
             length,
             ccsid: CCSID(impo.ReturnedCCSID),
@@ -253,8 +254,8 @@ macro_rules! impl_primitive_setproptype {
     ($type:ty, $mqtype:path) => {
         impl SetProperty for $type {
             type Data = Self;
-            fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
-                smpo.ValueEncoding = sys::MQENC_NATIVE;
+            fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
+                *smpo.ValueEncoding.as_mut() = constants::MQENC_NATIVE;
                 (self, $mqtype)
             }
         }
@@ -262,8 +263,8 @@ macro_rules! impl_primitive_setproptype {
 }
 
 impl SetProperty for bool {
-    type Data = sys::MQLONG;
-    fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
+    type Data = MQLONG;
+    fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         *smpo.ValueEncoding.as_mut() = constants::MQENC_NATIVE;
         (if *self { &1 } else { &0 }, constants::MQTYPE_BOOLEAN)
     }
@@ -281,16 +282,16 @@ impl ReadRaw for Null {}
 
 impl SetProperty for str {
     type Data = Self;
-    fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
+    fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         smpo.ValueCCSID = 1208;
         (self, constants::MQTYPE_STRING)
     }
 }
 
-impl<T: AsRef<[sys::MQCHAR]>> SetProperty for StringCcsid<T> {
-    type Data = [sys::MQCHAR];
+impl<T: AsRef<[MQCHAR]>> SetProperty for StringCcsid<T> {
+    type Data = [MQCHAR];
 
-    fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
+    fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         let CCSID(ccsid) = self.ccsid;
         smpo.ValueCCSID = ccsid;
         (self.data.as_ref(), constants::MQTYPE_STRING)
@@ -300,15 +301,15 @@ impl<T: AsRef<[sys::MQCHAR]>> SetProperty for StringCcsid<T> {
 impl<const N: usize> SetProperty for MqStr<N> {
     type Data = [u8; N];
 
-    fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
+    fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         smpo.ValueCCSID = 1208;
         (self.as_bytes(), constants::MQTYPE_STRING)
     }
 }
 
-impl SetProperty for [sys::MQBYTE] {
+impl SetProperty for [MQBYTE] {
     type Data = Self;
-    fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, _smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
+    fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, _smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         (self, constants::MQTYPE_BYTE_STRING)
     }
 }
@@ -316,13 +317,13 @@ impl SetProperty for [sys::MQBYTE] {
 impl SetProperty for Value {
     type Data = [u8];
 
-    fn apply_mqsetmp(&self, pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
+    fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         #[inline]
         /// Ensure the data is of type `[u8]`
         fn set_as_u8<'a, T: SetProperty + ?Sized>(
             value: &'a T,
-            pd: &mut MqStruct<sys::MQPD>,
-            smpo: &mut MqStruct<sys::MQSMPO>,
+            pd: &mut structs::MQPD,
+            smpo: &mut structs::MQSMPO,
         ) -> (&'a [u8], MQTYPE) {
             let (data, value_type) = value.apply_mqsetmp(pd, smpo);
             (
@@ -504,8 +505,8 @@ impl_primitive_propertyvalue!(f32, constants::MQTYPE_FLOAT32);
 impl_primitive_propertyvalue!(f64, constants::MQTYPE_FLOAT64);
 impl_primitive_propertyvalue!(i8, constants::MQTYPE_INT8);
 impl_primitive_propertyvalue!(i16, constants::MQTYPE_INT16);
-impl_primitive_propertyvalue!(sys::MQLONG, constants::MQTYPE_INT32);
-impl_primitive_propertyvalue!(sys::MQINT64, constants::MQTYPE_INT64);
+impl_primitive_propertyvalue!(MQLONG, constants::MQTYPE_INT32);
+impl_primitive_propertyvalue!(MQINT64, constants::MQTYPE_INT64);
 
 unsafe impl PropertyValue for bool {
     type Error = Error;
@@ -517,15 +518,15 @@ unsafe impl PropertyValue for bool {
         param.value_type = constants::MQTYPE_BOOLEAN;
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_CONVERT_TYPE);
-        mqinqmp(param).map_completion(|state| sys::MQLONG::as_primitive(&state.value) != 0)
+        mqinqmp(param).map_completion(|state| MQLONG::as_primitive(&state.value) != 0)
     }
 
     fn max_value_size() -> Option<NonZero<usize>> {
-        NonZero::new(mem::size_of::<sys::MQLONG>())
+        NonZero::new(mem::size_of::<MQLONG>())
     }
 }
 
-unsafe impl PropertyValue for Vec<sys::MQBYTE> {
+unsafe impl PropertyValue for Vec<MQBYTE> {
     type Error = Error;
 
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
@@ -585,7 +586,7 @@ unsafe impl<const N: usize> PropertyValue for MqStr<N> {
 impl<T: AsRef<[u8]>> SetProperty for Raw<T> {
     type Data = [u8];
 
-    fn apply_mqsetmp(&self, _pd: &mut MqStruct<sys::MQPD>, smpo: &mut MqStruct<sys::MQSMPO>) -> (&Self::Data, MQTYPE) {
+    fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         let encoding: &mut MQENC = smpo.ValueEncoding.as_mut();
         *encoding = self.metadata.encoding;
         *smpo.ValueCCSID.as_mut() = self.metadata.ccsid;
@@ -760,7 +761,7 @@ mod tests {
         conversion::slice_byte_to_mqchar,
         mqstr,
         properties_options::{Metadata, Name},
-        sys, types, Completion, MqStr, MqStruct, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
+        types, Completion, MqStr, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
     };
 
     use super::*;
@@ -919,8 +920,8 @@ mod tests {
         test_simple_sp::<i16>(&99, constants::MQTYPE_INT16);
         test_simple_sp::<f32>(&99.0, constants::MQTYPE_FLOAT32);
         test_simple_sp::<f64>(&99.0, constants::MQTYPE_FLOAT64);
-        test_simple_sp::<sys::MQLONG>(&99, constants::MQTYPE_INT32);
-        test_simple_sp::<sys::MQINT64>(&99, constants::MQTYPE_INT64);
+        test_simple_sp::<MQLONG>(&99, constants::MQTYPE_INT32);
+        test_simple_sp::<MQINT64>(&99, constants::MQTYPE_INT64);
 
         test_sp(&Value::Null, |_, _, _, mq_type| {
             assert_eq!(mq_type, constants::MQTYPE_NULL);
@@ -975,9 +976,9 @@ mod tests {
         });
     }
 
-    fn test_sp<S: SetProperty + ?Sized>(sp: &S, f: impl FnOnce(&MqStruct<sys::MQPD>, &MqStruct<sys::MQSMPO>, &S::Data, MQTYPE)) {
-        let mut pd = MqStruct::new(default::MQPD_DEFAULT);
-        let mut smpo = MqStruct::new(default::MQSMPO_DEFAULT);
+    fn test_sp<S: SetProperty + ?Sized>(sp: &S, f: impl FnOnce(&structs::MQPD, &structs::MQSMPO, &S::Data, MQTYPE)) {
+        let mut pd = structs::MQPD::new(default::MQPD_DEFAULT);
+        let mut smpo = structs::MQSMPO::new(default::MQSMPO_DEFAULT);
         let (data, mq_type) = sp.apply_mqsetmp(&mut pd, &mut smpo);
         f(&pd, &smpo, data, mq_type);
     }
@@ -986,9 +987,9 @@ mod tests {
         f: impl FnMut(&mut PropertyParam) -> ResultComp<PropertyState<'a>>,
     ) -> ResultCompErr<(P, PropertyParam<'a>), P::Error> {
         let mut param = PropertyParam {
-            impo: MqStruct::new(default::MQIMPO_DEFAULT),
+            impo: structs::MQIMPO::new(default::MQIMPO_DEFAULT),
             value_type: MQTYPE::default(),
-            mqpd: MqStruct::new(default::MQPD_DEFAULT),
+            mqpd: structs::MQPD::new(default::MQPD_DEFAULT),
             name_required: NameUsage::default(),
         };
         P::property_consume(&mut param, f).map_completion(|value| (value, param))
@@ -1017,7 +1018,7 @@ mod tests {
         let (metadata, _) = execute_pa::<Metadata>(|param| {
             param.value_type = constants::MQTYPE_STRING;
             param.impo.ReturnedCCSID = 1208;
-            param.impo.ReturnedEncoding = sys::MQENC_INTEGER_NORMAL;
+            *param.impo.ReturnedEncoding.as_mut() = constants::MQENC_INTEGER_NORMAL;
             Ok(Completion::new(PropertyState {
                 name: None,
                 value: Cow::from(b"test"),
@@ -1089,9 +1090,9 @@ mod tests {
         f: impl FnOnce(&mut PropertyParam<'_>) -> ResultComp<PropertyState<'a>>,
     ) -> ResultComp<(A, PropertyState<'a>)> {
         let mut param = PropertyParam {
-            impo: MqStruct::new(default::MQIMPO_DEFAULT),
+            impo: structs::MQIMPO::new(default::MQIMPO_DEFAULT),
             value_type: MQTYPE::default(),
-            mqpd: MqStruct::new(default::MQPD_DEFAULT),
+            mqpd: structs::MQPD::new(default::MQPD_DEFAULT),
             name_required: NameUsage::default(),
         };
 

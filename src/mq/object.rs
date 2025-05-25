@@ -1,9 +1,9 @@
-use crate::{core::ObjectHandle, MqStruct, Conn};
-use crate::{sys, constants, Error, ResultComp, ResultCompErr};
+use crate::{core::ObjectHandle, Conn};
+use crate::{structs, constants, Error, ResultComp, ResultCompErr};
 use crate::types::{MQCO, MQOO};
 
 pub struct OpenParamOption<'a, T> {
-    pub mqod: MqStruct<'a, sys::MQOD>,
+    pub mqod: structs::MQOD<'a>,
     pub options: T,
 }
 
@@ -102,15 +102,12 @@ impl<C: Conn> Drop for Object<C> {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use crate::{sys, types};
     use super::*;
+    use libmqm_sys::lib as sys;
 
     #[test]
     fn close_option() {
-        assert_eq!(
-            (constants::MQCO_DELETE | types::MQCO(0xFF00)).to_string(),
-            "MQCO_DELETE|0xFF00"
-        );
+        assert_eq!((constants::MQCO_DELETE | MQCO(0xFF00)).to_string(), "MQCO_DELETE|0xFF00");
         assert_eq!(
             (constants::MQCO_DELETE | constants::MQCO_QUIESCE).to_string(),
             "MQCO_DELETE|MQCO_QUIESCE"

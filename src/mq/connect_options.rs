@@ -4,18 +4,19 @@
 use std::any;
 
 use libmqm_default as default;
+use libmqm_sys::lib as sys;
 
 use crate::{
-    conversion,
+    constants, conversion,
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
-    constants, sys, MqStr, types,
+    structs, types, MqStr,
 };
 
 use super::{
-    impl_mqstruct_min_version,
+    impl_min_version,
     types::{CertificateLabel, ChannelName, CipherSpec, ConnectionName, CryptoHardware, KeyRepo, QueueManagerName},
-    ConnTag, ConnectParam, ConnectionId, MqStruct,
+    ConnTag, ConnectParam, ConnectionId,
 };
 
 #[derive(
@@ -52,12 +53,12 @@ pub const CONNECT_HAS_BNO: ConnectStructFlags = ConnectStructFlags(0b10000);
 /// A collection of MQ structures used by MQ at connection time
 #[derive(Debug, Clone)]
 pub struct ConnectStructs<'ptr> {
-    pub cno: MqStruct<'ptr, sys::MQCNO>,
-    pub sco: MqStruct<'ptr, sys::MQSCO>,
-    pub csp: MqStruct<'ptr, sys::MQCSP>,
-    pub cd: MqStruct<'ptr, sys::MQCD>,
+    pub cno: structs::MQCNO<'ptr>,
+    pub sco: structs::MQSCO<'ptr>,
+    pub csp: structs::MQCSP<'ptr>,
+    pub cd: structs::MQCD<'ptr>,
     #[cfg(feature = "mqc_9_3_0_0")]
-    pub bno: MqStruct<'ptr, sys::MQBNO>,
+    pub bno: structs::MQBNO,
 }
 
 /// A trait that manipulates the parameters to the [`mqconnx`](`crate::core::MqFunctions::mqconnx`) function
@@ -171,19 +172,19 @@ unsafe impl<'a, O: ConnectOption<'a>> ConnectOption<'a> for Option<O> {
 impl Default for ConnectStructs<'_> {
     fn default() -> Self {
         Self {
-            cno: MqStruct::new(default::MQCNO_DEFAULT),
-            sco: MqStruct::new(default::MQSCO_DEFAULT),
-            csp: MqStruct::new(default::MQCSP_DEFAULT),
-            cd: MqStruct::new(default::MQCD_CLIENT_CONN_DEFAULT),
+            cno: structs::MQCNO::new(default::MQCNO_DEFAULT),
+            sco: structs::MQSCO::new(default::MQSCO_DEFAULT),
+            csp: structs::MQCSP::new(default::MQCSP_DEFAULT),
+            cd: structs::MQCD::new(default::MQCD_CLIENT_CONN_DEFAULT),
             #[cfg(feature = "mqc_9_3_0_0")]
-            bno: MqStruct::new(default::MQBNO_DEFAULT),
+            bno: structs::MQBNO::new(default::MQBNO_DEFAULT),
         }
     }
 }
 
-impl_mqstruct_min_version!(sys::MQSCO);
-impl_mqstruct_min_version!(sys::MQCD);
-impl_mqstruct_min_version!(sys::MQCNO);
+impl_min_version!(['a], structs::MQSCO<'a>);
+impl_min_version!(['a], structs::MQCD<'a>);
+impl_min_version!(['a], structs::MQCNO<'a>);
 
 /// Client Channel Definition Table URL connection option. Sets the connection as `MQCNO_CLIENT_BINDING`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::From)]
@@ -310,11 +311,11 @@ impl<T> ProtectedSecret<T> {
 /// It is a wrapper around the [`MQSCO`](sys::MQSCO) structure.
 #[derive(Debug, Clone)]
 #[must_use]
-pub struct Tls<'pw>(MqStruct<'pw, sys::MQSCO>, CipherSpec);
+pub struct Tls<'pw>(structs::MQSCO<'pw>, CipherSpec);
 
 impl Default for Tls<'_> {
     fn default() -> Self {
-        Self(MqStruct::new(default::MQSCO_DEFAULT), CipherSpec::default())
+        Self(structs::MQSCO::new(default::MQSCO_DEFAULT), CipherSpec::default())
     }
 }
 
@@ -323,22 +324,22 @@ pub enum SuiteB {
     Min(usize),
 }
 
-impl From<SuiteB> for [sys::MQLONG; 4] {
+impl From<SuiteB> for [types::MQ_SUITE; 4] {
     fn from(value: SuiteB) -> Self {
-        const SIZED: &[(usize, sys::MQLONG)] = &[(128, sys::MQ_SUITE_B_128_BIT), (192, sys::MQ_SUITE_B_192_BIT)];
+        const SIZED: &[(usize, types::MQ_SUITE)] = &[(128, constants::MQ_SUITE_B_128_BIT), (192, constants::MQ_SUITE_B_192_BIT)];
         match value {
             SuiteB::None => [
-                sys::MQ_SUITE_B_NONE,
-                sys::MQ_SUITE_B_NOT_AVAILABLE,
-                sys::MQ_SUITE_B_NOT_AVAILABLE,
-                sys::MQ_SUITE_B_NOT_AVAILABLE,
+                constants::MQ_SUITE_B_NONE,
+                constants::MQ_SUITE_B_NOT_AVAILABLE,
+                constants::MQ_SUITE_B_NOT_AVAILABLE,
+                constants::MQ_SUITE_B_NOT_AVAILABLE,
             ],
             SuiteB::Min(min_size) => {
                 let mut result = [
-                    sys::MQ_SUITE_B_NOT_AVAILABLE,
-                    sys::MQ_SUITE_B_NOT_AVAILABLE,
-                    sys::MQ_SUITE_B_NOT_AVAILABLE,
-                    sys::MQ_SUITE_B_NOT_AVAILABLE,
+                    constants::MQ_SUITE_B_NOT_AVAILABLE,
+                    constants::MQ_SUITE_B_NOT_AVAILABLE,
+                    constants::MQ_SUITE_B_NOT_AVAILABLE,
+                    constants::MQ_SUITE_B_NOT_AVAILABLE,
                 ];
                 for (i, (.., suite)) in SIZED.iter().filter(|(size, ..)| *size >= min_size).enumerate() {
                     result[i] = *suite;
@@ -412,19 +413,19 @@ impl<'pw> Tls<'pw> {
         self
     }
 
-    pub fn suite_b_policy(&mut self, policy: [sys::MQLONG; 4]) -> &mut Self {
+    pub fn suite_b_policy(&mut self, policy: [types::MQLONG; 4]) -> &mut Self {
         self.0.set_min_version(sys::MQSCO_VERSION_3);
         self.0.EncryptionPolicySuiteB = policy;
         self
     }
 
-    pub fn cert_val_policy(&mut self, policy: sys::MQLONG) -> &mut Self {
+    pub fn cert_val_policy(&mut self, policy: types::MQLONG) -> &mut Self {
         self.0.set_min_version(sys::MQSCO_VERSION_4);
         self.0.CertificateValPolicy = policy;
         self
     }
 
-    pub fn key_reset_count(&mut self, count: sys::MQLONG) -> &mut Self {
+    pub fn key_reset_count(&mut self, count: types::MQLONG) -> &mut Self {
         self.0.set_min_version(sys::MQSCO_VERSION_2);
         self.0.KeyResetCount = count;
         self
@@ -594,15 +595,15 @@ unsafe impl<'url> ConnectOption<'url> for Ccdt<'url> {
 }
 
 #[cfg(feature = "mqc_9_3_0_0")]
-unsafe impl<'bno> ConnectOption<'bno> for MqStruct<'bno, sys::MQBNO> {
-    fn apply_param(&self, structs: &mut ConnectStructs<'bno>) -> ConnectStructFlags {
+unsafe impl ConnectOption<'_> for structs::MQBNO {
+    fn apply_param(&self, structs: &mut ConnectStructs<'_>) -> ConnectStructFlags {
         self.clone_into(&mut structs.bno);
         structs.cno.set_min_version(sys::MQCNO_VERSION_8);
         CONNECT_HAS_BNO
     }
 }
 
-unsafe impl<'csp> ConnectOption<'csp> for MqStruct<'csp, sys::MQCSP> {
+unsafe impl<'csp> ConnectOption<'csp> for structs::MQCSP<'csp> {
     fn apply_param(&self, structs: &mut ConnectStructs<'csp>) -> ConnectStructFlags {
         self.clone_into(&mut structs.csp);
         structs.cno.set_min_version(sys::MQCNO_VERSION_5);
@@ -610,7 +611,7 @@ unsafe impl<'csp> ConnectOption<'csp> for MqStruct<'csp, sys::MQCSP> {
     }
 }
 
-unsafe impl<'sco> ConnectOption<'sco> for MqStruct<'sco, sys::MQSCO> {
+unsafe impl<'sco> ConnectOption<'sco> for structs::MQSCO<'sco> {
     fn apply_param(&self, structs: &mut ConnectStructs<'sco>) -> ConnectStructFlags {
         self.clone_into(&mut structs.sco);
         structs.cno.set_min_version(sys::MQCNO_VERSION_4);
@@ -618,7 +619,7 @@ unsafe impl<'sco> ConnectOption<'sco> for MqStruct<'sco, sys::MQSCO> {
     }
 }
 
-unsafe impl<'cd> ConnectOption<'cd> for MqStruct<'cd, sys::MQCD> {
+unsafe impl<'cd> ConnectOption<'cd> for structs::MQCD<'cd> {
     fn apply_param(&self, structs: &mut ConnectStructs<'cd>) -> ConnectStructFlags {
         self.clone_into(&mut structs.cd);
         structs.cno.set_min_version(sys::MQCNO_VERSION_2);
@@ -702,10 +703,11 @@ pub enum MqServerSyntaxError {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
+    use super::*;
     use crate::types::MQXPT;
     use crate::constants;
 
-    const CLIENT_MASK: sys::MQLONG = sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING;
+    const CLIENT_MASK: types::MQCNO = types::MQCNO(sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING);
 
     const VALID: &[(&str, MQXPT, &str, &str)] = &[
         ("a", constants::MQXPT_TCP, "b", "a/TCP/b"),
@@ -713,8 +715,6 @@ mod tests {
         ("a", constants::MQXPT_LU62, "d", "a/LU62/d"),
         ("a", constants::MQXPT_NETBIOS, "e", "a/NETBIOS/e"),
     ];
-
-    use super::*;
 
     #[test]
     fn secret() {
@@ -775,18 +775,26 @@ mod tests {
         ConnectOption::queue_manager_name(&none_options);
         // Test that apply_param is executed
         test_co(&Some(constants::MQCNO_RECONNECT), |_, _, cs| {
-            assert!(cs.cno.Options & sys::MQCNO_RECONNECT != 0);
+            assert!(types::MQCNO(cs.cno.Options).contains(constants::MQCNO_RECONNECT));
         });
     }
 
     #[test]
     fn binding() {
         test_co(&Binding::Client, |_, _, cs| {
-            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_CLIENT_BINDING);
+            assert_eq!(
+                types::MQCNO(cs.cno.Options).intersection(CLIENT_MASK),
+                constants::MQCNO_CLIENT_BINDING
+            );
         });
-        test_co(&Binding::Default, |_, _, cs| assert_eq!(cs.cno.Options & CLIENT_MASK, 0));
+        test_co(&Binding::Default, |_, _, cs| {
+            assert_eq!(types::MQCNO(cs.cno.Options).intersection(CLIENT_MASK), 0);
+        });
         test_co(&Binding::Local, |_, _, cs| {
-            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_LOCAL_BINDING);
+            assert_eq!(
+                types::MQCNO(cs.cno.Options).intersection(CLIENT_MASK),
+                constants::MQCNO_LOCAL_BINDING
+            );
         });
     }
 
@@ -815,7 +823,10 @@ mod tests {
         const CCDT: Ccdt = Ccdt("url");
         test_co(&CCDT, |bf, _, cs| {
             assert!(cs.cno.Version >= sys::MQCNO_VERSION_6);
-            assert_eq!(cs.cno.Options & CLIENT_MASK, sys::MQCNO_CLIENT_BINDING);
+            assert_eq!(
+                types::MQCNO(cs.cno.Options).intersection(CLIENT_MASK),
+                constants::MQCNO_CLIENT_BINDING
+            );
             assert_eq!(bf & CONNECT_HAS_CNO, CONNECT_HAS_CNO);
             assert_eq!(cs.cno.CCDTUrlLength, 3);
             assert!(!cs.cno.CCDTUrlPtr.is_null());
@@ -829,7 +840,7 @@ mod tests {
             assert_eq!(bf & CONNECT_HAS_CSP, CONNECT_HAS_CSP);
         });
         test_co(&Credentials::user("user", "password"), |bf, _, cs| {
-            assert_eq!(cs.csp.AuthenticationType, sys::MQCSP_AUTH_USER_ID_AND_PWD);
+            assert_eq!(types::MQCSP(cs.csp.AuthenticationType), constants::MQCSP_AUTH_USER_ID_AND_PWD);
             assert_eq!(cs.csp.CSPUserIdLength, 4);
             assert!(!cs.csp.CSPUserIdPtr.is_null());
             assert_eq!(cs.csp.CSPPasswordLength, 8);

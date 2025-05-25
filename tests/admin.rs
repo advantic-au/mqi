@@ -3,9 +3,8 @@
 use mqi::{prelude::*, ThreadNone};
 use mqi::admin::Bag;
 use mqi::constants;
-use mqi::types::ObjectName;
+use mqi::types::{ObjectName, MQLONG};
 use mqi::MqStr;
-use mqi::sys;
 use mqi::test;
 
 #[test]
@@ -24,7 +23,7 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
     let admin_bag = Bag::new_lib(connection.library(), constants::MQCBO_ADMIN_BAG).warn_as_error()?;
     admin_bag.add(constants::MQCA_Q_NAME.into(), "*")?.discard_warning();
     admin_bag
-        .add(constants::MQIA_Q_TYPE.into(), &sys::MQQT_ALL)?
+        .add(constants::MQIA_Q_TYPE.into(), &constants::MQQT_ALL.0)?
         .discard_warning();
 
     let qm = mqi::connect_lib::<ThreadNone, _>(connection.library(), &()).warn_as_error()?;
@@ -34,12 +33,12 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
     // flatten effectively ignores items that have errors
     {
         let q = bag.inquire::<ObjectName>(constants::MQCA_Q_NAME)?;
-        let depth = *bag.inquire::<sys::MQLONG>(constants::MQIA_CURRENT_Q_DEPTH)?;
+        let depth = *bag.inquire::<MQLONG>(constants::MQIA_CURRENT_Q_DEPTH)?;
         let alt_date = *bag.inquire::<MqStr<12>>(constants::MQCA_ALTERATION_DATE)?;
         let alt_time = *bag.inquire::<MqStr<12>>(constants::MQCA_ALTERATION_TIME)?;
-        let ccsid = *bag.inquire::<sys::MQLONG>(constants::MQIA_CODED_CHAR_SET_ID)?;
-        let q_type = *bag.inquire::<sys::MQLONG>(constants::MQIA_Q_TYPE)?;
-        let q_pageset = *bag.inquire::<sys::MQLONG>(constants::MQIA_PAGESET_ID)?;
+        let ccsid = *bag.inquire::<MQLONG>(constants::MQIA_CODED_CHAR_SET_ID)?;
+        let q_type = *bag.inquire::<MQLONG>(constants::MQIA_Q_TYPE)?;
+        let q_pageset = *bag.inquire::<MQLONG>(constants::MQIA_PAGESET_ID)?;
         let q_desc = *bag.inquire::<MqStr<64>>(constants::MQCA_Q_DESC)?;
         println!("Queue Name: {}", q.unwrap_or_default());
         println!("Depth: {}", depth.map_or("{n/a}".to_string(), |t| t.to_string()));

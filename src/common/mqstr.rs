@@ -1,10 +1,10 @@
 use std::{fmt::Display, ptr, str::FromStr};
 
-use crate::{core::CCSID, sys, EncodedString};
+use crate::{core::CCSID, types, EncodedString};
 
 use super::conversion;
 
-pub type MqChar<const N: usize> = [sys::MQCHAR; N];
+pub type MqChar<const N: usize> = [types::MQCHAR; N];
 
 /// Fixed width string with trailing white space/nulls commonly
 /// used with IBM MQ API's
@@ -60,7 +60,7 @@ impl<const N: usize, const Y: usize> PartialOrd<MqStr<Y>> for MqStr<N> {
 }
 
 impl<const N: usize> MqStr<N> {
-    pub const fn from_mqchar_slice(value: &[sys::MQCHAR]) -> Result<&Self, MqStrError> {
+    pub const fn from_mqchar_slice(value: &[types::MQCHAR]) -> Result<&Self, MqStrError> {
         match value.split_first_chunk::<N>() {
             Some((val, _)) => Ok(unsafe { &*val.as_ptr().cast() }),
             None => Err(MqStrError::Length {
@@ -111,7 +111,7 @@ impl<const N: usize> MqStr<N> {
 
     /// The value of the `MqStr` without right padding
     #[must_use]
-    pub fn value(&self) -> &[sys::MQCHAR] {
+    pub fn value(&self) -> &[types::MQCHAR] {
         let mut last = N;
         for _ in self.data.iter().rev().take_while(|c| **c == 0x20 || **c == 0) {
             last -= 1;
@@ -129,7 +129,7 @@ impl<const N: usize> MqStr<N> {
         self.data.iter().any(|c| *c != 0x20 && *c != 0)
     }
 
-    pub fn assign(&mut self, value: &[sys::MQCHAR]) -> bool {
+    pub fn assign(&mut self, value: &[types::MQCHAR]) -> bool {
         match self.data.split_at_mut_checked(value.len()) {
             Some((target, space)) => {
                 target.copy_from_slice(value);
@@ -198,7 +198,7 @@ impl<const N: usize> EncodedString for MqStr<N> {
         CCSID(1208)
     }
 
-    fn data(&self) -> &[sys::MQCHAR] {
+    fn data(&self) -> &[types::MQCHAR] {
         &self.data
     }
 }

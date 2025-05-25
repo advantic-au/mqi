@@ -1,4 +1,5 @@
-use crate::{sys, MqChar};
+use crate::MqChar;
+use crate::types;
 
 /// `(CCSID, encoding, short description)`
 pub type CcsidEntry = (i32, u8, &'static str);
@@ -892,7 +893,7 @@ const fn convert<const N: usize>(input: &MqChar<N>, table: &[u8; 256]) -> MqChar
         reason = "Treating MQCHAR as always positive is desired here"
     )]
     while i < N {
-        result[i] = table[input[i] as u8 as usize] as sys::MQCHAR;
+        result[i] = table[input[i] as u8 as usize] as types::MQCHAR;
         i += 1;
     }
     result
@@ -1009,7 +1010,7 @@ mod ptest {
         #[allow(clippy::cast_possible_wrap)]
         fn ccsid_lookup_proptest(ccsid in 0..4096u32) {
             if let Some((ccsid_result, ..)) = ccsid_lookup(ccsid) {
-                prop_assert_eq!(*ccsid_result, ccsid as sys::MQLONG);
+                prop_assert_eq!(*ccsid_result, ccsid as types::MQLONG);
             }
 
         }
