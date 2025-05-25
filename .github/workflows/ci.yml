@@ -125,13 +125,13 @@ jobs:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
       - name: Test default features
         run: |
-          cargo nextest run --profile ci
+          cargo nextest run --profile ci --features mock
           cargo test --doc
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
       - name: Test no default features
         run: |
-          cargo nextest run --profile ci --no-default-features
+          cargo nextest run --profile ci --no-default-features --features mock
           cargo test --no-default-features --doc
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
