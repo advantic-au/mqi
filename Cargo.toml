@@ -17,7 +17,15 @@ crate-type = ["lib"]
 
 [features]
 default = ["link", "mqc_9_2_0_0"]
-docsrs = ["libmqm-sys/docsrs", "mqai", "exits", "link", "dlopen2", "mqc_9_4_2_0"]
+docsrs = [
+    "libmqm-sys/docsrs",
+    "dep:document-features",
+    "mqai",
+    "exits",
+    "link",
+    "dlopen2",
+    "mqc_9_4_2_0",
+]
 ## Enable tracing in the MQI calls
 tracing = ["dep:tracing"]
 ## Enable the administrative API
