@@ -117,12 +117,23 @@ jobs:
       - uses: taiki-e/install-action@914ac1e29db2d22aef69891f032778d9adc3990d # v2.49.34
         with:
           tool: nextest
-      - name: Test
+      - name: Test all features
         run: |
           cargo nextest run --profile ci --all-features
           cargo test --all-features --doc
         env:
-          RUSTFLAGS: -Dwarnings
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+      - name: Test default features
+        run: |
+          cargo nextest run --profile ci
+          cargo test --doc
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+      - name: Test no default features
+        run: |
+          cargo nextest run --profile ci --no-default-features
+          cargo test --no-default-features --doc
+        env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
   miri:
