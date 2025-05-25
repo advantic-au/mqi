@@ -37,7 +37,7 @@ where
 ///
 /// // Connect to the default queue manager with the provided credentials and MQCNO_RECONNECT_Q_MGR
 /// let connection = mqi::connect::<ThreadNone>(&(
-///     constants::MQCNO_RECONNECT_Q_MGR, Credentials::user("app", "app")
+///     constants::MQCNO_RECONNECT_Q_MGR, Credentials::User("app", "app".into())
 /// ))?;
 ///
 /// // connection is wrapped in a Completion. Discard the completion with a `discard_warning`
