@@ -506,7 +506,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// determined by the `stat_type` value parameter
     ///
     /// # Safety
-    /// Consumers of [`mqstat`](MqFunctions::mqstat) must ensure the [`MQSTS`](sys::MQSTS) MQCHARV pointers are populated correctly.
+    /// Consumers of [`mqstat`](MqFunctions::mqstat) must ensure the [`MQSTS`](libmqm_sys::lib::MQSTS) MQCHARV pointers are populated correctly.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqstat(&self, connection_handle: ConnectionHandle, stat_type: MQSTAT, sts: &mut sys::MQSTS) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQSTAT");
@@ -604,7 +604,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Registers a callback for the specified object handle and controls activation and changes to the callback
     ///
     /// # Safety
-    /// Consumers of [`mqcb`](MqFunctions::mqcb) must populate the [`MQCBD`](sys::MQCBD) structure with valid pointers
+    /// Consumers of [`mqcb`](MqFunctions::mqcb) must populate the [`MQCBD`](libmqm_sys::lib::MQCBD) structure with valid pointers
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqcb(
         &self,
@@ -636,7 +636,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Performs controlling actions on callbacks and the object handles opened for a connection
     ///
     /// # Safety
-    /// Consumers of [`mqctl`](MqFunctions::mqctl) must populate the [`MQCTLO`](sys::MQCTLO) structure with valid pointers
+    /// Consumers of [`mqctl`](MqFunctions::mqctl) must populate the [`MQCTLO`](libmqm_sys::lib::MQCTLO) structure with valid pointers
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqctl(
         &self,

@@ -132,8 +132,8 @@ impl<C: Conn> Object<C> {
 /// A trait that manipulates the parameters to the [`mqput`](`crate::core::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put")]
 /// # Safety
-/// This trait can directly manipulate the [`MQPMO`](sys::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::Mqi::MQPUT)
-/// and [`MQPUT1`](libmqm_sys::Mqi::MQPUT1). Incorrect values in the [`MQPMO`](sys::MQPMO) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQPMO`](libmqm_sys::lib::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::Mqi::MQPUT)
+/// and [`MQPUT1`](libmqm_sys::Mqi::MQPUT1). Incorrect values in the [`MQPMO`](libmqm_sys::lib::MQPMO) can lead to undefined behaviour.
 ///
 /// Implementations of the [`PutOption`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PutOption<'po> {
@@ -141,8 +141,8 @@ pub unsafe trait PutOption<'po> {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQPMO`](sys::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::Mqi::MQPUT)
-/// and [`MQPUT1`](libmqm_sys::Mqi::MQPUT1). Incorrect values in the [`MQPMO`](sys::MQPMO) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQPMO`](libmqm_sys::lib::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::Mqi::MQPUT)
+/// and [`MQPUT1`](libmqm_sys::Mqi::MQPUT1). Incorrect values in the [`MQPMO`](libmqm_sys::lib::MQPMO) can lead to undefined behaviour.
 ///
 /// Implementations of the [`PutAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PutAttr {
