@@ -284,6 +284,7 @@ unsafe impl ConnectOption<'_> for QueueManagerName {
 #[repr(transparent)]
 pub struct InitialKeySecret<S>(S);
 
+#[cfg(feature = "mqc_9_3_0_0")]
 pub type InitialKey<S> = InitialKeySecret<ProtectedSecret<S>>;
 
 #[derive(Default, Debug, Clone, Copy)]
