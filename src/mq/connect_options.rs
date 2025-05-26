@@ -363,8 +363,7 @@ impl<'pw> Tls<'pw> {
     ///
     /// # Example
     /// Create a TLS connection
-    /// ```no_run
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// ```
     /// use mqi::types::{KeyRepo, CipherSpec};
     /// use mqi::{ThreadNone, mqstr};
     /// use mqi::connect_options::{MqServer, Tls};
@@ -375,10 +374,13 @@ impl<'pw> Tls<'pw> {
     ///     None, // No certificate label
     ///     &CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")) // Cipher spec
     /// );
-    /// // Connect to a remote server with TLS
-    /// let connection = mqi::connect::<ThreadNone>(&(tls_options, MqServer::try_from("DEV.APP.SVRCONN/TCP/mq.example.com")?))?;
-    /// # Ok(())
-    /// # }
+    /// ```
+    /// ```ignore
+    /// // Example connect to a remote server with TLS
+    /// let connection = mqi::connect::<ThreadNone>(&(
+    ///     tls_options, // Apply it in the ConnectonOption tuple
+    ///     MqServer::try_from("DEV.APP.SVRCONN/TCP/mq.example.com")?
+    /// ))?;
     /// ```
     pub fn new(repo: &KeyRepo, label: Option<&CertificateLabel>, cipher: &CipherSpec) -> Self {
         let mut tls = Self::default();
