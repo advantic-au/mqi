@@ -278,7 +278,14 @@ jobs:
         env:
           RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
-
+      - uses: taiki-e/install-action@914ac1e29db2d22aef69891f032778d9adc3990d # v2.49.34
+        with:
+          tool: nextest
+      - run: |
+          cargo nextest run --profile ci --locked --all-features
+          cargo test --locked --all-features --doc
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
   docs:
     runs-on: ubuntu-24.04
     env:
