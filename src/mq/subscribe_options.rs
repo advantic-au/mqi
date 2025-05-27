@@ -7,17 +7,17 @@ use super::{
 use crate::prelude::*;
 use crate::types::{MQSO, MQCO, MQSR, MQSRO};
 
-all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>);
+all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>, unsafe);
 all_option_tuples!(SubscribeRequestOption, SubscribeRequestParam);
 
-impl<'so, T: EncodedString + ?Sized> SubscribeOption<'so> for ObjectString<&'so T> {
+unsafe impl<'so, T: EncodedString + ?Sized> SubscribeOption<'so> for ObjectString<&'so T> {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam<'so>) {
         param.sd.attach_object_string(self.0);
     }
 }
 
-impl<C: Conn> SubscribeOption<'_> for &Object<C> {
+unsafe impl<C: Conn> SubscribeOption<'_> for &Object<C> {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam) {
         param.provided_object = unsafe { self.handle.raw_handle() };
@@ -25,14 +25,14 @@ impl<C: Conn> SubscribeOption<'_> for &Object<C> {
 }
 
 // Set the close options for the subscription when opening
-impl SubscribeOption<'_> for MQCO {
+unsafe impl SubscribeOption<'_> for MQCO {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam) {
         param.close_options.insert(*self);
     }
 }
 
-impl SubscribeOption<'_> for MQSO {
+unsafe impl SubscribeOption<'_> for MQSO {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam) {
         let so_options: &mut Self = param.sd.Options.as_mut();

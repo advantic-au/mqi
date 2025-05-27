@@ -1,6 +1,7 @@
 use crate::types;
 use crate::constants;
-use crate::sys;
+
+use libmqm_sys::lib as sys;
 
 use super::attribute::AttributeType;
 

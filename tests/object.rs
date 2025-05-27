@@ -10,10 +10,10 @@ use mqi::open_options::SelectionString;
 use mqi::prelude::*;
 use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
 use mqi::constants;
-use mqi::types::{MQOO, MQCMHO, MQXA};
+use mqi::types::{MQCMHO, MQXA};
 use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
 use mqi::{get, Properties};
-use mqi::{attribute, sys, Object};
+use mqi::{attribute, Object};
 
 #[cfg(not(feature = "mock"))]
 use mqi::{connect_options::Credentials, ThreadNone};
@@ -80,7 +80,7 @@ fn put_get_message() -> Result<(), Box<dyn std::error::Error>> {
         connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
-    let object = Object::open(&connection, &(QUEUE, MQOO(sys::MQOO_INPUT_SHARED | sys::MQOO_OUTPUT)))?;
+    let object = Object::open(&connection, &(QUEUE, constants::MQOO_INPUT_SHARED | constants::MQOO_OUTPUT))?;
 
     let mid = object
         .put_message_with::<MessageId>(&(), "put_get_message test")
@@ -122,7 +122,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         // Hmmm... this works. Not documented for MQINQ though.
         #[expect(clippy::cast_possible_truncation)]
         unsafe {
-            AttributeType::new(MQXA(sys::MQCA_VERSION), sys::MQ_VERSION_LENGTH as u32)
+            AttributeType::new(MQXA(constants::MQCA_VERSION.0), libmqm_sys::lib::MQ_VERSION_LENGTH as u32)
         },
         attribute::MQIA_COMMAND_LEVEL,
     ];

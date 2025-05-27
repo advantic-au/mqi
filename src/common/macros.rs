@@ -26,10 +26,10 @@ macro_rules! reverse_ident {
 }
 
 macro_rules! impl_option_tuple {
-    ($trait:ident, $ty:ty, [$($gen:ident),*]) => {
+    ($trait:ident, $ty:ty, [$($gen:ident),*] $(,$safety:ident)?) => {
         #[expect(non_snake_case)]
         #[diagnostic::do_not_recommend]
-        impl<$($gen, )*> $trait for ($($gen, )*)
+        $($safety)? impl<$($gen, )*> $trait for ($($gen, )*)
         where
             $($gen: $trait),*
         {
@@ -41,10 +41,10 @@ macro_rules! impl_option_tuple {
         }
     };
 
-    ($lt:lifetime, $trait:ident, $ty:ty, [$($gen:ident),*]) => {
+    ($lt:lifetime, $trait:ident, $ty:ty, [$($gen:ident),*] $(,$safety:ident)?) => {
         #[expect(non_snake_case)]
         #[diagnostic::do_not_recommend]
-        impl<$lt, $($gen, )*> $trait<$lt> for ($($gen, )*)
+        $($safety)? impl<$lt, $($gen, )*> $trait<$lt> for ($($gen, )*)
         where
             $($gen: $trait<$lt>),*
         {
@@ -58,7 +58,7 @@ macro_rules! impl_option_tuple {
 }
 
 macro_rules! all_option_tuples {
-    ($trait:ident, $ty:ty) => {
+    ($trait:ident, $ty:ty $(,$safety:ident)?) => {
         impl<T: $trait> $trait for Option<T> {
             fn apply_param(&self, param: &mut $ty) {
                 if let Some(value) = self {
@@ -70,33 +70,33 @@ macro_rules! all_option_tuples {
             fn apply_param(&self, _param: &mut $ty) {}
         }
 
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2]);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3]);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4]);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5]);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M6, M7]);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5, M6, M7]);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5, M6, M7, M8]);
+        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M6, M7] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5, M6, M7] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5, M6, M7, M8] $(,$safety)?);
     };
-    ($lt:lifetime, $trait:ident, $ty:ty) => {
-        impl<$lt, T: $trait<$lt>> $trait<$lt> for Option<T> {
+    ($lt:lifetime, $trait:ident, $ty:ty $(,$safety:ident)?) => {
+        $($safety)? impl<$lt, T: $trait<$lt>> $trait<$lt> for Option<T> {
             fn apply_param(&self, param: &mut $ty) {
                 if let Some(value) = self {
                     value.apply_param(param);
                 }
             }
         }
-        impl<$lt> $trait<$lt> for () {
+        $($safety)? impl<$lt> $trait<$lt> for () {
             fn apply_param(&self, _param: &mut $ty) {}
         }
 
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2]);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3]);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4]);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M5]);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M6, M7]);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M5, M6, M7]);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M5, M6, M7, M8]);
+        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M5] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M6, M7] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M5, M6, M7] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M5, M6, M7, M8] $(,$safety)?);
     };
 }
 

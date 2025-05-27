@@ -9,7 +9,7 @@ use {
     crate::types::MQCBO,
 };
 
-/// Create a [`Connection`] to a queue manager using the compile time linked MQ library
+/// Create a connection to a queue manager using the compile time linked MQ library
 /// and type inferred [`ConnectValue`].
 #[inline]
 pub fn connect_as<'co, R, H>(options: &impl ConnectOption<'co>) -> ResultComp<R>
@@ -20,16 +20,25 @@ where
     super::connect_lib_as(LinkedMq, options)
 }
 
-/// Create and return a [`Connection`] to a queue manager using the compile time linked MQ library.
+/// Create a connection to a queue manager using the compile time linked MQ library.
+///
+/// The connection parameters are controlled using a [`ConnectOption`]. Multiple [`ConnectOption`] can
+/// be supplied using tuples of varying length.
+///
+/// The [`Threading`] type parameter controls the threaded capability of the connection.
+///
+/// This uses the [`MQCONNX`](libmqm_sys::Mqi::MQCONNX) function.
 ///
 /// # Examples
 ///
 /// ```no_run
 /// use mqi::prelude::*;
-/// use mqi::{ThreadNone, connect_options::Credentials};
+/// use mqi::{ThreadNone, connect_options::Credentials, constants};
 ///
-/// // Connect to the default queue manager with the provided credentials
-/// let connection = mqi::connect::<ThreadNone>(&Credentials::user("app", "app"))?;
+/// // Connect to the default queue manager with the provided credentials and MQCNO_RECONNECT_Q_MGR
+/// let connection = mqi::connect::<ThreadNone>(&(
+///     constants::MQCNO_RECONNECT_Q_MGR, Credentials::User("app", "app".into())
+/// ))?;
 ///
 /// // connection is wrapped in a Completion. Discard the completion with a `discard_warning`
 /// let connection = connection.discard_warning();
@@ -37,6 +46,9 @@ where
 /// # Ok::<(), mqi::Error>(())
 /// ```
 ///
+/// See also [`connect_as`] and [`connect_with`] for creating connections using
+/// the compile time linked MQ library. For connections using dynamically loaded
+/// or custom implementation of the MQ library refer to [`connect_lib`](crate::connect_lib).
 #[inline]
 pub fn connect<'co, H>(options: &impl ConnectOption<'co>) -> ResultComp<Connection<LinkedMq, H>>
 where
@@ -45,8 +57,14 @@ where
     super::connect_lib_as(LinkedMq, options)
 }
 
-/// Create and return a [`Connection`] and a type inferred [`ConnectAttr`] in tuple
+/// Create a connection to a queue manager and return an implementation of [`ConnectAttr`] in tuple
 /// using the compile time linked MQ library.
+///
+/// Refer to [`connect`] for parameter details.
+///
+/// This uses the [`MQCONNX`](libmqm_sys::Mqi::MQCONNX) function.
+///
+/// Common [`ConnectAttr`] that can be returned include [`ConnTag`](crate::ConnTag) and [`ConnectionId`](crate::ConnectionId).
 #[inline]
 pub fn connect_with<'co, A, H>(options: &impl ConnectOption<'co>) -> ResultComp<(Connection<LinkedMq, H>, A)>
 where

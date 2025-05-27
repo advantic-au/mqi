@@ -1,4 +1,4 @@
-use crate::sys;
+use libmqm_sys::lib as sys;
 
 trait Sealed {}
 #[expect(private_bounds, reason = "sealed trait pattern")]

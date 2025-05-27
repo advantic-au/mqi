@@ -1,8 +1,8 @@
 use std::error::Error;
 use mqi::{
-    connect_options::{ApplName, Credentials},
+    connect_options::Credentials,
     prelude::*,
-    types::QueueName,
+    types::{ApplName, QueueName},
     ThreadNone,
 };
 
@@ -10,8 +10,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     const TARGET: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
     // User credentials and application name.
-    // MQI will use the C API defaults of using MQSERVER environment variable
-    let connect_options = (ApplName(mqstr!("readme_example")), Credentials::user("user", "password"));
+    // MQI will use the C API defaults, referring to MQSERVER environment variable if set.
+    let connect_options = (
+        ApplName(mqstr!("readme_example")),
+        Credentials::User("user", "password".into()),
+    );
 
     // Connect to the queue manager. Make all MQ warnings as a rust Result::Err
     let queue_manager = mqi::connect::<ThreadNone>(&connect_options).warn_as_error()?;

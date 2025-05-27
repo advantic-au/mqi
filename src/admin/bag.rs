@@ -1,12 +1,14 @@
 use std::marker::PhantomData;
 
 use libmqm_sys::Mqai;
-use crate::types::{Selector, MQIND, MQCBO, MQIA, MQCA};
+use crate::types::{MQLONG, MQBYTE, Selector, MQIND, MQCBO, MQIA, MQCA};
+
+use libmqm_sys::lib as sys;
 
 use crate::core::mqai::BagHandle;
 use crate::core::{mqai, Library, MqFunctions, MqInqError, WriteRaw};
 use crate::{prelude::*, Buffer};
-use crate::{sys, constants, Completion, Error, ResultComp, ResultCompErr};
+use crate::{constants, Completion, Error, ResultComp, ResultCompErr};
 
 pub trait BagDrop: Sized {
     fn drop_bag<L: Library<MQ: Mqai>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
@@ -157,7 +159,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
         self.mq.mq_clear_bag(self)
     }
 
-    pub fn truncate(&self, count: sys::MQLONG) -> ResultComp<()> {
+    pub fn truncate(&self, count: MQLONG) -> ResultComp<()> {
         self.mq.mq_truncate_bag(self, count)
     }
 
@@ -165,7 +167,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
     ///
     /// Uses the `mqBagToBuffer` MQ API call
     ///
-    pub fn to_buffer<'b, A: Buffer<'b, impl WriteRaw<sys::MQBYTE>>>(&self, buffer: A) -> ResultCompErr<A, MqInqError> {
+    pub fn to_buffer<'b, A: Buffer<'b, impl WriteRaw<MQBYTE>>>(&self, buffer: A) -> ResultCompErr<A, MqInqError> {
         let mut buf = buffer;
         self.mq
             .mq_bag_to_buffer(&BagHandle::from(sys::MQHB_NONE), self.handle(), Some(buf.as_mut()))
@@ -177,11 +179,10 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
     /// Uses the `mqBagToBuffer` MQ API call
     ///
     pub fn buffer_len(&self) -> ResultComp<usize> {
-        match self.mq.mq_bag_to_buffer(
-            &BagHandle::from(sys::MQHB_NONE),
-            self.handle(),
-            Option::<&mut [sys::MQBYTE]>::None,
-        ) {
+        match self
+            .mq
+            .mq_bag_to_buffer(&BagHandle::from(sys::MQHB_NONE), self.handle(), Option::<&mut [MQBYTE]>::None)
+        {
             Err(MqInqError::Length(len, _)) => Ok(Completion(len, None)),
             other => other,
         }
@@ -189,7 +190,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
         .map_err(std::convert::Into::into)
     }
 
-    pub fn from_buffer(&mut self, buffer: &[sys::MQBYTE]) -> ResultComp<()> {
+    pub fn from_buffer(&mut self, buffer: &[MQBYTE]) -> ResultComp<()> {
         let mq = &mut self.mq;
         let handle = &mut self.handle;
 
@@ -206,14 +207,14 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Drop for Bag<B, L> {
 #[cfg(all(test, any(feature = "link", feature = "dlopen2")))]
 mod tests {
     use super::*;
-    use crate::{sys, test::mq_library};
+    use crate::test::mq_library;
 
     #[test]
     fn add_items() {
         let mq_lib = mq_library();
         let bag = Bag::new_lib(mq_lib, constants::MQCBO_GROUP_BAG).expect("creation of bag to not fail");
         let property = bag
-            .inquire::<sys::MQLONG>(Selector(0))
+            .inquire::<MQLONG>(Selector(0))
             .expect("retrieval of an item should not fail");
         property.map_or_else(|| eprintln!("No CCSID!"), |ccsid| println!("CCSID is {ccsid}"));
 

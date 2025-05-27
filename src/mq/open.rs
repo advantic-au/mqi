@@ -1,7 +1,7 @@
-use crate::{prelude::*, ResultComp, ResultCompErr};
+use crate::{prelude::*, structs, ResultComp, ResultCompErr};
 use crate::{constants, types};
 
-use super::{Conn, MqStruct, Object, OpenAttr, OpenOption, OpenParamOption, OpenValue};
+use super::{Conn, Object, OpenAttr, OpenOption, OpenParamOption, OpenValue};
 
 use libmqm_default as default;
 
@@ -28,11 +28,12 @@ impl<C: Conn> Object<C> {
         R: OpenValue<Self>,
     {
         let mut oo = OpenParamOption {
-            mqod: MqStruct::new(default::MQOD_DEFAULT),
+            mqod: structs::MQOD::new(default::MQOD_DEFAULT),
             options: constants::MQOO_BIND_AS_Q_DEF,
         };
         open_option.apply_param(&mut oo);
-        R::open_consume(&mut oo, |OpenParamOption { mqod, options }| {
+        // SAFETY: Implementors of OpenOption must ensure MQOD structure is populated correctly for mqopen
+        R::open_consume(&mut oo, |OpenParamOption { mqod, options }| unsafe {
             connection
                 .mq()
                 .mqopen(connection.handle(), mqod, *options)

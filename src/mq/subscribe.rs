@@ -1,12 +1,12 @@
 use crate::{
     core::{ObjectHandle, SubscriptionHandle},
-    types::{MQSR, MQCO},
-    constants,
+    types::{MQLONG, MQSR, MQCO},
+    constants, structs,
     prelude::*,
-    sys, Error, ResultComp, ResultCompErr,
+    Error, ResultComp, ResultCompErr,
 };
 
-use super::{Conn, MqStruct, Object};
+use super::{Conn, Object};
 
 use libmqm_default as default;
 
@@ -24,14 +24,14 @@ pub struct SubscribeState<C: Conn> {
 
 #[derive(Debug)]
 pub struct SubscribeParam<'a> {
-    pub sd: MqStruct<'a, sys::MQSD>,
+    pub sd: structs::MQSD<'a>,
     pub close_options: MQCO,
-    pub provided_object: sys::MQLONG,
+    pub provided_object: MQLONG,
 }
 
 #[derive(Debug)]
 pub struct SubscribeRequestParam {
-    pub sro: MqStruct<'static, sys::MQSRO>,
+    pub sro: structs::MQSRO,
     pub sr: MQSR,
 }
 
@@ -49,9 +49,9 @@ impl<C: Conn> Subscription<C> {
     /// Request the retained publication(s) for the subscription.
     ///
     /// This utilises the MQI function `MQSUBRQ`.
-    pub fn request_retained(&self, request_options: &impl SubscribeRequestOption) -> ResultComp<sys::MQLONG> {
+    pub fn request_retained(&self, request_options: &impl SubscribeRequestOption) -> ResultComp<MQLONG> {
         let mut srp = SubscribeRequestParam {
-            sro: MqStruct::new(default::MQSRO_DEFAULT),
+            sro: structs::MQSRO::new(default::MQSRO_DEFAULT),
             sr: constants::MQSR_ACTION_PUBLICATION,
         };
         request_options.apply_param(&mut srp);
@@ -94,7 +94,12 @@ pub trait SubscribeAttr<C: Conn> {
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
 )]
-pub trait SubscribeOption<'so> {
+/// # Safety
+/// This trait can directly manipulate the [`MQSD`](libmqm_sys::lib::MQSD) structure which is used by [`MQSUB`](libmqm_sys::Mqi::MQSUB).
+/// Incorrect values in the [`MQSD`](libmqm_sys::lib::MQSD) can lead to undefined behaviour.
+///
+/// Implementations of [`SubscribeOption`] must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait SubscribeOption<'so> {
     fn apply_param(&self, param: &mut SubscribeParam<'so>);
 }
 
@@ -143,36 +148,39 @@ impl<C: Conn + Clone> Subscription<C> {
     where
         R: SubscribeValue<C>,
     {
+        use libmqm_sys::lib::MQHO_NONE;
+
         let mut so = SubscribeParam {
             close_options: MQCO::default(),
-            sd: MqStruct::new(default::MQSD_DEFAULT),
-            provided_object: sys::MQHO_NONE,
+            sd: structs::MQSD::new(default::MQSD_DEFAULT),
+            provided_object: MQHO_NONE,
         };
 
         subscribe_option.apply_param(&mut so);
 
         R::subscribe_consume(&mut so, |param| {
             let mut obj_handle = ObjectHandle::from(param.provided_object);
-            connection
-                .mq()
-                .mqsub(connection.handle(), &mut param.sd, &mut obj_handle)
-                .map_completion(|sub_handle| {
-                    // Create an Object if there is a unique one issued from the call
-                    let new_raw_handle = unsafe { obj_handle.raw_handle() };
-                    let object = match (param.provided_object, new_raw_handle) {
-                        (_, sys::MQHO_NONE) => None,
-                        (original, new) if original == new => None,
-                        (_, new) => Some(unsafe { Object::from_parts(connection.clone(), ObjectHandle::from(new)) }),
-                    };
-                    SubscribeState {
-                        subscription: Self {
-                            handle: sub_handle,
-                            connection,
-                            close_options: param.close_options,
-                        },
-                        object,
-                    }
-                })
+
+            // SAFETY: Implementors of SubscribeOption must ensure the MQSD is populated correctly
+            let mqsub_result = unsafe { connection.mq().mqsub(connection.handle(), &mut param.sd, &mut obj_handle) };
+
+            mqsub_result.map_completion(|sub_handle| {
+                // Create an Object if there is a unique one issued from the call
+                let new_raw_handle = unsafe { obj_handle.raw_handle() };
+                let object = match (param.provided_object, new_raw_handle) {
+                    (_, MQHO_NONE) => None,
+                    (original, new) if original == new => None,
+                    (_, new) => Some(unsafe { Object::from_parts(connection.clone(), ObjectHandle::from(new)) }),
+                };
+                SubscribeState {
+                    subscription: Self {
+                        handle: sub_handle,
+                        connection,
+                        close_options: param.close_options,
+                    },
+                    object,
+                }
+            })
         })
     }
 }
@@ -181,7 +189,7 @@ impl<C: Conn + Clone> Subscription<C> {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
-    use crate::{sys, test::mock, MqStruct};
+    use crate::test::mock;
 
     #[test]
     pub fn test_request_retained() -> Result<(), Box<dyn std::error::Error>> {
@@ -190,7 +198,7 @@ mod test {
                 .expect_MQSUBRQ()
                 .returning(|_, _, _, sro, cc, rc| {
                     let mqsro = unsafe {
-                        sro.cast::<MqStruct<sys::MQSRO>>()
+                        sro.cast::<structs::MQSRO>()
                             .as_mut()
                             .expect("MQRSO should never be a null pointer")
                     };

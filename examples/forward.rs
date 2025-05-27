@@ -5,15 +5,17 @@ mod args;
 use anyhow::Context as _;
 use clap::{Parser, ValueEnum};
 use mqi::{
-    connect_options::ApplName,
+    connect_options::Tls,
+    constants,
     prelude::*,
+    structs,
     put_options::{Context, PropertyAction},
-    sys,
-    types::{MessageFormat, QueueManagerName, QueueName},
-    types, constants, MqStruct, Object, Properties, Syncpoint, ThreadNone,
+    types::{ApplName, CipherSpec, MessageFormat, QueueManagerName, QueueName, MQCMHO},
+    Object, Properties, Syncpoint, ThreadNone,
 };
 
 const APP_NAME: ApplName = ApplName(mqstr!("forward"));
+const DEFAULT_CIPHER: CipherSpec = CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")); // TLS 1.3 cipher
 
 #[derive(Parser, Debug)]
 struct Cli {
@@ -62,6 +64,12 @@ fn main() -> anyhow::Result<()> {
     let creds = args.connection.credentials();
     let cno = args.connection.cno().context("MQCNO option is not valid")?;
 
+    // Set up the tls connection parameters from the arguments
+    let tls = args.connection.tls(&DEFAULT_CIPHER).context("TLS options are not valid")?;
+    let tls_connect = tls
+        .as_ref()
+        .map(|(repo, cipher, label)| Tls::new(repo, label.as_ref(), cipher));
+
     let source_queue = QueueName::from_str(&args.source_queue)?;
     let target_queue = QueueName::from_str(&args.queue)?;
     let target_qm = args
@@ -72,7 +80,7 @@ fn main() -> anyhow::Result<()> {
         .context("Target queue manager name is invalid")?;
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, qm_name, creds, cno, client_method))
+    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, qm_name, creds, cno, client_method))
         .warn_as_error()
         .context("Unable to connect to the queue manager")?;
     let qm_ref = qm.connection_ref();
@@ -90,8 +98,8 @@ fn main() -> anyhow::Result<()> {
     let buf_write = buffer.spare_capacity_mut();
     let syncpoint = Syncpoint::new(qm_ref);
 
-    let mut properties = Properties::new(&qm, types::MQCMHO::default())?;
-    let message: Option<(_, MqStruct<sys::MQMD2>)> = obj
+    let mut properties = Properties::new(&qm, MQCMHO::default())?;
+    let message: Option<(_, structs::MQMD2)> = obj
         .get_data_with(
             &(
                 constants::MQGMO_SYNCPOINT, // Must use the syncpoint option
@@ -107,7 +115,7 @@ fn main() -> anyhow::Result<()> {
         unsafe {
             buffer.set_len(len);
         }
-        let mut target_properties = Properties::new(&qm, types::MQCMHO::default())?; // Create a placeholder for target properties
+        let mut target_properties = Properties::new(&qm, MQCMHO::default())?; // Create a placeholder for target properties
         let fmt = MessageFormat::from_mqmd2(&md);
         qm_ref
             .put_message(

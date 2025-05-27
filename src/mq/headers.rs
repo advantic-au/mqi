@@ -6,7 +6,9 @@ use std::{
 
 use maybe_owned::MaybeOwned;
 
-use crate::{conversion, constants, sys, types, core::CCSID, MqChar};
+use crate::{conversion, constants, types, core::CCSID, MqChar};
+
+use libmqm_sys::lib as sys;
 
 use super::{
     encoding::{ascii7_ebcdic, ebcdic_ascii7},
@@ -21,7 +23,7 @@ const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
     let mut result = [0; N];
     #[expect(clippy::cast_possible_wrap, reason = "Treating MQCHAR as always positive is desired here")]
     while i < N {
-        result[i] = bytes[i] as sys::MQCHAR;
+        result[i] = bytes[i] as types::MQCHAR;
         i += 1;
     }
     result
@@ -30,8 +32,9 @@ const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
 const INTEGER_NATIVE_MASK: types::MQENC = constants::MQENC_NATIVE.intersection(constants::MQENC_INTEGER_MASK);
 
 pub mod fmt {
-    use crate::{sys, types::Fmt};
+    use crate::types::Fmt;
     use super::cstr_array;
+    use libmqm_sys::lib as sys;
 
     pub const MQFMT_NONE: Fmt = cstr_array(sys::MQFMT_NONE);
     pub const MQFMT_STRING: Fmt = cstr_array(sys::MQFMT_STRING);
@@ -73,7 +76,7 @@ pub enum HeaderError {
     DataTruncated(usize, usize),
     #[display("Length provided by header is malformed: {}", _0)]
     #[error(ignore)]
-    MalformedLength(sys::MQLONG),
+    MalformedLength(types::MQLONG),
     #[display(
         "Length provided by header is not within the data offset: {} not within offset {}..{}",
         _0,
@@ -163,7 +166,7 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     }
 
     #[must_use]
-    const fn native_mqlong(&self, value: sys::MQLONG) -> sys::MQLONG {
+    const fn native_mqlong(&self, value: types::MQLONG) -> types::MQLONG {
         swap_to_native(value, self.encoding.contains(INTEGER_NATIVE_MASK))
     }
 }
@@ -173,20 +176,20 @@ pub trait ChainedHeader: Sized {
     const FMT_EBCDIC: Fmt;
     const STRUC_ID_ASCII: StrucId;
     const STRUC_ID_EBCDIC: StrucId;
-    const VERSION: sys::MQLONG;
+    const VERSION: types::MQLONG;
 
     #[must_use]
-    fn next_raw_ccsid(&self) -> sys::MQLONG;
+    fn next_raw_ccsid(&self) -> types::MQLONG;
     #[must_use]
-    fn next_raw_encoding(&self) -> sys::MQLONG;
+    fn next_raw_encoding(&self) -> types::MQLONG;
     #[must_use]
     fn next_raw_format(&self) -> Fmt;
     #[must_use]
     fn raw_struc_id(&self) -> StrucId;
     #[must_use]
-    fn raw_version(&self) -> sys::MQLONG;
+    fn raw_version(&self) -> types::MQLONG;
 
-    fn validate_length(length: sys::MQLONG) -> Result<(), HeaderError> {
+    fn validate_length(length: types::MQLONG) -> Result<(), HeaderError> {
         #[expect(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let struc_len = mem::size_of::<Self>() as _;
         if length < struc_len {
@@ -197,7 +200,7 @@ pub trait ChainedHeader: Sized {
     }
 
     #[inline]
-    fn raw_struc_length(&self) -> Option<sys::MQLONG> {
+    fn raw_struc_length(&self) -> Option<types::MQLONG> {
         None
     }
 
@@ -336,7 +339,7 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
 
 #[inline]
 #[must_use]
-const fn swap_to_native(value: sys::MQLONG, native: bool) -> sys::MQLONG {
+const fn swap_to_native(value: types::MQLONG, native: bool) -> types::MQLONG {
     if native { value } else { value.swap_bytes() }
 }
 
@@ -345,13 +348,13 @@ impl ChainedHeader for sys::MQDH {
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
     const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQDH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: sys::MQLONG = sys::MQDH_VERSION_1;
+    const VERSION: types::MQLONG = sys::MQDH_VERSION_1;
 
-    fn next_raw_ccsid(&self) -> sys::MQLONG {
+    fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
     }
 
-    fn next_raw_encoding(&self) -> sys::MQLONG {
+    fn next_raw_encoding(&self) -> types::MQLONG {
         self.Encoding
     }
 
@@ -363,11 +366,11 @@ impl ChainedHeader for sys::MQDH {
         unsafe { *(&raw const self.StrucId).cast() }
     }
 
-    fn raw_version(&self) -> sys::MQLONG {
+    fn raw_version(&self) -> types::MQLONG {
         self.Version
     }
 
-    fn raw_struc_length(&self) -> Option<sys::MQLONG> {
+    fn raw_struc_length(&self) -> Option<types::MQLONG> {
         Some(self.StrucLength)
     }
 
@@ -388,13 +391,13 @@ impl ChainedHeader for sys::MQCIH {
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
     const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQCIH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: sys::MQLONG = sys::MQCIH_VERSION_2;
+    const VERSION: types::MQLONG = sys::MQCIH_VERSION_2;
 
-    fn next_raw_ccsid(&self) -> sys::MQLONG {
+    fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
     }
 
-    fn next_raw_encoding(&self) -> sys::MQLONG {
+    fn next_raw_encoding(&self) -> types::MQLONG {
         self.Encoding
     }
 
@@ -406,11 +409,11 @@ impl ChainedHeader for sys::MQCIH {
         unsafe { *(&raw const self.StrucId).cast() }
     }
 
-    fn raw_version(&self) -> sys::MQLONG {
+    fn raw_version(&self) -> types::MQLONG {
         self.Version
     }
 
-    fn raw_struc_length(&self) -> Option<sys::MQLONG> {
+    fn raw_struc_length(&self) -> Option<types::MQLONG> {
         Some(self.StrucLength)
     }
 
@@ -431,13 +434,13 @@ impl ChainedHeader for sys::MQDLH {
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
     const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQDLH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: sys::MQLONG = sys::MQDLH_VERSION_1;
+    const VERSION: types::MQLONG = sys::MQDLH_VERSION_1;
 
-    fn next_raw_ccsid(&self) -> sys::MQLONG {
+    fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
     }
 
-    fn next_raw_encoding(&self) -> sys::MQLONG {
+    fn next_raw_encoding(&self) -> types::MQLONG {
         self.Encoding
     }
 
@@ -449,7 +452,7 @@ impl ChainedHeader for sys::MQDLH {
         unsafe { *(&raw const self.StrucId).cast() }
     }
 
-    fn raw_version(&self) -> sys::MQLONG {
+    fn raw_version(&self) -> types::MQLONG {
         self.Version
     }
 
@@ -470,13 +473,13 @@ impl ChainedHeader for sys::MQIIH {
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
     const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQIIH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: sys::MQLONG = sys::MQIIH_VERSION_1;
+    const VERSION: types::MQLONG = sys::MQIIH_VERSION_1;
 
-    fn next_raw_ccsid(&self) -> sys::MQLONG {
+    fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
     }
 
-    fn next_raw_encoding(&self) -> sys::MQLONG {
+    fn next_raw_encoding(&self) -> types::MQLONG {
         self.Encoding
     }
 
@@ -488,7 +491,7 @@ impl ChainedHeader for sys::MQIIH {
         unsafe { *(&raw const self.StrucId).cast() }
     }
 
-    fn raw_version(&self) -> sys::MQLONG {
+    fn raw_version(&self) -> types::MQLONG {
         self.Version
     }
 
@@ -509,13 +512,13 @@ impl ChainedHeader for sys::MQRFH2 {
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
     const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQRFH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: sys::MQLONG = sys::MQRFH_VERSION_2;
+    const VERSION: types::MQLONG = sys::MQRFH_VERSION_2;
 
-    fn next_raw_ccsid(&self) -> sys::MQLONG {
+    fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
     }
 
-    fn next_raw_encoding(&self) -> sys::MQLONG {
+    fn next_raw_encoding(&self) -> types::MQLONG {
         self.Encoding
     }
 
@@ -527,11 +530,11 @@ impl ChainedHeader for sys::MQRFH2 {
         unsafe { *(&raw const self.StrucId).cast() }
     }
 
-    fn raw_version(&self) -> sys::MQLONG {
+    fn raw_version(&self) -> types::MQLONG {
         self.Version
     }
 
-    fn raw_struc_length(&self) -> Option<sys::MQLONG> {
+    fn raw_struc_length(&self) -> Option<types::MQLONG> {
         Some(self.StrucLength)
     }
 
@@ -546,7 +549,7 @@ impl ChainedHeader for sys::MQRFH2 {
         }
     }
 
-    fn validate_length(length: sys::MQLONG) -> Result<(), HeaderError> {
+    fn validate_length(length: types::MQLONG) -> Result<(), HeaderError> {
         #[expect(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let struc_len = mem::size_of::<Self>() as _;
         // +4 bytes for MQLONG length field
@@ -574,13 +577,13 @@ impl ChainedHeader for sys::MQRFH {
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
     const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQRFH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: sys::MQLONG = sys::MQRFH_VERSION_1;
+    const VERSION: types::MQLONG = sys::MQRFH_VERSION_1;
 
-    fn next_raw_ccsid(&self) -> sys::MQLONG {
+    fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
     }
 
-    fn next_raw_encoding(&self) -> sys::MQLONG {
+    fn next_raw_encoding(&self) -> types::MQLONG {
         self.Encoding
     }
 
@@ -592,11 +595,11 @@ impl ChainedHeader for sys::MQRFH {
         unsafe { *(&raw const self.StrucId).cast() }
     }
 
-    fn raw_version(&self) -> sys::MQLONG {
+    fn raw_version(&self) -> types::MQLONG {
         self.Version
     }
 
-    fn raw_struc_length(&self) -> Option<sys::MQLONG> {
+    fn raw_struc_length(&self) -> Option<types::MQLONG> {
         Some(self.StrucLength)
     }
 
@@ -678,7 +681,7 @@ mod tests {
 
     use crate::{
         headers::{EncodedHeader, Header, HeaderError},
-        sys, constants,
+        constants,
         types::MessageFormat,
     };
 

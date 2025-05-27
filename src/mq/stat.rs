@@ -1,18 +1,19 @@
 use libmqm_sys::Mqi;
+use libmqm_sys::lib as sys;
 use libmqm_default as default;
-use crate::types::{MQCC, MQRC};
+use crate::types::{MQCHAR, MQLONG, MQCC, MQRC};
 
 use crate::{
     core::{ConnectionHandle, Library, MqFunctions, CCSID},
     types::{MQOT, MQOO, MQSO},
     prelude::*,
-    constants, sys, MqStr, ResultComp,
+    structs, constants, MqStr, ResultComp,
 };
 
-use super::{types::ObjectName, MqStruct, StrCcsidOwned};
+use super::{types::ObjectName, StrCcsidOwned};
 
 impl AsyncPutStat {
-    fn new(sts: &MqStruct<sys::MQSTS>, buffer: Vec<sys::MQCHAR>) -> Self {
+    fn new(sts: &structs::MQSTS, buffer: Vec<MQCHAR>) -> Self {
         let mut buffer = buffer;
         unsafe {
             buffer.set_len(
@@ -47,7 +48,7 @@ impl AsyncPutStat {
 }
 
 impl ReconnectionStat {
-    fn new(sts: &MqStruct<sys::MQSTS>) -> Self {
+    fn new(sts: &structs::MQSTS) -> Self {
         Self {
             warning: match sts.CompCode {
                 0 => None,
@@ -62,7 +63,7 @@ impl ReconnectionStat {
 }
 
 impl ReconnectionErrorStat {
-    fn new(sts: &MqStruct<sys::MQSTS>, object_string_buffer: Vec<sys::MQCHAR>, sub_name_buffer: Vec<sys::MQCHAR>) -> Self {
+    fn new(sts: &structs::MQSTS, object_string_buffer: Vec<MQCHAR>, sub_name_buffer: Vec<MQCHAR>) -> Self {
         let mut object_string_buffer = object_string_buffer;
         unsafe {
             object_string_buffer.set_len(
@@ -108,7 +109,7 @@ impl ReconnectionErrorStat {
 }
 
 pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: ConnectionHandle) -> ResultComp<AsyncPutStat> {
-    let mut sts = MqStruct::new(sys::MQSTS {
+    let mut sts = structs::MQSTS::new(sys::MQSTS {
         Version: sys::MQSTS_VERSION_2,
         ..default::MQSTS_DEFAULT
     });
@@ -124,26 +125,33 @@ pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: Connect
     );
     sts.ObjectString.VSPtr = (&raw mut *buffer).cast();
 
-    functions
-        .mqstat(handle, constants::MQSTAT_TYPE_ASYNC_ERROR, &mut sts)
-        .map_completion(|()| AsyncPutStat::new(&sts, buffer))
+    // SAFETY: MQSTS ObjectString MQCHARV constructed from buffer
+    unsafe {
+        functions
+            .mqstat(handle, constants::MQSTAT_TYPE_ASYNC_ERROR, &mut sts)
+            .map_completion(|()| AsyncPutStat::new(&sts, buffer))
+    }
 }
 
 pub fn stat_reconnection<L: Library<MQ: Mqi>>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
 ) -> ResultComp<ReconnectionStat> {
-    let mut sts = MqStruct::new(default::MQSTS_DEFAULT);
-    functions
-        .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION, &mut sts)
-        .map_completion(|()| ReconnectionStat::new(&sts))
+    let mut sts = structs::MQSTS::new(default::MQSTS_DEFAULT);
+
+    // SAFETY: MQSTS No pointers populated
+    unsafe {
+        functions
+            .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION, &mut sts)
+            .map_completion(|()| ReconnectionStat::new(&sts))
+    }
 }
 
 pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
 ) -> ResultComp<ReconnectionErrorStat> {
-    let mut sts = MqStruct::new(sys::MQSTS {
+    let mut sts = structs::MQSTS::new(sys::MQSTS {
         Version: sys::MQSTS_VERSION_2,
         ..default::MQSTS_DEFAULT
     });
@@ -166,19 +174,22 @@ pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
     );
     sts.SubName.VSPtr = (&raw mut *sub_name_buffer).cast();
 
-    functions
-        .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION_ERROR, &mut sts)
-        .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
+    // SAFETY: MQSTS ObjectString and SubName MQCHARV constructed from buffers
+    unsafe {
+        functions
+            .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION_ERROR, &mut sts)
+            .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
+    }
 }
 
-const DEFAULT_OBJECTSTRING_LENGTH: sys::MQLONG = 4096;
+const DEFAULT_OBJECTSTRING_LENGTH: MQLONG = 4096;
 
 pub struct AsyncPutStat {
     pub warning: Option<MQCC>,
     pub reason: MQRC,
-    pub put_success_count: sys::MQLONG,
-    pub put_warning_count: sys::MQLONG,
-    pub put_failure_count: sys::MQLONG,
+    pub put_success_count: MQLONG,
+    pub put_warning_count: MQLONG,
+    pub put_failure_count: MQLONG,
     pub object_type: MQOT,
     pub object_name: ObjectName,               // TODO: fix wrapper?
     pub object_qmgr_name: ObjectName,          // TODO: fix wrapper?

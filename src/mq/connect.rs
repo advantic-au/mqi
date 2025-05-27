@@ -5,23 +5,24 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use libmqm_sys::Mqi;
+use libmqm_sys::lib as sys;
 
 use crate::core::{self, ConnectionHandle, Library, MqFunctions};
-use crate::sys;
 use crate::ResultComp;
+use crate::structs;
+use crate::types;
 use crate::prelude::*;
 
 use super::connect_options::{self, ConnectOption, ConnectStructs};
-use super::types::{Identifier, QueueManagerName};
-use super::MqStruct;
+use super::types::{DisplayId, Identifier, QueueManagerName};
 
 #[cfg(feature = "link")]
 pub use super::link::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref, derive_more::Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
 pub struct ConnectionId(pub Identifier<24>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
-pub struct ConnTag(pub [sys::MQBYTE; sys::MQ_CONN_TAG_LENGTH]);
+pub struct ConnTag(pub [types::MQBYTE; sys::MQ_CONN_TAG_LENGTH]);
 
 /// Associated connection handle and MQ library
 pub trait Conn {
@@ -47,7 +48,7 @@ pub struct ConnectionRef<'conn, L: Library<MQ: Mqi>, H> {
 }
 
 /// MQCNO parameter used to define the connection
-pub type ConnectParam<'a> = MqStruct<'a, sys::MQCNO>;
+pub type ConnectParam<'a> = structs::MQCNO<'a>;
 
 trait Sealed {}
 
@@ -60,7 +61,13 @@ trait Sealed {}
 #[expect(private_bounds, reason = "sealed trait pattern")]
 pub trait Threading: Sealed {
     /// One of the `MQCNO_HANDLE_SHARE_*` MQ constants
-    const MQCNO_HANDLE_SHARE: sys::MQLONG;
+    const MQCNO_HANDLE_SHARE: types::MQLONG;
+}
+
+impl std::fmt::Display for ConnectionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(AsRef::<DisplayId<24>>::as_ref(&self.0), f)
+    }
 }
 
 impl<L, H> Connection<L, H>
@@ -116,15 +123,15 @@ impl Sealed for ThreadBlock {}
 unsafe impl Send for ThreadNoBlock {}
 
 impl Threading for ThreadNone {
-    const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_NONE;
+    const MQCNO_HANDLE_SHARE: types::MQLONG = sys::MQCNO_HANDLE_SHARE_NONE;
 }
 
 impl Threading for ThreadBlock {
-    const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_BLOCK;
+    const MQCNO_HANDLE_SHARE: types::MQLONG = sys::MQCNO_HANDLE_SHARE_BLOCK;
 }
 
 impl Threading for ThreadNoBlock {
-    const MQCNO_HANDLE_SHARE: sys::MQLONG = sys::MQCNO_HANDLE_SHARE_NO_BLOCK;
+    const MQCNO_HANDLE_SHARE: types::MQLONG = sys::MQCNO_HANDLE_SHARE_NO_BLOCK;
 }
 
 impl<L: Library<MQ: Mqi>, H> Drop for Connection<L, H> {
@@ -190,21 +197,36 @@ where
     let mut structs = ConnectStructs::default();
     let struct_mask = options.apply_param(&mut structs);
 
+    let cno_ptr = &raw const structs.cno;
     #[cfg(feature = "mqc_9_3_0_0")]
-    if struct_mask & connect_options::HAS_BNO != 0 {
-        structs.cno.attach_bno(&structs.bno);
+    if struct_mask & connect_options::CONNECT_HAS_BNO != connect_options::CONNECT_HAS_NONE {
+        structs.cno.set_min_version(sys::MQCNO_VERSION_8);
+        structs.cno.BalanceParmsOffset = unsafe { (&raw const structs.bno).byte_offset_from(cno_ptr) }
+            .try_into()
+            .expect("MQBNO offset from MQCNO should convert to i32");
     }
 
-    if struct_mask & connect_options::HAS_CD != 0 {
-        structs.cno.attach_cd(&structs.cd);
+    if struct_mask & connect_options::CONNECT_HAS_CD != connect_options::CONNECT_HAS_NONE {
+        structs.cno.set_min_version(sys::MQCNO_VERSION_2);
+        structs.cno.ClientConnOffset = unsafe { (&raw const structs.cd).byte_offset_from(cno_ptr) }
+            .try_into()
+            .expect("MQCD offset from MQCNO should convert to i32");
     }
 
-    if struct_mask & connect_options::HAS_SCO != 0 {
-        structs.cno.attach_sco(&structs.sco);
+    if struct_mask & connect_options::CONNECT_HAS_SCO != connect_options::CONNECT_HAS_NONE {
+        structs.cno.set_min_version(sys::MQCNO_VERSION_4);
+        structs.cno.SSLConfigOffset = unsafe { (&raw const structs.sco).byte_offset_from(cno_ptr) }
+            .try_into()
+            .expect("MQSCO offset from MQCNO should convert to i32");
     }
 
-    if struct_mask & connect_options::HAS_CSP != 0 {
-        structs.cno.attach_csp(&structs.csp);
+    if struct_mask & connect_options::CONNECT_HAS_CSP != connect_options::CONNECT_HAS_NONE {
+        {
+            structs.cno.set_min_version(sys::MQCNO_VERSION_5);
+            structs.cno.SecurityParmsOffset = unsafe { (&raw const structs.csp).byte_offset_from(cno_ptr) }
+                .try_into()
+                .expect("MQCSP offset from MQCNO should convert to i32");
+        };
     }
 
     R::connect_consume(&mut structs.cno, |param| {
@@ -212,11 +234,15 @@ where
         let mq = core::MqFunctions(lib);
         let qm_default = QueueManagerName::default(); // TODO: change to constant
         let qm = qm_name.as_ref().map_or(&qm_default, |qm| qm);
-        mq.mqconnx(qm, param).map_completion(|handle| Connection {
-            mq,
-            handle,
-            _share: PhantomData,
-        })
+
+        // SAFETY: Implementors of ConnectOption must ensure MQCNO and associated structures are correctly populated
+        unsafe {
+            mq.mqconnx(qm, param).map_completion(|handle| Connection {
+                mq,
+                handle,
+                _share: PhantomData,
+            })
+        }
     })
 }
 

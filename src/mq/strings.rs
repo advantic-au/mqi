@@ -1,10 +1,9 @@
 use std::{borrow::Cow, ptr};
 
-use crate::{constants, conversion, sys, core::CCSID};
-
-use super::MqStruct;
+use crate::{constants, types, structs, conversion, core::CCSID};
 
 use libmqm_default as default;
+use libmqm_sys::lib::MQCHARV;
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
@@ -19,9 +18,9 @@ impl<T> StringCcsid<T> {
     }
 }
 
-pub type StrCcsid<'a> = StringCcsid<&'a [sys::MQCHAR]>;
-pub type StrCcsidOwned = StringCcsid<Vec<sys::MQCHAR>>;
-pub type StrCcsidCow<'a> = StringCcsid<Cow<'a, [sys::MQCHAR]>>;
+pub type StrCcsid<'a> = StringCcsid<&'a [types::MQCHAR]>;
+pub type StrCcsidOwned = StringCcsid<Vec<types::MQCHAR>>;
+pub type StrCcsidCow<'a> = StringCcsid<Cow<'a, [types::MQCHAR]>>;
 
 pub const NATIVE_IS_LE: bool = constants::MQENC_NATIVE.contains(constants::MQENC_INTEGER_REVERSED);
 
@@ -39,7 +38,7 @@ pub struct CcsidError {
 
 impl StrCcsidOwned {
     #[must_use]
-    pub const fn from_vec(data: Vec<sys::MQCHAR>, ccsid: CCSID) -> Self {
+    pub const fn from_vec(data: Vec<types::MQCHAR>, ccsid: CCSID) -> Self {
         Self {
             ccsid,
             le: NATIVE_IS_LE,
@@ -58,13 +57,13 @@ impl<'a> From<&'a str> for StrCcsid<'a> {
     }
 }
 
-impl<A: AsRef<[sys::MQCHAR]>, B: AsRef<[sys::MQCHAR]>> PartialEq<StringCcsid<B>> for StringCcsid<A> {
+impl<A: AsRef<[types::MQCHAR]>, B: AsRef<[types::MQCHAR]>> PartialEq<StringCcsid<B>> for StringCcsid<A> {
     fn eq(&self, other: &StringCcsid<B>) -> bool {
         self.ccsid == other.ccsid && self.data.as_ref() == other.data.as_ref()
     }
 }
 
-impl<A: AsRef<[sys::MQCHAR]>> PartialEq<&str> for StringCcsid<A> {
+impl<A: AsRef<[types::MQCHAR]>> PartialEq<&str> for StringCcsid<A> {
     fn eq(&self, other: &&str) -> bool {
         self.ccsid == 1208 && self.data.as_ref() == other.data()
     }
@@ -93,7 +92,7 @@ impl<T: ToString> From<T> for StrCcsidOwned {
     }
 }
 
-impl<T: Into<Vec<sys::MQCHAR>>> TryFrom<StringCcsid<T>> for String {
+impl<T: Into<Vec<types::MQCHAR>>> TryFrom<StringCcsid<T>> for String {
     type Error = FromStringCcsidError;
 
     fn try_from(value: StringCcsid<T>) -> Result<Self, Self::Error> {
@@ -111,7 +110,7 @@ impl<T: Into<Vec<sys::MQCHAR>>> TryFrom<StringCcsid<T>> for String {
     }
 }
 
-impl<'a, T: Into<Cow<'a, [sys::MQCHAR]>>> TryFrom<StringCcsid<T>> for Cow<'a, str> {
+impl<'a, T: Into<Cow<'a, [types::MQCHAR]>>> TryFrom<StringCcsid<T>> for Cow<'a, str> {
     type Error = FromStringCcsidError;
 
     fn try_from(value: StringCcsid<T>) -> Result<Self, Self::Error> {
@@ -135,13 +134,13 @@ impl<'a, T: Into<Cow<'a, [sys::MQCHAR]>>> TryFrom<StringCcsid<T>> for Cow<'a, st
 }
 
 #[cfg(feature = "exits")]
-impl<T: AsRef<[sys::MQCHAR]>> StringCcsid<T> {
+impl<T: AsRef<[types::MQCHAR]>> StringCcsid<T> {
     pub fn try_mq_convert<'a, C>(
         &self,
         ccsid: CCSID,
         conn: &C,
         target_le: bool,
-        buffer: &'a mut [sys::MQCHAR],
+        buffer: &'a mut [types::MQCHAR],
     ) -> crate::ResultComp<StrCcsid<'a>>
     where
         C::Lib: crate::core::Library<MQ: libmqm_sys::Exits>,
@@ -174,7 +173,7 @@ impl<T: AsRef<[sys::MQCHAR]>> StringCcsid<T> {
 
 pub trait EncodedString {
     fn ccsid(&self) -> CCSID;
-    fn data(&self) -> &[sys::MQCHAR];
+    fn data(&self) -> &[types::MQCHAR];
 }
 
 impl EncodedString for &str {
@@ -182,7 +181,7 @@ impl EncodedString for &str {
         EncodedString::ccsid(*self)
     }
 
-    fn data(&self) -> &[sys::MQCHAR] {
+    fn data(&self) -> &[types::MQCHAR] {
         EncodedString::data(*self)
     }
 }
@@ -192,29 +191,29 @@ impl EncodedString for str {
         CCSID(1208) // = UTF-8 CCSID. str types are _always_ UTF-8
     }
 
-    fn data(&self) -> &[sys::MQCHAR] {
+    fn data(&self) -> &[types::MQCHAR] {
         unsafe { &*(std::ptr::from_ref(self) as *const _) }
     }
 }
 
-impl<T: AsRef<[sys::MQCHAR]>> EncodedString for StringCcsid<T> {
+impl<T: AsRef<[types::MQCHAR]>> EncodedString for StringCcsid<T> {
     fn ccsid(&self) -> CCSID {
         self.ccsid
     }
 
-    fn data(&self) -> &[sys::MQCHAR] {
+    fn data(&self) -> &[types::MQCHAR] {
         self.data.as_ref()
     }
 }
 
-impl<'a> MqStruct<'a, sys::MQCHARV> {
+impl<'a> structs::MQCHARV<'a> {
     pub fn from_encoded_str(value: &'a (impl EncodedString + ?Sized)) -> Self {
         let data = value.data();
         let len = data
             .len()
             .try_into()
             .expect("string length should not exceed maximum positive MQLONG for MQCHARV");
-        MqStruct::new(sys::MQCHARV {
+        structs::MQCHARV::new(MQCHARV {
             VSPtr: ptr::from_ref(data).cast_mut().cast(),
             VSLength: len,
             VSBufSize: len,
@@ -239,13 +238,13 @@ impl<T: Default> Default for StringCcsid<T> {
 mod test {
     use std::{borrow::Cow, mem};
 
-    use crate::{sys, core::CCSID, StrCcsid, StrCcsidCow, StringCcsid};
+    use crate::{types, core::CCSID, StrCcsid, StrCcsidCow, StringCcsid};
 
     use super::NATIVE_IS_LE;
 
     const NON_UTF8_COW: StrCcsidCow = StrCcsidCow {
         ccsid: CCSID(450),
-        data: Cow::Borrowed(unsafe { mem::transmute::<&[u8], &[sys::MQCHAR]>(b"Hello".as_slice()) }),
+        data: Cow::Borrowed(unsafe { mem::transmute::<&[u8], &[types::MQCHAR]>(b"Hello".as_slice()) }),
         le: NATIVE_IS_LE,
     };
 
@@ -271,6 +270,5 @@ mod test {
             TryInto::<Cow<str>>::try_into(basic_cow.clone()).is_ok(),
             "Convert from Cow to Cow"
         );
-        // assert_matches!(basic, Ok("Hello"));
     }
 }

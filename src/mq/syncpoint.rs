@@ -1,7 +1,7 @@
-use crate::{types::MQBO, sys, ResultComp, ResultCompErrExt};
+use crate::{types::MQBO, structs, ResultComp, ResultCompErrExt};
 use libmqm_default as default;
 
-use super::{Conn, MqStruct};
+use super::Conn;
 
 #[derive(Debug, PartialEq)]
 enum SyncpointState {
@@ -28,7 +28,7 @@ impl<C: Conn> Syncpoint<C> {
     ///
     /// Uses the `MQBEGIN` MQ API call
     pub fn begin(connection: C, mqbo: MQBO) -> ResultComp<Self> {
-        let mut bo = MqStruct::new(sys::MQBO {
+        let mut bo = structs::MQBO::new(libmqm_sys::lib::MQBO {
             Options: mqbo.0,
             ..default::MQBO_DEFAULT
         });

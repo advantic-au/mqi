@@ -5,8 +5,8 @@ use std::mem;
 use crate::core::mqai;
 use crate::core::{Library, CCSID};
 use crate::{prelude::*, MqStr, StrCcsidOwned, StringCcsid, NATIVE_IS_LE};
-use crate::{sys, constants, Completion, EncodedString, Error, ResultComp, ResultCompErr, WithMqError};
-use crate::types::{MQIND, MQITEM, Selector};
+use crate::{constants, Completion, EncodedString, Error, ResultComp, ResultCompErr, WithMqError};
+use crate::types::{MQLONG, MQBYTE, MQIND, MQITEM, Selector};
 
 use super::{Bag, BagDrop};
 
@@ -41,7 +41,7 @@ impl WithMqError for PutStringCcsidError {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for sys::MQLONG {
+impl<L: Library<MQ: Mqai>> BagItemPut<L> for MQLONG {
     type Error = Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
@@ -53,7 +53,7 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for sys::MQLONG {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for sys::MQLONG {
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQLONG {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_integer(bag, selector, index)
     }
@@ -61,7 +61,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for sys::MQLONG {
     type Error = crate::Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<sys::MQLONG> {
+impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<MQLONG> {
     type Error = Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
@@ -73,7 +73,7 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<sys::MQLONG> {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<sys::MQLONG> {
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<MQLONG> {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_integer_filter(bag, selector, index)
     }
@@ -101,7 +101,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for i64 {
     type Error = crate::Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for [sys::MQBYTE] {
+impl<L: Library<MQ: Mqai>> BagItemPut<L> for [MQBYTE] {
     type Error = Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
@@ -277,7 +277,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<StrCcsidOwned> {
     type Error = crate::Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<sys::MQBYTE> {
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<MQBYTE> {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion(length, mut warning) = bag.mq.mq_inquire_byte_string(bag, selector, index, &mut data_s)?;
@@ -301,7 +301,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<sys::MQBYTE> {
     type Error = crate::Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<&[sys::MQBYTE]> {
+impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<&[MQBYTE]> {
     type Error = Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
@@ -313,7 +313,7 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for mqai::Filter<&[sys::MQBYTE]> {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<Vec<sys::MQBYTE>> {
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for mqai::Filter<Vec<MQBYTE>> {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion((length, operator), mut warning) =
@@ -370,7 +370,7 @@ mod tests {
     use mqai::Filter;
 
     use super::*;
-    use crate::{admin::Bag, sys, test::mq_library, StrCcsidOwned};
+    use crate::{admin::Bag, test::mq_library, StrCcsidOwned};
 
     #[allow(
         clippy::allow_attributes,
@@ -390,9 +390,9 @@ mod tests {
         test_put_inq_bag_item(STR, &lib, |s: StrCcsidOwned| assert!(s == STR))?;
         test_put_inq_bag_item(&*long_s, &lib, |s: StrCcsidOwned| assert!(s == &*long_s))?;
 
-        // Vec<sys::MQBYTE>
-        test_put_inq_bag_item(BYTES.as_slice(), &lib, |subject: Vec<sys::MQBYTE>| assert!(subject == BYTES))?;
-        test_put_inq_bag_item(large_bytes.as_slice(), &lib, |subject: Vec<sys::MQBYTE>| {
+        // Vec<MQBYTE>
+        test_put_inq_bag_item(BYTES.as_slice(), &lib, |subject: Vec<MQBYTE>| assert!(subject == BYTES))?;
+        test_put_inq_bag_item(large_bytes.as_slice(), &lib, |subject: Vec<MQBYTE>| {
             assert!(subject == large_bytes);
         })?;
 
@@ -420,13 +420,13 @@ mod tests {
         })?;
 
         // MQLONG
-        test_put_inq_bag_item(&69i32, &lib, |subject: sys::MQLONG| assert_eq!(subject, 69))?;
+        test_put_inq_bag_item(&69i32, &lib, |subject: MQLONG| assert_eq!(subject, 69))?;
 
-        // MQINT64
-        test_put_inq_bag_item(&169i64, &lib, |subject: sys::MQINT64| assert_eq!(subject, 169))?;
+        // i64
+        test_put_inq_bag_item(&169i64, &lib, |subject: i64| assert_eq!(subject, 169))?;
 
         // Filter<MQLONG>
-        test_put_inq_bag_item(&Filter::greater(69i32), &lib, |subject: Filter<sys::MQLONG>| {
+        test_put_inq_bag_item(&Filter::greater(69i32), &lib, |subject: Filter<MQLONG>| {
             assert_eq!(subject, Filter::greater(69));
         })?;
 

@@ -25,13 +25,11 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - client-version: 9.2.0.31
+          - client-version: 9.2
             feature: mqc_9_2_0_0
-          - client-version: 9.3.0.27
-            feature: mqc_9_3_0_0
-          - client-version: 9.3.5.1
+          - client-version: 9.3
             feature: mqc_9_3_5_0
-          - client-version: 9.4.2.0
+          - client-version: 9.4
             feature: mqc_9_4_2_0
     runs-on: ubuntu-24.04
     steps:
@@ -60,7 +58,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       mq:
-        image: icr.io/ibm-messaging/mq:latest
+        image: icr.io/ibm-messaging/mq:9.4.2.1-r2
         env:
           MQ_ENABLE_EMBEDDED_WEB_SERVER: false
           LICENSE: accept
@@ -82,7 +80,7 @@ jobs:
         with:
           tool: nextest
       - name: Test
-        run: cargo nextest run --profile ci --no-default-features --features runnable,link,mqai,exits,mqc_9_4_2_0
+        run: cargo nextest run --profile ci --no-default-features --features link,mqai,exits,mqc_9_4_2_0
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
           MQSERVER: DEV.APP.SVRCONN/TCP/localhost(1414)
@@ -90,12 +88,18 @@ jobs:
           MQ_PASSWORD: app
 
   test:
-    name: "Test rust ${{matrix.toolchain}}"
+    name: "test (${{ matrix.toolchain }}, ${{ matrix.os }})"
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [nightly, beta, stable]
-    runs-on: ubuntu-24.04
+        toolchain:
+          - stable
+          - nightly
+        os: [ubuntu-24.04]
+        include:
+          - toolchain: stable
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -113,15 +117,32 @@ jobs:
       - uses: taiki-e/install-action@914ac1e29db2d22aef69891f032778d9adc3990d # v2.49.34
         with:
           tool: nextest
-      - name: Test
+      - name: Test all features
         run: |
           cargo nextest run --profile ci --all-features
           cargo test --all-features --doc
         env:
-          RUSTFLAGS: -Dwarnings
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+      - name: Test default features
+        run: |
+          cargo nextest run --profile ci --features mock
+          cargo test --doc
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+      - name: Test no default features
+        run: |
+          cargo nextest run --profile ci --no-default-features --features mock
+          cargo test --no-default-features --doc
+        env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
   miri:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - s390x-unknown-linux-gnu
+          - x86_64-unknown-linux-gnu
     runs-on: ubuntu-24.04
     needs: test
     steps:
@@ -131,7 +152,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
           toolchain: nightly
-          components: miri
+          components: miri, rust-src
       - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
         with:
           shared-key: "build"
@@ -143,7 +164,7 @@ jobs:
           MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-env-forward=PROPTEST_DISABLE_FAILURE_PERSISTENCE -Zmiri-env-forward=PROPTEST_CASES
           PROPTEST_CASES: 64
           PROPTEST_DISABLE_FAILURE_PERSISTENCE: true
-        run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,exits,mqc_9_4_2_0
+        run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,exits,mqc_9_4_2_0 --target ${{ matrix.target }}
 
   incremental_mutants:
     runs-on: ubuntu-24.04
@@ -202,30 +223,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [stable]
-        feature: [all, no_default, default, exits, mqai, mqm_generate, dlopen2]
-        include:
-          - feature: all
-            feature_args: "--all-features"
-            toolchain: beta
-          - feature: all
-            feature_args: "--all-features"
-            toolchain: stable
-          - feature: no_default
-            feature_args: "--no-default-features"
-            toolchain: beta
-          - feature: no_default
-            feature_args: "--no-default-features"
-            toolchain: stable
-          - feature: default
-          - feature: exits
-            feature_args: "--no-default-features --features mock,exits,link"
-          - feature: mqai
-            feature_args: "--no-default-features --features mock,mqai,link"
-          - feature: mqm_generate
-            feature_args: "--no-default-features --features mock,mqm_generate,link"
-          - feature: dlopen2
-            feature_args: "--no-default-features --features mock,mqai,exits,dlopen2"
+        toolchain:
+          - stable
+          - beta
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -243,7 +243,14 @@ jobs:
         with:
           shared-key: "build"
       - name: Run clippy
-        run: cargo clippy --tests --examples ${{ matrix.feature_args }} --
+        run: |
+          set -x
+          cargo clippy --tests --examples --all-features --
+          cargo clippy --tests --examples --
+          cargo clippy --tests --examples --no-default-features --features mock,exits,link --
+          cargo clippy --tests --examples --no-default-features --features mock,mqai,link --
+          cargo clippy --tests --examples --no-default-features --features mock,mqai,exits,dlopen2 --
+          cargo clippy --tests --examples --no-default-features --features mock,mqm_generate,link --
         env:
           RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
@@ -266,12 +273,19 @@ jobs:
       # Now verify that `cargo check` works with respect to the oldest possible
       - uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
         with:
-          toolchain: 1.85
+          toolchain: 1.87
       - run: cargo check --locked --all-features
         env:
           RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
-
+      - uses: taiki-e/install-action@914ac1e29db2d22aef69891f032778d9adc3990d # v2.49.34
+        with:
+          tool: nextest
+      - run: |
+          cargo nextest run --profile ci --locked --all-features
+          cargo test --locked --all-features --doc
+        env:
+          MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
   docs:
     runs-on: ubuntu-24.04
     env:
@@ -303,3 +317,35 @@ jobs:
           fi
         env:
           NEEDS_RESULT: ${{ needs.clippy.result }}
+
+  miri_outcome:
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    name: Miri outcome
+    needs: [miri]
+    steps:
+      - run: |
+          result="${NEEDS_RESULT}"
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi
+        env:
+          NEEDS_RESULT: ${{ needs.miri.result }}
+
+  test_outcome:
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    name: Test outcome
+    needs: [test]
+    steps:
+      - run: |
+          result="${NEEDS_RESULT}"
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi
+        env:
+          NEEDS_RESULT: ${{ needs.test.result }}

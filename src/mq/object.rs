@@ -1,9 +1,9 @@
-use crate::{core::ObjectHandle, MqStruct, Conn};
-use crate::{sys, constants, Error, ResultComp, ResultCompErr};
+use crate::{core::ObjectHandle, Conn};
+use crate::{structs, constants, Error, ResultComp, ResultCompErr};
 use crate::types::{MQCO, MQOO};
 
 pub struct OpenParamOption<'a, T> {
-    pub mqod: MqStruct<'a, sys::MQOD>,
+    pub mqod: structs::MQOD<'a>,
     pub options: T,
 }
 
@@ -21,11 +21,19 @@ pub struct Object<C: Conn> {
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `OpenOption` so it can't be used as an argument for MQI open"
 )]
-pub trait OpenOption<'oo, T> {
+/// # Safety
+/// This trait can directly manipulate the [`MQOD`](libmqm_sys::lib::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
+/// Incorrect values in the [`MQOD`](libmqm_sys::lib::MQOD) can lead to undefined behaviour.
+/// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait OpenOption<'oo, T> {
     fn apply_param(&self, param: &mut OpenParamOption<'oo, T>);
 }
 
-pub trait OpenValue<S> {
+/// # Safety
+/// This trait can directly manipulate the [`MQOD`](libmqm_sys::lib::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
+/// Incorrect values in the [`MQOD`](libmqm_sys::lib::MQOD) can lead to undefined behaviour.
+/// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait OpenValue<S> {
     type Error: From<Error> + std::fmt::Debug;
 
     fn open_consume<'oo, F>(param: &mut OpenParam<'oo>, mqi: F) -> ResultCompErr<Self, Self::Error>
@@ -34,7 +42,11 @@ pub trait OpenValue<S> {
         Self: std::marker::Sized;
 }
 
-pub trait OpenAttr<S, O> {
+/// # Safety
+/// This trait can directly manipulate the [`MQOD`](libmqm_sys::lib::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
+/// Incorrect values in the [`MQOD`](libmqm_sys::lib::MQOD) can lead to undefined behaviour.
+/// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
+pub unsafe trait OpenAttr<S, O> {
     fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
@@ -90,15 +102,12 @@ impl<C: Conn> Drop for Object<C> {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use crate::{sys, types};
     use super::*;
+    use libmqm_sys::lib as sys;
 
     #[test]
     fn close_option() {
-        assert_eq!(
-            (constants::MQCO_DELETE | types::MQCO(0xFF00)).to_string(),
-            "MQCO_DELETE|0xFF00"
-        );
+        assert_eq!((constants::MQCO_DELETE | MQCO(0xFF00)).to_string(), "MQCO_DELETE|0xFF00");
         assert_eq!(
             (constants::MQCO_DELETE | constants::MQCO_QUIESCE).to_string(),
             "MQCO_DELETE|MQCO_QUIESCE"

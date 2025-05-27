@@ -2,8 +2,7 @@ use std::fmt::Display;
 
 use ::libmqm_constants::lookup::{ConstLookup as _, HasConstLookup as _};
 use ::libmqm_constants::mapping;
-
-use crate::sys;
+use libmqm_sys::lib as sys;
 
 /// Implements `HasConstLookup` using the provided `ConstSource` static instance
 macro_rules! impl_constant_lookup {
@@ -21,8 +20,7 @@ pub trait RawHandle {
 }
 
 pub mod raw {
-    use super::RawHandle;
-    use crate::sys;
+    use super::{RawHandle, sys};
 
     #[derive(Debug, Clone, Copy)]
     pub struct Connection;
@@ -163,7 +161,6 @@ impl Default for MessageHandle {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use crate::sys;
 
     #[test]
     fn connection_handle_display() {

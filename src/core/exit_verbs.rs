@@ -1,5 +1,5 @@
 use crate::ResultComp;
-use crate::types::MQDCC;
+use crate::types::{MQLONG, MQDCC};
 
 use super::{ConnectionHandle, Library, MqFunctions, MqiOutcome, WriteRaw, CCSID};
 use libmqm_sys::{lib as sys, Exits};
@@ -20,7 +20,7 @@ impl<L: Library<MQ: Exits>> MqFunctions<L> {
         source: &[sys::MQCHAR],
         target_ccsid: CCSID,
         target: &mut (impl WriteRaw<sys::MQCHAR> + ?Sized),
-    ) -> ResultComp<sys::MQLONG> {
+    ) -> ResultComp<MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQXCNVC");
         unsafe {
             self.0.lib().MQXCNVC(
@@ -36,9 +36,9 @@ impl<L: Library<MQ: Exits>> MqFunctions<L> {
                     .try_into()
                     .expect("usize length of target should convert into MQLONG"),
                 ptr::from_mut(target).cast(),
-                &mut outcome.value,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
+                &raw mut outcome.value,
+                &raw mut outcome.cc.0,
+                &raw mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]

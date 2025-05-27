@@ -8,8 +8,13 @@ mod args;
 use anyhow::Context as _;
 use clap::Parser;
 use mqi::{
-    connect_options::ApplName, get::GetWait, open_options::ObjectString, prelude::*, types::MessageFormat, constants, ThreadNone,
-    Subscription,
+    connect_options::Tls,
+    constants,
+    get::GetWait,
+    open_options::ObjectString,
+    prelude::*,
+    types::{ApplName, CipherSpec, MessageFormat},
+    Subscription, ThreadNone,
 };
 use tracing::Level;
 
@@ -23,6 +28,7 @@ struct Args {
 }
 
 const APP_NAME: ApplName = ApplName(mqstr!("subscribe_managed"));
+const DEFAULT_CIPHER: CipherSpec = CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256")); // TLS 1.3 cipher
 
 fn main() -> anyhow::Result<()> {
     let subscriber = tracing_subscriber::fmt().compact().with_max_level(Level::TRACE).finish();
@@ -41,8 +47,14 @@ fn main() -> anyhow::Result<()> {
     let creds = args.connection.credentials();
     let cno = args.connection.cno().context("MQCNO options are invalid")?;
 
+    // Set up the tls connection parameters from the arguments
+    let tls = args.connection.tls(&DEFAULT_CIPHER).context("TLS options are not valid")?;
+    let tls_connect = tls
+        .as_ref()
+        .map(|(repo, cipher, label)| Tls::new(repo, label.as_ref(), cipher));
+
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, qm_name, creds, cno, client_method))
+    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, qm_name, creds, cno, client_method))
         .warn_as_error()
         .context("Unable to connect to the queue manager")?;
 

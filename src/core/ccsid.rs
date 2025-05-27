@@ -1,8 +1,9 @@
-use crate::{encoding, sys};
+use crate::encoding;
+use crate::types;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
 #[repr(transparent)]
-pub struct CCSID(pub sys::MQLONG);
+pub struct CCSID(pub types::MQLONG);
 
 impl CCSID {
     #[must_use]
@@ -18,14 +19,14 @@ impl CCSID {
     }
 }
 
-impl AsRef<CCSID> for sys::MQLONG {
+impl AsRef<CCSID> for types::MQLONG {
     fn as_ref(&self) -> &CCSID {
         // SAFETY: CCSID is repr(transparent)
         unsafe { &*(std::ptr::from_ref(self).cast()) }
     }
 }
 
-impl AsMut<CCSID> for sys::MQLONG {
+impl AsMut<CCSID> for types::MQLONG {
     fn as_mut(&mut self) -> &mut CCSID {
         // SAFETY: CCSID is repr(transparent)
         unsafe { &mut *(std::ptr::from_mut(self).cast()) }
@@ -55,12 +56,12 @@ impl std::fmt::Debug for CCSID {
 
 impl Default for CCSID {
     fn default() -> Self {
-        Self(sys::MQCCSI_UNDEFINED)
+        Self(libmqm_sys::lib::MQCCSI_UNDEFINED)
     }
 }
 
-impl PartialEq<sys::MQLONG> for CCSID {
-    fn eq(&self, other: &sys::MQLONG) -> bool {
+impl PartialEq<types::MQLONG> for CCSID {
+    fn eq(&self, other: &types::MQLONG) -> bool {
         self.0 == *other
     }
 }
