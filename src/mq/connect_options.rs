@@ -197,35 +197,40 @@ pub struct MqServer<'m> {
     transport: types::MQXPT,
 }
 
+fn mqserver_parse(server: &str) -> Result<(&str, &str, &str), MqServerSyntaxError> {
+    let split: Vec<_> = server.split('/').collect();
+    let (&components, rest) =
+        split.split_first_chunk().ok_or(MqServerSyntaxError::InvalidFormat)?;
+    if !rest.is_empty() {
+        Err(MqServerSyntaxError::InvalidFormat)?;
+    }
+    Ok(components.into())
+}
+
 impl<'m> TryFrom<&'m str> for MqServer<'m> {
     type Error = MqServerSyntaxError;
 
     fn try_from(server: &'m str) -> Result<Self, Self::Error> {
-        #[allow(clippy::unwrap_used)]
-        let server_pattern = regex_lite::Regex::new(r"^(.{1,20}?)/(.+?)/(.{1,264}?)$").unwrap();
-
-        match server_pattern.captures(server).map(|v| v.extract()) {
-            Some((_, [channel, transport, connection_name])) => Ok(Self {
-                channel_name: if channel.len() <= 20 {
-                    Ok(channel)
-                } else {
-                    Err(MqServerSyntaxError::ChannelFormat(channel.to_string()))
-                }?,
-                connection_name: if connection_name.len() <= 264 {
-                    Ok(connection_name)
-                } else {
-                    Err(MqServerSyntaxError::ConnectionNameFormat(connection_name.to_string()))
-                }?,
-                transport: match transport {
-                    "TCP" => Ok(constants::MQXPT_TCP),
-                    "LU62" => Ok(constants::MQXPT_LU62),
-                    "NETBIOS" => Ok(constants::MQXPT_NETBIOS),
-                    "SPX" => Ok(constants::MQXPT_SPX),
-                    other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
-                }?,
-            }),
-            _ => Err(MqServerSyntaxError::InvalidFormat),
-        }
+        let (channel, transport, connection_name) = mqserver_parse(server)?;
+        Ok(Self {
+            channel_name: if channel.len() <= 20 {
+                Ok(channel)
+            } else {
+                Err(MqServerSyntaxError::ChannelFormat(channel.to_string()))
+            }?,
+            connection_name: if connection_name.len() <= 264 {
+                Ok(connection_name)
+            } else {
+                Err(MqServerSyntaxError::ConnectionNameFormat(connection_name.to_string()))
+            }?,
+            transport: match transport {
+                "TCP" => Ok(constants::MQXPT_TCP),
+                "LU62" => Ok(constants::MQXPT_LU62),
+                "NETBIOS" => Ok(constants::MQXPT_NETBIOS),
+                "SPX" => Ok(constants::MQXPT_SPX),
+                other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
+            }?,
+        })
     }
 }
 
@@ -656,34 +661,28 @@ impl<S> super::ConnectAttr<S> for ConnTag {
 }
 
 pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, types::MQXPT), MqServerSyntaxError> {
-    #[expect(clippy::unwrap_used)]
-    let server_pattern = regex_lite::Regex::new(r"^(.+)/(.+)/(.+)$").unwrap();
+    let (channel, transport, connection_name) = mqserver_parse(server)?;
 
-    match server_pattern.captures(server).map(|v| v.extract()) {
-        Some((_, [channel, transport, connection_name])) => {
-            let channel: ChannelName = channel
-                .try_into()
-                .ok()
-                .filter(MqStr::has_value)
-                .map(ChannelName)
-                .ok_or_else(|| MqServerSyntaxError::ChannelFormat(channel.to_string()))?;
-            let connection_name = connection_name
-                .try_into()
-                .ok()
-                .filter(MqStr::has_value)
-                .map(ConnectionName)
-                .ok_or_else(|| MqServerSyntaxError::ConnectionNameFormat(connection_name.to_string()))?;
-            let transport = match transport {
-                "TCP" => Ok(constants::MQXPT_TCP),
-                "LU62" => Ok(constants::MQXPT_LU62),
-                "NETBIOS" => Ok(constants::MQXPT_NETBIOS),
-                "SPX" => Ok(constants::MQXPT_SPX),
-                other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
-            }?;
-            Ok((channel, connection_name, transport))
-        }
-        _ => Err(MqServerSyntaxError::InvalidFormat),
-    }
+    let channel: ChannelName = channel
+        .try_into()
+        .ok()
+        .filter(MqStr::has_value)
+        .map(ChannelName)
+        .ok_or_else(|| MqServerSyntaxError::ChannelFormat(channel.to_string()))?;
+    let connection_name = connection_name
+        .try_into()
+        .ok()
+        .filter(MqStr::has_value)
+        .map(ConnectionName)
+        .ok_or_else(|| MqServerSyntaxError::ConnectionNameFormat(connection_name.to_string()))?;
+    let transport = match transport {
+        "TCP" => Ok(constants::MQXPT_TCP),
+        "LU62" => Ok(constants::MQXPT_LU62),
+        "NETBIOS" => Ok(constants::MQXPT_NETBIOS),
+        "SPX" => Ok(constants::MQXPT_SPX),
+        other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
+    }?;
+    Ok((channel, connection_name, transport))
 }
 
 #[derive(Debug, derive_more::Error, derive_more::Display)]

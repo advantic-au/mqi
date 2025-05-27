@@ -107,7 +107,6 @@ mqc_9_4_2_0 = [
 ]
 
 [dependencies]
-regex-lite = "0.1.6"
 libmqm-sys = { version = "0.8.0", default-features = false, git = "https://github.com/advantic-au/libmqm-sys", branch = "develop" }
 libmqm-default = { version = "0.8.0", default-features = false, git = "https://github.com/advantic-au/libmqm-sys", branch = "develop" }
 libmqm-constants = { version = "0.8.0", default-features = false, git = "https://github.com/advantic-au/libmqm-sys", branch = "develop" }
