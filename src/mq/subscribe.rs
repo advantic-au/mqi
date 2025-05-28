@@ -90,13 +90,13 @@ pub trait SubscribeAttr<C: Conn> {
         Self: Sized;
 }
 
-/// A trait that manipulates the parameters to the [`mqsub`](`crate::core::MqFunctions::mqsub`) function
+/// A trait that manipulates the parameters to the [`mqsub`](`crate::MqFunctions::mqsub`) function
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
 )]
 /// # Safety
-/// This trait can directly manipulate the [`MQSD`](libmqm_sys::lib::MQSD) structure which is used by [`MQSUB`](libmqm_sys::Mqi::MQSUB).
-/// Incorrect values in the [`MQSD`](libmqm_sys::lib::MQSD) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQSD`](structs::MQSD) structure which is used by [`MQSUB`](libmqm_sys::Mqi::MQSUB).
+/// Incorrect values in the [`MQSD`](structs::MQSD) can lead to undefined behaviour.
 ///
 /// Implementations of [`SubscribeOption`] must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait SubscribeOption<'so> {

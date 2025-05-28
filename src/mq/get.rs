@@ -181,7 +181,7 @@ pub trait GetValue<'b, R, B>: std::marker::Sized {
     }
 }
 
-/// A trait that manipulates the parameters to the [`mqget`](`crate::core::MqFunctions::mqget`) function
+/// A trait that manipulates the parameters to the [`mqget`](`crate::MqFunctions::mqget`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get")]
 pub trait GetOption {
     fn apply_param(&self, param: &mut GetParam);

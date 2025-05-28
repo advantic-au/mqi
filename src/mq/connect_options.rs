@@ -57,14 +57,14 @@ pub struct ConnectStructs<'ptr> {
     pub bno: structs::MQBNO,
 }
 
-/// A trait that manipulates the parameters to the [`mqconnx`](`crate::core::MqFunctions::mqconnx`) function
+/// A trait that manipulates the parameters to the [`mqconnx`](`crate::MqFunctions::mqconnx`) function
 #[expect(unused_variables)]
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `ConnectOption` so it can't be used as an argument for MQI connect"
 )]
 /// # Safety
-/// This trait can directly manipulate the [`MQCNO`](libmqm_sys::lib::MQCNO) structure which is used by [`MQCONNX`](libmqm_sys::Mqi::MQCONNX).
-/// Incorrect values in the [`MQCONNX`](libmqm_sys::lib::MQCONNX) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQCNO`](structs::MQCNO) structure which is used by [`MQCONNX`](libmqm_sys::Mqi::MQCONNX).
+/// Incorrect values in the [`MQCNO`](structs::MQCNO) structure can lead to undefined behaviour.
 ///
 /// Implementations of [`ConnectOption`] must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait ConnectOption<'a> {

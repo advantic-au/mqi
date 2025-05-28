@@ -31,8 +31,8 @@ pub struct PropertyParam<'p> {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQIMPO`](libmqm_sys::lib::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::Mqi::MQINQMP) function.
-/// Incorrect values in the [`MQIMPO`](libmqm_sys::lib::MQIMPO) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::Mqi::MQINQMP) function.
+/// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
 ///
 /// Implementations of the [`PropertyValue`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PropertyValue {
@@ -50,8 +50,8 @@ pub unsafe trait PropertyValue {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQIMPO`](libmqm_sys::lib::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::Mqi::MQINQMP).
-/// Incorrect values in the [`MQIMPO`](libmqm_sys::lib::MQIMPO) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::Mqi::MQINQMP).
+/// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
 ///
 /// Implementations of the [`PropertyAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PropertyAttr {

@@ -17,21 +17,21 @@ pub struct Object<C: Conn> {
     pub(super) close_options: MQCO,
 }
 
-/// A trait that manipulates the parameters to the [`mqopen`](`crate::core::MqFunctions::mqopen`) function
+/// A trait that manipulates the parameters to the [`mqopen`](`crate::MqFunctions::mqopen`) function
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `OpenOption` so it can't be used as an argument for MQI open"
 )]
 /// # Safety
-/// This trait can directly manipulate the [`MQOD`](libmqm_sys::lib::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
-/// Incorrect values in the [`MQOD`](libmqm_sys::lib::MQOD) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
+/// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenOption<'oo, T> {
     fn apply_param(&self, param: &mut OpenParamOption<'oo, T>);
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQOD`](libmqm_sys::lib::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
-/// Incorrect values in the [`MQOD`](libmqm_sys::lib::MQOD) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
+/// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenValue<S> {
     type Error: From<Error> + std::fmt::Debug;
@@ -43,8 +43,8 @@ pub unsafe trait OpenValue<S> {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQOD`](libmqm_sys::lib::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
-/// Incorrect values in the [`MQOD`](libmqm_sys::lib::MQOD) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
+/// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenAttr<S, O> {
     fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
