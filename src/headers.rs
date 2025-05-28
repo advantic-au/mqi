@@ -6,7 +6,7 @@ use std::{
 
 use maybe_owned::MaybeOwned;
 
-use crate::{conversion, constants, types, core::CCSID, MqChar};
+use crate::{conversion, constants, types, CCSID, MqChar};
 
 use libmqm_sys::lib as sys;
 

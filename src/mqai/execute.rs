@@ -1,11 +1,11 @@
 use libmqm_sys::Mqai;
 use crate::types::MQCMD;
 
-use crate::core::mqai::BagHandle;
-use crate::core::ObjectHandle;
+use crate::BagHandle;
+use crate::ObjectHandle;
 use crate::macros::all_option_tuples;
 use crate::{prelude::*, Object, constants};
-use crate::{core::Library, Conn, ResultComp};
+use crate::{Library, Conn, ResultComp};
 
 use super::{Bag, BagDrop, Owned};
 

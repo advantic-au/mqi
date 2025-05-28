@@ -22,7 +22,7 @@ pub fn mq_library() -> std::sync::Arc<dl::DebugContainer> {
 #[cfg(feature = "dlopen2")]
 mod dl {
     use libmqm_sys::dlopen2::MqmContainer;
-    use crate::core::Library;
+    use crate::Library;
 
     // dlopen2 Container doesn't implement Debug so create a wrapper
     pub struct DebugContainer(pub MqmContainer);

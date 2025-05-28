@@ -4,22 +4,19 @@ use std::{marker::PhantomData, num::NonZero, ptr};
 use libmqm_sys::Mqi;
 use libmqm_sys::lib as sys;
 use libmqm_default as default;
-use crate::types::{MQBYTE, MQCHAR, MQBMHO, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE};
+use crate::types::{MessageFormat, MQBYTE, MQCHAR, MQBMHO, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE};
 
-use crate::{prelude::*, structs};
-use crate::core::{MessageHandle, WriteRaw};
+use crate::{prelude::*, structs, ConnectionHandle, Library, MqFunctions, MqInqError};
+use crate::{MessageHandle, WriteRaw};
 use crate::properties_options::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetProperty};
-use crate::{core, constants, Completion, Conn};
+use crate::{constants, Completion, Conn, Buffer};
 
 use crate::{EncodedString, Error};
 use crate::{ResultComp, ResultCompErr, ResultErr};
 
-use super::types::MessageFormat;
-use super::Buffer;
-
 #[derive(Debug)]
 pub struct Properties<C: Conn> {
-    handle: core::MessageHandle,
+    handle: MessageHandle,
     connection: C,
 }
 
@@ -115,10 +112,10 @@ impl<C: Conn> Drop for Properties<C> {
 }
 
 #[expect(clippy::too_many_arguments)]
-unsafe fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
-    mq: &core::MqFunctions<A>,
-    connection_handle: Option<core::ConnectionHandle>,
-    message_handle: &core::MessageHandle,
+unsafe fn inqmp<'a, 'b, A: Library<MQ: Mqi>>(
+    mq: &MqFunctions<A>,
+    connection_handle: Option<ConnectionHandle>,
+    message_handle: &MessageHandle,
     mqimpo: &mut structs::MQIMPO,
     name: &structs::MQCHARV,
     mqpd: &mut structs::MQPD,
@@ -127,7 +124,7 @@ unsafe fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
     max_value_size: Option<NonZero<usize>>,
     mut returned_name: Option<InqBuffer<'b, MQCHAR>>,
     max_name_size: Option<NonZero<usize>>,
-) -> ResultCompErr<(InqBuffer<'a, u8>, Option<InqBuffer<'b, MQCHAR>>), core::MqInqError> {
+) -> ResultCompErr<(InqBuffer<'a, u8>, Option<InqBuffer<'b, MQCHAR>>), MqInqError> {
     if let Some(rn) = returned_name.as_mut() {
         let rn_ref = rn.as_mut();
         mqimpo.ReturnedName.VSPtr = rn_ref.as_mut_ptr().cast();
@@ -150,7 +147,7 @@ unsafe fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
         },
         returned_name,
     ) {
-        (Err(core::MqInqError::Length(length, Error(.., constants::MQRC_PROPERTY_VALUE_TOO_BIG))), rn)
+        (Err(MqInqError::Length(length, Error(.., constants::MQRC_PROPERTY_VALUE_TOO_BIG))), rn)
             if max_value_size.is_none_or(|max_len| Into::<usize>::into(max_len) > value.len()) =>
         {
             let len = length.try_into().expect("length should convert to usize");
@@ -171,7 +168,7 @@ unsafe fn inqmp<'a, 'b, A: core::Library<MQ: Mqi>>(
                 )
             }
         }
-        (Err(core::MqInqError::Length(length, Error(.., constants::MQRC_PROPERTY_NAME_TOO_BIG))), Some(rn))
+        (Err(MqInqError::Length(length, Error(.., constants::MQRC_PROPERTY_NAME_TOO_BIG))), Some(rn))
             if max_name_size.is_none_or(|max_len| Into::<usize>::into(max_len) > rn.len()) =>
         {
             let len = length.try_into().expect("length should convert to usize");
@@ -398,7 +395,7 @@ impl<C: Conn> Properties<C> {
         name: &(impl EncodedString + ?Sized),
         options: MQMHBO,
         buffer: A,
-    ) -> ResultCompErr<(MessageFormat, A), core::MqInqError> {
+    ) -> ResultCompErr<(MessageFormat, A), MqInqError> {
         let read_only_options = options - constants::MQMHBO_DELETE_PROPERTIES;
         let mut buf = buffer;
         let mut mhbo = structs::MQMHBO::new(default::MQMHBO_DEFAULT);
@@ -432,7 +429,7 @@ impl<C: Conn> Properties<C> {
         name: &(impl EncodedString + ?Sized),
         options: MQMHBO,
         buffer: A,
-    ) -> ResultCompErr<(MessageFormat, A), core::MqInqError> {
+    ) -> ResultCompErr<(MessageFormat, A), MqInqError> {
         let mut buf = buffer;
         let mhbo = structs::MQMHBO::new(sys::MQMHBO {
             Options: options.0,
@@ -514,8 +511,7 @@ mod test {
 
     use crate::properties_options::Name;
     use crate::{
-        constants,
-        core::CCSID,
+        constants, CCSID,
         headers::{fmt::MQFMT_NONE, TextEnc},
         test::mock::{self, MockFunctions},
         types::{MQRC, MQCC, MessageFormat},

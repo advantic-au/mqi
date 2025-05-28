@@ -9,8 +9,7 @@ mod args;
 
 use mqi::{
     connect_options::Tls,
-    constants,
-    core::CCSID,
+    constants, CCSID,
     headers::TextEnc,
     open_options::ObjectString,
     prelude::*,

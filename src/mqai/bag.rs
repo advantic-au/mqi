@@ -5,8 +5,8 @@ use crate::types::{MQLONG, MQBYTE, Selector, MQIND, MQCBO, MQIA, MQCA};
 
 use libmqm_sys::lib as sys;
 
-use crate::core::mqai::BagHandle;
-use crate::core::{mqai, Library, MqFunctions, MqInqError, WriteRaw};
+use crate::BagHandle;
+use crate::{Library, MqFunctions, MqInqError, WriteRaw};
 use crate::{prelude::*, Buffer};
 use crate::{constants, Completion, Error, ResultComp, ResultCompErr};
 
@@ -73,13 +73,13 @@ impl BagDrop for Embedded {
 
 #[derive(Debug)]
 pub struct Bag<B: BagDrop, L: Library<MQ: Mqai>> {
-    handle: mqai::BagHandle,
+    handle: BagHandle,
     pub(super) mq: MqFunctions<L>,
     _marker: PhantomData<B>,
 }
 
 impl<T: BagDrop, L: Library<MQ: Mqai>> std::ops::Deref for Bag<T, L> {
-    type Target = mqai::BagHandle;
+    type Target = BagHandle;
 
     fn deref(&self) -> &Self::Target {
         &self.handle
@@ -116,11 +116,11 @@ impl<L: Library<MQ: Mqai> + Clone> BagItemGet<L> for Bag<Embedded, L> {
 
 impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
     #[must_use]
-    pub const fn handle(&self) -> &mqai::BagHandle {
+    pub const fn handle(&self) -> &BagHandle {
         &self.handle
     }
 
-    pub const fn mut_handle(&mut self) -> &mut mqai::BagHandle {
+    pub const fn mut_handle(&mut self) -> &mut BagHandle {
         &mut self.handle
     }
 
@@ -165,7 +165,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
 
     /// Renders the [`Bag`] to the provided [`Buffer`]
     ///
-    /// Uses the [`mqBagToBuffer`](libmqm_sys::Mqai::mqBagToBuffer) MQ API function
+    /// Uses the [`mqBagToBuffer`](libmqm_sys::mqBagToBuffer) MQ API function
     ///
     pub fn to_buffer<'b, A: Buffer<'b, impl WriteRaw<MQBYTE>>>(&self, buffer: A) -> ResultCompErr<A, MqInqError> {
         let mut buf = buffer;
@@ -176,8 +176,8 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
 
     /// Calculates the required buffer length in bytes for the [`Bag::to_buffer`] function.
     ///
-    /// Uses the [`mqBagToBuffer`](libmqm_sys::Mqai::mqBagToBuffer) MQ API function
-    /// 
+    /// Uses the [`mqBagToBuffer`](libmqm_sys::mqBagToBuffer) MQ API function
+    ///
     pub fn buffer_len(&self) -> ResultComp<usize> {
         match self
             .mq
@@ -198,9 +198,9 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
     }
 
     /// The number of items in a [`Bag`] that matches the selector
-    /// 
-    /// Uses the [`mqCountItems`](libmqm_sys::Mqai::mqCountItems) MQ API function
-    /// 
+    ///
+    /// Uses the [`mqCountItems`](libmqm_sys::mqCountItems) MQ API function
+    ///
     pub fn count(&self, selector: Selector) -> ResultComp<MQLONG> {
         self.mq.mq_count_items(self, selector)
     }

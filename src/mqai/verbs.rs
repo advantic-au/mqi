@@ -4,14 +4,23 @@ use std::ptr;
 use libmqm_sys::Mqai;
 use libmqm_sys::lib as sys;
 
-use crate::core::{CCSID, ConnectionHandle, Library, MqFunctions, MqInqError, MqiOutcome, MqiOutcomeVoid, ObjectHandle, WriteRaw};
+use crate::outcome::{MqiOutcome, MqiOutcomeVoid};
+use crate::ConnectionHandle;
+use crate::MqInqError;
+use crate::ObjectHandle;
+use crate::WriteRaw;
+use crate::CCSID;
+use crate::{Library, MqFunctions};
+// use crate::core::{CCSID, ConnectionHandle, Library, MqFunctions, MqInqError, MqiOutcome, MqiOutcomeVoid, ObjectHandle, WriteRaw};
 use crate::{Error, ResultCompErr, MQMD};
 use crate::{constants, ResultComp};
 use crate::types::{MQLONG, Selector, MQCBO, MQCFOP, MQCMD, MQIND, MQITEM};
-use super::{BagHandle, Filter};
+
+use super::BagHandle;
+use super::Filter;
 
 #[cfg(feature = "tracing")]
-use {crate::core::tracing_outcome, tracing::instrument};
+use {crate::outcome::tracing_outcome, tracing::instrument};
 
 impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]

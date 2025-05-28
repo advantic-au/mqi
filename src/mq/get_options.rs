@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::{
     constants, conversion, macros::all_option_tuples, prelude::*, structs, types, Completion, Conn, Error, Properties,
-    ResultComp, ResultCompErr,
+    ResultComp, ResultCompErr, headers, Buffer, StrCcsidCow,
 };
 
 use super::{
@@ -10,7 +10,6 @@ use super::{
         GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait, Headers,
         MatchOptions,
     },
-    headers, Buffer, StrCcsidCow,
 };
 
 use libmqm_sys::lib as sys;
@@ -437,7 +436,7 @@ impl<'b, R> GetAttr<'b, R> for types::MessageId {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
-    use crate::core::CCSID;
+    use crate::CCSID;
     use crate::constants;
     use libmqm_default as default;
     use types::{CorrelationId, Identifier, MessageFormat};

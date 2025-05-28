@@ -3,12 +3,7 @@ use libmqm_sys::lib as sys;
 use libmqm_default as default;
 
 use crate::types;
-use crate::{
-    core::{Library, MqFunctions},
-    Error, constants,
-    prelude::*,
-    structs,
-};
+use crate::{Library, MqFunctions, Error, constants, prelude::*, structs};
 
 use super::{Connection, ConnectionRef};
 

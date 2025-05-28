@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ptr};
 
-use crate::{constants, types, structs, conversion, core::CCSID};
+use crate::{constants, types, structs, conversion, CCSID};
 
 use libmqm_default as default;
 use libmqm_sys::lib::MQCHARV;
@@ -143,7 +143,7 @@ impl<T: AsRef<[types::MQCHAR]>> StringCcsid<T> {
         buffer: &'a mut [types::MQCHAR],
     ) -> crate::ResultComp<StrCcsid<'a>>
     where
-        C::Lib: crate::core::Library<MQ: libmqm_sys::Exits>,
+        C::Lib: crate::Library<MQ: libmqm_sys::Exits>,
         C: super::Conn,
     {
         use crate::{constants, prelude::*};
@@ -238,7 +238,7 @@ impl<T: Default> Default for StringCcsid<T> {
 mod test {
     use std::{borrow::Cow, mem};
 
-    use crate::{types, core::CCSID, StrCcsid, StrCcsidCow, StringCcsid};
+    use crate::{types, CCSID, StrCcsid, StrCcsidCow, StringCcsid};
 
     use super::NATIVE_IS_LE;
 

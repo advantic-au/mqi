@@ -4,7 +4,7 @@ use std::cmp;
 use std::rc::Rc;
 use std::slice;
 use crate::connect_lib;
-use crate::core::Library;
+use crate::Library;
 use crate::Connection;
 use crate::ThreadNone;
 use crate::ResultCompExt;
@@ -832,7 +832,7 @@ impl MockFunctions {
 mod mqai {
     use libmqm_sys::Mqai;
 
-    use crate::core::Library;
+    use crate::Library;
 
     impl super::MockFunctions {
         pub fn real_bag(&mut self, mqai: impl Library<MQ: Mqai> + Clone + Send + 'static) {

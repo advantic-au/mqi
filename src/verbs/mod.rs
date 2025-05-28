@@ -1,38 +1,37 @@
+pub mod outcome;
+
+#[cfg(feature = "exits")]
+mod exits;
+
+use outcome::{MqiOutcome, MqiOutcomeVoid};
+
 use std::ptr;
 
 use crate::types::{MQLONG, MQCO, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
-use super::{
-    ConnectionHandle, Library, MessageHandle, MqFunctions, MqiOutcome, MqiOutcomeVoid, ObjectHandle, ReadRaw, SubscriptionHandle,
-    WriteRaw,
-};
+use super::{ConnectionHandle, Library, MessageHandle, MqFunctions, ObjectHandle, ReadRaw, SubscriptionHandle, WriteRaw};
 use crate::{constants, Error, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
 use libmqm_sys::Mqi;
 use libmqm_sys::lib as sys;
 
 #[cfg(feature = "tracing")]
 use {
-    super::{tracing_outcome, tracing_outcome_basic},
+    outcome::{tracing_outcome, tracing_outcome_basic},
     tracing::instrument,
 };
 
-pub mod error {
-    use super::MQLONG;
-    use crate::Error;
+#[derive(Debug, derive_more::From, derive_more::Error, derive_more::Display)]
+pub enum MqInqError {
+    #[display("{}, length: {}", _1, _0)]
+    Length(MQLONG, Error),
+    #[from]
+    #[display("{_0}")]
+    MQ(Error),
+}
 
-    #[derive(Debug, derive_more::From, derive_more::Error, derive_more::Display)]
-    pub enum MqInqError {
-        #[display("{}, length: {}", _1, _0)]
-        Length(MQLONG, Error),
-        #[from]
-        #[display("{_0}")]
-        MQ(Error),
-    }
-
-    impl From<MqInqError> for Error {
-        fn from(value: MqInqError) -> Self {
-            let (MqInqError::Length(_, error) | MqInqError::MQ(error)) = value;
-            error
-        }
+impl From<MqInqError> for Error {
+    fn from(value: MqInqError) -> Self {
+        let (MqInqError::Length(_, error) | MqInqError::MQ(error)) = value;
+        error
     }
 }
 
@@ -437,7 +436,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         prop_desc: &mut sys::MQPD,
         prop_type: &mut MQTYPE,
         value: Option<&mut (impl WriteRaw<sys::MQBYTE> + ?Sized)>,
-    ) -> ResultCompErr<sys::MQLONG, error::MqInqError> {
+    ) -> ResultCompErr<sys::MQLONG, MqInqError> {
         let mut outcome = MqiOutcome::with_verb("MQINQMP");
         let (out_len, out) = value.map_or((0, ptr::null_mut()), |out| {
             (
@@ -465,11 +464,10 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
         match outcome.rc {
-            constants::MQRC_PROPERTY_VALUE_TOO_BIG => Err(error::MqInqError::Length(
-                outcome.value,
-                Error(outcome.cc, outcome.verb, outcome.rc),
-            )),
-            constants::MQRC_PROPERTY_NAME_TOO_BIG => Err(error::MqInqError::Length(
+            constants::MQRC_PROPERTY_VALUE_TOO_BIG => {
+                Err(MqInqError::Length(outcome.value, Error(outcome.cc, outcome.verb, outcome.rc)))
+            }
+            constants::MQRC_PROPERTY_NAME_TOO_BIG => Err(MqInqError::Length(
                 inq_prop_opts.ReturnedName.VSLength,
                 Error(outcome.cc, outcome.verb, outcome.rc),
             )),
@@ -672,7 +670,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         name: &sys::MQCHARV,
         mqmd: &mut impl MQMD,
         buffer: &mut (impl WriteRaw<sys::MQBYTE> + ?Sized),
-    ) -> ResultCompErr<sys::MQLONG, error::MqInqError> {
+    ) -> ResultCompErr<sys::MQLONG, MqInqError> {
         let mut outcome = MqiOutcome::with_verb("MQMHBUF");
         unsafe {
             self.0.lib().MQMHBUF(
@@ -693,10 +691,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
         match outcome.rc {
-            constants::MQRC_PROPERTY_VALUE_TOO_BIG => Err(error::MqInqError::Length(
-                outcome.value,
-                Error(outcome.cc, outcome.verb, outcome.rc),
-            )),
+            constants::MQRC_PROPERTY_VALUE_TOO_BIG => {
+                Err(MqInqError::Length(outcome.value, Error(outcome.cc, outcome.verb, outcome.rc)))
+            }
             _ => outcome.into(),
         }
     }

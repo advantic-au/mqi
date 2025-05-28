@@ -1,16 +1,16 @@
 use libmqm_sys::Mqi;
 use libmqm_sys::lib as sys;
 use libmqm_default as default;
+use crate::types::ObjectName;
 use crate::types::{MQCHAR, MQLONG, MQCC, MQRC};
 
+use crate::StrCcsidOwned;
 use crate::{
-    core::{ConnectionHandle, Library, MqFunctions, CCSID},
+    ConnectionHandle, Library, MqFunctions, CCSID,
     types::{MQOT, MQOO, MQSO},
     prelude::*,
     structs, constants, MqStr, ResultComp,
 };
-
-use super::{types::ObjectName, StrCcsidOwned};
 
 impl AsyncPutStat {
     fn new(sts: &structs::MQSTS, buffer: Vec<MQCHAR>) -> Self {

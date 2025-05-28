@@ -1,4 +1,5 @@
-use crate::{structs, headers::TextEnc, core::CCSID, MqChar, MqStr};
+use crate::macros::impl_from_str;
+use crate::{structs, headers::TextEnc, CCSID, MqChar, MqStr};
 use crate::types::{MQBYTE, MQCHAR};
 use std::{
     fmt::{Debug, Display},
@@ -9,9 +10,7 @@ use libmqm_default as default;
 use libmqm_sys::lib as sys;
 
 use crate::types::{MQENC, MQRC};
-use crate::constants;
-
-use super::{connect_options::ProtectedSecret, headers::fmt::MQFMT_NONE};
+use crate::{constants, Secret};
 
 macro_rules! impl_equivalent_type {
     ($new_type:path, [$($other_type:path),*]) => {
@@ -48,6 +47,37 @@ macro_rules! impl_equivalent_type {
     };
 }
 
+#[derive(Clone, Copy, Default)]
+#[repr(transparent)]
+pub struct ProtectedSecret<T: ?Sized>(T);
+
+impl<T> ProtectedSecret<T> {
+    pub const fn new(secret: T) -> Self {
+        Self(secret)
+    }
+}
+
+impl<'t, T: ?Sized> Secret<'t, T> for ProtectedSecret<&'t T> {
+    fn expose_secret(&self) -> &'t T {
+        let Self(secret) = self;
+        secret
+    }
+}
+
+impl<T> std::fmt::Debug for ProtectedSecret<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_tuple("ProtectedSecret")
+            .field(&format_args!("{} <REDACTED>", std::any::type_name::<T>()))
+            .finish()
+    }
+}
+
+impl<T> From<T> for ProtectedSecret<T> {
+    fn from(value: T) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
 #[repr(transparent)]
 pub struct CorrelationId(pub Identifier<24>);
@@ -81,21 +111,6 @@ impl Display for GroupId {
         Display::fmt(AsRef::<DisplayId<24>>::as_ref(&self.0), f)
     }
 }
-
-/// Delegates `FromStr` to wrapped type implementation
-macro_rules! impl_from_str {
-    ($i:ident, $ty:ty) => {
-        impl std::str::FromStr for $i {
-            type Err = <$ty as std::str::FromStr>::Err;
-
-            fn from_str(s: &str) -> Result<Self, Self::Err> {
-                Ok(Self(<$ty as std::str::FromStr>::from_str(s)?))
-            }
-        }
-    };
-}
-
-pub(crate) use impl_from_str;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
@@ -139,13 +154,13 @@ impl MessageFormat {
 pub const FORMAT_NONE: MessageFormat = MessageFormat {
     ccsid: CCSID(1208),
     encoding: constants::MQENC_NATIVE,
-    fmt: TextEnc::Ascii(MQFMT_NONE),
+    fmt: TextEnc::Ascii(crate::headers::fmt::MQFMT_NONE),
 };
 
 pub type Identifier<const N: usize> = [MQBYTE; N];
 
 #[repr(transparent)]
-pub(super) struct DisplayId<const N: usize>(Identifier<N>);
+pub struct DisplayId<const N: usize>(Identifier<N>);
 
 impl<const N: usize> AsRef<DisplayId<N>> for Identifier<N> {
     fn as_ref(&self) -> &DisplayId<N> {

@@ -1,5 +1,5 @@
 use crate::{
-    core::{ObjectHandle, SubscriptionHandle},
+    ObjectHandle, SubscriptionHandle,
     types::{MQLONG, MQSR, MQCO},
     constants, structs,
     prelude::*,

@@ -1,7 +1,7 @@
-use crate::ResultComp;
+use crate::{ResultComp, CCSID};
 use crate::types::{MQLONG, MQDCC};
 
-use super::{ConnectionHandle, Library, MqFunctions, MqiOutcome, WriteRaw, CCSID};
+use super::{ConnectionHandle, Library, MqFunctions, MqiOutcome, WriteRaw};
 use libmqm_sys::{lib as sys, Exits};
 
 use std::ptr;

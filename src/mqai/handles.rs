@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::core::Handle;
+use crate::Handle;
 
 use libmqm_constants::{
     lookup::{ConstLookup, HasConstLookup},
@@ -9,8 +9,8 @@ use libmqm_constants::{
 
 use libmqm_sys::lib as sys;
 
-pub mod raw {
-    use crate::core::RawHandle;
+mod raw {
+    use crate::RawHandle;
     use super::sys;
 
     #[derive(Debug)]
@@ -60,7 +60,7 @@ impl BagHandle {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use crate::core::mqai::BagHandle;
+    use super::*;
 
     #[test]
     fn bag_handle_display() {

@@ -1,7 +1,6 @@
 use std::ptr;
 
-use super::structs::impl_min_version;
-use crate::{types, structs, core::CCSID, EncodedString};
+use crate::{types, structs, CCSID, Secret, EncodedString};
 
 use libmqm_sys::lib as sys;
 
@@ -74,7 +73,7 @@ impl<'ptr> structs::MQCNO<'ptr> {
     }
 }
 
-impl_min_version!(['a], structs::MQCSP<'a>);
+structs::impl_min_version!(['a], structs::MQCSP<'a>);
 
 // Functions to attach references to MQCSP
 impl<'ptr> structs::MQCSP<'ptr> {
@@ -118,7 +117,7 @@ impl<'ptr> structs::MQCSP<'ptr> {
 // Functions to attach references to MQSCO
 impl<'ptr> structs::MQSCO<'ptr> {
     #[cfg(feature = "mqc_9_3_0_0")]
-    pub fn attach_repo_password<S: crate::connect_options::Secret<'ptr, str> + Copy>(&mut self, password: Option<S>) {
+    pub fn attach_repo_password<S: Secret<'ptr, str> + Copy>(&mut self, password: Option<S>) {
         self.set_min_version(sys::MQSCO_VERSION_6);
         if let Some(ps) = password {
             let exposed = ps.expose_secret();

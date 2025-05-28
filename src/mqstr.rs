@@ -1,6 +1,6 @@
 use std::{fmt::Display, ptr, str::FromStr};
 
-use crate::{core::CCSID, types, EncodedString};
+use crate::{CCSID, types, EncodedString};
 
 use super::conversion;
 

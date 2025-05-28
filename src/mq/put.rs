@@ -4,7 +4,7 @@ use libmqm_default as default;
 use libmqm_sys::Mqi;
 use libmqm_sys::lib::MQMD2;
 
-use crate::core::{ConnectionHandle, Library, MqFunctions, CCSID};
+use crate::{ConnectionHandle, Library, MqFunctions, CCSID};
 use crate::types::MQPMO;
 use crate::headers::{fmt, TextEnc};
 use crate::types::MessageFormat;
@@ -52,9 +52,7 @@ mod mqai {
     use libmqm_default as default;
 
     use crate::{
-        admin::{Bag, BagDrop},
-        structs,
-        core::Library,
+        {Bag, BagDrop}, structs, Library,
         headers::TextEnc,
         types, Conn, Object, ResultComp,
     };

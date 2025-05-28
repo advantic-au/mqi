@@ -1,8 +1,6 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 #![allow(non_snake_case)]
 
-use std::any;
-
 use libmqm_default as default;
 use libmqm_sys::lib as sys;
 
@@ -10,13 +8,12 @@ use crate::{
     constants, conversion,
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
-    structs, types, MqStr,
+    Secret, structs,
+    types::{self, CertificateLabel, CipherSpec, CryptoHardware, KeyRepo, ProtectedSecret, QueueManagerName},
+    MqStr,
 };
 
-use super::{
-    types::{CertificateLabel, CipherSpec, CryptoHardware, KeyRepo, QueueManagerName},
-    ConnTag, ConnectParam, ConnectionId,
-};
+use super::{ConnTag, ConnectParam, ConnectionId};
 
 #[derive(
     Debug,
@@ -239,15 +236,9 @@ impl<'m> TryFrom<&'m str> for MqServer<'m> {
 
 unsafe impl<'m> ConnectOption<'m> for MqServer<'m> {
     fn apply_param(&self, ConnectStructs { cno, cd, .. }: &mut ConnectStructs<'m>) -> ConnectStructFlags {
-        assert!(MqStr::assign(
-            cd.ChannelName.as_mut(),
-            self.channel_name
-        ));
+        assert!(MqStr::assign(cd.ChannelName.as_mut(), self.channel_name));
 
-        assert!(MqStr::assign(
-            cd.ConnectionName.as_mut(),
-            self.connection_name
-        ));
+        assert!(MqStr::assign(cd.ConnectionName.as_mut(), self.connection_name));
         *cd.TransportType.as_mut() = self.transport;
         let cno_options: &mut types::MQCNO = cno.Options.as_mut();
         cno_options.remove(constants::MQCNO_LOCAL_BINDING);
@@ -305,16 +296,6 @@ pub enum CredentialsSecret<'cred, S> {
 }
 
 pub type Credentials<'cred, S> = CredentialsSecret<'cred, ProtectedSecret<S>>;
-
-#[derive(Clone, Copy, Default)]
-#[repr(transparent)]
-pub struct ProtectedSecret<T: ?Sized>(T);
-
-impl<T> ProtectedSecret<T> {
-    pub const fn new(secret: T) -> Self {
-        Self(secret)
-    }
-}
 
 /// Holds TLS parameters for use with [`connect`](crate::connect).
 ///
@@ -475,32 +456,6 @@ unsafe impl<'tls> ConnectOption<'tls> for Tls<'tls> {
     fn apply_param(&self, structs: &mut ConnectStructs<'tls>) -> ConnectStructFlags {
         self.0.clone_into(&mut structs.sco);
         CONNECT_HAS_SCO | self.1.apply_param(structs)
-    }
-}
-
-pub trait Secret<'y, Y: ?Sized> {
-    #[must_use]
-    fn expose_secret(&self) -> &'y Y;
-}
-
-impl<'t, T: ?Sized> Secret<'t, T> for ProtectedSecret<&'t T> {
-    fn expose_secret(&self) -> &'t T {
-        let Self(secret) = self;
-        secret
-    }
-}
-
-impl<T> std::fmt::Debug for ProtectedSecret<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.debug_tuple("ProtectedSecret")
-            .field(&format_args!("{} <REDACTED>", any::type_name::<T>()))
-            .finish()
-    }
-}
-
-impl<T> From<T> for ProtectedSecret<T> {
-    fn from(value: T) -> Self {
-        Self(value)
     }
 }
 

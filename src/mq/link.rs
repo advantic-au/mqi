@@ -5,7 +5,7 @@ use crate::ResultComp;
 
 #[cfg(feature = "mqai")]
 use {
-    crate::admin::{Bag, Owned},
+    crate::{Bag, Owned},
     crate::types::MQCBO,
 };
 

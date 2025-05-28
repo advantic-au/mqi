@@ -1,4 +1,50 @@
-use std::{borrow::Cow, cmp};
+use std::{borrow::Cow, cmp, mem};
+
+use libmqm_sys::lib as sys;
+
+pub trait Secret<'y, Y: ?Sized> {
+    #[must_use]
+    fn expose_secret(&self) -> &'y Y;
+}
+
+trait Sealed {}
+#[expect(private_bounds, reason = "sealed trait pattern")]
+pub trait MQMD: Sealed + std::fmt::Debug {}
+impl Sealed for sys::MQMD {}
+impl Sealed for sys::MQMD1 {}
+impl Sealed for sys::MQMD2 {}
+
+impl MQMD for sys::MQMD {}
+impl MQMD for sys::MQMD1 {}
+impl MQMD for sys::MQMD2 {}
+
+/// A marker trait where it is safe to write arbitrary bytes
+///
+/// # Safety
+/// Implementations of [`WriteRaw`] must ensure that writing arbitrary data into the value will not cause undefined behaviour
+pub unsafe trait WriteRaw<T> {}
+
+unsafe impl WriteRaw<Self> for u8 {}
+unsafe impl WriteRaw<Self> for i8 {}
+unsafe impl WriteRaw<Self> for i16 {}
+unsafe impl WriteRaw<Self> for i32 {}
+unsafe impl WriteRaw<Self> for i64 {}
+unsafe impl<B: WriteRaw<T>, T> WriteRaw<T> for mem::MaybeUninit<B> {}
+unsafe impl<B: WriteRaw<T>, T> WriteRaw<T> for [B] {}
+unsafe impl<const N: usize, B: WriteRaw<T>, T> WriteRaw<T> for [B; N] {}
+
+pub trait ReadRaw {}
+impl ReadRaw for u8 {}
+impl ReadRaw for i8 {}
+impl ReadRaw for i32 {}
+impl ReadRaw for i64 {}
+impl ReadRaw for i16 {}
+impl ReadRaw for f32 {}
+impl ReadRaw for f64 {}
+impl ReadRaw for str {}
+
+impl<B: ReadRaw> ReadRaw for [B] {}
+impl<const N: usize, B: ReadRaw> ReadRaw for [B; N] {}
 
 pub trait Buffer<'a, T>: Sized + AsMut<[T]> + AsRef<[T]> {
     #[must_use]

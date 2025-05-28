@@ -1,15 +1,15 @@
 use crate::{
+    constants,
+    macros::{all_multi_tuples, impl_from_str, reverse_ident},
     prelude::*,
-    constants, structs,
-    types::{MQLONG, MQOO, MQOT, MQPMO, QueueManagerName, QueueName},
-    core::CCSID,
-    Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned,
-    macros::{all_multi_tuples, reverse_ident},
+    structs,
+    types::{QueueManagerName, QueueName, MQLONG, MQOO, MQOT, MQPMO},
+    Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, CCSID,
 };
 
 use libmqm_sys::lib as sys;
 
-use super::{types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
+use super::{Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
 
 unsafe impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
     fn apply_param(&self, param: &mut OpenParamOption<'oo, O>) {

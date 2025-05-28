@@ -1,27 +1,17 @@
-mod buffer;
 mod callback;
 mod connect;
 #[cfg(feature = "link")]
 mod link;
-mod mqmd;
 mod object;
 mod open;
 mod properties;
 mod queue_manager;
 mod stat;
-mod strings;
 mod subscribe;
 mod syncpoint;
 
-pub mod encoding;
-pub mod headers;
-pub mod types;
-
 pub use object::*;
 pub use connect::*;
-pub use strings::*;
-pub use mqmd::*;
-pub use buffer::*;
 pub use subscribe::*;
 pub use stat::*;
 pub use properties::*;

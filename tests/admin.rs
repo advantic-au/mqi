@@ -1,7 +1,7 @@
 #![cfg(all(feature = "mqai", feature = "mock", any(feature = "link", feature = "dlopen2")))]
 
 use mqi::{prelude::*, ThreadNone};
-use mqi::admin::Bag;
+use mqi::Bag;
 use mqi::constants;
 use mqi::types::{ObjectName, MQLONG};
 use mqi::MqStr;

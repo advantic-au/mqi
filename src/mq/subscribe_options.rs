@@ -1,10 +1,10 @@
 use crate::{macros::all_option_tuples, Error, ResultComp, ResultCompErr};
 
 use super::{
-    open_options::ObjectString, Conn, EncodedString, Object, SubscribeAttr, SubscribeOption, SubscribeParam,
-    SubscribeRequestOption, SubscribeRequestParam, SubscribeState, SubscribeValue, Subscription,
+    open_options::ObjectString, Conn, Object, SubscribeAttr, SubscribeOption, SubscribeParam, SubscribeRequestOption,
+    SubscribeRequestParam, SubscribeState, SubscribeValue, Subscription,
 };
-use crate::prelude::*;
+use crate::{prelude::*, EncodedString};
 use crate::types::{MQSO, MQCO, MQSR, MQSRO};
 
 all_option_tuples!('so, SubscribeOption, SubscribeParam<'so>, unsafe);

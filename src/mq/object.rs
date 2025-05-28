@@ -1,4 +1,4 @@
-use crate::{core::ObjectHandle, Conn};
+use crate::{ObjectHandle, Conn};
 use crate::{structs, constants, Error, ResultComp, ResultCompErr};
 use crate::types::{MQCO, MQOO};
 

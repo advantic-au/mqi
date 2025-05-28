@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use libmqm_sys::Mqai;
 
 use crate::types::{MQLONG, Selector, MQIND};
-use crate::core::Library;
+use crate::Library;
 use crate::prelude::*;
 use crate::{constants, ResultComp, ResultCompErr, WithMqError as _};
 

@@ -5,7 +5,7 @@ use std::{mem, ptr, slice};
 use std::{borrow::Cow, num::NonZero};
 
 use crate::conversion;
-use crate::core::{ReadRaw, CCSID};
+use crate::{ReadRaw, CCSID};
 use crate::macros::{all_multi_tuples, reverse_ident};
 use crate::{prelude::*, ResultCompErr};
 use crate::{Completion, Error, MqStr, ResultComp, StrCcsidOwned, StringCcsid};
