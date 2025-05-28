@@ -1,6 +1,6 @@
-use libmqm_sys::lib as sys;
+use std::{marker::PhantomData, ops::{Deref, DerefMut}};
 
-use crate::MqStruct;
+use libmqm_sys::lib as sys;
 
 pub type MQMD = MqStruct<'static, sys::MQMD>;
 pub type MQMD1 = MqStruct<'static, sys::MQMD1>;
@@ -40,3 +40,52 @@ pub type MQCBD<'a> = MqStruct<'a, sys::MQCBD>;
 
 pub type MQBO = MqStruct<'static, sys::MQBO>;
 pub type MQCTLO<'a> = MqStruct<'a, sys::MQCTLO>;
+
+
+/// MQ structure holding a `T` with an associated lifetime for pointer fields
+#[derive(Debug, Clone)]
+#[repr(transparent)]
+pub struct MqStruct<'ptr, T> {
+    pub(super) struc: T,
+    _marker: PhantomData<&'ptr mut ()>, // Lifetime reference required for pointers in the MQ structure
+}
+
+impl<T> MqStruct<'_, T> {
+    pub const fn new(struc: T) -> Self {
+        Self {
+            struc,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T> DerefMut for MqStruct<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.struc
+    }
+}
+
+impl<T> Deref for MqStruct<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.struc
+    }
+}
+
+
+
+/// Implement a method to set the mimimum version required for a [`MqStruct`] structure
+macro_rules! impl_min_version {
+    ([$($lt:lifetime),*], $ty:ty) => {
+        impl <$($lt, )*> $ty {
+            #[inline]
+            #[doc = "Sets the `Version` field to the minimum required version"]
+            pub fn set_min_version(&mut self, version: $crate::types::MQLONG) {
+                self.Version = std::cmp::max(self.Version, version);
+            }
+        }
+    };
+}
+
+pub(crate) use impl_min_version;

@@ -14,8 +14,7 @@ use crate::{
 };
 
 use super::{
-    impl_min_version,
-    types::{CertificateLabel, ChannelName, CipherSpec, ConnectionName, CryptoHardware, KeyRepo, QueueManagerName},
+    types::{CertificateLabel, CipherSpec, CryptoHardware, KeyRepo, QueueManagerName},
     ConnTag, ConnectParam, ConnectionId,
 };
 
@@ -182,9 +181,9 @@ impl Default for ConnectStructs<'_> {
     }
 }
 
-impl_min_version!(['a], structs::MQSCO<'a>);
-impl_min_version!(['a], structs::MQCD<'a>);
-impl_min_version!(['a], structs::MQCNO<'a>);
+structs::impl_min_version!(['a], structs::MQSCO<'a>);
+structs::impl_min_version!(['a], structs::MQCD<'a>);
+structs::impl_min_version!(['a], structs::MQCNO<'a>);
 
 /// Client Channel Definition Table URL connection option. Sets the connection as `MQCNO_CLIENT_BINDING`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::From)]
@@ -192,44 +191,48 @@ pub struct Ccdt<'url>(pub &'url str);
 
 #[derive(Debug, Clone, Copy)]
 pub struct MqServer<'m> {
-    channel_name: &'m str,
-    connection_name: &'m str,
+    channel_name: &'m [types::MQCHAR],
+    connection_name: &'m [types::MQCHAR],
     transport: types::MQXPT,
 }
 
-fn mqserver_parse(server: &str) -> Result<(&str, &str, &str), MqServerSyntaxError> {
-    let split: Vec<_> = server.split('/').collect();
-    let (&components, rest) =
-        split.split_first_chunk().ok_or(MqServerSyntaxError::InvalidFormat)?;
+// Split a MQSERVER into its components
+fn mqserver_parse(server: &str) -> Result<(&[types::MQCHAR], types::MQXPT, &[types::MQCHAR]), MqServerSyntaxError> {
+    use conversion::slice_byte_to_mqchar as mqchar;
+    let split: Vec<_> = server.split('/').take(4).collect();
+    let (&[channel, transport, connection], rest) = split.split_first_chunk().ok_or(MqServerSyntaxError::InvalidFormat)?;
     if !rest.is_empty() {
         Err(MqServerSyntaxError::InvalidFormat)?;
     }
-    Ok(components.into())
+
+    if channel.len() > sys::MQ_CHANNEL_NAME_LENGTH {
+        Err(MqServerSyntaxError::ChannelFormat(channel.to_string()))?;
+    }
+
+    if connection.len() > sys::MQ_CONN_NAME_LENGTH {
+        Err(MqServerSyntaxError::ConnectionNameFormat(connection.to_string()))?;
+    }
+
+    let transport = match transport {
+        "TCP" => Ok(constants::MQXPT_TCP),
+        "LU62" => Ok(constants::MQXPT_LU62),
+        "NETBIOS" => Ok(constants::MQXPT_NETBIOS),
+        "SPX" => Ok(constants::MQXPT_SPX),
+        other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
+    }?;
+
+    Ok((mqchar(channel.as_bytes()), transport, mqchar(connection.as_bytes())))
 }
 
 impl<'m> TryFrom<&'m str> for MqServer<'m> {
     type Error = MqServerSyntaxError;
 
     fn try_from(server: &'m str) -> Result<Self, Self::Error> {
-        let (channel, transport, connection_name) = mqserver_parse(server)?;
+        let (channel_name, transport, connection_name) = mqserver_parse(server)?;
         Ok(Self {
-            channel_name: if channel.len() <= 20 {
-                Ok(channel)
-            } else {
-                Err(MqServerSyntaxError::ChannelFormat(channel.to_string()))
-            }?,
-            connection_name: if connection_name.len() <= 264 {
-                Ok(connection_name)
-            } else {
-                Err(MqServerSyntaxError::ConnectionNameFormat(connection_name.to_string()))
-            }?,
-            transport: match transport {
-                "TCP" => Ok(constants::MQXPT_TCP),
-                "LU62" => Ok(constants::MQXPT_LU62),
-                "NETBIOS" => Ok(constants::MQXPT_NETBIOS),
-                "SPX" => Ok(constants::MQXPT_SPX),
-                other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
-            }?,
+            channel_name,
+            connection_name,
+            transport,
         })
     }
 }
@@ -238,12 +241,12 @@ unsafe impl<'m> ConnectOption<'m> for MqServer<'m> {
     fn apply_param(&self, ConnectStructs { cno, cd, .. }: &mut ConnectStructs<'m>) -> ConnectStructFlags {
         assert!(MqStr::assign(
             cd.ChannelName.as_mut(),
-            conversion::slice_byte_to_mqchar(self.channel_name.as_bytes())
+            self.channel_name
         ));
 
         assert!(MqStr::assign(
             cd.ConnectionName.as_mut(),
-            conversion::slice_byte_to_mqchar(self.connection_name.as_bytes())
+            self.connection_name
         ));
         *cd.TransportType.as_mut() = self.transport;
         let cno_options: &mut types::MQCNO = cno.Options.as_mut();
@@ -660,31 +663,6 @@ impl<S> super::ConnectAttr<S> for ConnTag {
     }
 }
 
-pub fn mqserver(server: &str) -> Result<(ChannelName, ConnectionName, types::MQXPT), MqServerSyntaxError> {
-    let (channel, transport, connection_name) = mqserver_parse(server)?;
-
-    let channel: ChannelName = channel
-        .try_into()
-        .ok()
-        .filter(MqStr::has_value)
-        .map(ChannelName)
-        .ok_or_else(|| MqServerSyntaxError::ChannelFormat(channel.to_string()))?;
-    let connection_name = connection_name
-        .try_into()
-        .ok()
-        .filter(MqStr::has_value)
-        .map(ConnectionName)
-        .ok_or_else(|| MqServerSyntaxError::ConnectionNameFormat(connection_name.to_string()))?;
-    let transport = match transport {
-        "TCP" => Ok(constants::MQXPT_TCP),
-        "LU62" => Ok(constants::MQXPT_LU62),
-        "NETBIOS" => Ok(constants::MQXPT_NETBIOS),
-        "SPX" => Ok(constants::MQXPT_SPX),
-        other => Err(MqServerSyntaxError::UnrecognizedTransport(other.to_string())),
-    }?;
-    Ok((channel, connection_name, transport))
-}
-
 #[derive(Debug, derive_more::Error, derive_more::Display)]
 pub enum MqServerSyntaxError {
     #[display("Invalid Format")]
@@ -723,35 +701,21 @@ mod tests {
     }
 
     #[test]
-    fn mqserver_parse() -> Result<(), MqServerSyntaxError> {
-        for (channel, transport, connection, server) in VALID {
-            let (m_channel, m_connection, m_transport) = mqserver(server)?;
-            assert!(m_transport == *transport);
-            assert!(m_channel.0 == *channel);
-            assert!(m_connection.0 == *connection);
-        }
-
-        assert!(mqserver("a/BAD/c").is_err_and(|e| matches!(e, MqServerSyntaxError::UnrecognizedTransport(_))));
-        assert!(mqserver("invalid").is_err_and(|e| matches!(e, MqServerSyntaxError::InvalidFormat)));
-
-        Ok(())
-    }
-
-    #[test]
     fn mqserver_try_from() -> Result<(), MqServerSyntaxError> {
+        use conversion::slice_byte_to_mqchar as mqchar;
         for (v_channel, v_transport, v_connection, v_server) in VALID {
             let MqServer {
                 channel_name,
                 connection_name,
                 transport,
             } = MqServer::try_from(*v_server)?;
-            assert!(*v_transport == transport);
-            assert!(channel_name == *v_channel);
-            assert!(connection_name == *v_connection);
+            assert_eq!(*v_transport, transport);
+            assert_eq!(channel_name, mqchar(v_channel.as_bytes()));
+            assert_eq!(connection_name, mqchar(v_connection.as_bytes()));
         }
 
         assert!(MqServer::try_from("a/BAD/c").is_err_and(|e| matches!(e, MqServerSyntaxError::UnrecognizedTransport(_))));
-        assert!(MqServer::try_from("invalid").is_err_and(|e| matches!(e, MqServerSyntaxError::InvalidFormat)));
+        assert!(MqServer::try_from("a/b/c/d").is_err_and(|e| matches!(e, MqServerSyntaxError::InvalidFormat)));
         Ok(())
     }
 

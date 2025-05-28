@@ -1,6 +1,6 @@
 use std::ptr;
 
-use super::impl_min_version;
+use super::structs::impl_min_version;
 use crate::{types, structs, core::CCSID, EncodedString};
 
 use libmqm_sys::lib as sys;
@@ -8,7 +8,7 @@ use libmqm_sys::lib as sys;
 const C_EMPTY: *mut std::ffi::c_void = c"".as_ptr().cast_mut().cast();
 
 // Zero length strings seem to require null termination
-/// Returns a pointer to a string, with a nul termination for empty strings
+/// Returns a pointer to a string, with a null termination for empty strings
 const fn mq_str_ptr<T>(value: &str) -> *mut T {
     if value.is_empty() {
         C_EMPTY.cast()

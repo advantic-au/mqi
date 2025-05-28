@@ -10,14 +10,14 @@ use super::{
         GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait, Headers,
         MatchOptions,
     },
-    headers, impl_min_version, Buffer, StrCcsidCow,
+    headers, Buffer, StrCcsidCow,
 };
 
 use libmqm_sys::lib as sys;
 
 all_option_tuples!(GetOption, GetParam);
 
-impl_min_version!([], structs::MQGMO);
+structs::impl_min_version!([], structs::MQGMO);
 
 impl GetOption for types::MQGMO {
     fn apply_param(&self, param: &mut GetParam) {

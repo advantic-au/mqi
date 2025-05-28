@@ -4,7 +4,6 @@ mod connect;
 #[cfg(feature = "link")]
 mod link;
 mod mqmd;
-mod mqstruct;
 mod object;
 mod open;
 mod properties;
@@ -18,7 +17,6 @@ pub mod encoding;
 pub mod headers;
 pub mod types;
 
-pub use mqstruct::*;
 pub use object::*;
 pub use connect::*;
 pub use strings::*;

@@ -3,12 +3,11 @@ use libmqm_sys::lib as sys;
 use crate::{macros::all_multi_tuples, prelude::*, structs, types, constants, Conn, MqStr, Properties, ResultComp};
 
 use super::{
-    impl_min_version,
     put::{PutAttr, PutOption, PutParam},
     Object,
 };
 
-impl_min_version!(['a], structs::MQPMO<'a>);
+structs::impl_min_version!(['a], structs::MQPMO<'a>);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Context<T>(pub T);

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::{marker::PhantomData, num::NonZero, ptr};
 
 use libmqm_sys::Mqi;
@@ -8,7 +9,7 @@ use crate::types::{MQBYTE, MQCHAR, MQBMHO, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMP
 use crate::{prelude::*, structs};
 use crate::core::{MessageHandle, WriteRaw};
 use crate::properties_options::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetProperty};
-use crate::{core, constants, Completion, Conn, InqBuffer};
+use crate::{core, constants, Completion, Conn};
 
 use crate::{EncodedString, Error};
 use crate::{ResultComp, ResultCompErr, ResultErr};
@@ -20,6 +21,84 @@ use super::Buffer;
 pub struct Properties<C: Conn> {
     handle: core::MessageHandle,
     connection: C,
+}
+
+enum InqBuffer<'a, T> {
+    Slice(&'a mut [T]),
+    Owned(Vec<T>),
+}
+
+impl<T> InqBuffer<'_, T> {
+    #[must_use]
+    pub fn truncate(self, len: usize) -> Self {
+        match self {
+            Self::Slice(s) => {
+                let buf_len = s.len();
+                Self::Slice(&mut s[..std::cmp::min(len, buf_len)])
+            }
+            Self::Owned(mut v) => {
+                v.truncate(len);
+                Self::Owned(v)
+            }
+        }
+    }
+}
+
+impl<T> AsRef<[T]> for InqBuffer<'_, T> {
+    fn as_ref(&self) -> &[T] {
+        match self {
+            InqBuffer::Slice(s) => s,
+            InqBuffer::Owned(o) => o,
+        }
+    }
+}
+
+impl<T> AsMut<[T]> for InqBuffer<'_, T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        match self {
+            InqBuffer::Slice(s) => s,
+            InqBuffer::Owned(o) => o,
+        }
+    }
+}
+
+impl<'a, T: Clone> From<InqBuffer<'a, T>> for Cow<'a, [T]>
+where
+    [T]: ToOwned,
+{
+    fn from(value: InqBuffer<'a, T>) -> Self {
+        match value {
+            InqBuffer::Slice(s) => Cow::Borrowed(&*s),
+            InqBuffer::Owned(o) => o.into(),
+        }
+    }
+}
+
+impl<'a, T: Clone> Buffer<'a, T> for InqBuffer<'a, T> {
+    fn truncate(self, size: usize) -> Self {
+        Self::truncate(self, size)
+    }
+
+    fn into_cow(self) -> Cow<'a, [T]> {
+        self.into()
+    }
+
+    fn len(&self) -> usize {
+        self.as_ref().len()
+    }
+
+    fn split_at(self, at: usize) -> (Self, Self) {
+        match self {
+            Self::Slice(s) => {
+                let (head, tail) = s.split_at(at);
+                (Self::Slice(head), Self::Slice(tail))
+            }
+            Self::Owned(v) => {
+                let (head, tail) = v.split_at(at);
+                (Self::Owned(head), Self::Owned(tail))
+            }
+        }
+    }
 }
 
 impl<C: Conn> Drop for Properties<C> {

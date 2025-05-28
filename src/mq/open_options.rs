@@ -9,7 +9,7 @@ use crate::{
 
 use libmqm_sys::lib as sys;
 
-use super::{impl_min_version, types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
+use super::{types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
 
 unsafe impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
     fn apply_param(&self, param: &mut OpenParamOption<'oo, O>) {
@@ -61,7 +61,7 @@ unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for SelectionStr
     }
 }
 
-impl_min_version!(['a], structs::MQOD<'a>);
+structs::impl_min_version!(['a], structs::MQOD<'a>);
 
 unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString<&'a T> {
     fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {

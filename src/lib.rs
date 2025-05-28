@@ -55,42 +55,42 @@ offering proven stability and performance.
 
 | MQAI function               | Crate function(s)                                                      |
 |-----------------------------|------------------------------------------------------------------------|
-| `mqCreateBag`               | [`admin::Bag::new`], [`admin::Bag::new_lib`]                           |
-| `mqClearBag`                | [`admin::Bag::clear`]                                                  |
-| `mqDeleteBag`               | [`admin::Bag::drop`]                                                   |
+| `mqCreateBag`               | [`Bag::new`](`admin::Bag::new`), [`Bag::new_lib`](`admin::Bag::new_lib`) |
+| `mqClearBag`                | [`Bag::clear`](`admin::Bag::clear`)                                    |
+| `mqDeleteBag`               | [`Bag::drop`](`admin::Bag::drop`)                                      |
 | `mqGetBag`                  | [`Object::get_bag`], [`Object::get_bag_with`]                          |
 | `mqPutBag`                  | [`Object::put_bag`], [`Object::put_bag_with`]                          |
-| `mqTruncateBag`             | [`admin::Bag::truncate`]                                               |
-| `mqAddInquiry`              | [`admin::Bag::add_inquiry`]                                            |
-| `mqDeleteItem`              | [`admin::Bag::delete`]                                                 |
-| `mqAddInteger`              | [`admin::Bag::add`] with [`i32`]                                       |
-| `mqAddIntegerFilter`        | [`admin::Bag::add`] with [`core::mqai::Filter<i32>`]                   |
-| `mqAddInteger64`            | [`admin::Bag::add`] with [`i64`]                                       |
-| `mqAddString`               | [`admin::Bag::add`] with [`EncodedString`]                             |
-| `mqAddStringFilter`         | [`admin::Bag::add`] with [`core::mqai::Filter<impl EncodedString>`]    |
-| `mqAddByteString`           |                                                                        |
-| `mqAddByteStringFilter`     |                                                                        |
-| `mqSetInteger`              |                                                                        |
-| `mqSetIntegerFilter`        |                                                                        |
-| `mqSetInteger64`            |                                                                        |
-| `mqAddBag`                  |                                                                        |
-| `mqSetString`               |                                                                        |
-| `mqSetStringFilter`         |                                                                        |
-| `mqSetByteString`           |                                                                        |
-| `mqSetByteStringFilter`     |                                                                        |
-| `mqInquireInteger`          |                                                                        |
-| `mqInquireIntegerFilter`    |                                                                        |
-| `mqInquireInteger64`        |                                                                        |
-| `mqInquireByteString`       |                                                                        |
-| `mqInquireString`           |                                                                        |
-| `mqInquireStringFilter`     |                                                                        |
-| `mqInquireByteStringFilter` |                                                                        |
-| `mqInquireBag`              |                                                                        |
-| `mqCountItems`              |                                                                        |
-| `mqExecute`                 |                                                                        |
-| `mqBagToBuffer`             |                                                                        |
-| `mqBufferToBag`             |                                                                        |
-| `mqInquireItemInfo`         |                                                                        |
+| `mqTruncateBag`             | [`Bag::truncate`](`admin::Bag::truncate`)                              |
+| `mqAddInquiry`              | [`Bag::add_inquiry`](`admin::Bag::add_inquiry`)                        |
+| `mqDeleteItem`              | [`Bag::delete`](`admin::Bag::delete`)                                  |
+| `mqAddInteger`              | [`Bag::add`](admin::Bag::add) with [`i32`]                             |
+| `mqAddIntegerFilter`        | [`Bag::add`](admin::Bag::add) with [`core::mqai::Filter<i32>`]         |
+| `mqAddInteger64`            | [`Bag::add`](admin::Bag::add) with [`i64`]                             |
+| `mqAddString`               | [`Bag::add`](admin::Bag::add) with [`EncodedString`]                   |
+| `mqAddStringFilter`         | [`Bag::add`](admin::Bag::add) with [`core::mqai::Filter<impl EncodedString>`] |
+| `mqAddByteString`           | [`Bag::add`](admin::Bag::add) with [[`types::MQBYTE`]]                 |
+| `mqAddByteStringFilter`     | [`Bag::add`](admin::Bag::add) with [`Filter<&[MQBYTE]>`](core::mqai::Filter) |
+| `mqSetInteger`              | [`Bag::set`](`admin::Bag::set`) with [`i32`]                           |
+| `mqSetIntegerFilter`        | [`Bag::set`](`admin::Bag::set`) with [`Filter<i32>`](core::mqai::Filter) |
+| `mqSetInteger64`            | [`Bag::set`](`admin::Bag::set`) with [`i64`]                           |
+| `mqAddBag`                  | [`Bag::add`](admin::Bag::add) with [`admin::Bag`]                      |
+| `mqSetString`               | [`Bag::set`](`admin::Bag::set`) with [`EncodedString`]                 |
+| `mqSetStringFilter`         | [`Bag::set`](`admin::Bag::set`) with [`core::mqai::Filter<impl EncodedString>`] |
+| `mqSetByteString`           | [`Bag::set`](`admin::Bag::set`) with [[`MQBYTE`](types::MQBYTE)]       |
+| `mqSetByteStringFilter`     | [`Bag::set`](`admin::Bag::set`) with [`Filter<&[MQBYTE]>`](core::mqai::Filter) |
+| `mqInquireInteger`          | [`Bag::inquire`](`admin::Bag::inquire`) with [`MQLONG`](types::MQLONG) |
+| `mqInquireIntegerFilter`    | [`Bag::inquire`](`admin::Bag::inquire`) with [`Filter<MQLONG>`](core::mqai::Filter) |
+| `mqInquireInteger64`        | [`Bag::inquire`](`admin::Bag::inquire`) with [`MQINT64`](types::MQINT64) |
+| `mqInquireByteString`       | [`Bag::inquire`](`admin::Bag::inquire`) with [`Vec<MQBYTE>`]           |
+| `mqInquireString`           | [`Bag::inquire`](`admin::Bag::inquire`) with [`StringCcsidOwned`](StringCcsid) |
+| `mqInquireStringFilter`     | [`Bag::inquire`](`admin::Bag::inquire`) with [`Filter<StringCcsidOwned>`](core::mqai::Filter) |
+| `mqInquireByteStringFilter` | [`Bag::inquire`](`admin::Bag::inquire`) with [`Filter<Vec<MQBYTE>>`](core::mqai::Filter) |
+| `mqInquireBag`              | [`Bag::inquire`](`admin::Bag::inquire`) with [`Bag`](admin::Bag)       |
+| `mqCountItems`              | [`Bag::count`](`admin::Bag::count`)                                    |
+| `mqExecute`                 | [`Conn::execute`](admin::QueueManagerAdmin::execute)                   |
+| `mqBagToBuffer`             | [`Bag::to_buffer`](admin::Bag::to_buffer), [`Bag::buffer_len`](admin::Bag::buffer_len) |
+| `mqBufferToBag`             | [`Bag::from_buffer`](admin::Bag::from_buffer)                          |
+| `mqInquireItemInfo`         | [`Bag::inquire`](admin::Bag::inquire) with ([`Selector`](types::Selector), [`MQITEM`](types::MQITEM)) tuple |
 | `mqTrim`                    | *Not Used*                                                             |
 | `mqPad`                     | *Not Used*                                                             |
 
@@ -119,6 +119,8 @@ pub mod types {
 }
 
 pub mod structs;
+mod struct_attach;
+
 pub use libmqm_constants::constants;
 pub mod prelude;
 

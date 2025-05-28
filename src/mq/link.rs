@@ -46,9 +46,9 @@ where
 /// # Ok::<(), mqi::Error>(())
 /// ```
 ///
-/// See also [`connect_as`] and [`connect_with`] for creating connections using
-/// the compile time linked MQ library. For connections using dynamically loaded
-/// or custom implementation of the MQ library refer to [`connect_lib`](crate::connect_lib).
+/// See also [`connect_as`] and [`connect_with`] for creating connections with additional
+/// return attribute. For connections using dynamically loaded or custom implementation of the
+/// MQ library refer to [`connect_lib`](crate::connect_lib).
 #[inline]
 pub fn connect<'co, H>(options: &impl ConnectOption<'co>) -> ResultComp<Connection<LinkedMq, H>>
 where
