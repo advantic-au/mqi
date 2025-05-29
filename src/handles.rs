@@ -1,7 +1,9 @@
 use std::fmt::Display;
 
-use ::libmqm_constants::lookup::{ConstLookup as _, HasConstLookup as _};
-use ::libmqm_constants::mapping;
+use ::libmqm_constants::{
+    lookup::{ConstLookup as _, HasConstLookup as _},
+    mapping,
+};
 use libmqm_sys::lib as sys;
 
 /// Implements `HasConstLookup` using the provided `ConstSource` static instance

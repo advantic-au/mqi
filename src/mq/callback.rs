@@ -1,11 +1,8 @@
-use libmqm_sys::Mqi;
-use libmqm_sys::lib as sys;
 use libmqm_default as default;
-
-use crate::types;
-use crate::{Library, MqFunctions, Error, constants, prelude::*, structs};
+use libmqm_sys::{Mqi, lib as sys};
 
 use super::{Connection, ConnectionRef};
+use crate::{Error, Library, MqFunctions, constants, prelude::*, structs, types};
 
 struct CallbackData<F, L> {
     options: types::MQCBDO,

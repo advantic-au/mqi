@@ -4,17 +4,15 @@ use std::{
     mem, ptr,
 };
 
+use libmqm_sys::lib as sys;
 use maybe_owned::MaybeOwned;
 
-use crate::{conversion, constants, types, CCSID, MqChar};
-
-use libmqm_sys::lib as sys;
-
 use super::{
+    StrCcsid, StringCcsid,
     encoding::{ascii7_ebcdic, ebcdic_ascii7},
     types::{Fmt, MessageFormat, StrucId},
-    StrCcsid, StringCcsid,
 };
+use crate::{CCSID, MqChar, constants, conversion, types};
 
 /// Copy a Cstr to an array of length N (const)
 const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
@@ -32,9 +30,10 @@ const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
 const INTEGER_NATIVE_MASK: types::MQENC = constants::MQENC_NATIVE.intersection(constants::MQENC_INTEGER_MASK);
 
 pub mod fmt {
-    use crate::types::Fmt;
-    use super::cstr_array;
     use libmqm_sys::lib as sys;
+
+    use super::cstr_array;
+    use crate::types::Fmt;
 
     pub const MQFMT_NONE: Fmt = cstr_array(sys::MQFMT_NONE);
     pub const MQFMT_STRING: Fmt = cstr_array(sys::MQFMT_STRING);
@@ -679,15 +678,14 @@ fn next_header<'a>(data: &'a [u8], next_format: &MessageFormat) -> Result<Option
 mod tests {
     use std::{mem::transmute, slice::from_raw_parts};
 
-    use crate::{
-        headers::{EncodedHeader, Header, HeaderError},
-        constants,
-        types::MessageFormat,
-    };
+    use libmqm_default as default;
 
     use super::*;
-
-    use libmqm_default as default;
+    use crate::{
+        constants,
+        headers::{EncodedHeader, Header, HeaderError},
+        types::MessageFormat,
+    };
 
     const NEXT_DEAD: MessageFormat = MessageFormat {
         ccsid: CCSID(1208),

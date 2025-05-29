@@ -3,15 +3,15 @@
 use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
-use mqi::test::mock::MockFunctions;
-use mqi::{ConnectionHandle, Object, ThreadBlock, ThreadNone, MQMD};
-use mqi::prelude::*;
-use mqi::types::{MQCBCT, MQCS, MQCBCF, MQRD, MQRC, MQCC};
-use mqi::structs;
-use mqi::constants;
-
 use libmqm_default as default;
 use libmqm_sys::lib as sys;
+use mqi::{
+    ConnectionHandle, MQMD, Object, ThreadBlock, ThreadNone, constants,
+    prelude::*,
+    structs,
+    test::mock::MockFunctions,
+    types::{MQCBCF, MQCBCT, MQCC, MQCS, MQRC, MQRD},
+};
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {

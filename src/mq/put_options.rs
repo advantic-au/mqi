@@ -1,11 +1,10 @@
 use libmqm_sys::lib as sys;
 
-use crate::{macros::all_multi_tuples, prelude::*, structs, types, constants, Conn, MqStr, Properties, ResultComp};
-
 use super::{
-    put::{PutAttr, PutOption, PutParam},
     Object,
+    put::{PutAttr, PutOption, PutParam},
 };
+use crate::{Conn, MqStr, Properties, ResultComp, constants, macros::all_multi_tuples, prelude::*, structs, types};
 
 structs::impl_min_version!(['a], structs::MQPMO<'a>);
 
@@ -211,11 +210,12 @@ impl_putattr_mqmd_mqstr!(ApplOriginData, types::ApplOriginData);
 
 #[expect(unused_parens)]
 mod impl_put {
-    use crate::macros::all_multi_tuples;
-
-    use crate::put::{PutAttr, PutParam};
-    use crate::ResultComp;
-    use crate::prelude::*;
+    use crate::{
+        ResultComp,
+        macros::all_multi_tuples,
+        prelude::*,
+        put::{PutAttr, PutParam},
+    };
 
     macro_rules! impl_putattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
@@ -266,14 +266,10 @@ mod impl_put {
 mod test {
     use std::error::Error;
 
-    use crate::put::PutOption;
-    use crate::test::mock;
-    use crate::Properties;
-    use crate::types::MQCMHO;
+    use libmqm_default as default;
 
     use super::*;
-
-    use libmqm_default as default;
+    use crate::{Properties, put::PutOption, test::mock, types::MQCMHO};
 
     #[test]
     fn property_action() -> Result<(), Box<dyn Error>> {

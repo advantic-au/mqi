@@ -1,11 +1,12 @@
 use std::rc::Rc;
 
-use mqi::types::{ApplName, QueueName};
-use mqi::{prelude::*, ThreadNone};
-
-use dlopen2::wrapper::Container;
-
 use anyhow::Context;
+use dlopen2::wrapper::Container;
+use mqi::{
+    ThreadNone,
+    prelude::*,
+    types::{ApplName, QueueName},
+};
 
 const APP_NAME: ApplName = ApplName(mqstr!("dlopen2_example"));
 

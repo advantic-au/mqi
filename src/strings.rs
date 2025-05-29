@@ -1,9 +1,9 @@
 use std::{borrow::Cow, ptr};
 
-use crate::{constants, types, structs, conversion, CCSID};
-
 use libmqm_default as default;
 use libmqm_sys::lib::MQCHARV;
+
+use crate::{CCSID, constants, conversion, structs, types};
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
@@ -238,9 +238,8 @@ impl<T: Default> Default for StringCcsid<T> {
 mod test {
     use std::{borrow::Cow, mem};
 
-    use crate::{types, CCSID, StrCcsid, StrCcsidCow, StringCcsid};
-
     use super::NATIVE_IS_LE;
+    use crate::{CCSID, StrCcsid, StrCcsidCow, StringCcsid, types};
 
     const NON_UTF8_COW: StrCcsidCow = StrCcsidCow {
         ccsid: CCSID(450),

@@ -1,6 +1,7 @@
-use crate::{ResultCompErr, Completion, Error};
-use crate::types::{MQCC, MQRC};
-use crate::constants;
+use crate::{
+    Completion, Error, ResultCompErr, constants,
+    types::{MQCC, MQRC},
+};
 
 #[derive(Clone, derive_more::Deref, derive_more::DerefMut)]
 pub struct MqiOutcome<T> {

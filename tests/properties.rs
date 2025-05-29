@@ -2,16 +2,14 @@
 
 use std::error::Error;
 
-use test::mock::MockFunctions;
+use libmqm_sys::lib as sys;
 use mqi::{
-    constants,
+    Properties, constants,
     prelude::*,
     test,
     types::{MQCMHO, MQSMPO},
-    Properties,
 };
-
-use libmqm_sys::lib as sys;
+use test::mock::MockFunctions;
 
 #[test]
 fn set_property() -> Result<(), Box<dyn Error>> {

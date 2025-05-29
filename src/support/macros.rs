@@ -113,8 +113,8 @@ macro_rules! impl_from_str {
     };
 }
 
+pub(crate) use all_multi_tuples;
+pub(crate) use all_option_tuples;
 pub(crate) use impl_from_str;
 pub(crate) use impl_option_tuple;
-pub(crate) use all_option_tuples;
-pub(crate) use all_multi_tuples;
 pub(crate) use reverse_ident;

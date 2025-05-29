@@ -1,9 +1,7 @@
-use crate::types;
-use crate::constants;
-
 use libmqm_sys::lib as sys;
 
 use super::attribute::AttributeType;
+use crate::{constants, types};
 
 // Create a string based InqReqType
 const fn inqreq_str(mqca: types::MQCA, length: usize) -> AttributeType {

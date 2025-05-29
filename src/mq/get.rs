@@ -3,10 +3,10 @@ use std::{borrow::Cow, cmp, num::NonZero, str::Utf8Error};
 use libmqm_default as default;
 
 use crate::{
-    WriteRaw, CCSID,
+    Buffer, CCSID, Completion, Conn, Error, Object, ResultComp, ResultCompErr, StrCcsidCow, WriteRaw, constants,
     headers::{ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     prelude::*,
-    structs, constants, types, Buffer, Completion, Conn, Error, Object, ResultComp, ResultCompErr, StrCcsidCow,
+    structs, types,
     types::MQENC,
 };
 
@@ -189,11 +189,11 @@ pub trait GetOption {
 
 #[cfg(feature = "mqai")]
 mod mqai {
-    use crate::{Bag, Owned, Library, prelude::*, structs, constants, Completion, Conn, Error, Object, ResultComp};
     use libmqm_default as default;
     use libmqm_sys::Mqai;
 
     use super::{GetBagAttr, GetOption, GetParam};
+    use crate::{Bag, Completion, Conn, Error, Library, Object, Owned, ResultComp, constants, prelude::*, structs};
 
     impl<C: Conn> Object<C>
     where

@@ -1,5 +1,8 @@
 edition = "2024"
 newline_style = "Unix"
 max_width = 130
-reorder_imports = false
+reorder_imports = true
 use_field_init_shorthand = true
+## Unstable features
+# imports_granularity = "Crate"
+# group_imports = "StdExternalCrate"

@@ -1,15 +1,13 @@
-use crate::{
-    constants,
-    macros::{all_multi_tuples, impl_from_str, reverse_ident},
-    prelude::*,
-    structs,
-    types::{QueueManagerName, QueueName, MQLONG, MQOO, MQOT, MQPMO},
-    Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, CCSID,
-};
-
 use libmqm_sys::lib as sys;
 
 use super::{Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
+use crate::{
+    CCSID, Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, constants,
+    macros::{all_multi_tuples, impl_from_str, reverse_ident},
+    prelude::*,
+    structs,
+    types::{MQLONG, MQOO, MQOT, MQPMO, QueueManagerName, QueueName},
+};
 
 unsafe impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
     fn apply_param(&self, param: &mut OpenParamOption<'oo, O>) {
@@ -213,13 +211,8 @@ unsafe impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
 
 #[expect(unused_parens)]
 mod open_impl {
-    use crate::macros::all_multi_tuples;
-
     use super::{OpenAttr, OpenParam, OpenParamOption, OpenValue};
-
-    use crate::types::MQOO;
-    use crate::{ResultComp, ResultCompErr};
-    use crate::prelude::*;
+    use crate::{ResultComp, ResultCompErr, macros::all_multi_tuples, prelude::*, types::MQOO};
 
     macro_rules! impl_openvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {

@@ -1,17 +1,16 @@
 use std::fmt::Display;
 
-use crate::Handle;
-
 use libmqm_constants::{
     lookup::{ConstLookup, HasConstLookup},
     mapping,
 };
-
 use libmqm_sys::lib as sys;
 
+use crate::Handle;
+
 mod raw {
-    use crate::RawHandle;
     use super::sys;
+    use crate::RawHandle;
 
     #[derive(Debug)]
     pub struct Bag;

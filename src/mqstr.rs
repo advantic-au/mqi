@@ -1,8 +1,7 @@
 use std::{fmt::Display, ptr, str::FromStr};
 
-use crate::{CCSID, types, EncodedString};
-
 use super::conversion;
+use crate::{CCSID, EncodedString, types};
 
 pub type MqChar<const N: usize> = [types::MQCHAR; N];
 

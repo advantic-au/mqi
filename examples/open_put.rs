@@ -2,19 +2,20 @@ use std::{
     io::{self, Read},
     str::FromStr,
 };
+
 use anyhow::Context as _;
 use clap::{Args, Parser};
 
 mod args;
 
 use mqi::{
+    CCSID, MqStr, Object, ThreadNone,
     connect_options::Tls,
-    constants, CCSID,
+    constants,
     headers::TextEnc,
     open_options::ObjectString,
     prelude::*,
-    types::{ApplName, CipherSpec, MessageFormat, QueueManagerName, QueueName, MQENC, MQOO, MQPMO},
-    MqStr, Object, ThreadNone,
+    types::{ApplName, CipherSpec, MQENC, MQOO, MQPMO, MessageFormat, QueueManagerName, QueueName},
 };
 use tracing::Level;
 

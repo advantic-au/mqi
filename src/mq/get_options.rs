@@ -1,18 +1,15 @@
 use std::borrow::Cow;
 
-use crate::{
-    constants, conversion, macros::all_option_tuples, prelude::*, structs, types, Completion, Conn, Error, Properties,
-    ResultComp, ResultCompErr, headers, Buffer, StrCcsidCow,
-};
-
-use super::{
-    get::{
-        GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait, Headers,
-        MatchOptions,
-    },
-};
-
 use libmqm_sys::lib as sys;
+
+use super::get::{
+    GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait, Headers,
+    MatchOptions,
+};
+use crate::{
+    Buffer, Completion, Conn, Error, Properties, ResultComp, ResultCompErr, StrCcsidCow, constants, conversion, headers,
+    macros::all_option_tuples, prelude::*, structs, types,
+};
 
 all_option_tuples!(GetOption, GetParam);
 
@@ -136,10 +133,12 @@ impl GetOption for types::MsgToken {
 #[expect(unused_parens)]
 mod get_bag_impl {
 
-    use crate::get::{GetBagAttr, GetParam};
-    use crate::macros::all_multi_tuples;
-    use crate::prelude::*;
-    use crate::ResultComp;
+    use crate::{
+        ResultComp,
+        get::{GetBagAttr, GetParam},
+        macros::all_multi_tuples,
+        prelude::*,
+    };
 
     macro_rules! impl_getbagattr {
         ([$first:ident, $($ty:ident),*]) => {
@@ -184,11 +183,12 @@ mod get_bag_impl {
 
 #[expect(unused_parens)]
 mod get_impl {
-    use crate::get::{GetAttr, GetValue, GetParam, GetState};
-    use crate::Buffer;
-    use crate::macros::all_multi_tuples;
-    use crate::prelude::*;
-    use crate::{ResultCompErr, ResultComp};
+    use crate::{
+        Buffer, ResultComp, ResultCompErr,
+        get::{GetAttr, GetParam, GetState, GetValue},
+        macros::all_multi_tuples,
+        prelude::*,
+    };
 
     macro_rules! impl_getvalue {
         ([$first:ident, $($ty:ident),*]) => {
@@ -435,11 +435,11 @@ impl<'b, R> GetAttr<'b, R> for types::MessageId {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use super::*;
-    use crate::CCSID;
-    use crate::constants;
     use libmqm_default as default;
     use types::{CorrelationId, Identifier, MessageFormat};
+
+    use super::*;
+    use crate::{CCSID, constants};
 
     const FMT_STRING: types::MessageFormat = types::MessageFormat {
         ccsid: CCSID(1208),

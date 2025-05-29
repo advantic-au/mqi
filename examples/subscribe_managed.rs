@@ -1,6 +1,6 @@
 use std::{
     env,
-    sync::{atomic, Arc},
+    sync::{Arc, atomic},
 };
 
 mod args;
@@ -8,13 +8,13 @@ mod args;
 use anyhow::Context as _;
 use clap::Parser;
 use mqi::{
+    Subscription, ThreadNone,
     connect_options::Tls,
     constants,
     get::GetWait,
     open_options::ObjectString,
     prelude::*,
     types::{ApplName, CipherSpec, MessageFormat},
-    Subscription, ThreadNone,
 };
 use tracing::Level;
 

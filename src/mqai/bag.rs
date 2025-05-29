@@ -1,14 +1,12 @@
 use std::marker::PhantomData;
 
-use libmqm_sys::Mqai;
-use crate::types::{MQLONG, MQBYTE, Selector, MQIND, MQCBO, MQIA, MQCA};
+use libmqm_sys::{Mqai, lib as sys};
 
-use libmqm_sys::lib as sys;
-
-use crate::BagHandle;
-use crate::{Library, MqFunctions, MqInqError, WriteRaw};
-use crate::{prelude::*, Buffer};
-use crate::{constants, Completion, Error, ResultComp, ResultCompErr};
+use crate::{
+    BagHandle, Buffer, Completion, Error, Library, MqFunctions, MqInqError, ResultComp, ResultCompErr, WriteRaw, constants,
+    prelude::*,
+    types::{MQBYTE, MQCA, MQCBO, MQIA, MQIND, MQLONG, Selector},
+};
 
 pub trait BagDrop: Sized {
     fn drop_bag<L: Library<MQ: Mqai>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;

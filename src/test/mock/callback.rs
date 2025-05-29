@@ -4,10 +4,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use super::MockFunctions;
-use crate::{constants, types, structs};
-
 use libmqm_sys::lib as sys;
+
+use super::MockFunctions;
+use crate::{constants, structs, types};
 
 impl MockFunctions {
     #[must_use]

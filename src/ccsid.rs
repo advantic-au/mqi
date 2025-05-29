@@ -1,5 +1,4 @@
-use crate::encoding;
-use crate::types;
+use crate::{encoding, types};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
 #[repr(transparent)]

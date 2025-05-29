@@ -1,18 +1,16 @@
-use std::borrow::Cow;
-use std::{marker::PhantomData, num::NonZero, ptr};
+use std::{borrow::Cow, marker::PhantomData, num::NonZero, ptr};
 
-use libmqm_sys::Mqi;
-use libmqm_sys::lib as sys;
 use libmqm_default as default;
-use crate::types::{MessageFormat, MQBYTE, MQCHAR, MQBMHO, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE};
+use libmqm_sys::{Mqi, lib as sys};
 
-use crate::{prelude::*, structs, ConnectionHandle, Library, MqFunctions, MqInqError};
-use crate::{MessageHandle, WriteRaw};
-use crate::properties_options::{NameUsage, PropertyValue, PropertyParam, PropertyState, SetProperty};
-use crate::{constants, Completion, Conn, Buffer};
-
-use crate::{EncodedString, Error};
-use crate::{ResultComp, ResultCompErr, ResultErr};
+use crate::{
+    Buffer, Completion, Conn, ConnectionHandle, EncodedString, Error, Library, MessageHandle, MqFunctions, MqInqError,
+    ResultComp, ResultCompErr, ResultErr, WriteRaw, constants,
+    prelude::*,
+    properties_options::{NameUsage, PropertyParam, PropertyState, PropertyValue, SetProperty},
+    structs,
+    types::{MQBMHO, MQBYTE, MQCHAR, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE, MessageFormat},
+};
 
 #[derive(Debug)]
 pub struct Properties<C: Conn> {
@@ -504,21 +502,18 @@ impl<C: Conn> Properties<C> {
 mod test {
     use std::{error::Error, rc::Rc};
 
-    use crate::constants::{
-        MQCC_FAILED, MQCC_OK, MQRC_CALL_IN_PROGRESS, MQRC_NONE, MQRC_PROPERTY_NOT_AVAILABLE, MQRC_PROPERTY_VALUE_TOO_BIG,
-        MQRC_PROPERTY_NAME_TOO_BIG, MQTYPE_BYTE_STRING,
-    };
-
-    use crate::properties_options::Name;
-    use crate::{
-        constants, CCSID,
-        headers::{fmt::MQFMT_NONE, TextEnc},
-        test::mock::{self, MockFunctions},
-        types::{MQRC, MQCC, MessageFormat},
-        Connection, ResultErr, ThreadNone,
-    };
-
     use super::*;
+    use crate::{
+        CCSID, Connection, ResultErr, ThreadNone, constants,
+        constants::{
+            MQCC_FAILED, MQCC_OK, MQRC_CALL_IN_PROGRESS, MQRC_NONE, MQRC_PROPERTY_NAME_TOO_BIG, MQRC_PROPERTY_NOT_AVAILABLE,
+            MQRC_PROPERTY_VALUE_TOO_BIG, MQTYPE_BYTE_STRING,
+        },
+        headers::{TextEnc, fmt::MQFMT_NONE},
+        properties_options::Name,
+        test::mock::{self, MockFunctions},
+        types::{MQCC, MQRC, MessageFormat},
+    };
 
     /// Set up mocks for the MQINQMP function
     fn mqinqmp(mock_list: &[(&str, MQTYPE, &[u8], MQCC, MQRC)]) -> impl Fn(&mut MockFunctions) {

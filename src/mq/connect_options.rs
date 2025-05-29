@@ -4,16 +4,14 @@
 use libmqm_default as default;
 use libmqm_sys::lib as sys;
 
+use super::{ConnTag, ConnectParam, ConnectionId};
 use crate::{
-    constants, conversion,
+    MqStr, Secret, constants, conversion,
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
-    Secret, structs,
+    structs,
     types::{self, CertificateLabel, CipherSpec, CryptoHardware, KeyRepo, ProtectedSecret, QueueManagerName},
-    MqStr,
 };
-
-use super::{ConnTag, ConnectParam, ConnectionId};
 
 #[derive(
     Debug,
@@ -85,10 +83,7 @@ pub unsafe trait ConnectOption<'a> {
 
 #[expect(unused_parens)]
 mod connect_impl {
-    use crate::{ConnectValue, ConnectAttr, ConnectParam};
-    use crate::ResultComp;
-    use crate::prelude::*;
-    use crate::macros::all_multi_tuples;
+    use crate::{ConnectAttr, ConnectParam, ConnectValue, ResultComp, macros::all_multi_tuples, prelude::*};
 
     macro_rules! impl_connectvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
@@ -637,8 +632,7 @@ pub enum MqServerSyntaxError {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use crate::types::MQXPT;
-    use crate::constants;
+    use crate::{constants, types::MQXPT};
 
     const CLIENT_MASK: types::MQCNO = types::MQCNO(sys::MQCNO_CLIENT_BINDING | sys::MQCNO_LOCAL_BINDING);
 

@@ -1,17 +1,15 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 
 use core::str;
-use std::{mem, ptr, slice};
-use std::{borrow::Cow, num::NonZero};
+use std::{borrow::Cow, mem, num::NonZero, ptr, slice};
 
-use crate::conversion;
-use crate::{ReadRaw, CCSID};
-use crate::macros::{all_multi_tuples, reverse_ident};
-use crate::{prelude::*, ResultCompErr};
-use crate::{Completion, Error, MqStr, ResultComp, StrCcsidOwned, StringCcsid};
-use crate::constants;
-use crate::structs;
-use crate::types::{MQLONG, MQINT64, MQBYTE, MQCHAR, MQENC, MQTYPE, MQPD, MQCOPY, MQIMPO};
+use crate::{
+    CCSID, Completion, Error, MqStr, ReadRaw, ResultComp, ResultCompErr, StrCcsidOwned, StringCcsid, constants, conversion,
+    macros::{all_multi_tuples, reverse_ident},
+    prelude::*,
+    structs,
+    types::{MQBYTE, MQCHAR, MQCOPY, MQENC, MQIMPO, MQINT64, MQLONG, MQPD, MQTYPE},
+};
 
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
@@ -675,9 +673,8 @@ unsafe impl PropertyValue for StrCcsidOwned {
 
 #[expect(unused_parens)]
 mod impl_property {
-    use super::{all_multi_tuples, PropertyAttr, PropertyParam, PropertyState, PropertyValue};
-    use crate::{ResultCompErr, ResultComp};
-    use crate::prelude::*;
+    use super::{PropertyAttr, PropertyParam, PropertyState, PropertyValue, all_multi_tuples};
+    use crate::{ResultComp, ResultCompErr, prelude::*};
 
     macro_rules! impl_propertyvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
@@ -757,14 +754,14 @@ mod tests {
 
     use libmqm_default as default;
 
+    use super::*;
     use crate::{
+        Completion, MqStr, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
         conversion::slice_byte_to_mqchar,
         mqstr,
         properties_options::{Metadata, Name},
-        types, Completion, MqStr, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
+        types,
     };
-
-    use super::*;
 
     #[test]
     #[allow(clippy::float_cmp)]

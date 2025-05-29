@@ -3,11 +3,10 @@
 use std::{sync::Arc, thread};
 
 use mqi::{
+    Properties, constants,
     prelude::*,
     test,
-    types::{MessageId, QueueName, FORMAT_NONE},
-    types::{MQCMHO, MQSMPO},
-    constants, Properties,
+    types::{FORMAT_NONE, MQCMHO, MQSMPO, MessageId, QueueName},
 };
 
 #[test]

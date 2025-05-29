@@ -1,22 +1,19 @@
 #![cfg(any(feature = "link", feature = "dlopen2"))]
 
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::error::Error;
+use std::{borrow::Cow, collections::HashMap, error::Error};
 
-use mqi::test;
-use mqi::headers::fmt;
-use mqi::open_options::SelectionString;
-use mqi::prelude::*;
-use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
-use mqi::constants;
-use mqi::types::{MQCMHO, MQXA};
-use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
-use mqi::{get, Properties};
-use mqi::{attribute, Object};
-
+use mqi::{
+    Object, Properties, attribute,
+    attribute::{AttributeType, AttributeValue, InqResItem},
+    constants, get,
+    headers::fmt,
+    open_options::SelectionString,
+    prelude::*,
+    test,
+    types::{MQCMHO, MQXA, MessageFormat, MessageId, QueueManagerName, QueueName},
+};
 #[cfg(not(feature = "mock"))]
-use mqi::{connect_options::Credentials, ThreadNone};
+use mqi::{ThreadNone, connect_options::Credentials};
 
 #[test]
 fn no_message() -> Result<(), Box<dyn std::error::Error>> {

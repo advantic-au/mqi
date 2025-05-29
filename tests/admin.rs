@@ -1,11 +1,11 @@
 #![cfg(all(feature = "mqai", feature = "mock", any(feature = "link", feature = "dlopen2")))]
 
-use mqi::{prelude::*, ThreadNone};
-use mqi::Bag;
-use mqi::constants;
-use mqi::types::{ObjectName, MQLONG};
-use mqi::MqStr;
-use mqi::test;
+use mqi::{
+    Bag, MqStr, ThreadNone, constants,
+    prelude::*,
+    test,
+    types::{MQLONG, ObjectName},
+};
 
 #[test]
 fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {

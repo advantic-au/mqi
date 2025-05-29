@@ -1,22 +1,11 @@
-use std::fmt::Debug;
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::rc::Rc;
-use std::sync::Arc;
+use std::{fmt::Debug, marker::PhantomData, ops::Deref, rc::Rc, sync::Arc};
 
-use libmqm_sys::Mqi;
-use libmqm_sys::lib as sys;
-
-use crate::{ConnectionHandle, Library, MqFunctions};
-use crate::ResultComp;
-use crate::structs;
-use crate::types;
-use crate::prelude::*;
+use libmqm_sys::{Mqi, lib as sys};
 
 use super::connect_options::{self, ConnectOption, ConnectStructs};
-
 #[cfg(feature = "link")]
 pub use super::link::*;
+use crate::{ConnectionHandle, Library, MqFunctions, ResultComp, prelude::*, structs, types};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
 pub struct ConnectionId(pub types::Identifier<24>);

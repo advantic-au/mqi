@@ -5,13 +5,13 @@ mod args;
 use anyhow::Context as _;
 use clap::{Parser, ValueEnum};
 use mqi::{
+    Object, Properties, Syncpoint, ThreadNone,
     connect_options::Tls,
     constants,
     prelude::*,
-    structs,
     put_options::{Context, PropertyAction},
-    types::{ApplName, CipherSpec, MessageFormat, QueueManagerName, QueueName, MQCMHO},
-    Object, Properties, Syncpoint, ThreadNone,
+    structs,
+    types::{ApplName, CipherSpec, MQCMHO, MessageFormat, QueueManagerName, QueueName},
 };
 
 const APP_NAME: ApplName = ApplName(mqstr!("forward"));

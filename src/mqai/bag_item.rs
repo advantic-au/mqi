@@ -1,13 +1,14 @@
-use libmqm_sys::Mqai;
-use std::fmt::Debug;
-use std::mem;
+use std::{fmt::Debug, mem};
 
-use crate::{Filter, Library, CCSID};
-use crate::{prelude::*, MqStr, StrCcsidOwned, StringCcsid, NATIVE_IS_LE};
-use crate::{constants, Completion, EncodedString, Error, ResultComp, ResultCompErr, WithMqError};
-use crate::types::{MQLONG, MQBYTE, MQIND, MQITEM, Selector};
+use libmqm_sys::Mqai;
 
 use super::{Bag, BagDrop};
+use crate::{
+    CCSID, Completion, EncodedString, Error, Filter, Library, MqStr, NATIVE_IS_LE, ResultComp, ResultCompErr, StrCcsidOwned,
+    StringCcsid, WithMqError, constants,
+    prelude::*,
+    types::{MQBYTE, MQIND, MQITEM, MQLONG, Selector},
+};
 
 #[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
 pub enum PutStringCcsidError {
@@ -367,7 +368,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Selector {
 #[cfg(all(test, any(feature = "link", feature = "dlopen2")))]
 mod tests {
     use super::*;
-    use crate::{test::mq_library, StrCcsidOwned};
+    use crate::{StrCcsidOwned, test::mq_library};
 
     #[allow(
         clippy::allow_attributes,

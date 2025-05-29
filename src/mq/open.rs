@@ -1,9 +1,7 @@
-use crate::{prelude::*, structs, ResultComp, ResultCompErr};
-use crate::{constants, types};
+use libmqm_default as default;
 
 use super::{Conn, Object, OpenAttr, OpenOption, OpenParamOption, OpenValue};
-
-use libmqm_default as default;
+use crate::{ResultComp, ResultCompErr, constants, prelude::*, structs, types};
 
 impl<C: Conn> Object<C> {
     /// Establish access and return an MQ object ([`Object`])

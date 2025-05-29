@@ -10,13 +10,13 @@ mod stat;
 mod subscribe;
 mod syncpoint;
 
-pub use object::*;
 pub use connect::*;
-pub use subscribe::*;
-pub use stat::*;
+pub use object::*;
 pub use properties::*;
-pub use syncpoint::*;
 pub use queue_manager::*;
+pub use stat::*;
+pub use subscribe::*;
+pub use syncpoint::*;
 
 pub mod attribute;
 pub mod get;

@@ -1,26 +1,16 @@
-use std::mem::size_of_val;
-use std::ptr;
+use std::{mem::size_of_val, ptr};
 
-use libmqm_sys::Mqai;
-use libmqm_sys::lib as sys;
-
-use crate::outcome::{MqiOutcome, MqiOutcomeVoid};
-use crate::ConnectionHandle;
-use crate::MqInqError;
-use crate::ObjectHandle;
-use crate::WriteRaw;
-use crate::CCSID;
-use crate::{Library, MqFunctions};
-// use crate::core::{CCSID, ConnectionHandle, Library, MqFunctions, MqInqError, MqiOutcome, MqiOutcomeVoid, ObjectHandle, WriteRaw};
-use crate::{Error, ResultCompErr, MQMD};
-use crate::{constants, ResultComp};
-use crate::types::{MQLONG, Selector, MQCBO, MQCFOP, MQCMD, MQIND, MQITEM};
-
-use super::BagHandle;
-use super::Filter;
-
+use libmqm_sys::{Mqai, lib as sys};
 #[cfg(feature = "tracing")]
 use {crate::outcome::tracing_outcome, tracing::instrument};
+
+use super::{BagHandle, Filter};
+use crate::{
+    CCSID, ConnectionHandle, Error, Library, MQMD, MqFunctions, MqInqError, ObjectHandle, ResultComp, ResultCompErr, WriteRaw,
+    constants,
+    outcome::{MqiOutcome, MqiOutcomeVoid},
+    types::{MQCBO, MQCFOP, MQCMD, MQIND, MQITEM, MQLONG, Selector},
+};
 
 impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
@@ -818,9 +808,8 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
 mod tests {
     use std::error::Error;
 
-    use crate::{test::mq_library, MqChar, prelude::*};
-
     use super::*;
+    use crate::{MqChar, prelude::*, test::mq_library};
 
     #[test]
     fn inquire_integer() {

@@ -1,19 +1,10 @@
 #![expect(clippy::allow_attributes)]
 
-use std::cmp;
-use std::rc::Rc;
-use std::slice;
-use crate::connect_lib;
-use crate::Library;
-use crate::Connection;
-use crate::ThreadNone;
-use crate::ResultCompExt;
+use std::{cmp, rc::Rc, slice};
 
-use crate::{constants, types};
-use libmqm_sys::Mqi;
-use libmqm_sys::lib as sys;
+use libmqm_sys::{Mqi, lib as sys};
 
-use crate::put::PutMessage;
+use crate::{Connection, Library, ResultCompExt, ThreadNone, connect_lib, constants, put::PutMessage, types};
 
 mod callback;
 

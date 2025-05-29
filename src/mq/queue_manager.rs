@@ -1,14 +1,12 @@
-use crate::{
-    put::{PutAttr, PutMessage, PutOption},
-    ResultComp,
-};
-
 use super::{
-    put::put_message_with, stat_put, stat_reconnection, stat_reconnection_error, AsyncPutStat, Conn, OpenOption,
-    ReconnectionErrorStat, ReconnectionStat,
+    AsyncPutStat, Conn, OpenOption, ReconnectionErrorStat, ReconnectionStat, put::put_message_with, stat_put, stat_reconnection,
+    stat_reconnection_error,
 };
-
-use crate::types::MQPMO;
+use crate::{
+    ResultComp,
+    put::{PutAttr, PutMessage, PutOption},
+    types::MQPMO,
+};
 
 /// A trait that provides functions to put messages to a queue manager and inquire on the status of a previous MQI call or connection
 pub trait QueueManager {

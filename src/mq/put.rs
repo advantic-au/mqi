@@ -1,16 +1,15 @@
 use std::borrow::Cow;
 
 use libmqm_default as default;
-use libmqm_sys::Mqi;
-use libmqm_sys::lib::MQMD2;
-
-use crate::{ConnectionHandle, Library, MqFunctions, CCSID};
-use crate::types::MQPMO;
-use crate::headers::{fmt, TextEnc};
-use crate::types::MessageFormat;
-use crate::{constants, structs, Conn, Object, ResultComp};
+use libmqm_sys::{Mqi, lib::MQMD2};
 
 use super::{OpenOption, OpenParamOption};
+use crate::{
+    CCSID, Conn, ConnectionHandle, Library, MqFunctions, Object, ResultComp, constants,
+    headers::{TextEnc, fmt},
+    structs,
+    types::{MQPMO, MessageFormat},
+};
 
 /// A trait that provides a rendered message for the [`mqput`](`crate::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put")]
@@ -47,17 +46,11 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
 
 #[cfg(feature = "mqai")]
 mod mqai {
-    use libmqm_sys::Mqai;
-    use libmqm_sys::lib::MQMD2;
     use libmqm_default as default;
-
-    use crate::{
-        {Bag, BagDrop}, structs, Library,
-        headers::TextEnc,
-        types, Conn, Object, ResultComp,
-    };
+    use libmqm_sys::{Mqai, lib::MQMD2};
 
     use super::{PutAttr, PutOption};
+    use crate::{Bag, BagDrop, Conn, Library, Object, ResultComp, headers::TextEnc, structs, types};
 
     impl<C: Conn> Object<C>
     where

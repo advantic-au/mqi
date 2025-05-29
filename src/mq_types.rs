@@ -1,6 +1,3 @@
-use crate::macros::impl_from_str;
-use crate::{structs, headers::TextEnc, CCSID, MqChar, MqStr};
-use crate::types::{MQBYTE, MQCHAR};
 use std::{
     fmt::{Debug, Display},
     str,
@@ -9,8 +6,13 @@ use std::{
 use libmqm_default as default;
 use libmqm_sys::lib as sys;
 
-use crate::types::{MQENC, MQRC};
-use crate::{constants, Secret};
+use crate::{
+    CCSID, MqChar, MqStr, Secret, constants,
+    headers::TextEnc,
+    macros::impl_from_str,
+    structs,
+    types::{MQBYTE, MQCHAR, MQENC, MQRC},
+};
 
 macro_rules! impl_equivalent_type {
     ($new_type:path, [$($other_type:path),*]) => {

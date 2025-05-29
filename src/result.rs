@@ -1,6 +1,9 @@
-use crate::types::{MQCC, MQRC};
-use crate::constants;
 use std::fmt::{Debug, Display};
+
+use crate::{
+    constants,
+    types::{MQCC, MQRC},
+};
 
 /// A value returned from an MQ API call, optionally with a warning [`MQRC`]
 #[derive(Debug, Clone, derive_more::Deref, derive_more::DerefMut, derive_more::AsRef, derive_more::AsMut)]

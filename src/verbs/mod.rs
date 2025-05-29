@@ -3,20 +3,20 @@ pub mod outcome;
 #[cfg(feature = "exits")]
 mod exits;
 
-use outcome::{MqiOutcome, MqiOutcomeVoid};
-
 use std::ptr;
 
-use crate::types::{MQLONG, MQCO, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA};
-use super::{ConnectionHandle, Library, MessageHandle, MqFunctions, ObjectHandle, ReadRaw, SubscriptionHandle, WriteRaw};
-use crate::{constants, Error, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, MQMD};
-use libmqm_sys::Mqi;
-use libmqm_sys::lib as sys;
-
+use libmqm_sys::{Mqi, lib as sys};
+use outcome::{MqiOutcome, MqiOutcomeVoid};
 #[cfg(feature = "tracing")]
 use {
     outcome::{tracing_outcome, tracing_outcome_basic},
     tracing::instrument,
+};
+
+use super::{ConnectionHandle, Library, MessageHandle, MqFunctions, ObjectHandle, ReadRaw, SubscriptionHandle, WriteRaw};
+use crate::{
+    Error, MQMD, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, constants,
+    types::{MQCO, MQLONG, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA},
 };
 
 #[derive(Debug, derive_more::From, derive_more::Error, derive_more::Display)]

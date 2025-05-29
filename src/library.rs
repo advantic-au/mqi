@@ -1,10 +1,9 @@
 use std::{rc::Rc, sync::Arc};
 
-#[cfg(feature = "dlopen2")]
-use {dlopen2::wrapper::Container, libmqm_sys::dlopen2::MqWrapper};
-
 #[cfg(feature = "link")]
 use libmqm_sys::link;
+#[cfg(feature = "dlopen2")]
+use {dlopen2::wrapper::Container, libmqm_sys::dlopen2::MqWrapper};
 
 #[derive(Debug, Clone, Copy)]
 pub struct MqFunctions<L>(pub L);

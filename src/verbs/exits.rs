@@ -1,13 +1,14 @@
-use crate::{ResultComp, CCSID};
-use crate::types::{MQLONG, MQDCC};
-
-use super::{ConnectionHandle, Library, MqFunctions, MqiOutcome, WriteRaw};
-use libmqm_sys::{lib as sys, Exits};
-
 use std::ptr;
 
+use libmqm_sys::{Exits, lib as sys};
 #[cfg(feature = "tracing")]
 use {super::tracing_outcome, tracing::instrument};
+
+use super::{ConnectionHandle, Library, MqFunctions, MqiOutcome, WriteRaw};
+use crate::{
+    CCSID, ResultComp,
+    types::{MQDCC, MQLONG},
+};
 
 impl<L: Library<MQ: Exits>> MqFunctions<L> {
     /// Converts characters from one character set to another

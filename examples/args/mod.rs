@@ -2,10 +2,10 @@ use std::str::FromStr;
 
 use clap::Args;
 use mqi::{
+    MqStr,
     connect_options::{Binding, Ccdt, ConnectOption, Credentials, MqServer},
     constants,
     types::{CertificateLabel, CipherSpec, KeyRepo, MQCNO, QueueManagerName},
-    MqStr,
 };
 
 #[derive(clap::Parser, Debug)]

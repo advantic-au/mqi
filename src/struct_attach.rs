@@ -1,8 +1,8 @@
 use std::ptr;
 
-use crate::{types, structs, CCSID, EncodedString};
-
 use libmqm_sys::lib as sys;
+
+use crate::{CCSID, EncodedString, structs, types};
 
 const C_EMPTY: *mut std::ffi::c_void = c"".as_ptr().cast_mut().cast();
 
