@@ -112,7 +112,7 @@ libmqm-sys = { version = "0.8.0", default-features = false, git = "https://githu
 libmqm-default = { version = "0.8.0", default-features = false, git = "https://github.com/advantic-au/libmqm-sys", branch = "develop" }
 libmqm-constants = { version = "0.8.0", default-features = false, git = "https://github.com/advantic-au/libmqm-sys", branch = "develop" }
 tracing = { version = "0.1.40", optional = true }
-dlopen2 = { version = "0.7.0", optional = true }
+dlopen2 = { version = "0.8.0", optional = true }
 derive_more = { version = "2.0.1", features = [
     "deref",
     "deref_mut",
