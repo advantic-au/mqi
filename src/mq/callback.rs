@@ -1,5 +1,5 @@
 use libmqm_default as default;
-use libmqm_sys::{Mqi, self as mq};
+use libmqm_sys::{self as mq, Mqi};
 
 use super::{Connection, ConnectionRef};
 use crate::{Error, Library, MqFunctions, constants, prelude::*, structs, types};

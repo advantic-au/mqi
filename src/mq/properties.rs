@@ -1,7 +1,7 @@
 use std::{borrow::Cow, marker::PhantomData, num::NonZero, ptr};
 
 use libmqm_default as default;
-use libmqm_sys::{Mqi, self as mq};
+use libmqm_sys::{self as mq, Mqi};
 
 use crate::{
     Buffer, Completion, Conn, ConnectionHandle, EncodedString, Error, Library, MessageHandle, MqFunctions, MqInqError,
@@ -298,17 +298,15 @@ impl<C: Conn> Properties<C> {
                     })
                 }
             };
-            param.impo.ReturnedName = inq_name_buffer
-                .as_mut()
-                .map_or(default::MQCHARV_DEFAULT, |name| mq::MQCHARV {
-                    VSPtr: (&raw mut *name).cast(),
-                    VSBufSize: name
-                        .as_ref()
-                        .len()
-                        .try_into()
-                        .expect("length of buffer should fit within MQLONG range"),
-                    ..default::MQCHARV_DEFAULT
-                });
+            param.impo.ReturnedName = inq_name_buffer.as_mut().map_or(default::MQCHARV_DEFAULT, |name| mq::MQCHARV {
+                VSPtr: (&raw mut *name).cast(),
+                VSBufSize: name
+                    .as_ref()
+                    .len()
+                    .try_into()
+                    .expect("length of buffer should fit within MQLONG range"),
+                ..default::MQCHARV_DEFAULT
+            });
 
             let mqi_inqmp = unsafe {
                 inqmp(

@@ -3,7 +3,7 @@ pub mod outcome;
 use std::ptr;
 
 use libmqm_constants::types::MQDCC;
-use libmqm_sys::{Mqi, self as mq};
+use libmqm_sys::{self as mq, Mqi};
 use outcome::{MqiOutcome, MqiOutcomeVoid};
 #[cfg(feature = "tracing")]
 use {
@@ -13,7 +13,8 @@ use {
 
 use super::{ConnectionHandle, Library, MessageHandle, MqFunctions, ObjectHandle, ReadRaw, SubscriptionHandle, WriteRaw};
 use crate::{
-    constants, types::{MQCO, MQLONG, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA}, Error, MqStr, ResultComp, ResultCompErr, ResultErr, CCSID, MQMD
+    CCSID, Error, MQMD, MqStr, ResultComp, ResultCompErr, ResultErr, constants,
+    types::{MQCO, MQLONG, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA},
 };
 
 #[derive(Debug, derive_more::From, derive_more::Error, derive_more::Display)]
@@ -350,12 +351,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     pub fn mqbegin(&self, connection_handle: ConnectionHandle, mqbo: Option<&mut mq::MQBO>) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQBEGIN");
         unsafe {
-            self.0.lib().MQBEGIN(
-                connection_handle.raw_handle(),
-                mqbo,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
-            );
+            self.0
+                .lib()
+                .MQBEGIN(connection_handle.raw_handle(), mqbo, &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -726,7 +724,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         outcome.into()
     }
 
-        /// Converts characters from one character set to another
+    /// Converts characters from one character set to another
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(source, target, self)))]
     pub fn mqxcnvc(
         &self,
@@ -761,5 +759,4 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         tracing_outcome(&outcome);
         outcome.into()
     }
-
 }

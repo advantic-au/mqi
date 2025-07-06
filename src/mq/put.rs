@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use libmqm_default as default;
-use libmqm_sys::{Mqi, MQMD2};
+use libmqm_sys::{MQMD2, Mqi};
 
 use super::{OpenOption, OpenParamOption};
 use crate::{
@@ -47,7 +47,7 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
 #[cfg(feature = "mqai")]
 mod mqai {
     use libmqm_default as default;
-    use libmqm_sys::{Mqai, MQMD2};
+    use libmqm_sys::{MQMD2, Mqai};
 
     use super::{PutAttr, PutOption};
     use crate::{Bag, BagDrop, Conn, Library, Object, ResultComp, headers::TextEnc, structs, types};

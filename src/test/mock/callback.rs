@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use libmqm_sys::{mock::MockMq, self as mq};
+use libmqm_sys::{self as mq, mock::MockMq};
 
 use crate::{constants, types};
 

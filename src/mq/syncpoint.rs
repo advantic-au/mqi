@@ -71,11 +71,7 @@ mod tests {
     #[test]
     #[cfg(feature = "mock")]
     fn begin() -> ResultComp<()> {
-        use crate::{
-            Completion, Syncpoint,
-            test::mock,
-            types::MQBO,
-        };
+        use crate::{Completion, Syncpoint, test::mock, types::MQBO};
 
         let mock_connection = mock::connect_ok(|mock_library| {
             mock_library

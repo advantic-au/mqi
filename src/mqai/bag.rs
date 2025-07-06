@@ -177,10 +177,11 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
     /// Uses the [`mqBagToBuffer`](libmqm_sys::Mqai::mqBagToBuffer) MQ API function
     ///
     pub fn buffer_len(&self) -> ResultComp<usize> {
-        match self
-            .mq
-            .mq_bag_to_buffer(&BagHandle::from(mqai::MQHB_NONE), self.handle(), Option::<&mut [MQBYTE]>::None)
-        {
+        match self.mq.mq_bag_to_buffer(
+            &BagHandle::from(mqai::MQHB_NONE),
+            self.handle(),
+            Option::<&mut [MQBYTE]>::None,
+        ) {
             Err(MqInqError::Length(len, _)) => Ok(Completion(len, None)),
             other => other,
         }

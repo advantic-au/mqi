@@ -128,10 +128,7 @@ mod tests {
 
         let (list_iter, _) = (constants::MQCO_DELETE | constants::MQCO_QUIESCE).bitflags_list();
         let list = list_iter.collect::<Vec<_>>();
-        assert_eq!(
-            list,
-            &[(mq::MQCO_DELETE, "MQCO_DELETE"), (mq::MQCO_QUIESCE, "MQCO_QUIESCE")]
-        );
+        assert_eq!(list, &[(mq::MQCO_DELETE, "MQCO_DELETE"), (mq::MQCO_QUIESCE, "MQCO_QUIESCE")]);
 
         // assert_eq!(format!("{oo:?}"), "");
     }

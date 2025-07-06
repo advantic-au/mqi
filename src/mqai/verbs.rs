@@ -1,6 +1,6 @@
 use std::{mem::size_of_val, ptr};
 
-use libmqm_sys::{Mqai, self as mq, mqai};
+use libmqm_sys::{self as mq, Mqai, mqai};
 #[cfg(feature = "tracing")]
 use {crate::outcome::tracing_outcome, tracing::instrument};
 
@@ -59,13 +59,9 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_delete_item(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqDeleteItem");
         unsafe {
-            self.0.lib().mqDeleteItem(
-                bag.raw_handle(),
-                selector.0,
-                index.0,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
-            );
+            self.0
+                .lib()
+                .mqDeleteItem(bag.raw_handle(), selector.0, index.0, &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -76,13 +72,9 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_add_integer(&self, bag: &BagHandle, selector: Selector, value: MQLONG) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddInteger");
         unsafe {
-            self.0.lib().mqAddInteger(
-                bag.raw_handle(),
-                selector.0,
-                value,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
-            );
+            self.0
+                .lib()
+                .mqAddInteger(bag.raw_handle(), selector.0, value, &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -116,13 +108,9 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
     pub fn mq_add_integer64(&self, bag: &BagHandle, selector: Selector, value: mq::MQINT64) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddInteger64");
         unsafe {
-            self.0.lib().mqAddInteger64(
-                bag.raw_handle(),
-                selector.0,
-                value,
-                &mut outcome.cc.0,
-                &mut outcome.rc.0,
-            );
+            self.0
+                .lib()
+                .mqAddInteger64(bag.raw_handle(), selector.0, value, &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);

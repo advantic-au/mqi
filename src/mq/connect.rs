@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, rc::Rc, sync::Arc};
 
-use libmqm_sys::{Mqi, self as mq};
+use libmqm_sys::{self as mq, Mqi};
 
 use super::connect_options::{self, ConnectOption, ConnectStructs};
 #[cfg(feature = "link")]

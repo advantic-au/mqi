@@ -1,5 +1,5 @@
 use libmqm_default as default;
-use libmqm_sys::{Mqi, self as mq};
+use libmqm_sys::{self as mq, Mqi};
 
 use crate::{
     CCSID, ConnectionHandle, Library, MqFunctions, MqStr, ResultComp, StrCcsidOwned, constants,

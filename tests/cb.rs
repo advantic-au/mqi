@@ -4,6 +4,7 @@ use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
 use libmqm_default as default;
+use libmqm_sys as mq;
 use mqi::{
     ConnectionHandle, MQMD, Object, ThreadBlock, ThreadNone, constants,
     prelude::*,
@@ -11,7 +12,6 @@ use mqi::{
     test::mock,
     types::{MQCBCF, MQCBCT, MQCC, MQCS, MQRC, MQRD},
 };
-use libmqm_sys as mq;
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {

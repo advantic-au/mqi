@@ -10,12 +10,7 @@ use crate::{Connection, Library, ResultCompExt, ThreadNone, connect_lib, constan
 
 pub mod callback;
 
-pub unsafe fn copy_to_mq_data(
-    data: &[u8],
-    buf_len: mq::MQLONG,
-    buf_target: mq::PMQVOID,
-    data_len: mq::PMQLONG,
-) -> mq::MQLONG {
+pub unsafe fn copy_to_mq_data(data: &[u8], buf_len: mq::MQLONG, buf_target: mq::PMQVOID, data_len: mq::PMQLONG) -> mq::MQLONG {
     let write_len = cmp::min(size_of_val(data), buf_len.try_into().expect("convertable buffer length"));
     let target = unsafe { slice::from_raw_parts_mut(buf_target.cast(), write_len) };
     target.copy_from_slice(&data[..write_len]);
@@ -154,7 +149,7 @@ pub fn subscribe_managed_ok(
 #[cfg(feature = "mqai")]
 pub mod mqai {
     use libmqm_constants::constants;
-    use libmqm_sys::{mock::MockMq, Mqai};
+    use libmqm_sys::{Mqai, mock::MockMq};
 
     use crate::{Library, types};
 

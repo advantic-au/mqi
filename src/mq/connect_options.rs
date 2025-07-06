@@ -393,11 +393,7 @@ impl<'pw> Tls<'pw> {
 
     pub fn fips_required(&mut self, is_required: bool) -> &mut Self {
         self.0.set_min_version(mq::MQSCO_VERSION_2);
-        self.0.FipsRequired = if is_required {
-            mq::MQSSL_FIPS_YES
-        } else {
-            mq::MQSSL_FIPS_NO
-        };
+        self.0.FipsRequired = if is_required { mq::MQSSL_FIPS_YES } else { mq::MQSSL_FIPS_NO };
         self
     }
 
