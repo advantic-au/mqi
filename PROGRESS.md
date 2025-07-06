@@ -1,6 +1,8 @@
+Progress
+========
 
 MQ verbs
-========
+--------
 
 Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-descriptions>
 
@@ -34,7 +36,7 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 | MQXCNVC | Convert characters                  | ✔ | ✔ |  |
 
 MQAI functions
-==============
+--------------
 
 Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=reference-mqai-calls>
 
@@ -80,7 +82,7 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=reference-mqai-calls>
 | mqPad                     | Pad a null-terminated string with blanks                               | ✘  |   | Can be trivially implemented in safe rust |
 
 Further work required
-=====================
+---------------------
 
 - More examples demonstrating functionality
 - MQ callbacks to receive messages

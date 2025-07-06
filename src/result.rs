@@ -1,6 +1,9 @@
-use crate::types::{MQCC, MQRC};
-use crate::constants;
 use std::fmt::{Debug, Display};
+
+use crate::{
+    constants,
+    types::{MQCC, MQRC},
+};
 
 /// A value returned from an MQ API call, optionally with a warning [`MQRC`]
 #[derive(Debug, Clone, derive_more::Deref, derive_more::DerefMut, derive_more::AsRef, derive_more::AsMut)]
@@ -115,19 +118,21 @@ pub trait ResultCompErrExt<T, E> {
     ///
     /// # Panic
     /// Panics if the value is an `Err`, with a panic message provided by the `Err`'s value.
-    fn unwrap_completion(self) -> T;
+    fn unwrap_completion(self) -> T
+    where
+        E: std::fmt::Debug;
 }
 
-impl<T, E> ResultCompErrExt<T, E> for ResultCompErr<T, E>
-where
-    E: std::fmt::Debug, // for unwrap_completion
-{
+impl<T, E> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E> {
         self.map(|mq| mq.map(op))
     }
 
     #[expect(clippy::unwrap_used)]
-    fn unwrap_completion(self) -> T {
+    fn unwrap_completion(self) -> T
+    where
+        E: std::fmt::Debug,
+    {
         self.unwrap().discard_warning()
     }
 

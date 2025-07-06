@@ -1,17 +1,15 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 
 use core::str;
-use std::{mem, ptr, slice};
-use std::{borrow::Cow, num::NonZero};
+use std::{borrow::Cow, mem, num::NonZero, ptr, slice};
 
-use crate::conversion;
-use crate::core::{ReadRaw, CCSID};
-use crate::macros::{all_multi_tuples, reverse_ident};
-use crate::{prelude::*, ResultCompErr};
-use crate::{Completion, Error, MqStr, ResultComp, StrCcsidOwned, StringCcsid};
-use crate::constants;
-use crate::structs;
-use crate::types::{MQLONG, MQINT64, MQBYTE, MQCHAR, MQENC, MQTYPE, MQPD, MQCOPY, MQIMPO};
+use crate::{
+    CCSID, Completion, Error, MqStr, ReadRaw, ResultComp, ResultCompErr, StrCcsidOwned, StringCcsid, constants, conversion,
+    macros::{all_multi_tuples, reverse_ident},
+    prelude::*,
+    structs,
+    types::{MQBYTE, MQCHAR, MQCOPY, MQENC, MQIMPO, MQINT64, MQLONG, MQPD, MQTYPE},
+};
 
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
@@ -31,8 +29,8 @@ pub struct PropertyParam<'p> {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQIMPO`](libmqm_sys::lib::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::Mqi::MQINQMP) function.
-/// Incorrect values in the [`MQIMPO`](libmqm_sys::lib::MQIMPO) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::MQINQMP) function.
+/// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
 ///
 /// Implementations of the [`PropertyValue`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PropertyValue {
@@ -50,8 +48,8 @@ pub unsafe trait PropertyValue {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQIMPO`](libmqm_sys::lib::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::Mqi::MQINQMP).
-/// Incorrect values in the [`MQIMPO`](libmqm_sys::lib::MQIMPO) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::MQINQMP).
+/// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
 ///
 /// Implementations of the [`PropertyAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PropertyAttr {
@@ -675,9 +673,8 @@ unsafe impl PropertyValue for StrCcsidOwned {
 
 #[expect(unused_parens)]
 mod impl_property {
-    use super::{all_multi_tuples, PropertyAttr, PropertyParam, PropertyState, PropertyValue};
-    use crate::{ResultCompErr, ResultComp};
-    use crate::prelude::*;
+    use super::{PropertyAttr, PropertyParam, PropertyState, PropertyValue, all_multi_tuples};
+    use crate::{ResultComp, ResultCompErr, prelude::*};
 
     macro_rules! impl_propertyvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
@@ -757,14 +754,14 @@ mod tests {
 
     use libmqm_default as default;
 
+    use super::*;
     use crate::{
+        Completion, MqStr, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
         conversion::slice_byte_to_mqchar,
         mqstr,
         properties_options::{Metadata, Name},
-        types, Completion, MqStr, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
+        types,
     };
-
-    use super::*;
 
     #[test]
     #[allow(clippy::float_cmp)]
@@ -996,7 +993,7 @@ mod tests {
     }
 
     #[allow(clippy::unnecessary_wraps)]
-    const fn value_property_state(bv: &[u8]) -> ResultComp<PropertyState> {
+    const fn value_property_state(bv: &[u8]) -> ResultComp<PropertyState<'_>> {
         Ok(Completion::new(PropertyState {
             name: None,
             value: Cow::Borrowed(bv),
@@ -1035,7 +1032,7 @@ mod tests {
     #[test]
     fn property_attr_name() -> Result<(), Box<dyn Error>> {
         #[expect(clippy::unnecessary_wraps)]
-        fn name_state(name: &[u8]) -> ResultComp<PropertyState> {
+        fn name_state(name: &[u8]) -> ResultComp<PropertyState<'_>> {
             Ok(Completion::new(PropertyState {
                 name: Some(Cow::from(slice_byte_to_mqchar(name))),
                 value: Cow::from(b""),
@@ -1043,7 +1040,7 @@ mod tests {
         }
 
         #[expect(clippy::unnecessary_wraps)]
-        fn name_state_warning(name: &[u8]) -> ResultComp<PropertyState> {
+        fn name_state_warning(name: &[u8]) -> ResultComp<PropertyState<'_>> {
             Ok(Completion::new_warning(
                 PropertyState {
                     name: Some(Cow::from(slice_byte_to_mqchar(name))),

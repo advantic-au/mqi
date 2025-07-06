@@ -1,13 +1,9 @@
 use libmqm_sys::Mqai;
-use crate::types::MQCMD;
-
-use crate::core::mqai::BagHandle;
-use crate::core::ObjectHandle;
-use crate::macros::all_option_tuples;
-use crate::{prelude::*, Object, constants};
-use crate::{core::Library, Conn, ResultComp};
 
 use super::{Bag, BagDrop, Owned};
+use crate::{
+    BagHandle, Conn, Library, Object, ObjectHandle, ResultComp, constants, macros::all_option_tuples, prelude::*, types::MQCMD,
+};
 
 #[derive(Debug, Default)]
 pub struct ExecuteParam<'a> {
@@ -50,9 +46,9 @@ impl ExecuteOption<'_> for MQCMD {
     }
 }
 
-/// A trait that manipulates the parameters to the [`mq_execute`](`crate::core::MqFunctions::mq_execute`) function
+/// A trait that manipulates the parameters to the [`mq_execute`](`crate::MqFunctions::mq_execute`) function
 #[diagnostic::on_unimplemented(
-    message = "{Self} does not implement `ExecuteOption` so it can't be used as an argument for MQI execute"
+    message = "{Self} does not implement `ExecuteOption` so it can't be used as an argument for MQI mqExecute"
 )]
 pub trait ExecuteOption<'a> {
     fn apply_param(&self, param: &mut ExecuteParam<'a>);

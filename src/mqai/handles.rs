@@ -1,30 +1,29 @@
 use std::fmt::Display;
 
-use crate::core::Handle;
-
 use libmqm_constants::{
     lookup::{ConstLookup, HasConstLookup},
     mapping,
 };
+use libmqm_sys::mqai;
 
-use libmqm_sys::lib as sys;
+use crate::Handle;
 
-pub mod raw {
-    use crate::core::RawHandle;
-    use super::sys;
+mod raw {
+    use super::mqai;
+    use crate::RawHandle;
 
     #[derive(Debug)]
     pub struct Bag;
 
     impl RawHandle for Bag {
-        type HandleType = sys::MQHBAG;
+        type HandleType = mqai::MQHBAG;
     }
 }
 
 pub type BagHandle = Handle<raw::Bag>;
 
-impl From<sys::MQHBAG> for BagHandle {
-    fn from(value: sys::MQHBAG) -> Self {
+impl From<mqai::MQHBAG> for BagHandle {
+    fn from(value: mqai::MQHBAG) -> Self {
         Self(value)
     }
 }
@@ -46,21 +45,21 @@ impl Display for BagHandle {
 
 impl Default for BagHandle {
     fn default() -> Self {
-        Self(sys::MQHB_UNUSABLE_HBAG)
+        Self(mqai::MQHB_UNUSABLE_HBAG)
     }
 }
 
 impl BagHandle {
     #[must_use]
     pub const fn is_deletable(&self) -> bool {
-        self.0 != sys::MQHB_NONE && self.0 != sys::MQHB_UNUSABLE_HBAG
+        self.0 != mqai::MQHB_NONE && self.0 != mqai::MQHB_UNUSABLE_HBAG
     }
 }
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use crate::core::mqai::BagHandle;
+    use super::*;
 
     #[test]
     fn bag_handle_display() {

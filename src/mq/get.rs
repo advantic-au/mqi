@@ -3,10 +3,10 @@ use std::{borrow::Cow, cmp, num::NonZero, str::Utf8Error};
 use libmqm_default as default;
 
 use crate::{
-    core::{WriteRaw, CCSID},
+    Buffer, CCSID, Completion, Conn, Error, Object, ResultComp, ResultCompErr, StrCcsidCow, WriteRaw, constants,
     headers::{ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
     prelude::*,
-    structs, constants, types, Buffer, Completion, Conn, Error, Object, ResultComp, ResultCompErr, StrCcsidCow,
+    structs, types,
     types::MQENC,
 };
 
@@ -181,7 +181,7 @@ pub trait GetValue<'b, R, B>: std::marker::Sized {
     }
 }
 
-/// A trait that manipulates the parameters to the [`mqget`](`crate::core::MqFunctions::mqget`) function
+/// A trait that manipulates the parameters to the [`mqget`](`crate::MqFunctions::mqget`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get")]
 pub trait GetOption {
     fn apply_param(&self, param: &mut GetParam);
@@ -189,20 +189,15 @@ pub trait GetOption {
 
 #[cfg(feature = "mqai")]
 mod mqai {
-    use crate::{
-        admin::{Bag, Owned},
-        core::Library,
-        prelude::*,
-        structs, constants, Completion, Conn, Error, Object, ResultComp,
-    };
     use libmqm_default as default;
     use libmqm_sys::Mqai;
 
     use super::{GetBagAttr, GetOption, GetParam};
+    use crate::{Bag, Completion, Conn, Error, Library, Object, Owned, ResultComp, constants, prelude::*, structs};
 
     impl<C: Conn> Object<C>
     where
-        C::Lib: crate::core::Library<MQ: libmqm_sys::Mqai>,
+        C::Lib: crate::Library<MQ: libmqm_sys::Mqai>,
     {
         pub fn get_bag_with<R: GetBagAttr>(
             &self,
@@ -288,12 +283,12 @@ impl<C: Conn> Object<C> {
         V: GetValue<'b, R, B>,
         R: WriteRaw<u8>,
     {
-        use libmqm_sys::lib as sys;
+        use libmqm_sys as mq;
 
         let mut param = GetParam {
             md: structs::MQMD2::new(default::MQMD2_DEFAULT),
-            gmo: structs::MQGMO::new(sys::MQGMO {
-                Version: sys::MQGMO_VERSION_3, // Version 3 for ReturnedLength
+            gmo: structs::MQGMO::new(mq::MQGMO {
+                Version: mq::MQGMO_VERSION_3, // Version 3 for ReturnedLength
                 ..default::MQGMO_DEFAULT
             }),
         };

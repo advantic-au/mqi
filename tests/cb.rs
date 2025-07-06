@@ -3,19 +3,19 @@
 use core::slice;
 use std::{error::Error, ptr, sync::Arc, thread};
 
-use mqi::test::mock::MockFunctions;
-use mqi::{core::ConnectionHandle, Object, ThreadBlock, ThreadNone, MQMD};
-use mqi::prelude::*;
-use mqi::types::{MQCBCT, MQCS, MQCBCF, MQRD, MQRC, MQCC};
-use mqi::structs;
-use mqi::constants;
-
 use libmqm_default as default;
-use libmqm_sys::lib as sys;
+use libmqm_sys as mq;
+use mqi::{
+    ConnectionHandle, MQMD, Object, ThreadBlock, ThreadNone, constants,
+    prelude::*,
+    structs,
+    test::mock,
+    types::{MQCBCF, MQCBCT, MQCC, MQCS, MQRC, MQRD},
+};
 
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
-    let mock_library = MockFunctions::connect_ok_event_cb();
+    let mock_library = mock::callback::connect_ok_event_cb();
     let mut qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, &()).warn_as_error()?;
 
     unsafe {
@@ -57,11 +57,11 @@ fn callback() -> Result<(), Box<dyn Error>> {
     }
 
     unsafe extern "C" fn call_closure<F, M>(
-        conn: sys::MQHCONN,
-        mqmd: sys::PMQVOID,
-        gmo: sys::PMQVOID,
-        buffer: sys::PMQVOID,
-        cbc: *const sys::MQCBC,
+        conn: mq::MQHCONN,
+        mqmd: mq::PMQVOID,
+        gmo: mq::PMQVOID,
+        buffer: mq::PMQVOID,
+        cbc: *const mq::MQCBC,
     ) where
         F: FnMut(ConnectionHandle, Option<&M>, Option<&structs::MQGMO>, Option<&[u8]>, &structs::MQCBC) + 'static,
         M: MQMD,
@@ -89,11 +89,11 @@ fn callback() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let mut mock_library = MockFunctions::connect_ok_event_cb();
+    let mut mock_library = mock::callback::connect_ok_event_cb();
     let mut seq = mockall::Sequence::new();
-    mock_library.open_ok(0x0c0c, 1, &mut seq);
+    mock::open_ok(&mut mock_library, 0x0c0c, 1, &mut seq);
     mock_library.expect_MQCTL().returning(|_, _, _, cc, rc| {
-        MockFunctions::mqi_outcome_ok(cc, rc);
+        mock::mqi_outcome_ok(cc, rc);
     });
 
     let qm = mqi::connect_lib::<ThreadBlock, _>(mock_library, &()).warn_as_error()?;
@@ -108,7 +108,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
         let mqmd = structs::MQMD2::new(default::MQMD2_DEFAULT);
         let mut gmo = structs::MQGMO::new(default::MQGMO_DEFAULT);
-        register_cb(&mut cbd, move |_a, _b: Option<&sys::MQMD2>, _c, _d, _e| {
+        register_cb(&mut cbd, move |_a, _b: Option<&mq::MQMD2>, _c, _d, _e| {
             println!("{b}");
         });
 
@@ -118,7 +118,7 @@ fn callback() -> Result<(), Box<dyn Error>> {
                 .mqcb(
                     qm.handle(),
                     constants::MQOP_REGISTER,
-                    &cbd,
+                    Some(&cbd),
                     Some(object.handle()),
                     Some(&*mqmd),
                     Some(&gmo),

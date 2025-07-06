@@ -1,8 +1,7 @@
 use std::{collections::VecDeque, iter, slice};
 
-use crate::{prelude::*, types, Conn, Object, ResultComp};
-
 pub use super::attribute_types::*;
+use crate::{Conn, Object, ResultComp, prelude::*, types};
 
 #[derive(Debug, Clone, Copy)]
 pub struct AttributeType {

@@ -2,10 +2,10 @@ use std::str::FromStr;
 
 use clap::Args;
 use mqi::{
+    MqStr,
     connect_options::{Binding, Ccdt, ConnectOption, Credentials, MqServer},
     constants,
     types::{CertificateLabel, CipherSpec, KeyRepo, MQCNO, QueueManagerName},
-    MqStr,
 };
 
 #[derive(clap::Parser, Debug)]
@@ -45,7 +45,7 @@ pub struct MethodArgs {
 }
 
 impl MethodArgs {
-    pub fn connect_option(&self) -> anyhow::Result<impl ConnectOption> {
+    pub fn connect_option(&self) -> anyhow::Result<impl ConnectOption<'_>> {
         Ok((
             self.mqserver.as_deref().map(MqServer::try_from).transpose()?,
             self.ccdt.as_deref().map(Ccdt),
@@ -70,7 +70,7 @@ impl ConnectionArgs {
             .transpose() // Option<Result> -> Result<Option>
     }
 
-    pub fn credentials(&self) -> Option<Credentials<&str>> {
+    pub fn credentials(&self) -> Option<Credentials<'_, &str>> {
         if self.username.is_some() | self.password.is_some() {
             Some(Credentials::User(
                 self.username.as_deref().unwrap_or(""),

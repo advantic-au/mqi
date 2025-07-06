@@ -1,7 +1,7 @@
-use crate::{types::MQBO, structs, ResultComp, ResultCompErrExt};
 use libmqm_default as default;
 
 use super::Conn;
+use crate::{ResultComp, ResultCompErrExt, structs, types::MQBO};
 
 #[derive(Debug, PartialEq)]
 enum SyncpointState {
@@ -28,13 +28,13 @@ impl<C: Conn> Syncpoint<C> {
     ///
     /// Uses the `MQBEGIN` MQ API call
     pub fn begin(connection: C, mqbo: MQBO) -> ResultComp<Self> {
-        let mut bo = structs::MQBO::new(libmqm_sys::lib::MQBO {
+        let mut bo = structs::MQBO::new(libmqm_sys::MQBO {
             Options: mqbo.0,
             ..default::MQBO_DEFAULT
         });
         connection
             .mq()
-            .mqbegin(connection.handle(), &mut bo)
+            .mqbegin(connection.handle(), Some(&mut bo))
             .map_completion(|()| Self::new(connection))
     }
 
@@ -66,25 +66,21 @@ impl<C: Conn> Drop for Syncpoint<C> {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     #[cfg(feature = "mock")]
-    use crate::{prelude::*, ResultComp};
+    use crate::{ResultComp, prelude::*};
 
     #[test]
     #[cfg(feature = "mock")]
     fn begin() -> ResultComp<()> {
-        use crate::{
-            test::mock::{self, MockFunctions},
-            Completion, Syncpoint,
-        };
-        use crate::types::MQBO;
+        use crate::{Completion, Syncpoint, test::mock, types::MQBO};
 
         let mock_connection = mock::connect_ok(|mock_library| {
             mock_library
                 .expect_MQBEGIN()
-                .returning(|_, _, cc, rc| MockFunctions::mqi_outcome_ok(cc, rc))
+                .returning(|_, _, cc, rc| mock::mqi_outcome_ok(cc, rc))
                 .once();
             mock_library
                 .expect_MQCMIT()
-                .returning(|_, cc, rc| MockFunctions::mqi_outcome_ok(cc, rc))
+                .returning(|_, cc, rc| mock::mqi_outcome_ok(cc, rc))
                 .once();
         });
 

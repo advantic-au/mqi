@@ -1,23 +1,19 @@
 use std::borrow::Cow;
 
+use libmqm_sys as mq;
+
+use super::get::{
+    GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait, Headers,
+    MatchOptions,
+};
 use crate::{
-    constants, conversion, macros::all_option_tuples, prelude::*, structs, types, Completion, Conn, Error, Properties,
-    ResultComp, ResultCompErr,
+    Buffer, Completion, Conn, Error, Properties, ResultComp, ResultCompErr, StrCcsidCow, constants, conversion, headers,
+    macros::all_option_tuples, prelude::*, structs, types,
 };
-
-use super::{
-    get::{
-        GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait, Headers,
-        MatchOptions,
-    },
-    headers, impl_min_version, Buffer, StrCcsidCow,
-};
-
-use libmqm_sys::lib as sys;
 
 all_option_tuples!(GetOption, GetParam);
 
-impl_min_version!([], structs::MQGMO);
+structs::impl_min_version!([], structs::MQGMO);
 
 impl GetOption for types::MQGMO {
     fn apply_param(&self, param: &mut GetParam) {
@@ -60,7 +56,7 @@ impl GetOption for GetConvert {
 
 impl<C: Conn> GetOption for &mut Properties<C> {
     fn apply_param(&self, param: &mut GetParam) {
-        param.gmo.set_min_version(sys::MQGMO_VERSION_4);
+        param.gmo.set_min_version(mq::MQGMO_VERSION_4);
         let gmo_options: &mut types::MQGMO = param.gmo.Options.as_mut();
         gmo_options.insert(constants::MQGMO_PROPERTIES_IN_HANDLE);
         param.gmo.MsgHandle = unsafe { self.handle().raw_handle() }
@@ -84,10 +80,10 @@ impl GetOption for MatchOptions<'_> {
 
         // Set up the GMO
         if let Some(token) = self.token {
-            param.gmo.set_min_version(sys::MQGMO_VERSION_3);
+            param.gmo.set_min_version(mq::MQGMO_VERSION_3);
             param.gmo.MsgToken = token.0;
         }
-        param.gmo.set_min_version(sys::MQGMO_VERSION_2);
+        param.gmo.set_min_version(mq::MQGMO_VERSION_2);
         *param.gmo.MatchOptions.as_mut() = self
             .correl_id
             .map_or(constants::MQMO_NONE, |_| constants::MQMO_MATCH_CORREL_ID)
@@ -137,10 +133,12 @@ impl GetOption for types::MsgToken {
 #[expect(unused_parens)]
 mod get_bag_impl {
 
-    use crate::get::{GetBagAttr, GetParam};
-    use crate::macros::all_multi_tuples;
-    use crate::prelude::*;
-    use crate::ResultComp;
+    use crate::{
+        ResultComp,
+        get::{GetBagAttr, GetParam},
+        macros::all_multi_tuples,
+        prelude::*,
+    };
 
     macro_rules! impl_getbagattr {
         ([$first:ident, $($ty:ident),*]) => {
@@ -185,11 +183,12 @@ mod get_bag_impl {
 
 #[expect(unused_parens)]
 mod get_impl {
-    use crate::get::{GetAttr, GetValue, GetParam, GetState};
-    use crate::Buffer;
-    use crate::macros::all_multi_tuples;
-    use crate::prelude::*;
-    use crate::{ResultCompErr, ResultComp};
+    use crate::{
+        Buffer, ResultComp, ResultCompErr,
+        get::{GetAttr, GetParam, GetState, GetValue},
+        macros::all_multi_tuples,
+        prelude::*,
+    };
 
     macro_rules! impl_getvalue {
         ([$first:ident, $($ty:ident),*]) => {
@@ -436,11 +435,11 @@ impl<'b, R> GetAttr<'b, R> for types::MessageId {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use super::*;
-    use crate::core::CCSID;
-    use crate::constants;
     use libmqm_default as default;
     use types::{CorrelationId, Identifier, MessageFormat};
+
+    use super::*;
+    use crate::{CCSID, constants};
 
     const FMT_STRING: types::MessageFormat = types::MessageFormat {
         ccsid: CCSID(1208),

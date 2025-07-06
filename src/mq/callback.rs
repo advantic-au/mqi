@@ -1,16 +1,8 @@
-use libmqm_sys::Mqi;
-use libmqm_sys::lib as sys;
 use libmqm_default as default;
-
-use crate::types;
-use crate::{
-    core::{Library, MqFunctions},
-    Error, constants,
-    prelude::*,
-    structs,
-};
+use libmqm_sys::{self as mq, Mqi};
 
 use super::{Connection, ConnectionRef};
+use crate::{Error, Library, MqFunctions, constants, prelude::*, structs, types};
 
 struct CallbackData<F, L> {
     options: types::MQCBDO,
@@ -19,11 +11,11 @@ struct CallbackData<F, L> {
 }
 
 unsafe extern "C" fn event_callback<L, H, F>(
-    hconn: sys::MQHCONN,
-    _mqmd: sys::PMQVOID,   // Not used for MQCBT_EVENT_HANDLER
-    _mqgmo: sys::PMQVOID,  // Not used for MQCBT_EVENT_HANDLER
-    _buffer: sys::PMQVOID, // Not used for MQCBT_EVENT_HANDLER
-    cbc: *const sys::MQCBC,
+    hconn: mq::MQHCONN,
+    _mqmd: mq::PMQVOID,   // Not used for MQCBT_EVENT_HANDLER
+    _mqgmo: mq::PMQVOID,  // Not used for MQCBT_EVENT_HANDLER
+    _buffer: mq::PMQVOID, // Not used for MQCBT_EVENT_HANDLER
+    cbc: *const mq::MQCBC,
 ) where
     L: Library<MQ: Mqi> + Clone,
     F: FnMut(ConnectionRef<L, H>, &structs::MQCBC),
@@ -71,8 +63,14 @@ where
 
         // SAFETY: MQCBD registered with valid pointers
         unsafe {
-            self.mq()
-                .mqcb(self.handle(), constants::MQOP_REGISTER, &cbd, None, None::<&sys::MQMD>, None)
+            self.mq().mqcb(
+                self.handle(),
+                constants::MQOP_REGISTER,
+                Some(&cbd),
+                None,
+                None::<&mq::MQMD>,
+                None,
+            )
         }?;
 
         Ok(())

@@ -1,16 +1,14 @@
 #![cfg(feature = "mqai")]
 
 use mqi::{
-    admin::Bag,
-    constants,
-    headers::{fmt, TextEnc},
+    Bag, Object, constants,
+    headers::{TextEnc, fmt},
     open_options,
     prelude::*,
-    test, types, Object,
+    test, types,
 };
-
 #[cfg(not(feature = "mock"))]
-use mqi::{connect_options::Credentials, ThreadNone};
+use mqi::{ThreadNone, connect_options::Credentials};
 
 #[test]
 fn put_get_bag() -> Result<(), Box<dyn std::error::Error>> {
@@ -21,46 +19,46 @@ fn put_get_bag() -> Result<(), Box<dyn std::error::Error>> {
     {
         connection = test::mock::connect_ok(|mock_library| {
             let mut seq = mockall::Sequence::new();
-            mock_library.open_ok(0x0c0c, 1, &mut seq);
+            test::mock::open_ok(mock_library, 0x0c0c, 1, &mut seq);
             mock_library
                 .expect_mqCreateBag()
                 .returning(move |_, bag_handle, cc, rc| {
-                    unsafe { *bag_handle = 0x0f0f };
-                    test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+                    *bag_handle = 0x0f0f;
+                    test::mock::mqi_outcome_ok(cc, rc);
                 })
                 .times(1)
                 .in_sequence(&mut seq);
             mock_library
                 .expect_mqSetInteger()
-                .returning(move |_, _, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
+                .returning(move |_, _, _, _, cc, rc| test::mock::mqi_outcome_ok(cc, rc))
                 .times(1)
                 .in_sequence(&mut seq);
             mock_library
                 .expect_mqPutBag()
-                .returning(move |_, _, _, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
+                .returning(move |_, _, _, _, _, cc, rc| test::mock::mqi_outcome_ok(cc, rc))
                 .times(1)
                 .in_sequence(&mut seq);
             mock_library
                 .expect_mqCreateBag()
                 .returning(move |_, bag_handle, cc, rc| {
-                    unsafe { *bag_handle = 0x0d0d };
-                    test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+                    *bag_handle = 0x0d0d;
+                    test::mock::mqi_outcome_ok(cc, rc);
                 })
                 .times(1)
                 .in_sequence(&mut seq);
             mock_library
                 .expect_mqSetInteger()
-                .returning(move |_, _, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
+                .returning(move |_, _, _, _, cc, rc| test::mock::mqi_outcome_ok(cc, rc))
                 .times(1)
                 .in_sequence(&mut seq);
             mock_library
                 .expect_mqGetBag()
-                .returning(move |_, _, _, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
+                .returning(move |_, _, _, _, _, cc, rc| test::mock::mqi_outcome_ok(cc, rc))
                 .times(1)
                 .in_sequence(&mut seq);
             mock_library
                 .expect_mqDeleteBag()
-                .returning(move |_, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
+                .returning(move |_, cc, rc| test::mock::mqi_outcome_ok(cc, rc))
                 .times(2)
                 .in_sequence(&mut seq);
         });
@@ -98,24 +96,24 @@ fn bag_no_message() -> Result<(), Box<dyn std::error::Error>> {
     {
         connection = test::mock::connect_ok(|mock_library| {
             let mut seq = mockall::Sequence::new();
-            mock_library.open_ok(0x0c0c, 1, &mut seq);
+            test::mock::open_ok(mock_library, 0x0c0c, 1, &mut seq);
             mock_library
                 .expect_mqCreateBag()
                 .returning(move |_, bag_handle, cc, rc| {
-                    unsafe { *bag_handle = 0x0f0f };
-                    test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+                    *bag_handle = 0x0f0f;
+                    test::mock::mqi_outcome_ok(cc, rc);
                 })
                 .times(1)
                 .in_sequence(&mut seq);
             mock_library
                 .expect_mqSetInteger()
-                .returning(move |_, _, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
+                .returning(move |_, _, _, _, cc, rc| test::mock::mqi_outcome_ok(cc, rc))
                 .times(1)
                 .in_sequence(&mut seq);
-            mock_library.get_bag_error(constants::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
+            test::mock::mqai::get_bag_error(mock_library, constants::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
             mock_library
                 .expect_mqDeleteBag()
-                .returning(move |_, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc))
+                .returning(move |_, cc, rc| test::mock::mqi_outcome_ok(cc, rc))
                 .times(1)
                 .in_sequence(&mut seq);
         });

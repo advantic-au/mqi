@@ -1,13 +1,12 @@
 use libmqm_sys::link::LinkedMq;
-
-use super::{connect_options::ConnectOption, ConnectAttr, ConnectValue, Connection, Threading};
-use crate::ResultComp;
-
 #[cfg(feature = "mqai")]
 use {
-    crate::admin::{Bag, Owned},
     crate::types::MQCBO,
+    crate::{Bag, Owned},
 };
+
+use super::{ConnectAttr, ConnectValue, Connection, Threading, connect_options::ConnectOption};
+use crate::ResultComp;
 
 /// Create a connection to a queue manager using the compile time linked MQ library
 /// and type inferred [`ConnectValue`].
@@ -27,7 +26,7 @@ where
 ///
 /// The [`Threading`] type parameter controls the threaded capability of the connection.
 ///
-/// This uses the [`MQCONNX`](libmqm_sys::Mqi::MQCONNX) function.
+/// This uses the [`MQCONNX`](libmqm_sys::MQCONNX) function.
 ///
 /// # Examples
 ///
@@ -46,9 +45,9 @@ where
 /// # Ok::<(), mqi::Error>(())
 /// ```
 ///
-/// See also [`connect_as`] and [`connect_with`] for creating connections using
-/// the compile time linked MQ library. For connections using dynamically loaded
-/// or custom implementation of the MQ library refer to [`connect_lib`](crate::connect_lib).
+/// See also [`connect_as`] and [`connect_with`] for creating connections with additional
+/// return attribute. For connections using dynamically loaded or custom implementation of the
+/// MQ library refer to [`connect_lib`](crate::connect_lib).
 #[inline]
 pub fn connect<'co, H>(options: &impl ConnectOption<'co>) -> ResultComp<Connection<LinkedMq, H>>
 where
@@ -62,7 +61,7 @@ where
 ///
 /// Refer to [`connect`] for parameter details.
 ///
-/// This uses the [`MQCONNX`](libmqm_sys::Mqi::MQCONNX) function.
+/// This uses the [`MQCONNX`](libmqm_sys::MQCONNX) function.
 ///
 /// Common [`ConnectAttr`] that can be returned include [`ConnTag`](crate::ConnTag) and [`ConnectionId`](crate::ConnectionId).
 #[inline]

@@ -1,5 +1,4 @@
-use crate::MqChar;
-use crate::types;
+use crate::{MqChar, types};
 
 /// `(CCSID, encoding, short description)`
 pub type CcsidEntry = (i32, u8, &'static str);
@@ -947,9 +946,8 @@ pub fn is_ebcdic(ccsid: u32) -> Option<bool> {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use crate::encoding::{ccsid_lookup, is_ebcdic, ASCII7_EBCDIC};
-
     use super::EBCDIC_ASCII7;
+    use crate::encoding::{ASCII7_EBCDIC, ccsid_lookup, is_ebcdic};
 
     #[test]
     fn ccsid_lookup_all() {
@@ -1003,6 +1001,7 @@ mod tests {
 mod ptest {
 
     use proptest::prelude::*;
+
     use super::*;
 
     proptest! {

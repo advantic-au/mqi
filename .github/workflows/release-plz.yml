@@ -24,11 +24,11 @@ jobs:
         with:
           client-version: latest
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
+        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
         with:
           toolchain: stable
       - name: Run release-plz
-        uses: MarcoIeni/release-plz-action@bbd1afc9813d25602e002b29e96e0aacebab1160 # v0.5
+        uses: MarcoIeni/release-plz-action@dde7b63054529c440305a924e5849c68318bcc9a # v0.5
         with:
           command: release
         env:
@@ -58,11 +58,11 @@ jobs:
         with:
           client-version: latest
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0
+        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
         with:
           toolchain: stable
       - name: Run release-plz
-        uses: MarcoIeni/release-plz-action@bbd1afc9813d25602e002b29e96e0aacebab1160 # v0.5
+        uses: MarcoIeni/release-plz-action@dde7b63054529c440305a924e5849c68318bcc9a # v0.5
         with:
           command: release-pr
         env:

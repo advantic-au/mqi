@@ -1,5 +1,4 @@
-use crate::encoding;
-use crate::types;
+use crate::{encoding, types};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
 #[repr(transparent)]
@@ -56,7 +55,7 @@ impl std::fmt::Debug for CCSID {
 
 impl Default for CCSID {
     fn default() -> Self {
-        Self(libmqm_sys::lib::MQCCSI_UNDEFINED)
+        Self(libmqm_sys::MQCCSI_UNDEFINED)
     }
 }
 

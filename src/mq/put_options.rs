@@ -1,14 +1,12 @@
-use libmqm_sys::lib as sys;
-
-use crate::{macros::all_multi_tuples, prelude::*, structs, types, constants, Conn, MqStr, Properties, ResultComp};
+use libmqm_sys as mq;
 
 use super::{
-    impl_min_version,
-    put::{PutAttr, PutOption, PutParam},
     Object,
+    put::{PutAttr, PutOption, PutParam},
 };
+use crate::{Conn, MqStr, Properties, ResultComp, constants, macros::all_multi_tuples, prelude::*, structs, types};
 
-impl_min_version!(['a], structs::MQPMO<'a>);
+structs::impl_min_version!(['a], structs::MQPMO<'a>);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Context<T>(pub T);
@@ -51,7 +49,7 @@ unsafe impl<'po, C: Conn> PutOption<'po> for Context<&Object<C>> {
 
 unsafe impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
     fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
-        pmo.set_min_version(sys::MQPMO_VERSION_3);
+        pmo.set_min_version(mq::MQPMO_VERSION_3);
         *pmo.Action.as_mut() = constants::MQACTP_NEW;
         pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
     }
@@ -146,7 +144,7 @@ unsafe impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2
             PropertyAction::Forward(original, new) => (constants::MQACTP_FORWARD, original, new),
             PropertyAction::Report(original, new) => (constants::MQACTP_REPORT, original, new),
         };
-        pmo.set_min_version(sys::MQPMO_VERSION_3);
+        pmo.set_min_version(mq::MQPMO_VERSION_3);
         *pmo.Action.as_mut() = action;
         pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
         pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };
@@ -212,11 +210,12 @@ impl_putattr_mqmd_mqstr!(ApplOriginData, types::ApplOriginData);
 
 #[expect(unused_parens)]
 mod impl_put {
-    use crate::macros::all_multi_tuples;
-
-    use crate::put::{PutAttr, PutParam};
-    use crate::ResultComp;
-    use crate::prelude::*;
+    use crate::{
+        ResultComp,
+        macros::all_multi_tuples,
+        prelude::*,
+        put::{PutAttr, PutParam},
+    };
 
     macro_rules! impl_putattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
@@ -267,21 +266,17 @@ mod impl_put {
 mod test {
     use std::error::Error;
 
-    use crate::put::PutOption;
-    use crate::test::mock;
-    use crate::Properties;
-    use crate::types::MQCMHO;
+    use libmqm_default as default;
 
     use super::*;
-
-    use libmqm_default as default;
+    use crate::{Properties, put::PutOption, test::mock, types::MQCMHO};
 
     #[test]
     fn property_action() -> Result<(), Box<dyn Error>> {
         let qm = mock::connect_ok(|mock_library| {
             let mut seq = mockall::Sequence::new();
-            mock_library.properties_ok(0xf0f0, 1, &mut seq);
-            mock_library.properties_ok(0x0e0e, 1, &mut seq);
+            mock::properties_ok(mock_library, 0xf0f0, 1, &mut seq);
+            mock::properties_ok(mock_library, 0x0e0e, 1, &mut seq);
         });
 
         let mut put_param = (

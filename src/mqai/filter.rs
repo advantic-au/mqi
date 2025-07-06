@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
-use crate::types::MQCFOP;
-use crate::constants;
+use crate::{constants, types::MQCFOP};
 
 #[derive(Debug, Clone, Copy, Eq)]
 pub struct Filter<T> {

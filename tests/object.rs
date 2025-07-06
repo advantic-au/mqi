@@ -1,22 +1,19 @@
 #![cfg(any(feature = "link", feature = "dlopen2"))]
 
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::error::Error;
+use std::{borrow::Cow, collections::HashMap, error::Error};
 
-use mqi::test;
-use mqi::headers::fmt;
-use mqi::open_options::SelectionString;
-use mqi::prelude::*;
-use mqi::attribute::{AttributeType, AttributeValue, InqResItem};
-use mqi::constants;
-use mqi::types::{MQCMHO, MQXA};
-use mqi::types::{MessageFormat, MessageId, QueueManagerName, QueueName};
-use mqi::{get, Properties};
-use mqi::{attribute, Object};
-
+use mqi::{
+    Object, Properties, attribute,
+    attribute::{AttributeType, AttributeValue, InqResItem},
+    constants, get,
+    headers::fmt,
+    open_options::SelectionString,
+    prelude::*,
+    test,
+    types::{MQCMHO, MQXA, MessageFormat, MessageId, QueueManagerName, QueueName},
+};
 #[cfg(not(feature = "mock"))]
-use mqi::{connect_options::Credentials, ThreadNone};
+use mqi::{ThreadNone, connect_options::Credentials};
 
 #[test]
 fn no_message() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,8 +24,8 @@ fn no_message() -> Result<(), Box<dyn std::error::Error>> {
     {
         connection = test::mock::connect_ok(|mock_library| {
             let mut seq = mockall::Sequence::new();
-            mock_library.open_ok(0x0c0c, 1, &mut seq);
-            mock_library.get_error(constants::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
+            test::mock::open_ok(mock_library, 0x0c0c, 1, &mut seq);
+            test::mock::get_error(mock_library, constants::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
         });
     }
     #[cfg(not(feature = "mock"))]
@@ -64,13 +61,13 @@ fn put_get_message() -> Result<(), Box<dyn std::error::Error>> {
     {
         connection = test::mock::connect_ok(|mock_library| {
             let mut seq = mockall::Sequence::new();
-            mock_library.open_ok(0x0c0c, 1, &mut seq);
+            test::mock::open_ok(mock_library, 0x0c0c, 1, &mut seq);
             mock_library.expect_MQPUT().returning(|_, _, _, _, _, _, cc, rc| {
                 // TODO: add assertions here
-                test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+                test::mock::mqi_outcome_ok(cc, rc);
             });
-            mock_library.properties_ok(0x0d0d, 1, &mut seq);
-            mock_library.get_ok("put_get_message test", 1, &mut seq);
+            test::mock::properties_ok(mock_library, 0x0d0d, 1, &mut seq);
+            test::mock::get_ok(mock_library, "put_get_message test", 1, &mut seq);
         });
     }
     #[cfg(not(feature = "mock"))]
@@ -122,7 +119,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         // Hmmm... this works. Not documented for MQINQ though.
         #[expect(clippy::cast_possible_truncation)]
         unsafe {
-            AttributeType::new(MQXA(constants::MQCA_VERSION.0), libmqm_sys::lib::MQ_VERSION_LENGTH as u32)
+            AttributeType::new(MQXA(constants::MQCA_VERSION.0), libmqm_sys::MQ_VERSION_LENGTH as u32)
         },
         attribute::MQIA_COMMAND_LEVEL,
     ];
@@ -133,7 +130,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
     {
         connection = test::mock::connect_ok(|mock_library| {
             let mut seq = mockall::Sequence::new();
-            mock_library.open_ok(0x0c0c, 1, &mut seq);
+            test::mock::open_ok(mock_library, 0x0c0c, 1, &mut seq);
             mock_library
                 .expect_MQINQ()
                 .returning(|_, _, _, _, int_len, ints, char_len, chars, cc, rc| {
@@ -145,7 +142,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
                     let int_slice =
                         unsafe { slice::from_raw_parts_mut(ints, int_len.try_into().expect("int_len should be positive")) };
                     int_slice.fill(0);
-                    test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+                    test::mock::mqi_outcome_ok(cc, rc);
                 });
         });
     }
@@ -188,10 +185,10 @@ fn put_message() -> Result<(), Box<dyn Error>> {
     {
         connection = test::mock::connect_ok(|mock_library| {
             let mut seq = mockall::Sequence::new();
-            mock_library.open_ok(0x0c0c, 1, &mut seq);
+            test::mock::open_ok(mock_library, 0x0c0c, 1, &mut seq);
             mock_library.expect_MQPUT().returning(|_, _, _, _, _, _, cc, rc| {
                 // TODO: add assertions here
-                test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+                test::mock::mqi_outcome_ok(cc, rc);
             });
         });
     }

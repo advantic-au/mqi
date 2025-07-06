@@ -1,15 +1,13 @@
+use libmqm_sys as mq;
+
+use super::{Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
 use crate::{
+    CCSID, Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, constants,
+    macros::{all_multi_tuples, impl_from_str, reverse_ident},
     prelude::*,
-    constants, structs,
+    structs,
     types::{MQLONG, MQOO, MQOT, MQPMO, QueueManagerName, QueueName},
-    core::CCSID,
-    Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned,
-    macros::{all_multi_tuples, reverse_ident},
 };
-
-use libmqm_sys::lib as sys;
-
-use super::{impl_min_version, types::impl_from_str, Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
 
 unsafe impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
     fn apply_param(&self, param: &mut OpenParamOption<'oo, O>) {
@@ -61,7 +59,7 @@ unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for SelectionStr
     }
 }
 
-impl_min_version!(['a], structs::MQOD<'a>);
+structs::impl_min_version!(['a], structs::MQOD<'a>);
 
 unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString<&'a T> {
     fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
@@ -99,7 +97,7 @@ unsafe impl<'b> OpenOption<'b, Self> for MQPMO {
 unsafe impl OpenOption<'_, MQOO> for AlternateUserId {
     fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQOO>) {
         options.insert(constants::MQOO_ALTERNATE_USER_AUTHORITY);
-        mqod.set_min_version(sys::MQOD_VERSION_3);
+        mqod.set_min_version(mq::MQOD_VERSION_3);
         mqod.AlternateUserId = self.0.into();
     }
 }
@@ -107,7 +105,7 @@ unsafe impl OpenOption<'_, MQOO> for AlternateUserId {
 unsafe impl OpenOption<'_, MQPMO> for AlternateUserId {
     fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQPMO>) {
         options.insert(constants::MQPMO_ALTERNATE_USER_AUTHORITY);
-        mqod.set_min_version(sys::MQOD_VERSION_3);
+        mqod.set_min_version(mq::MQOD_VERSION_3);
         mqod.AlternateUserId = self.0.into();
     }
 }
@@ -118,7 +116,7 @@ unsafe impl<S, O> OpenAttr<S, O> for Option<QueueName> {
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
     {
-        param.mqod.set_min_version(sys::MQOD_VERSION_3); // For ResolvedQName
+        param.mqod.set_min_version(mq::MQOD_VERSION_3); // For ResolvedQName
         open(param).map_completion(|state| {
             (
                 Some(QueueName(param.mqod.ResolvedQName.into())).filter(|queue_name| queue_name.has_value()),
@@ -134,7 +132,7 @@ unsafe impl<S, O> OpenAttr<S, O> for MQOT {
     where
         F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
     {
-        param.mqod.set_min_version(sys::MQOD_VERSION_4);
+        param.mqod.set_min_version(mq::MQOD_VERSION_4);
         open(param).map_completion(|state| (param.mqod.ResolvedType.into(), state))
     }
 }
@@ -157,7 +155,7 @@ unsafe impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
     {
-        param.mqod.set_min_version(sys::MQOD_VERSION_3); // For ResolvedQMgrName
+        param.mqod.set_min_version(mq::MQOD_VERSION_3); // For ResolvedQMgrName
         open(param).map_completion(|state| {
             (
                 Self::Some(QueueManagerName(param.mqod.ResolvedQMgrName.into())).filter(|queue_name| queue_name.has_value()),
@@ -213,13 +211,8 @@ unsafe impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
 
 #[expect(unused_parens)]
 mod open_impl {
-    use crate::macros::all_multi_tuples;
-
     use super::{OpenAttr, OpenParam, OpenParamOption, OpenValue};
-
-    use crate::types::MQOO;
-    use crate::{ResultComp, ResultCompErr};
-    use crate::prelude::*;
+    use crate::{ResultComp, ResultCompErr, macros::all_multi_tuples, prelude::*, types::MQOO};
 
     macro_rules! impl_openvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {

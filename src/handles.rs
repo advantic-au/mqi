@@ -1,8 +1,10 @@
 use std::fmt::Display;
 
-use ::libmqm_constants::lookup::{ConstLookup as _, HasConstLookup as _};
-use ::libmqm_constants::mapping;
-use libmqm_sys::lib as sys;
+use ::libmqm_constants::{
+    lookup::{ConstLookup as _, HasConstLookup as _},
+    mapping,
+};
+use libmqm_sys as mq;
 
 /// Implements `HasConstLookup` using the provided `ConstSource` static instance
 macro_rules! impl_constant_lookup {
@@ -20,24 +22,24 @@ pub trait RawHandle {
 }
 
 pub mod raw {
-    use super::{RawHandle, sys};
+    use super::{RawHandle, mq};
 
     #[derive(Debug, Clone, Copy)]
     pub struct Connection;
     impl RawHandle for Connection {
-        type HandleType = sys::MQHCONN;
+        type HandleType = mq::MQHCONN;
     }
 
     #[derive(Debug)]
     pub struct Message;
     impl RawHandle for Message {
-        type HandleType = sys::MQHMSG;
+        type HandleType = mq::MQHMSG;
     }
 
     #[derive(Debug)]
     pub struct Object;
     impl RawHandle for Object {
-        type HandleType = sys::MQHOBJ;
+        type HandleType = mq::MQHOBJ;
     }
 }
 
@@ -66,20 +68,20 @@ impl<R: RawHandle> Handle<R> {
     }
 }
 
-impl From<sys::MQHCONN> for ConnectionHandle {
-    fn from(value: sys::MQHCONN) -> Self {
+impl From<mq::MQHCONN> for ConnectionHandle {
+    fn from(value: mq::MQHCONN) -> Self {
         Self(value)
     }
 }
 
-impl From<sys::MQHMSG> for MessageHandle {
-    fn from(value: sys::MQHMSG) -> Self {
+impl From<mq::MQHMSG> for MessageHandle {
+    fn from(value: mq::MQHMSG) -> Self {
         Self(value)
     }
 }
 
-impl From<sys::MQHOBJ> for ObjectHandle {
-    fn from(value: sys::MQHOBJ) -> Self {
+impl From<mq::MQHOBJ> for ObjectHandle {
+    fn from(value: mq::MQHOBJ) -> Self {
         Self(value)
     }
 }
@@ -87,13 +89,13 @@ impl From<sys::MQHOBJ> for ObjectHandle {
 impl ConnectionHandle {
     #[must_use]
     pub const fn is_disconnectable(&self) -> bool {
-        self.0 != sys::MQHC_UNUSABLE_HCONN
+        self.0 != mq::MQHC_UNUSABLE_HCONN
     }
 }
 
 impl Default for ConnectionHandle {
     fn default() -> Self {
-        Self(sys::MQHC_UNUSABLE_HCONN)
+        Self(mq::MQHC_UNUSABLE_HCONN)
     }
 }
 
@@ -111,20 +113,20 @@ impl Display for ConnectionHandle {
 impl MessageHandle {
     #[must_use]
     pub const fn is_deleteable(&self) -> bool {
-        self.0 != sys::MQHM_UNUSABLE_HMSG
+        self.0 != mq::MQHM_UNUSABLE_HMSG
     }
 }
 
 impl ObjectHandle {
     #[must_use]
     pub const fn is_closeable(&self) -> bool {
-        self.0 != sys::MQHO_UNUSABLE_HOBJ
+        self.0 != mq::MQHO_UNUSABLE_HOBJ
     }
 }
 
 impl Default for ObjectHandle {
     fn default() -> Self {
-        Self(sys::MQHO_UNUSABLE_HOBJ)
+        Self(mq::MQHO_UNUSABLE_HOBJ)
     }
 }
 
@@ -153,7 +155,7 @@ impl Display for MessageHandle {
 
 impl Default for MessageHandle {
     fn default() -> Self {
-        Self(sys::MQHM_UNUSABLE_HMSG)
+        Self(mq::MQHM_UNUSABLE_HMSG)
     }
 }
 
@@ -165,26 +167,26 @@ mod tests {
     #[test]
     fn connection_handle_display() {
         assert_eq!(
-            ConnectionHandle::from(sys::MQHC_DEF_HCONN).to_string(),
+            ConnectionHandle::from(mq::MQHC_DEF_HCONN).to_string(),
             "HCONN(MQHC_DEF_HCONN)"
         );
         assert_eq!(
-            ConnectionHandle::from(sys::MQHC_UNUSABLE_HCONN).to_string(),
+            ConnectionHandle::from(mq::MQHC_UNUSABLE_HCONN).to_string(),
             "HCONN(MQHC_UNUSABLE_HCONN)"
         );
     }
 
     #[test]
     fn object_handle_display() {
-        assert_eq!(ObjectHandle::from(sys::MQHO_NONE).to_string(), "HOBJ(MQHO_NONE)");
+        assert_eq!(ObjectHandle::from(mq::MQHO_NONE).to_string(), "HOBJ(MQHO_NONE)");
         assert_eq!(ObjectHandle::from(1).to_string(), "HOBJ(0x00000001)");
     }
 
     #[test]
     fn message_handle_display() {
-        assert_eq!(MessageHandle::from(sys::MQHM_NONE).to_string(), "HMSG(MQHM_NONE)");
+        assert_eq!(MessageHandle::from(mq::MQHM_NONE).to_string(), "HMSG(MQHM_NONE)");
         assert_eq!(
-            MessageHandle::from(sys::MQHM_UNUSABLE_HMSG).to_string(),
+            MessageHandle::from(mq::MQHM_UNUSABLE_HMSG).to_string(),
             "HMSG(MQHM_UNUSABLE_HMSG)"
         );
     }

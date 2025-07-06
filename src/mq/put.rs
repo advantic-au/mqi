@@ -1,28 +1,27 @@
 use std::borrow::Cow;
 
 use libmqm_default as default;
-use libmqm_sys::Mqi;
-use libmqm_sys::lib::MQMD2;
-
-use crate::core::{ConnectionHandle, Library, MqFunctions, CCSID};
-use crate::types::MQPMO;
-use crate::headers::{fmt, TextEnc};
-use crate::types::MessageFormat;
-use crate::{constants, structs, Conn, Object, ResultComp};
+use libmqm_sys::{MQMD2, Mqi};
 
 use super::{OpenOption, OpenParamOption};
+use crate::{
+    CCSID, Conn, ConnectionHandle, Library, MqFunctions, Object, ResultComp, constants,
+    headers::{TextEnc, fmt},
+    structs,
+    types::{MQPMO, MessageFormat},
+};
 
-/// A trait that provides a rendered message for the [`mqput`](`crate::core::MqFunctions::mqput`) function
+/// A trait that provides a rendered message for the [`mqput`](`crate::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put")]
 pub trait PutMessage {
-    fn render(&self) -> Cow<[u8]>;
+    fn render(&self) -> Cow<'_, [u8]>;
     fn format(&self) -> MessageFormat;
 }
 
 pub type PutParam<'a> = (structs::MQMD2, structs::MQPMO<'a>);
 
 impl PutMessage for str {
-    fn render(&self) -> Cow<[u8]> {
+    fn render(&self) -> Cow<'_, [u8]> {
         self.as_bytes().into()
     }
 
@@ -36,7 +35,7 @@ impl PutMessage for str {
 }
 
 impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
-    fn render(&self) -> Cow<[u8]> {
+    fn render(&self) -> Cow<'_, [u8]> {
         Cow::Borrowed(self.0.as_ref())
     }
 
@@ -47,19 +46,11 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
 
 #[cfg(feature = "mqai")]
 mod mqai {
-    use libmqm_sys::Mqai;
-    use libmqm_sys::lib::MQMD2;
     use libmqm_default as default;
-
-    use crate::{
-        admin::{Bag, BagDrop},
-        structs,
-        core::Library,
-        headers::TextEnc,
-        types, Conn, Object, ResultComp,
-    };
+    use libmqm_sys::{MQMD2, Mqai};
 
     use super::{PutAttr, PutOption};
+    use crate::{Bag, BagDrop, Conn, Library, Object, ResultComp, headers::TextEnc, structs, types};
 
     impl<C: Conn> Object<C>
     where
@@ -129,11 +120,11 @@ impl<C: Conn> Object<C> {
     }
 }
 
-/// A trait that manipulates the parameters to the [`mqput`](`crate::core::MqFunctions::mqput`) function
+/// A trait that manipulates the parameters to the [`mqput`](`crate::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put")]
 /// # Safety
-/// This trait can directly manipulate the [`MQPMO`](libmqm_sys::lib::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::Mqi::MQPUT)
-/// and [`MQPUT1`](libmqm_sys::Mqi::MQPUT1). Incorrect values in the [`MQPMO`](libmqm_sys::lib::MQPMO) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
+/// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
 ///
 /// Implementations of the [`PutOption`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PutOption<'po> {
@@ -141,8 +132,8 @@ pub unsafe trait PutOption<'po> {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQPMO`](libmqm_sys::lib::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::Mqi::MQPUT)
-/// and [`MQPUT1`](libmqm_sys::Mqi::MQPUT1). Incorrect values in the [`MQPMO`](libmqm_sys::lib::MQPMO) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
+/// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
 ///
 /// Implementations of the [`PutAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PutAttr {

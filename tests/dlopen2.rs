@@ -3,9 +3,8 @@
 use std::{error::Error, rc::Rc};
 
 use ::dlopen2::wrapper::Container;
-use libmqm_sys::dlopen2::LoadMqm;
-use mqi::core::MqFunctions;
-use mqi::mqstr;
+use libmqm_sys::dlopen2::LoadMqmExt;
+use mqi::{MqFunctions, mqstr};
 
 #[test]
 fn dlopen() -> Result<(), Box<dyn Error>> {

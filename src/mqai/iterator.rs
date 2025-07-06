@@ -2,14 +2,12 @@ use std::marker::PhantomData;
 
 use libmqm_sys::Mqai;
 
-use crate::types::{MQLONG, Selector, MQIND};
-use crate::core::Library;
-use crate::prelude::*;
-use crate::{constants, ResultComp, ResultCompErr, WithMqError as _};
-
-use crate::Error;
-
 use super::{Bag, BagDrop, BagItemGet, Embedded};
+use crate::{
+    Error, Library, ResultComp, ResultCompErr, WithMqError as _, constants,
+    prelude::*,
+    types::{MQIND, MQLONG, Selector},
+};
 
 pub struct BagItem<'bag, T, B, L>
 where
@@ -62,7 +60,7 @@ where
     B: BagDrop,
     L: Library<MQ: Mqai> + Clone,
 {
-    pub fn try_iter<T: BagItemGet<L>>(&self, selector: Selector) -> ResultComp<BagItem<T, B, L>> {
+    pub fn try_iter<T: BagItemGet<L>>(&self, selector: Selector) -> ResultComp<BagItem<'_, T, B, L>> {
         self.mq.mq_count_items(self, selector).map_completion(|count| BagItem {
             selector,
             count,
@@ -72,7 +70,7 @@ where
         })
     }
 
-    pub fn try_bag_iter(&self, selector: Selector) -> ResultComp<BagItem<Bag<Embedded, L>, B, L>> {
+    pub fn try_bag_iter(&self, selector: Selector) -> ResultComp<BagItem<'_, Bag<Embedded, L>, B, L>> {
         self.try_iter(selector)
     }
 }
@@ -81,7 +79,7 @@ where
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use crate::{test::mq_library, Completion};
+    use crate::{Completion, test::mq_library};
 
     #[test]
     fn test_empty_iterator() -> Result<(), Box<dyn std::error::Error>> {

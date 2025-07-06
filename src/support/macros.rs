@@ -100,7 +100,21 @@ macro_rules! all_option_tuples {
     };
 }
 
-pub(crate) use impl_option_tuple;
-pub(crate) use all_option_tuples;
+/// Delegates `FromStr` to wrapped type implementation
+macro_rules! impl_from_str {
+    ($i:ident, $ty:ty) => {
+        impl std::str::FromStr for $i {
+            type Err = <$ty as std::str::FromStr>::Err;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Ok(Self(<$ty as std::str::FromStr>::from_str(s)?))
+            }
+        }
+    };
+}
+
 pub(crate) use all_multi_tuples;
+pub(crate) use all_option_tuples;
+pub(crate) use impl_from_str;
+pub(crate) use impl_option_tuple;
 pub(crate) use reverse_ident;
