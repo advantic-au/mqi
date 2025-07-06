@@ -1,6 +1,6 @@
 use std::{borrow::Cow, cmp, mem};
 
-use libmqm_sys::lib as sys;
+use libmqm_sys as mq;
 
 pub trait Secret<'y, Y: ?Sized> {
     #[must_use]
@@ -10,13 +10,13 @@ pub trait Secret<'y, Y: ?Sized> {
 trait Sealed {}
 #[expect(private_bounds, reason = "sealed trait pattern")]
 pub trait MQMD: Sealed + std::fmt::Debug {}
-impl Sealed for sys::MQMD {}
-impl Sealed for sys::MQMD1 {}
-impl Sealed for sys::MQMD2 {}
+impl Sealed for mq::MQMD {}
+impl Sealed for mq::MQMD1 {}
+impl Sealed for mq::MQMD2 {}
 
-impl MQMD for sys::MQMD {}
-impl MQMD for sys::MQMD1 {}
-impl MQMD for sys::MQMD2 {}
+impl MQMD for mq::MQMD {}
+impl MQMD for mq::MQMD1 {}
+impl MQMD for mq::MQMD2 {}
 
 /// A marker trait where it is safe to write arbitrary bytes
 ///

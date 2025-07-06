@@ -1,5 +1,5 @@
 use libmqm_default as default;
-use libmqm_sys::{Mqi, lib as sys};
+use libmqm_sys::{Mqi, self as mq};
 
 use crate::{
     CCSID, ConnectionHandle, Library, MqFunctions, MqStr, ResultComp, StrCcsidOwned, constants,
@@ -105,8 +105,8 @@ impl ReconnectionErrorStat {
 }
 
 pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: ConnectionHandle) -> ResultComp<AsyncPutStat> {
-    let mut sts = structs::MQSTS::new(sys::MQSTS {
-        Version: sys::MQSTS_VERSION_2,
+    let mut sts = structs::MQSTS::new(mq::MQSTS {
+        Version: mq::MQSTS_VERSION_2,
         ..default::MQSTS_DEFAULT
     });
 
@@ -147,8 +147,8 @@ pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
 ) -> ResultComp<ReconnectionErrorStat> {
-    let mut sts = structs::MQSTS::new(sys::MQSTS {
-        Version: sys::MQSTS_VERSION_2,
+    let mut sts = structs::MQSTS::new(mq::MQSTS {
+        Version: mq::MQSTS_VERSION_2,
         ..default::MQSTS_DEFAULT
     });
 

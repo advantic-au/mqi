@@ -12,7 +12,7 @@ pub fn mq_library() -> std::sync::Arc<dl::DebugContainer> {
     use std::sync::Arc;
 
     use dlopen2::wrapper::Container;
-    use libmqm_sys::dlopen2::LoadMqm as _;
+    use libmqm_sys::dlopen2::LoadMqmExt as _;
 
     Arc::new(dl::DebugContainer(unsafe {
         Container::load_mqm_default().expect("Loading of default MQM should work")

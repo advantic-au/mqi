@@ -1,11 +1,9 @@
 pub mod outcome;
 
-#[cfg(feature = "exits")]
-mod exits;
-
 use std::ptr;
 
-use libmqm_sys::{Mqi, lib as sys};
+use libmqm_constants::types::MQDCC;
+use libmqm_sys::{Mqi, self as mq};
 use outcome::{MqiOutcome, MqiOutcomeVoid};
 #[cfg(feature = "tracing")]
 use {
@@ -15,8 +13,7 @@ use {
 
 use super::{ConnectionHandle, Library, MessageHandle, MqFunctions, ObjectHandle, ReadRaw, SubscriptionHandle, WriteRaw};
 use crate::{
-    Error, MQMD, MqChar, MqStr, ResultComp, ResultCompErr, ResultErr, constants,
-    types::{MQCO, MQLONG, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA},
+    constants, types::{MQCO, MQLONG, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA}, Error, MqStr, ResultComp, ResultCompErr, ResultErr, CCSID, MQMD
 };
 
 #[derive(Debug, derive_more::From, derive_more::Error, derive_more::Display)]
@@ -43,10 +40,10 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
         unsafe {
             self.0.lib().MQCONN(
-                AsRef::<MqChar<48>>::as_ref(qm_name).as_ptr().cast_mut(),
-                outcome.mut_raw_handle(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                qm_name.as_ref(),
+                outcome.value.mut_raw_handle(),
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -59,15 +56,15 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// # Safety
     /// Consumers of [`mqconnx`](MqFunctions::mqconnx) must ensure the MQCNO structure is populated with valid pointers and offsets
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub unsafe fn mqconnx(&self, qm_name: &MqStr<48>, mqcno: &mut sys::MQCNO) -> ResultComp<ConnectionHandle> {
+    pub unsafe fn mqconnx(&self, qm_name: &MqStr<48>, mqcno: &mut mq::MQCNO) -> ResultComp<ConnectionHandle> {
         let mut outcome = MqiOutcome::<ConnectionHandle>::with_verb("MQCONNX");
         unsafe {
             self.0.lib().MQCONNX(
-                AsRef::<MqChar<48>>::as_ref(qm_name).as_ptr().cast_mut(),
-                ptr::from_mut(mqcno).cast(),
-                outcome.mut_raw_handle(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                qm_name.as_ref(),
+                mqcno,
+                outcome.value.mut_raw_handle(),
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -83,7 +80,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         unsafe {
             self.0
                 .lib()
-                .MQDISC(connection.mut_raw_handle(), &raw mut outcome.cc.0, &raw mut outcome.rc.0);
+                .MQDISC(connection.mut_raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -98,7 +95,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     pub unsafe fn mqopen(
         &self,
         connection_handle: ConnectionHandle,
-        mqod: &mut sys::MQOD,
+        mqod: &mut mq::MQOD,
         options: MQOO,
     ) -> ResultComp<ObjectHandle> {
         let mut outcome = MqiOutcome::<ObjectHandle>::with_verb("MQOPEN");
@@ -106,11 +103,11 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         unsafe {
             self.0.lib().MQOPEN(
                 connection_handle.raw_handle(),
-                ptr::from_mut(mqod).cast(),
+                mqod,
                 options.0,
-                outcome.mut_raw_handle(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                outcome.value.mut_raw_handle(),
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -127,24 +124,24 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     pub unsafe fn mqput1(
         &self,
         connection_handle: ConnectionHandle,
-        mqod: &mut sys::MQOD,
+        mqod: &mut mq::MQOD,
         mqmd: Option<&mut impl MQMD>,
-        pmo: &mut sys::MQPMO,
-        body: &[sys::MQBYTE],
+        pmo: &mut mq::MQPMO,
+        body: &[mq::MQBYTE],
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQPUT1");
         unsafe {
             self.0.lib().MQPUT1(
                 connection_handle.raw_handle(),
-                ptr::from_mut(mqod).cast(),
+                mqod,
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::from_mut(md).cast()),
-                ptr::from_mut(pmo).cast(),
+                pmo,
                 size_of_val(body)
                     .try_into()
                     .expect("body length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(body).cast_mut().cast(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -166,8 +163,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 connection_handle.raw_handle(),
                 object_handle.mut_raw_handle(),
                 options.0,
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -183,7 +180,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         unsafe {
             self.0
                 .lib()
-                .MQCMIT(connection_handle.raw_handle(), &raw mut outcome.cc.0, &raw mut outcome.rc.0);
+                .MQCMIT(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -201,8 +198,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         mqmd: Option<&mut impl MQMD>,
-        pmo: &mut sys::MQPMO,
-        body: &[sys::MQBYTE],
+        pmo: &mut mq::MQPMO,
+        body: &[mq::MQBYTE],
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQPUT");
 
@@ -211,13 +208,13 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 connection_handle.raw_handle(),
                 object_handle.raw_handle(),
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::from_mut(md).cast()),
-                ptr::from_mut(pmo).cast(),
+                pmo,
                 size_of_val(body)
                     .try_into()
                     .expect("body length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(body).cast_mut().cast(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -232,8 +229,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         mqmd: Option<&mut impl MQMD>,
-        gmo: &mut sys::MQGMO,
-        body: &mut (impl WriteRaw<sys::MQBYTE> + ?Sized),
+        gmo: &mut mq::MQGMO,
+        body: &mut (impl WriteRaw<mq::MQBYTE> + ?Sized),
     ) -> ResultComp<MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQGET");
         unsafe {
@@ -241,14 +238,14 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 connection_handle.raw_handle(),
                 object_handle.raw_handle(),
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::from_mut(md).cast()),
-                ptr::from_mut(gmo).cast(),
+                gmo,
                 size_of_val(body)
                     .try_into()
                     .expect("body length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(body).cast(),
-                &raw mut outcome.value,
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                &mut outcome.value,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -265,7 +262,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         object_handle: &ObjectHandle,
         selectors: &[MQXA],
         int_attr: &mut [impl WriteRaw<MQLONG>],
-        text_attr: &mut [impl WriteRaw<sys::MQCHAR>],
+        text_attr: &mut [impl WriteRaw<mq::MQCHAR>],
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQINQ");
         unsafe {
@@ -286,8 +283,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("text_attr count should not exceed maximum positive MQLONG"),
                 ptr::from_mut(text_attr).cast(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -302,18 +299,18 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     pub unsafe fn mqsub(
         &self,
         connection_handle: ConnectionHandle,
-        mqsd: &mut sys::MQSD,
+        mqsd: &mut mq::MQSD,
         object_handle: &mut ObjectHandle,
     ) -> ResultComp<SubscriptionHandle> {
         let mut outcome = MqiOutcome::<SubscriptionHandle>::with_verb("MQSUB");
         unsafe {
             self.0.lib().MQSUB(
                 connection_handle.raw_handle(),
-                ptr::from_mut(mqsd).cast(),
-                object_handle.mut_raw_handle(),
-                outcome.mut_raw_handle(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                mqsd,
+                Some(object_handle.mut_raw_handle()),
+                outcome.value.mut_raw_handle(),
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -329,7 +326,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         connection_handle: ConnectionHandle,
         subscription_handle: &SubscriptionHandle,
         action: MQSR,
-        mqsro: &mut sys::MQSRO,
+        mqsro: Option<&mut mq::MQSRO>,
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQSUBRQ");
         unsafe {
@@ -337,9 +334,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 connection_handle.raw_handle(),
                 subscription_handle.raw_handle(),
                 action.0,
-                ptr::from_mut(mqsro).cast(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                mqsro,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -350,14 +347,14 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Begins a unit of work that is coordinated by the queue manager, and that can
     /// involve external resource managers.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqbegin(&self, connection_handle: ConnectionHandle, mqbo: &mut sys::MQBO) -> ResultComp<()> {
+    pub fn mqbegin(&self, connection_handle: ConnectionHandle, mqbo: Option<&mut mq::MQBO>) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQBEGIN");
         unsafe {
             self.0.lib().MQBEGIN(
                 connection_handle.raw_handle(),
-                ptr::from_mut(mqbo).cast(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                mqbo,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -373,7 +370,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         unsafe {
             self.0
                 .lib()
-                .MQBACK(connection_handle.raw_handle(), &raw mut outcome.cc.0, &raw mut outcome.rc.0);
+                .MQBACK(connection_handle.raw_handle(), &mut outcome.cc.0, &mut outcome.rc.0);
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
@@ -382,15 +379,15 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Creates a message handle for use with mqsetmp, mqinqmp, and mqdltmp.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub fn mqcrtmh(&self, connection_handle: Option<ConnectionHandle>, cmho: &sys::MQCMHO) -> ResultErr<MessageHandle> {
+    pub fn mqcrtmh(&self, connection_handle: Option<ConnectionHandle>, cmho: &mq::MQCMHO) -> ResultErr<MessageHandle> {
         let mut outcome = MqiOutcome::<MessageHandle>::with_verb("MQCRTMH");
         unsafe {
             self.0.lib().MQCRTMH(
-                connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
-                ptr::from_ref(cmho).cast_mut().cast(),
-                outcome.mut_raw_handle(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                connection_handle.map_or(mq::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
+                cmho,
+                outcome.value.mut_raw_handle(),
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -404,16 +401,16 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         &self,
         connection_handle: Option<ConnectionHandle>,
         message_handle: &mut MessageHandle,
-        dmho: &sys::MQDMHO,
+        dmho: &mq::MQDMHO,
     ) -> ResultErr<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQDLTMH");
         unsafe {
             self.0.lib().MQDLTMH(
-                connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
+                connection_handle.map_or(mq::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.mut_raw_handle(),
-                ptr::from_ref(dmho).cast_mut().cast(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                dmho,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -431,12 +428,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         &self,
         connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
-        inq_prop_opts: &mut sys::MQIMPO,
-        name: &sys::MQCHARV,
-        prop_desc: &mut sys::MQPD,
+        inq_prop_opts: &mut mq::MQIMPO,
+        name: &mq::MQCHARV,
+        prop_desc: &mut mq::MQPD,
         prop_type: &mut MQTYPE,
-        value: Option<&mut (impl WriteRaw<sys::MQBYTE> + ?Sized)>,
-    ) -> ResultCompErr<sys::MQLONG, MqInqError> {
+        value: Option<&mut (impl WriteRaw<mq::MQBYTE> + ?Sized)>,
+    ) -> ResultCompErr<mq::MQLONG, MqInqError> {
         let mut outcome = MqiOutcome::with_verb("MQINQMP");
         let (out_len, out) = value.map_or((0, ptr::null_mut()), |out| {
             (
@@ -448,17 +445,17 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         });
         unsafe {
             self.0.lib().MQINQMP(
-                connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
+                connection_handle.map_or(mq::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
-                ptr::from_mut(inq_prop_opts).cast(),
-                ptr::from_ref(name).cast_mut().cast(),
-                ptr::from_mut(prop_desc).cast(),
-                ptr::from_mut(prop_type).cast(),
+                inq_prop_opts,
+                name,
+                prop_desc,
+                prop_type.as_mut(),
                 out_len,
                 out,
-                &raw mut outcome.value,
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                &mut outcome.value,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -481,18 +478,18 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         &self,
         connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
-        delete_prop_opts: &sys::MQDMPO,
-        name: &sys::MQCHARV,
+        delete_prop_opts: &mq::MQDMPO,
+        name: &mq::MQCHARV,
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQDLTMP");
         unsafe {
             self.0.lib().MQDLTMP(
-                connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
+                connection_handle.map_or(mq::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
-                ptr::from_ref(delete_prop_opts).cast_mut().cast(),
-                ptr::from_ref(name).cast_mut().cast(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                delete_prop_opts,
+                name,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -504,17 +501,17 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// determined by the `stat_type` value parameter
     ///
     /// # Safety
-    /// Consumers of [`mqstat`](MqFunctions::mqstat) must ensure the [`MQSTS`](libmqm_sys::lib::MQSTS) MQCHARV pointers are populated correctly.
+    /// Consumers of [`mqstat`](MqFunctions::mqstat) must ensure the [`MQSTS`](libmqm_mqi::lib::MQSTS) MQCHARV pointers are populated correctly.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
-    pub unsafe fn mqstat(&self, connection_handle: ConnectionHandle, stat_type: MQSTAT, sts: &mut sys::MQSTS) -> ResultComp<()> {
+    pub unsafe fn mqstat(&self, connection_handle: ConnectionHandle, stat_type: MQSTAT, sts: &mut mq::MQSTS) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQSTAT");
         unsafe {
             self.0.lib().MQSTAT(
                 connection_handle.raw_handle(),
                 stat_type.0,
-                ptr::from_mut(sts).cast(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                sts,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -532,27 +529,27 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         &self,
         connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
-        set_prop_opts: &sys::MQSMPO,
-        name: &sys::MQCHARV,
-        prop_desc: &mut sys::MQPD,
+        set_prop_opts: &mq::MQSMPO,
+        name: &mq::MQCHARV,
+        prop_desc: &mut mq::MQPD,
         prop_type: MQTYPE,
         value: &(impl ReadRaw + ?Sized),
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQSETMP");
         unsafe {
             self.0.lib().MQSETMP(
-                connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
+                connection_handle.map_or(mq::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
-                ptr::from_ref(set_prop_opts).cast_mut().cast(),
-                ptr::from_ref(name).cast_mut().cast(),
-                ptr::from_mut(prop_desc).cast(),
+                set_prop_opts,
+                name,
+                prop_desc,
                 prop_type.0,
                 size_of_val(value)
                     .try_into()
                     .expect("value length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(value).cast_mut().cast(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -567,8 +564,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         connection_handle: ConnectionHandle,
         object_handle: &ObjectHandle,
         selectors: &[MQXA],
-        int_attr: &[sys::MQLONG],
-        text_attr: &[sys::MQCHAR],
+        int_attr: &[mq::MQLONG],
+        text_attr: &[mq::MQCHAR],
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQSET");
         unsafe {
@@ -590,8 +587,8 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                     .try_into()
                     .expect("text_attr count should not exceed maximum positive MQLONG"),
                 text_attr.as_ptr().cast_mut(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -602,28 +599,28 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Registers a callback for the specified object handle and controls activation and changes to the callback
     ///
     /// # Safety
-    /// Consumers of [`mqcb`](MqFunctions::mqcb) must populate the [`MQCBD`](libmqm_sys::lib::MQCBD) structure with valid pointers
+    /// Consumers of [`mqcb`](MqFunctions::mqcb) must populate the [`MQCBD`](libmqm_mqi::lib::MQCBD) structure with valid pointers
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqcb(
         &self,
         connection_handle: ConnectionHandle,
         operations: MQOP,
-        callback_desc: &sys::MQCBD,
+        callback_desc: Option<&mq::MQCBD>,
         object_handle: Option<&ObjectHandle>,
         mqmd: Option<&impl MQMD>,
-        gmo: Option<&sys::MQGMO>,
+        gmo: Option<&mq::MQGMO>,
     ) -> ResultErr<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQCB");
         unsafe {
             self.0.lib().MQCB(
                 connection_handle.raw_handle(),
                 operations.0,
-                ptr::from_ref(callback_desc).cast_mut().cast(),
-                object_handle.map_or(sys::MQHO_NONE, |h| h.raw_handle()),
+                callback_desc,
+                object_handle.map_or(mq::MQHO_NONE, |h| h.raw_handle()),
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::from_ref(md).cast_mut().cast()),
-                gmo.map_or_else(ptr::null_mut, |mo| ptr::from_ref(mo).cast_mut().cast()),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                gmo,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -634,22 +631,22 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Performs controlling actions on callbacks and the object handles opened for a connection
     ///
     /// # Safety
-    /// Consumers of [`mqctl`](MqFunctions::mqctl) must populate the [`MQCTLO`](libmqm_sys::lib::MQCTLO) structure with valid pointers
+    /// Consumers of [`mqctl`](MqFunctions::mqctl) must populate the [`MQCTLO`](libmqm_mqi::lib::MQCTLO) structure with valid pointers
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqctl(
         &self,
         connection_handle: ConnectionHandle,
         operation: MQOP,
-        control_options: &sys::MQCTLO,
+        control_options: &mq::MQCTLO,
     ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQCTL");
         unsafe {
             self.0.lib().MQCTL(
                 connection_handle.raw_handle(),
                 operation.0,
-                ptr::from_ref(control_options).cast_mut().cast(),
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                control_options,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -666,26 +663,26 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         &self,
         connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
-        mhbuf_options: &sys::MQMHBO,
-        name: &sys::MQCHARV,
+        mhbuf_options: &mq::MQMHBO,
+        name: &mq::MQCHARV,
         mqmd: &mut impl MQMD,
-        buffer: &mut (impl WriteRaw<sys::MQBYTE> + ?Sized),
-    ) -> ResultCompErr<sys::MQLONG, MqInqError> {
+        buffer: &mut (impl WriteRaw<mq::MQBYTE> + ?Sized),
+    ) -> ResultCompErr<mq::MQLONG, MqInqError> {
         let mut outcome = MqiOutcome::with_verb("MQMHBUF");
         unsafe {
             self.0.lib().MQMHBUF(
-                connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
+                connection_handle.map_or(mq::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
-                ptr::from_ref(mhbuf_options).cast_mut().cast(),
-                ptr::from_ref(name).cast_mut().cast(),
+                mhbuf_options,
+                name,
                 ptr::from_mut(mqmd).cast(),
                 size_of_val(buffer)
                     .try_into()
                     .expect("buffer length should not exceed maximum positive MQLONG"),
                 ptr::from_mut(buffer).cast(),
-                &raw mut outcome.value,
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                &mut outcome.value,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
@@ -704,28 +701,65 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         &self,
         connection_handle: Option<ConnectionHandle>,
         message_handle: &MessageHandle,
-        bufmh_options: &sys::MQBMHO,
+        bufmh_options: &mq::MQBMHO,
         mqmd: &mut impl MQMD,
-        buffer: &[sys::MQBYTE],
+        buffer: &[mq::MQBYTE],
     ) -> ResultComp<MQLONG> {
         let mut outcome = MqiOutcome::with_verb("MQBUFMH");
         unsafe {
             self.0.lib().MQBUFMH(
-                connection_handle.map_or(sys::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
+                connection_handle.map_or(mq::MQHC_UNASSOCIATED_HCONN, |h| h.raw_handle()),
                 message_handle.raw_handle(),
-                ptr::from_ref(bufmh_options).cast_mut().cast(),
+                bufmh_options,
                 ptr::from_mut(mqmd).cast(),
                 size_of_val(buffer)
                     .try_into()
                     .expect("buffer length should not exceed maximum positive MQLONG"),
                 ptr::from_ref(buffer).cast_mut().cast(),
-                &raw mut outcome.value,
-                &raw mut outcome.cc.0,
-                &raw mut outcome.rc.0,
+                &mut outcome.value,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
             );
         }
         #[cfg(feature = "tracing")]
         tracing_outcome(&outcome);
         outcome.into()
     }
+
+        /// Converts characters from one character set to another
+    #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(source, target, self)))]
+    pub fn mqxcnvc(
+        &self,
+        connection_handle: Option<ConnectionHandle>,
+        options: MQDCC,
+        source_ccsid: CCSID,
+        source: &[mq::MQCHAR],
+        target_ccsid: CCSID,
+        target: &mut (impl WriteRaw<mq::MQCHAR> + ?Sized),
+    ) -> ResultComp<MQLONG> {
+        let mut outcome = MqiOutcome::with_verb("MQXCNVC");
+        unsafe {
+            self.0.lib().MQXCNVC(
+                connection_handle.map_or(mq::MQHC_DEF_HCONN, |h| h.raw_handle()),
+                options.0,
+                source_ccsid.0,
+                size_of_val(source)
+                    .try_into()
+                    .expect("usize length of source should convert into MQLONG"),
+                ptr::from_ref(source).cast_mut().cast(),
+                target_ccsid.0,
+                size_of_val(target)
+                    .try_into()
+                    .expect("usize length of target should convert into MQLONG"),
+                ptr::from_mut(target).cast(),
+                &mut outcome.value,
+                &mut outcome.cc.0,
+                &mut outcome.rc.0,
+            );
+        }
+        #[cfg(feature = "tracing")]
+        tracing_outcome(&outcome);
+        outcome.into()
+    }
+
 }

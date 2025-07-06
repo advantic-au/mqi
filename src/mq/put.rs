@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use libmqm_default as default;
-use libmqm_sys::{Mqi, lib::MQMD2};
+use libmqm_sys::{Mqi, MQMD2};
 
 use super::{OpenOption, OpenParamOption};
 use crate::{
@@ -47,7 +47,7 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
 #[cfg(feature = "mqai")]
 mod mqai {
     use libmqm_default as default;
-    use libmqm_sys::{Mqai, lib::MQMD2};
+    use libmqm_sys::{Mqai, MQMD2};
 
     use super::{PutAttr, PutOption};
     use crate::{Bag, BagDrop, Conn, Library, Object, ResultComp, headers::TextEnc, structs, types};
@@ -123,8 +123,8 @@ impl<C: Conn> Object<C> {
 /// A trait that manipulates the parameters to the [`mqput`](`crate::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put")]
 /// # Safety
-/// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::Mqi::MQPUT)
-/// and [`MQPUT1`](libmqm_sys::Mqi::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
+/// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
 ///
 /// Implementations of the [`PutOption`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PutOption<'po> {
@@ -132,8 +132,8 @@ pub unsafe trait PutOption<'po> {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::Mqi::MQPUT)
-/// and [`MQPUT1`](libmqm_sys::Mqi::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
+/// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
+/// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
 ///
 /// Implementations of the [`PutAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PutAttr {

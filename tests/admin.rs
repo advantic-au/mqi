@@ -4,20 +4,21 @@ use mqi::{
     Bag, MqStr, ThreadNone, constants,
     prelude::*,
     test,
+    test::mock,
     types::{MQLONG, ObjectName},
 };
 
 #[test]
 fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
     let connection = test::mock::connect_ok(|mock_library| {
-        mock_library.real_bag(test::mq_library());
+        mock::mqai::real_bag(mock_library, test::mq_library());
         mock_library.expect_mqExecute().returning(|_, _, _, _, _, _, _, cc, rc| {
             // TODO: add some return data
-            test::mock::MockFunctions::mqi_outcome_ok(cc, rc);
+            test::mock::mqi_outcome_ok(cc, rc);
         });
         mock_library
             .expect_mqCountItems()
-            .returning(|_, _, _, cc, rc| test::mock::MockFunctions::mqi_outcome_ok(cc, rc));
+            .returning(|_, _, _, cc, rc| test::mock::mqi_outcome_ok(cc, rc));
     });
 
     let admin_bag = Bag::new_lib(connection.library(), constants::MQCBO_ADMIN_BAG).warn_as_error()?;

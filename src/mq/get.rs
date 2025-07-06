@@ -283,12 +283,12 @@ impl<C: Conn> Object<C> {
         V: GetValue<'b, R, B>,
         R: WriteRaw<u8>,
     {
-        use libmqm_sys::lib as sys;
+        use libmqm_sys as mq;
 
         let mut param = GetParam {
             md: structs::MQMD2::new(default::MQMD2_DEFAULT),
-            gmo: structs::MQGMO::new(sys::MQGMO {
-                Version: sys::MQGMO_VERSION_3, // Version 3 for ReturnedLength
+            gmo: structs::MQGMO::new(mq::MQGMO {
+                Version: mq::MQGMO_VERSION_3, // Version 3 for ReturnedLength
                 ..default::MQGMO_DEFAULT
             }),
         };

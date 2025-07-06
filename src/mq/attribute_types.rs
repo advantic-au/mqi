@@ -1,4 +1,4 @@
-use libmqm_sys::lib as sys;
+use libmqm_sys as mq;
 
 use super::attribute::AttributeType;
 use crate::{constants, types};
@@ -139,59 +139,59 @@ pub const MQIA_TRIGGER_TYPE: AttributeType = inqreq_long(constants::MQIA_TRIGGER
 pub const MQIA_USAGE: AttributeType = inqreq_long(constants::MQIA_USAGE);
 
 // MQCA constants
-pub const MQCA_ALTERATION_DATE: AttributeType = inqreq_str(constants::MQCA_ALTERATION_DATE, sys::MQ_DATE_LENGTH);
-pub const MQCA_ALTERATION_TIME: AttributeType = inqreq_str(constants::MQCA_ALTERATION_TIME, sys::MQ_TIME_LENGTH);
-pub const MQCA_APPL_ID: AttributeType = inqreq_str(constants::MQCA_APPL_ID, sys::MQ_PROCESS_APPL_ID_LENGTH);
-pub const MQCA_BACKOUT_REQ_Q_NAME: AttributeType = inqreq_str(constants::MQCA_BACKOUT_REQ_Q_NAME, sys::MQ_Q_NAME_LENGTH);
-pub const MQCA_BASE_Q_NAME: AttributeType = inqreq_str(constants::MQCA_BASE_Q_NAME, sys::MQ_Q_NAME_LENGTH);
-pub const MQCA_CF_STRUC_NAME: AttributeType = inqreq_str(constants::MQCA_CF_STRUC_NAME, sys::MQ_CF_STRUC_NAME_LENGTH);
-pub const MQCA_CHANNEL_AUTO_DEF_EXIT: AttributeType = inqreq_str(constants::MQCA_CHANNEL_AUTO_DEF_EXIT, sys::MQ_EXIT_NAME_LENGTH);
-pub const MQCA_CLUS_CHL_NAME: AttributeType = inqreq_str(constants::MQCA_CLUS_CHL_NAME, sys::MQ_CHANNEL_NAME_LENGTH);
-pub const MQCA_CLUSTER_NAME: AttributeType = inqreq_str(constants::MQCA_CLUSTER_NAME, sys::MQ_CLUSTER_NAME_LENGTH);
-pub const MQCA_CLUSTER_NAMELIST: AttributeType = inqreq_str(constants::MQCA_CLUSTER_NAMELIST, sys::MQ_NAMELIST_NAME_LENGTH);
-pub const MQCA_CLUSTER_WORKLOAD_DATA: AttributeType = inqreq_str(constants::MQCA_CLUSTER_WORKLOAD_DATA, sys::MQ_EXIT_DATA_LENGTH);
-pub const MQCA_CLUSTER_WORKLOAD_EXIT: AttributeType = inqreq_str(constants::MQCA_CLUSTER_WORKLOAD_EXIT, sys::MQ_EXIT_NAME_LENGTH);
-pub const MQCA_COMMAND_INPUT_Q_NAME: AttributeType = inqreq_str(constants::MQCA_COMMAND_INPUT_Q_NAME, sys::MQ_Q_NAME_LENGTH);
-pub const MQCA_CREATION_DATE: AttributeType = inqreq_str(constants::MQCA_CREATION_DATE, sys::MQ_CREATION_DATE_LENGTH);
-pub const MQCA_CREATION_TIME: AttributeType = inqreq_str(constants::MQCA_CREATION_TIME, sys::MQ_CREATION_TIME_LENGTH);
-pub const MQCA_CUSTOM: AttributeType = inqreq_str(constants::MQCA_CUSTOM, sys::MQ_CUSTOM_LENGTH);
-pub const MQCA_DEAD_LETTER_Q_NAME: AttributeType = inqreq_str(constants::MQCA_DEAD_LETTER_Q_NAME, sys::MQ_Q_NAME_LENGTH);
-pub const MQCA_DEF_XMIT_Q_NAME: AttributeType = inqreq_str(constants::MQCA_DEF_XMIT_Q_NAME, sys::MQ_Q_NAME_LENGTH);
-pub const MQCA_DNS_GROUP: AttributeType = inqreq_str(constants::MQCA_DNS_GROUP, sys::MQ_DNS_GROUP_NAME_LENGTH);
-pub const MQCA_ENV_DATA: AttributeType = inqreq_str(constants::MQCA_ENV_DATA, sys::MQ_PROCESS_ENV_DATA_LENGTH);
-pub const MQCA_IGQ_USER_ID: AttributeType = inqreq_str(constants::MQCA_IGQ_USER_ID, sys::MQ_USER_ID_LENGTH);
+pub const MQCA_ALTERATION_DATE: AttributeType = inqreq_str(constants::MQCA_ALTERATION_DATE, mq::MQ_DATE_LENGTH);
+pub const MQCA_ALTERATION_TIME: AttributeType = inqreq_str(constants::MQCA_ALTERATION_TIME, mq::MQ_TIME_LENGTH);
+pub const MQCA_APPL_ID: AttributeType = inqreq_str(constants::MQCA_APPL_ID, mq::MQ_PROCESS_APPL_ID_LENGTH);
+pub const MQCA_BACKOUT_REQ_Q_NAME: AttributeType = inqreq_str(constants::MQCA_BACKOUT_REQ_Q_NAME, mq::MQ_Q_NAME_LENGTH);
+pub const MQCA_BASE_Q_NAME: AttributeType = inqreq_str(constants::MQCA_BASE_Q_NAME, mq::MQ_Q_NAME_LENGTH);
+pub const MQCA_CF_STRUC_NAME: AttributeType = inqreq_str(constants::MQCA_CF_STRUC_NAME, mq::MQ_CF_STRUC_NAME_LENGTH);
+pub const MQCA_CHANNEL_AUTO_DEF_EXIT: AttributeType = inqreq_str(constants::MQCA_CHANNEL_AUTO_DEF_EXIT, mq::MQ_EXIT_NAME_LENGTH);
+pub const MQCA_CLUS_CHL_NAME: AttributeType = inqreq_str(constants::MQCA_CLUS_CHL_NAME, mq::MQ_CHANNEL_NAME_LENGTH);
+pub const MQCA_CLUSTER_NAME: AttributeType = inqreq_str(constants::MQCA_CLUSTER_NAME, mq::MQ_CLUSTER_NAME_LENGTH);
+pub const MQCA_CLUSTER_NAMELIST: AttributeType = inqreq_str(constants::MQCA_CLUSTER_NAMELIST, mq::MQ_NAMELIST_NAME_LENGTH);
+pub const MQCA_CLUSTER_WORKLOAD_DATA: AttributeType = inqreq_str(constants::MQCA_CLUSTER_WORKLOAD_DATA, mq::MQ_EXIT_DATA_LENGTH);
+pub const MQCA_CLUSTER_WORKLOAD_EXIT: AttributeType = inqreq_str(constants::MQCA_CLUSTER_WORKLOAD_EXIT, mq::MQ_EXIT_NAME_LENGTH);
+pub const MQCA_COMMAND_INPUT_Q_NAME: AttributeType = inqreq_str(constants::MQCA_COMMAND_INPUT_Q_NAME, mq::MQ_Q_NAME_LENGTH);
+pub const MQCA_CREATION_DATE: AttributeType = inqreq_str(constants::MQCA_CREATION_DATE, mq::MQ_CREATION_DATE_LENGTH);
+pub const MQCA_CREATION_TIME: AttributeType = inqreq_str(constants::MQCA_CREATION_TIME, mq::MQ_CREATION_TIME_LENGTH);
+pub const MQCA_CUSTOM: AttributeType = inqreq_str(constants::MQCA_CUSTOM, mq::MQ_CUSTOM_LENGTH);
+pub const MQCA_DEAD_LETTER_Q_NAME: AttributeType = inqreq_str(constants::MQCA_DEAD_LETTER_Q_NAME, mq::MQ_Q_NAME_LENGTH);
+pub const MQCA_DEF_XMIT_Q_NAME: AttributeType = inqreq_str(constants::MQCA_DEF_XMIT_Q_NAME, mq::MQ_Q_NAME_LENGTH);
+pub const MQCA_DNS_GROUP: AttributeType = inqreq_str(constants::MQCA_DNS_GROUP, mq::MQ_DNS_GROUP_NAME_LENGTH);
+pub const MQCA_ENV_DATA: AttributeType = inqreq_str(constants::MQCA_ENV_DATA, mq::MQ_PROCESS_ENV_DATA_LENGTH);
+pub const MQCA_IGQ_USER_ID: AttributeType = inqreq_str(constants::MQCA_IGQ_USER_ID, mq::MQ_USER_ID_LENGTH);
 #[cfg(feature = "mqc_9_3_0_0")]
-pub const MQCA_INITIAL_KEY: AttributeType = inqreq_str(constants::MQCA_INITIAL_KEY, sys::MQ_INITIAL_KEY_LENGTH);
-pub const MQCA_INITIATION_Q_NAME: AttributeType = inqreq_str(constants::MQCA_INITIATION_Q_NAME, sys::MQ_Q_NAME_LENGTH);
-pub const MQCA_INSTALLATION_DESC: AttributeType = inqreq_str(constants::MQCA_INSTALLATION_DESC, sys::MQ_INSTALLATION_DESC_LENGTH);
-pub const MQCA_INSTALLATION_NAME: AttributeType = inqreq_str(constants::MQCA_INSTALLATION_NAME, sys::MQ_INSTALLATION_NAME_LENGTH);
-pub const MQCA_INSTALLATION_PATH: AttributeType = inqreq_str(constants::MQCA_INSTALLATION_PATH, sys::MQ_INSTALLATION_PATH_LENGTH);
-pub const MQCA_LU_GROUP_NAME: AttributeType = inqreq_str(constants::MQCA_LU_GROUP_NAME, sys::MQ_LU_NAME_LENGTH);
-pub const MQCA_LU_NAME: AttributeType = inqreq_str(constants::MQCA_LU_NAME, sys::MQ_LU_NAME_LENGTH);
-pub const MQCA_LU62_ARM_SUFFIX: AttributeType = inqreq_str(constants::MQCA_LU62_ARM_SUFFIX, sys::MQ_ARM_SUFFIX_LENGTH);
-pub const MQCA_NAMELIST_DESC: AttributeType = inqreq_str(constants::MQCA_NAMELIST_DESC, sys::MQ_NAMELIST_DESC_LENGTH);
-pub const MQCA_NAMELIST_NAME: AttributeType = inqreq_str(constants::MQCA_NAMELIST_NAME, sys::MQ_NAMELIST_NAME_LENGTH);
-pub const MQCA_PARENT: AttributeType = inqreq_str(constants::MQCA_PARENT, sys::MQ_Q_MGR_NAME_LENGTH);
-pub const MQCA_PROCESS_DESC: AttributeType = inqreq_str(constants::MQCA_PROCESS_DESC, sys::MQ_PROCESS_DESC_LENGTH);
-pub const MQCA_PROCESS_NAME: AttributeType = inqreq_str(constants::MQCA_PROCESS_NAME, sys::MQ_PROCESS_NAME_LENGTH);
-pub const MQCA_Q_DESC: AttributeType = inqreq_str(constants::MQCA_Q_DESC, sys::MQ_Q_DESC_LENGTH);
-pub const MQCA_Q_MGR_DESC: AttributeType = inqreq_str(constants::MQCA_Q_MGR_DESC, sys::MQ_Q_MGR_DESC_LENGTH);
-pub const MQCA_Q_MGR_IDENTIFIER: AttributeType = inqreq_str(constants::MQCA_Q_MGR_IDENTIFIER, sys::MQ_Q_MGR_IDENTIFIER_LENGTH);
-pub const MQCA_Q_MGR_NAME: AttributeType = inqreq_str(constants::MQCA_Q_MGR_NAME, sys::MQ_Q_MGR_NAME_LENGTH);
-pub const MQCA_Q_NAME: AttributeType = inqreq_str(constants::MQCA_Q_NAME, sys::MQ_Q_NAME_LENGTH);
-pub const MQCA_QSG_NAME: AttributeType = inqreq_str(constants::MQCA_QSG_NAME, sys::MQ_QSG_NAME_LENGTH);
-pub const MQCA_REMOTE_Q_MGR_NAME: AttributeType = inqreq_str(constants::MQCA_REMOTE_Q_MGR_NAME, sys::MQ_Q_MGR_NAME_LENGTH);
-pub const MQCA_REMOTE_Q_NAME: AttributeType = inqreq_str(constants::MQCA_REMOTE_Q_NAME, sys::MQ_Q_NAME_LENGTH);
-pub const MQCA_REPOSITORY_NAME: AttributeType = inqreq_str(constants::MQCA_REPOSITORY_NAME, sys::MQ_CLUSTER_NAME_LENGTH);
-pub const MQCA_REPOSITORY_NAMELIST: AttributeType = inqreq_str(constants::MQCA_REPOSITORY_NAMELIST, sys::MQ_NAMELIST_NAME_LENGTH);
+pub const MQCA_INITIAL_KEY: AttributeType = inqreq_str(constants::MQCA_INITIAL_KEY, mq::MQ_INITIAL_KEY_LENGTH);
+pub const MQCA_INITIATION_Q_NAME: AttributeType = inqreq_str(constants::MQCA_INITIATION_Q_NAME, mq::MQ_Q_NAME_LENGTH);
+pub const MQCA_INSTALLATION_DESC: AttributeType = inqreq_str(constants::MQCA_INSTALLATION_DESC, mq::MQ_INSTALLATION_DESC_LENGTH);
+pub const MQCA_INSTALLATION_NAME: AttributeType = inqreq_str(constants::MQCA_INSTALLATION_NAME, mq::MQ_INSTALLATION_NAME_LENGTH);
+pub const MQCA_INSTALLATION_PATH: AttributeType = inqreq_str(constants::MQCA_INSTALLATION_PATH, mq::MQ_INSTALLATION_PATH_LENGTH);
+pub const MQCA_LU_GROUP_NAME: AttributeType = inqreq_str(constants::MQCA_LU_GROUP_NAME, mq::MQ_LU_NAME_LENGTH);
+pub const MQCA_LU_NAME: AttributeType = inqreq_str(constants::MQCA_LU_NAME, mq::MQ_LU_NAME_LENGTH);
+pub const MQCA_LU62_ARM_SUFFIX: AttributeType = inqreq_str(constants::MQCA_LU62_ARM_SUFFIX, mq::MQ_ARM_SUFFIX_LENGTH);
+pub const MQCA_NAMELIST_DESC: AttributeType = inqreq_str(constants::MQCA_NAMELIST_DESC, mq::MQ_NAMELIST_DESC_LENGTH);
+pub const MQCA_NAMELIST_NAME: AttributeType = inqreq_str(constants::MQCA_NAMELIST_NAME, mq::MQ_NAMELIST_NAME_LENGTH);
+pub const MQCA_PARENT: AttributeType = inqreq_str(constants::MQCA_PARENT, mq::MQ_Q_MGR_NAME_LENGTH);
+pub const MQCA_PROCESS_DESC: AttributeType = inqreq_str(constants::MQCA_PROCESS_DESC, mq::MQ_PROCESS_DESC_LENGTH);
+pub const MQCA_PROCESS_NAME: AttributeType = inqreq_str(constants::MQCA_PROCESS_NAME, mq::MQ_PROCESS_NAME_LENGTH);
+pub const MQCA_Q_DESC: AttributeType = inqreq_str(constants::MQCA_Q_DESC, mq::MQ_Q_DESC_LENGTH);
+pub const MQCA_Q_MGR_DESC: AttributeType = inqreq_str(constants::MQCA_Q_MGR_DESC, mq::MQ_Q_MGR_DESC_LENGTH);
+pub const MQCA_Q_MGR_IDENTIFIER: AttributeType = inqreq_str(constants::MQCA_Q_MGR_IDENTIFIER, mq::MQ_Q_MGR_IDENTIFIER_LENGTH);
+pub const MQCA_Q_MGR_NAME: AttributeType = inqreq_str(constants::MQCA_Q_MGR_NAME, mq::MQ_Q_MGR_NAME_LENGTH);
+pub const MQCA_Q_NAME: AttributeType = inqreq_str(constants::MQCA_Q_NAME, mq::MQ_Q_NAME_LENGTH);
+pub const MQCA_QSG_NAME: AttributeType = inqreq_str(constants::MQCA_QSG_NAME, mq::MQ_QSG_NAME_LENGTH);
+pub const MQCA_REMOTE_Q_MGR_NAME: AttributeType = inqreq_str(constants::MQCA_REMOTE_Q_MGR_NAME, mq::MQ_Q_MGR_NAME_LENGTH);
+pub const MQCA_REMOTE_Q_NAME: AttributeType = inqreq_str(constants::MQCA_REMOTE_Q_NAME, mq::MQ_Q_NAME_LENGTH);
+pub const MQCA_REPOSITORY_NAME: AttributeType = inqreq_str(constants::MQCA_REPOSITORY_NAME, mq::MQ_CLUSTER_NAME_LENGTH);
+pub const MQCA_REPOSITORY_NAMELIST: AttributeType = inqreq_str(constants::MQCA_REPOSITORY_NAMELIST, mq::MQ_NAMELIST_NAME_LENGTH);
 #[cfg(feature = "mqc_9_3_0_0")]
 pub const MQCA_SSL_KEY_REPO_PASSWORD: AttributeType =
-    inqreq_str(constants::MQCA_SSL_KEY_REPO_PASSWORD, sys::MQ_SSL_ENCRYP_KEY_REPO_PWD_LEN);
-pub const MQCA_STORAGE_CLASS: AttributeType = inqreq_str(constants::MQCA_STORAGE_CLASS, sys::MQ_STORAGE_CLASS_LENGTH);
-pub const MQCA_TCP_NAME: AttributeType = inqreq_str(constants::MQCA_TCP_NAME, sys::MQ_TCP_NAME_LENGTH);
-pub const MQCA_TRIGGER_DATA: AttributeType = inqreq_str(constants::MQCA_TRIGGER_DATA, sys::MQ_TRIGGER_DATA_LENGTH);
-pub const MQCA_USER_DATA: AttributeType = inqreq_str(constants::MQCA_USER_DATA, sys::MQ_PROCESS_USER_DATA_LENGTH);
-pub const MQCA_XMIT_Q_NAME: AttributeType = inqreq_str(constants::MQCA_XMIT_Q_NAME, sys::MQ_Q_NAME_LENGTH);
+    inqreq_str(constants::MQCA_SSL_KEY_REPO_PASSWORD, mq::MQ_SSL_ENCRYP_KEY_REPO_PWD_LEN);
+pub const MQCA_STORAGE_CLASS: AttributeType = inqreq_str(constants::MQCA_STORAGE_CLASS, mq::MQ_STORAGE_CLASS_LENGTH);
+pub const MQCA_TCP_NAME: AttributeType = inqreq_str(constants::MQCA_TCP_NAME, mq::MQ_TCP_NAME_LENGTH);
+pub const MQCA_TRIGGER_DATA: AttributeType = inqreq_str(constants::MQCA_TRIGGER_DATA, mq::MQ_TRIGGER_DATA_LENGTH);
+pub const MQCA_USER_DATA: AttributeType = inqreq_str(constants::MQCA_USER_DATA, mq::MQ_PROCESS_USER_DATA_LENGTH);
+pub const MQCA_XMIT_Q_NAME: AttributeType = inqreq_str(constants::MQCA_XMIT_Q_NAME, mq::MQ_Q_NAME_LENGTH);
 
 // TODO: Add some further constants supported as per
 // https://www.ibm.com/docs/en/ibm-mq/latest?topic=formats-mqcmd-inquire-q-inquire-queue

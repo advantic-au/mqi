@@ -106,9 +106,8 @@ mod mq;
 pub use mq::*;
 
 pub mod types {
-    pub use lib::{MQBYTE, MQCHAR, MQINT64, MQLONG};
+    pub use libmqm_sys::{MQBYTE, MQCHAR, MQINT64, MQLONG};
     pub use libmqm_constants::types::*;
-    use libmqm_sys::lib;
 
     pub use super::mq_types::*;
 }

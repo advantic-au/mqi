@@ -4,7 +4,7 @@ use std::{
 };
 
 use libmqm_default as default;
-use libmqm_sys::lib as sys;
+use libmqm_sys as mq;
 
 use crate::{
     CCSID, MqChar, MqStr, Secret, constants,
@@ -91,7 +91,7 @@ pub struct MessageId(pub Identifier<24>);
 pub struct GroupId(pub Identifier<24>);
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
-pub struct MsgToken(pub [u8; sys::MQ_MSG_TOKEN_LENGTH]);
+pub struct MsgToken(pub [u8; mq::MQ_MSG_TOKEN_LENGTH]);
 
 impl_equivalent_type!(CorrelationId, MessageId);
 impl_equivalent_type!(MessageId, CorrelationId);
@@ -144,7 +144,7 @@ impl MessageFormat {
 
     #[must_use]
     pub fn into_mqmd2(&self) -> structs::MQMD2 {
-        structs::MQMD2::new(sys::MQMD2 {
+        structs::MQMD2::new(mq::MQMD2 {
             CodedCharSetId: self.ccsid.0,
             Encoding: self.encoding.0,
             Format: *self.fmt.into_ascii().as_ref(),
@@ -213,7 +213,7 @@ impl Debug for GroupId {
 
 impl UserIdentifier {
     #[must_use]
-    pub fn new(source: [MQCHAR; sys::MQ_USER_ID_LENGTH]) -> Option<Self> {
+    pub fn new(source: [MQCHAR; mq::MQ_USER_ID_LENGTH]) -> Option<Self> {
         Some(MqStr::from(source)).filter(MqStr::has_value).map(UserIdentifier)
     }
 }
@@ -283,7 +283,7 @@ pub struct PutTime(pub MqStr<8>);
 impl_from_str!(PutTime, MqStr<8>);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
-pub struct AccountingToken(pub [MQBYTE; sys::MQ_ACCOUNTING_TOKEN_LENGTH]);
+pub struct AccountingToken(pub [MQBYTE; mq::MQ_ACCOUNTING_TOKEN_LENGTH]);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]

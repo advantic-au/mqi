@@ -26,7 +26,7 @@ where
 ///
 /// The [`Threading`] type parameter controls the threaded capability of the connection.
 ///
-/// This uses the [`MQCONNX`](libmqm_sys::Mqi::MQCONNX) function.
+/// This uses the [`MQCONNX`](libmqm_sys::MQCONNX) function.
 ///
 /// # Examples
 ///
@@ -61,7 +61,7 @@ where
 ///
 /// Refer to [`connect`] for parameter details.
 ///
-/// This uses the [`MQCONNX`](libmqm_sys::Mqi::MQCONNX) function.
+/// This uses the [`MQCONNX`](libmqm_sys::MQCONNX) function.
 ///
 /// Common [`ConnectAttr`] that can be returned include [`ConnTag`](crate::ConnTag) and [`ConnectionId`](crate::ConnectionId).
 #[inline]

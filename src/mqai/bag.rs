@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use libmqm_sys::{Mqai, lib as sys};
+use libmqm_sys::{Mqai, mqai};
 
 use crate::{
     BagHandle, Buffer, Completion, Error, Library, MqFunctions, MqInqError, ResultComp, ResultCompErr, WriteRaw, constants,
@@ -168,7 +168,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
     pub fn to_buffer<'b, A: Buffer<'b, impl WriteRaw<MQBYTE>>>(&self, buffer: A) -> ResultCompErr<A, MqInqError> {
         let mut buf = buffer;
         self.mq
-            .mq_bag_to_buffer(&BagHandle::from(sys::MQHB_NONE), self.handle(), Some(buf.as_mut()))
+            .mq_bag_to_buffer(&BagHandle::from(mqai::MQHB_NONE), self.handle(), Some(buf.as_mut()))
             .map_completion(|length| buf.truncate(length.try_into().expect("mq buffer length should convert to usize")))
     }
 
@@ -179,7 +179,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
     pub fn buffer_len(&self) -> ResultComp<usize> {
         match self
             .mq
-            .mq_bag_to_buffer(&BagHandle::from(sys::MQHB_NONE), self.handle(), Option::<&mut [MQBYTE]>::None)
+            .mq_bag_to_buffer(&BagHandle::from(mqai::MQHB_NONE), self.handle(), Option::<&mut [MQBYTE]>::None)
         {
             Err(MqInqError::Length(len, _)) => Ok(Completion(len, None)),
             other => other,
@@ -192,7 +192,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
         let mq = &mut self.mq;
         let handle = &mut self.handle;
 
-        mq.mq_buffer_to_bag(&BagHandle::from(sys::MQHB_NONE), buffer, handle)
+        mq.mq_buffer_to_bag(&BagHandle::from(mqai::MQHB_NONE), buffer, handle)
     }
 
     /// The number of items in a [`Bag`] that matches the selector

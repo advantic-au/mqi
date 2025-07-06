@@ -1,7 +1,7 @@
 use std::{borrow::Cow, ptr};
 
 use libmqm_default as default;
-use libmqm_sys::lib::MQCHARV;
+use libmqm_sys::MQCHARV;
 
 use crate::{CCSID, constants, conversion, structs, types};
 

@@ -1,13 +1,14 @@
 #![cfg(all(feature = "mock", feature = "exits"))]
 
-use mqi::{CCSID, Error, MqChar, MqFunctions, prelude::*, test::mock::MockFunctions, types::MQDCC};
+use libmqm_sys::mock::MockMq;
+use mqi::{CCSID, Error, MqChar, MqFunctions, prelude::*, test::mock, types::MQDCC};
 
 #[test]
 fn mqxcnvc() -> Result<(), Error> {
-    let mut mock = MockFunctions::new();
+    let mut mock = MockMq::new();
     mock.expect_MQXCNVC().returning(|_, _, _, length, _, _, _, _, _, cc, rc| {
         assert_eq!(length, 1024);
-        MockFunctions::mqi_outcome_ok(cc, rc);
+        mock::mqi_outcome_ok(cc, rc);
     });
 
     let mq = MqFunctions(mock);

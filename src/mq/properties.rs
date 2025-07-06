@@ -1,7 +1,7 @@
 use std::{borrow::Cow, marker::PhantomData, num::NonZero, ptr};
 
 use libmqm_default as default;
-use libmqm_sys::{Mqi, lib as sys};
+use libmqm_sys::{Mqi, self as mq};
 
 use crate::{
     Buffer, Completion, Conn, ConnectionHandle, EncodedString, Error, Library, MessageHandle, MqFunctions, MqInqError,
@@ -233,7 +233,7 @@ impl<C: Conn> Properties<C> {
     }
 
     pub fn new(connection: C, options: MQCMHO) -> ResultErr<Self> {
-        let mqcmho = libmqm_sys::lib::MQCMHO {
+        let mqcmho = mq::MQCMHO {
             Options: options.0,
             ..default::MQCMHO_DEFAULT
         };
@@ -271,7 +271,7 @@ impl<C: Conn> Properties<C> {
         let mut property_not_available = false;
 
         let mut param = PropertyParam {
-            impo: structs::MQIMPO::new(sys::MQIMPO {
+            impo: structs::MQIMPO::new(mq::MQIMPO {
                 Options: options.0,
                 ..default::MQIMPO_DEFAULT
             }),
@@ -300,7 +300,7 @@ impl<C: Conn> Properties<C> {
             };
             param.impo.ReturnedName = inq_name_buffer
                 .as_mut()
-                .map_or(default::MQCHARV_DEFAULT, |name| sys::MQCHARV {
+                .map_or(default::MQCHARV_DEFAULT, |name| mq::MQCHARV {
                     VSPtr: (&raw mut *name).cast(),
                     VSBufSize: name
                         .as_ref()
@@ -429,7 +429,7 @@ impl<C: Conn> Properties<C> {
         buffer: A,
     ) -> ResultCompErr<(MessageFormat, A), MqInqError> {
         let mut buf = buffer;
-        let mhbo = structs::MQMHBO::new(sys::MQMHBO {
+        let mhbo = structs::MQMHBO::new(mq::MQMHBO {
             Options: options.0,
             ..default::MQMHBO_DEFAULT
         });
@@ -461,7 +461,7 @@ impl<C: Conn> Properties<C> {
         // Drop the delete properties option as this fn does not modify the buffer
         let options_read_only = options - constants::MQBMHO_DELETE_PROPERTIES;
         let mut mqmd = format.into_mqmd2();
-        let bmho = structs::MQBMHO::new(sys::MQBMHO {
+        let bmho = structs::MQBMHO::new(mq::MQBMHO {
             Options: options_read_only.0,
             ..default::MQBMHO_DEFAULT
         });
@@ -479,7 +479,7 @@ impl<C: Conn> Properties<C> {
         buffer: &'a mut [MQBYTE],
     ) -> ResultComp<(MessageFormat, &'a [MQBYTE])> {
         let mut mqmd = format.into_mqmd2();
-        let bmho = structs::MQBMHO::new(sys::MQBMHO {
+        let bmho = structs::MQBMHO::new(mq::MQBMHO {
             Options: options.0,
             ..default::MQBMHO_DEFAULT
         });
@@ -502,6 +502,8 @@ impl<C: Conn> Properties<C> {
 mod test {
     use std::{error::Error, rc::Rc};
 
+    use libmqm_sys::mock::MockMq;
+
     use super::*;
     use crate::{
         CCSID, Connection, ResultErr, ThreadNone, constants,
@@ -511,26 +513,24 @@ mod test {
         },
         headers::{TextEnc, fmt::MQFMT_NONE},
         properties_options::Name,
-        test::mock::{self, MockFunctions},
+        test::mock,
         types::{MQCC, MQRC, MessageFormat},
     };
 
     /// Set up mocks for the MQINQMP function
-    fn mqinqmp(mock_list: &[(&str, MQTYPE, &[u8], MQCC, MQRC)]) -> impl Fn(&mut MockFunctions) {
+    fn mqinqmp(mock_list: &[(&str, MQTYPE, &[u8], MQCC, MQRC)]) -> impl Fn(&mut MockMq) {
         |mock_library| {
             let mut seq = mockall::Sequence::new();
-            mock_library.properties_ok(0xf0f0, 1, &mut seq);
+            mock::properties_ok(mock_library, 0xf0f0, 1, &mut seq);
 
             for (name, data_typ, data, cc, rc) in mock_list.iter().copied() {
                 let data = data.to_owned();
                 let name = name.to_owned();
                 mock_library.expect_MQINQMP().once().in_sequence(&mut seq).returning(
                     move |_, _, mqimpo, _, _, typ, value_length, value, real_length, comp_code, reason| {
-                        let mut_typ = unsafe { &mut *typ };
-                        let mut_real_length = unsafe { &mut *real_length };
-                        let mut_impo: &mut structs::MQIMPO = unsafe { &mut *mqimpo.cast() };
-                        let maybe_name_mqcharv: Option<&mut sys::MQCHARV> =
-                            unsafe { mut_impo.ReturnedName.VSPtr.as_mut().map(|_| &mut mut_impo.ReturnedName) };
+                        let mut_real_length = &mut *real_length;
+                        let maybe_name_mqcharv: Option<&mut mq::MQCHARV> =
+                            unsafe { mqimpo.ReturnedName.VSPtr.as_mut().map(|_| &mut mqimpo.ReturnedName) };
 
                         // Set the returned real length
                         *mut_real_length = data.len().try_into().expect("i32 in range of usize");
@@ -556,47 +556,45 @@ mod test {
                         mut_value.copy_from_slice(&data[..copied_length]);
 
                         // Set the data type
-                        *mut_typ.as_mut() = data_typ;
+                        *typ.as_mut() = data_typ;
 
-                        MockFunctions::mqi_outcome(comp_code, reason, cc, rc);
+                        mock::mqi_outcome(comp_code, reason, cc, rc);
                     },
                 );
             }
         }
     }
 
-    fn mqmhbuf(mock_data: &'static [u8]) -> impl Fn(&mut MockFunctions) {
+    fn mqmhbuf(mock_data: &'static [u8]) -> impl Fn(&mut MockMq) {
         |mock_library| {
             let mut seq = mockall::Sequence::new();
-            mock_library.properties_ok(0xf0f0, 1, &mut seq);
+            mock::properties_ok(mock_library, 0xf0f0, 1, &mut seq);
             mock_library
                 .expect_MQMHBUF()
                 .returning(|_, _, _, _, _, buf_len, buf_target, data_len, cc, rc| {
-                    unsafe { MockFunctions::copy_to_mq_data(mock_data, buf_len, buf_target, data_len) };
-                    MockFunctions::mqi_outcome_ok(cc, rc);
+                    unsafe { mock::copy_to_mq_data(mock_data, buf_len, buf_target, data_len) };
+                    mock::mqi_outcome_ok(cc, rc);
                 })
                 .once()
                 .in_sequence(&mut seq);
         }
     }
 
-    fn mqbufmh(mock_library: &mut MockFunctions) {
+    fn mqbufmh(mock_library: &mut MockMq) {
         let mut seq = mockall::Sequence::new();
 
-        mock_library.properties_ok(0xf0f0, 1, &mut seq);
+        mock::properties_ok(mock_library, 0xf0f0, 1, &mut seq);
         mock_library
             .expect_MQBUFMH()
             .returning(|_, _, _, _, buffer_len, _, data_len, cc, rc| {
-                unsafe {
-                    *data_len = buffer_len;
-                }
-                MockFunctions::mqi_outcome_ok(cc, rc);
+                *data_len = buffer_len;
+                mock::mqi_outcome_ok(cc, rc);
             })
             .once()
             .in_sequence(&mut seq);
     }
 
-    fn properties_mocked(m: impl Fn(&mut MockFunctions)) -> ResultErr<Properties<Connection<Rc<MockFunctions>, ThreadNone>>> {
+    fn properties_mocked(m: impl Fn(&mut MockMq)) -> ResultErr<Properties<Connection<Rc<MockMq>, ThreadNone>>> {
         Properties::new(mock::connect_ok(m), constants::MQCMHO_NONE)
     }
 

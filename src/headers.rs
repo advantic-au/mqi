@@ -4,7 +4,7 @@ use std::{
     mem, ptr,
 };
 
-use libmqm_sys::lib as sys;
+use libmqm_sys as mq;
 use maybe_owned::MaybeOwned;
 
 use super::{
@@ -30,35 +30,35 @@ const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
 const INTEGER_NATIVE_MASK: types::MQENC = constants::MQENC_NATIVE.intersection(constants::MQENC_INTEGER_MASK);
 
 pub mod fmt {
-    use libmqm_sys::lib as sys;
+    use libmqm_sys as mq;
 
     use super::cstr_array;
     use crate::types::Fmt;
 
-    pub const MQFMT_NONE: Fmt = cstr_array(sys::MQFMT_NONE);
-    pub const MQFMT_STRING: Fmt = cstr_array(sys::MQFMT_STRING);
-    pub const MQFMT_ADMIN: Fmt = cstr_array(sys::MQFMT_ADMIN);
+    pub const MQFMT_NONE: Fmt = cstr_array(mq::MQFMT_NONE);
+    pub const MQFMT_STRING: Fmt = cstr_array(mq::MQFMT_STRING);
+    pub const MQFMT_ADMIN: Fmt = cstr_array(mq::MQFMT_ADMIN);
 
-    pub const MQFMT_AMQP: Fmt = cstr_array(sys::MQFMT_AMQP);
-    pub const MQFMT_CHANNEL_COMPLETED: Fmt = cstr_array(sys::MQFMT_CHANNEL_COMPLETED);
-    pub const MQFMT_CICS: Fmt = cstr_array(sys::MQFMT_CICS);
-    pub const MQFMT_COMMAND_1: Fmt = cstr_array(sys::MQFMT_COMMAND_1);
-    pub const MQFMT_COMMAND_2: Fmt = cstr_array(sys::MQFMT_COMMAND_2);
-    pub const MQFMT_DEAD_LETTER_HEADER: Fmt = cstr_array(sys::MQFMT_DEAD_LETTER_HEADER);
-    pub const MQFMT_DIST_HEADER: Fmt = cstr_array(sys::MQFMT_DIST_HEADER);
-    pub const MQFMT_EMBEDDED_PCF: Fmt = cstr_array(sys::MQFMT_EMBEDDED_PCF);
-    pub const MQFMT_EVENT: Fmt = cstr_array(sys::MQFMT_EVENT);
-    pub const MQFMT_IMS: Fmt = cstr_array(sys::MQFMT_IMS);
-    pub const MQFMT_IMS_VAR_STRING: Fmt = cstr_array(sys::MQFMT_IMS_VAR_STRING);
-    pub const MQFMT_MD_EXTENSION: Fmt = cstr_array(sys::MQFMT_MD_EXTENSION);
-    pub const MQFMT_PCF: Fmt = cstr_array(sys::MQFMT_PCF);
-    pub const MQFMT_REF_MSG_HEADER: Fmt = cstr_array(sys::MQFMT_REF_MSG_HEADER);
-    pub const MQFMT_RF_HEADER: Fmt = cstr_array(sys::MQFMT_RF_HEADER);
-    pub const MQFMT_RF_HEADER_1: Fmt = cstr_array(sys::MQFMT_RF_HEADER_1);
-    pub const MQFMT_RF_HEADER_2: Fmt = cstr_array(sys::MQFMT_RF_HEADER_2);
-    pub const MQFMT_TRIGGER: Fmt = cstr_array(sys::MQFMT_TRIGGER);
-    pub const MQFMT_WORK_INFO_HEADER: Fmt = cstr_array(sys::MQFMT_WORK_INFO_HEADER);
-    pub const MQFMT_XMIT_Q_HEADER: Fmt = cstr_array(sys::MQFMT_XMIT_Q_HEADER);
+    pub const MQFMT_AMQP: Fmt = cstr_array(mq::MQFMT_AMQP);
+    pub const MQFMT_CHANNEL_COMPLETED: Fmt = cstr_array(mq::MQFMT_CHANNEL_COMPLETED);
+    pub const MQFMT_CICS: Fmt = cstr_array(mq::MQFMT_CICS);
+    pub const MQFMT_COMMAND_1: Fmt = cstr_array(mq::MQFMT_COMMAND_1);
+    pub const MQFMT_COMMAND_2: Fmt = cstr_array(mq::MQFMT_COMMAND_2);
+    pub const MQFMT_DEAD_LETTER_HEADER: Fmt = cstr_array(mq::MQFMT_DEAD_LETTER_HEADER);
+    pub const MQFMT_DIST_HEADER: Fmt = cstr_array(mq::MQFMT_DIST_HEADER);
+    pub const MQFMT_EMBEDDED_PCF: Fmt = cstr_array(mq::MQFMT_EMBEDDED_PCF);
+    pub const MQFMT_EVENT: Fmt = cstr_array(mq::MQFMT_EVENT);
+    pub const MQFMT_IMS: Fmt = cstr_array(mq::MQFMT_IMS);
+    pub const MQFMT_IMS_VAR_STRING: Fmt = cstr_array(mq::MQFMT_IMS_VAR_STRING);
+    pub const MQFMT_MD_EXTENSION: Fmt = cstr_array(mq::MQFMT_MD_EXTENSION);
+    pub const MQFMT_PCF: Fmt = cstr_array(mq::MQFMT_PCF);
+    pub const MQFMT_REF_MSG_HEADER: Fmt = cstr_array(mq::MQFMT_REF_MSG_HEADER);
+    pub const MQFMT_RF_HEADER: Fmt = cstr_array(mq::MQFMT_RF_HEADER);
+    pub const MQFMT_RF_HEADER_1: Fmt = cstr_array(mq::MQFMT_RF_HEADER_1);
+    pub const MQFMT_RF_HEADER_2: Fmt = cstr_array(mq::MQFMT_RF_HEADER_2);
+    pub const MQFMT_TRIGGER: Fmt = cstr_array(mq::MQFMT_TRIGGER);
+    pub const MQFMT_WORK_INFO_HEADER: Fmt = cstr_array(mq::MQFMT_WORK_INFO_HEADER);
+    pub const MQFMT_XMIT_Q_HEADER: Fmt = cstr_array(mq::MQFMT_XMIT_Q_HEADER);
 }
 
 #[derive(derive_more::Error, derive_more::Display, Debug, Clone)]
@@ -88,12 +88,12 @@ pub enum HeaderError {
 
 #[derive(Debug, Clone)]
 pub enum Header<'a> {
-    Dlh(EncodedHeader<'a, sys::MQDLH>),
-    Dh(EncodedHeader<'a, sys::MQDH>),
-    Iih(EncodedHeader<'a, sys::MQIIH>),
-    Rfh2(EncodedHeader<'a, sys::MQRFH2>),
-    Rfh(EncodedHeader<'a, sys::MQRFH>),
-    Cih(EncodedHeader<'a, sys::MQCIH>),
+    Dlh(EncodedHeader<'a, mq::MQDLH>),
+    Dh(EncodedHeader<'a, mq::MQDH>),
+    Iih(EncodedHeader<'a, mq::MQIIH>),
+    Rfh2(EncodedHeader<'a, mq::MQRFH2>),
+    Rfh(EncodedHeader<'a, mq::MQRFH>),
+    Cih(EncodedHeader<'a, mq::MQCIH>),
 }
 
 pub type NextHeader<'a> = (Header<'a>, &'a [u8], usize, MessageFormat);
@@ -342,12 +342,12 @@ const fn swap_to_native(value: types::MQLONG, native: bool) -> types::MQLONG {
     if native { value } else { value.swap_bytes() }
 }
 
-impl ChainedHeader for sys::MQDH {
-    const FMT_ASCII: Fmt = cstr_array(sys::MQFMT_DIST_HEADER);
+impl ChainedHeader for mq::MQDH {
+    const FMT_ASCII: Fmt = cstr_array(mq::MQFMT_DIST_HEADER);
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
-    const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQDH_STRUC_ID);
+    const STRUC_ID_ASCII: StrucId = cstr_array(mq::MQDH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: types::MQLONG = sys::MQDH_VERSION_1;
+    const VERSION: types::MQLONG = mq::MQDH_VERSION_1;
 
     fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
@@ -385,12 +385,12 @@ impl ChainedHeader for sys::MQDH {
     }
 }
 
-impl ChainedHeader for sys::MQCIH {
-    const FMT_ASCII: Fmt = cstr_array(sys::MQFMT_CICS);
+impl ChainedHeader for mq::MQCIH {
+    const FMT_ASCII: Fmt = cstr_array(mq::MQFMT_CICS);
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
-    const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQCIH_STRUC_ID);
+    const STRUC_ID_ASCII: StrucId = cstr_array(mq::MQCIH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: types::MQLONG = sys::MQCIH_VERSION_2;
+    const VERSION: types::MQLONG = mq::MQCIH_VERSION_2;
 
     fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
@@ -428,12 +428,12 @@ impl ChainedHeader for sys::MQCIH {
     }
 }
 
-impl ChainedHeader for sys::MQDLH {
-    const FMT_ASCII: Fmt = cstr_array(sys::MQFMT_DEAD_LETTER_HEADER);
+impl ChainedHeader for mq::MQDLH {
+    const FMT_ASCII: Fmt = cstr_array(mq::MQFMT_DEAD_LETTER_HEADER);
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
-    const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQDLH_STRUC_ID);
+    const STRUC_ID_ASCII: StrucId = cstr_array(mq::MQDLH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: types::MQLONG = sys::MQDLH_VERSION_1;
+    const VERSION: types::MQLONG = mq::MQDLH_VERSION_1;
 
     fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
@@ -467,12 +467,12 @@ impl ChainedHeader for sys::MQDLH {
     }
 }
 
-impl ChainedHeader for sys::MQIIH {
-    const FMT_ASCII: Fmt = cstr_array(sys::MQFMT_IMS);
+impl ChainedHeader for mq::MQIIH {
+    const FMT_ASCII: Fmt = cstr_array(mq::MQFMT_IMS);
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
-    const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQIIH_STRUC_ID);
+    const STRUC_ID_ASCII: StrucId = cstr_array(mq::MQIIH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: types::MQLONG = sys::MQIIH_VERSION_1;
+    const VERSION: types::MQLONG = mq::MQIIH_VERSION_1;
 
     fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
@@ -506,12 +506,12 @@ impl ChainedHeader for sys::MQIIH {
     }
 }
 
-impl ChainedHeader for sys::MQRFH2 {
-    const FMT_ASCII: Fmt = cstr_array(sys::MQFMT_RF_HEADER_2);
+impl ChainedHeader for mq::MQRFH2 {
+    const FMT_ASCII: Fmt = cstr_array(mq::MQFMT_RF_HEADER_2);
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
-    const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQRFH_STRUC_ID);
+    const STRUC_ID_ASCII: StrucId = cstr_array(mq::MQRFH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: types::MQLONG = sys::MQRFH_VERSION_2;
+    const VERSION: types::MQLONG = mq::MQRFH_VERSION_2;
 
     fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
@@ -560,7 +560,7 @@ impl ChainedHeader for sys::MQRFH2 {
     }
 }
 
-impl<'a> EncodedHeader<'a, sys::MQRFH2> {
+impl<'a> EncodedHeader<'a, mq::MQRFH2> {
     #[must_use]
     pub fn name_value_data(&self) -> StrCcsid<'a> {
         StringCcsid::new(
@@ -571,12 +571,12 @@ impl<'a> EncodedHeader<'a, sys::MQRFH2> {
     }
 }
 
-impl ChainedHeader for sys::MQRFH {
-    const FMT_ASCII: Fmt = cstr_array(sys::MQFMT_RF_HEADER_1);
+impl ChainedHeader for mq::MQRFH {
+    const FMT_ASCII: Fmt = cstr_array(mq::MQFMT_RF_HEADER_1);
     const FMT_EBCDIC: Fmt = ascii7_ebcdic(&Self::FMT_ASCII);
-    const STRUC_ID_ASCII: StrucId = cstr_array(sys::MQRFH_STRUC_ID);
+    const STRUC_ID_ASCII: StrucId = cstr_array(mq::MQRFH_STRUC_ID);
     const STRUC_ID_EBCDIC: StrucId = ascii7_ebcdic(&Self::STRUC_ID_ASCII);
-    const VERSION: types::MQLONG = sys::MQRFH_VERSION_1;
+    const VERSION: types::MQLONG = mq::MQRFH_VERSION_1;
 
     fn next_raw_ccsid(&self) -> types::MQLONG {
         self.CodedCharSetId
@@ -614,7 +614,7 @@ impl ChainedHeader for sys::MQRFH {
     }
 }
 
-impl<'a> EncodedHeader<'a, sys::MQRFH> {
+impl<'a> EncodedHeader<'a, mq::MQRFH> {
     #[must_use]
     pub const fn name_value_data(&self) -> StrCcsid<'a> {
         StringCcsid::new(
@@ -656,18 +656,18 @@ impl<'a> Iterator for HeaderIter<'a> {
 }
 
 fn next_header<'a>(data: &'a [u8], next_format: &MessageFormat) -> Result<Option<NextHeader<'a>>, HeaderError> {
-    Ok(if EncodedHeader::<sys::MQRFH2>::fmt_matches(next_format.fmt) {
-        Some(parse_header::<sys::MQRFH2>(data, next_format.ccsid, next_format.encoding)?)
-    } else if EncodedHeader::<sys::MQRFH>::fmt_matches(next_format.fmt) {
-        Some(parse_header::<sys::MQRFH>(data, next_format.ccsid, next_format.encoding)?)
-    } else if EncodedHeader::<sys::MQIIH>::fmt_matches(next_format.fmt) {
-        Some(parse_header::<sys::MQIIH>(data, next_format.ccsid, next_format.encoding)?)
-    } else if EncodedHeader::<sys::MQCIH>::fmt_matches(next_format.fmt) {
-        Some(parse_header::<sys::MQCIH>(data, next_format.ccsid, next_format.encoding)?)
-    } else if EncodedHeader::<sys::MQDLH>::fmt_matches(next_format.fmt) {
-        Some(parse_header::<sys::MQDLH>(data, next_format.ccsid, next_format.encoding)?)
-    } else if EncodedHeader::<sys::MQDH>::fmt_matches(next_format.fmt) {
-        Some(parse_header::<sys::MQDH>(data, next_format.ccsid, next_format.encoding)?)
+    Ok(if EncodedHeader::<mq::MQRFH2>::fmt_matches(next_format.fmt) {
+        Some(parse_header::<mq::MQRFH2>(data, next_format.ccsid, next_format.encoding)?)
+    } else if EncodedHeader::<mq::MQRFH>::fmt_matches(next_format.fmt) {
+        Some(parse_header::<mq::MQRFH>(data, next_format.ccsid, next_format.encoding)?)
+    } else if EncodedHeader::<mq::MQIIH>::fmt_matches(next_format.fmt) {
+        Some(parse_header::<mq::MQIIH>(data, next_format.ccsid, next_format.encoding)?)
+    } else if EncodedHeader::<mq::MQCIH>::fmt_matches(next_format.fmt) {
+        Some(parse_header::<mq::MQCIH>(data, next_format.ccsid, next_format.encoding)?)
+    } else if EncodedHeader::<mq::MQDLH>::fmt_matches(next_format.fmt) {
+        Some(parse_header::<mq::MQDLH>(data, next_format.ccsid, next_format.encoding)?)
+    } else if EncodedHeader::<mq::MQDH>::fmt_matches(next_format.fmt) {
+        Some(parse_header::<mq::MQDH>(data, next_format.ccsid, next_format.encoding)?)
     } else {
         None
     })
@@ -690,13 +690,13 @@ mod tests {
     const NEXT_DEAD: MessageFormat = MessageFormat {
         ccsid: CCSID(1208),
         encoding: constants::MQENC_NATIVE,
-        fmt: TextEnc::Ascii(sys::MQDLH::FMT_ASCII),
+        fmt: TextEnc::Ascii(mq::MQDLH::FMT_ASCII),
     };
 
     const NEXT_RFH2: MessageFormat = MessageFormat {
         ccsid: CCSID(1208),
         encoding: constants::MQENC_NATIVE,
-        fmt: TextEnc::Ebcdic(sys::MQRFH2::FMT_EBCDIC),
+        fmt: TextEnc::Ebcdic(mq::MQRFH2::FMT_EBCDIC),
     };
 
     const NEXT_STRING: MessageFormat = MessageFormat {
@@ -719,7 +719,7 @@ mod tests {
 
     #[test]
     pub fn dlh() {
-        let dlh = unsafe { transmute::<sys::MQDLH, [u8; sys::MQDLH_LENGTH_1]>(default::MQDLH_DEFAULT) };
+        let dlh = unsafe { transmute::<mq::MQDLH, [u8; mq::MQDLH_LENGTH_1]>(default::MQDLH_DEFAULT) };
         let header = next_header(dlh.as_slice(), &NEXT_DEAD);
 
         assert!(matches!(header, Ok(Some((Header::Dlh(_), ..)))));
@@ -728,7 +728,7 @@ mod tests {
     #[test]
     pub fn rfh2() {
         let rfh2 = default::MQRFH2_DEFAULT;
-        let rfh2_data = unsafe { transmute::<sys::MQRFH2, [u8; sys::MQRFH2_CURRENT_LENGTH]>(rfh2) };
+        let rfh2_data = unsafe { transmute::<mq::MQRFH2, [u8; mq::MQRFH2_CURRENT_LENGTH]>(rfh2) };
         let header = next_header(rfh2_data.as_slice(), &NEXT_RFH2);
 
         assert!(matches!(header, Ok(Some((Header::Rfh2(_), ..)))));
@@ -736,24 +736,24 @@ mod tests {
 
     #[test]
     pub fn header_iter() {
-        const TOTAL_LENGTH: usize = sys::MQDLH_LENGTH_1 + sys::MQRFH2_LENGTH_2;
+        const TOTAL_LENGTH: usize = mq::MQDLH_LENGTH_1 + mq::MQRFH2_LENGTH_2;
         let mut data: [u8; TOTAL_LENGTH] = [0; TOTAL_LENGTH];
         let mut dlh = default::MQDLH_DEFAULT;
         let rfh2 = default::MQRFH2_DEFAULT;
-        dlh.Format = sys::MQRFH2::FMT_ASCII;
+        dlh.Format = mq::MQRFH2::FMT_ASCII;
         dlh.CodedCharSetId = 1208;
-        dlh.Encoding = sys::MQENC_NATIVE;
+        dlh.Encoding = mq::MQENC_NATIVE;
         let dlh_ptr = &raw const dlh;
         let rfh2_ptr = &raw const rfh2;
-        data[..sys::MQDLH_LENGTH_1].copy_from_slice(unsafe { from_raw_parts(dlh_ptr.cast(), sys::MQDLH_LENGTH_1) });
-        data[sys::MQDLH_LENGTH_1..].copy_from_slice(unsafe { from_raw_parts(rfh2_ptr.cast(), sys::MQRFH2_LENGTH_2) });
+        data[..mq::MQDLH_LENGTH_1].copy_from_slice(unsafe { from_raw_parts(dlh_ptr.cast(), mq::MQDLH_LENGTH_1) });
+        data[mq::MQDLH_LENGTH_1..].copy_from_slice(unsafe { from_raw_parts(rfh2_ptr.cast(), mq::MQRFH2_LENGTH_2) });
 
         let headers = Header::iter(
             data.as_slice(),
             MessageFormat {
                 ccsid: CCSID(1208),
                 encoding: constants::MQENC_NATIVE,
-                fmt: TextEnc::Ascii(sys::MQDLH::FMT_ASCII),
+                fmt: TextEnc::Ascii(mq::MQDLH::FMT_ASCII),
             },
         );
 

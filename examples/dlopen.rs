@@ -1,3 +1,5 @@
+// This can be compiled without compile time linking of the MQ libraries.
+// Simply compile without default features and the `dlopen2` feature.
 use std::rc::Rc;
 
 use anyhow::Context;

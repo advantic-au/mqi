@@ -23,7 +23,7 @@ pub struct Object<C: Conn> {
     message = "{Self} does not implement `OpenOption` so it can't be used as an argument for MQI open"
 )]
 /// # Safety
-/// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
+/// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::MQOPEN).
 /// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenOption<'oo, T> {
@@ -31,7 +31,7 @@ pub unsafe trait OpenOption<'oo, T> {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
+/// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::MQOPEN).
 /// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenValue<S> {
@@ -44,7 +44,7 @@ pub unsafe trait OpenValue<S> {
 }
 
 /// # Safety
-/// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::Mqi::MQOPEN).
+/// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::MQOPEN).
 /// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenAttr<S, O> {
@@ -103,7 +103,7 @@ impl<C: Conn> Drop for Object<C> {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use libmqm_sys::lib as sys;
+    use libmqm_sys as mq;
 
     use super::*;
 
@@ -130,7 +130,7 @@ mod tests {
         let list = list_iter.collect::<Vec<_>>();
         assert_eq!(
             list,
-            &[(sys::MQCO_DELETE, "MQCO_DELETE"), (sys::MQCO_QUIESCE, "MQCO_QUIESCE")]
+            &[(mq::MQCO_DELETE, "MQCO_DELETE"), (mq::MQCO_QUIESCE, "MQCO_QUIESCE")]
         );
 
         // assert_eq!(format!("{oo:?}"), "");

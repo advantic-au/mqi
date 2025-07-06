@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, rc::Rc, sync::Arc};
 
-use libmqm_sys::{Mqi, lib as sys};
+use libmqm_sys::{Mqi, self as mq};
 
 use super::connect_options::{self, ConnectOption, ConnectStructs};
 #[cfg(feature = "link")]
@@ -10,7 +10,7 @@ use crate::{ConnectionHandle, Library, MqFunctions, ResultComp, prelude::*, stru
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
 pub struct ConnectionId(pub types::Identifier<24>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
-pub struct ConnTag(pub [types::MQBYTE; sys::MQ_CONN_TAG_LENGTH]);
+pub struct ConnTag(pub [types::MQBYTE; mq::MQ_CONN_TAG_LENGTH]);
 
 /// Associated connection handle and MQ library
 pub trait Conn {
@@ -111,15 +111,15 @@ impl Sealed for ThreadBlock {}
 unsafe impl Send for ThreadNoBlock {}
 
 impl Threading for ThreadNone {
-    const MQCNO_HANDLE_SHARE: types::MQLONG = sys::MQCNO_HANDLE_SHARE_NONE;
+    const MQCNO_HANDLE_SHARE: types::MQLONG = mq::MQCNO_HANDLE_SHARE_NONE;
 }
 
 impl Threading for ThreadBlock {
-    const MQCNO_HANDLE_SHARE: types::MQLONG = sys::MQCNO_HANDLE_SHARE_BLOCK;
+    const MQCNO_HANDLE_SHARE: types::MQLONG = mq::MQCNO_HANDLE_SHARE_BLOCK;
 }
 
 impl Threading for ThreadNoBlock {
-    const MQCNO_HANDLE_SHARE: types::MQLONG = sys::MQCNO_HANDLE_SHARE_NO_BLOCK;
+    const MQCNO_HANDLE_SHARE: types::MQLONG = mq::MQCNO_HANDLE_SHARE_NO_BLOCK;
 }
 
 impl<L: Library<MQ: Mqi>, H> Drop for Connection<L, H> {
@@ -188,21 +188,21 @@ where
     let cno_ptr = &raw const structs.cno;
     #[cfg(feature = "mqc_9_3_0_0")]
     if struct_mask & connect_options::CONNECT_HAS_BNO != connect_options::CONNECT_HAS_NONE {
-        structs.cno.set_min_version(sys::MQCNO_VERSION_8);
+        structs.cno.set_min_version(mq::MQCNO_VERSION_8);
         structs.cno.BalanceParmsOffset = unsafe { (&raw const structs.bno).byte_offset_from(cno_ptr) }
             .try_into()
             .expect("MQBNO offset from MQCNO should convert to i32");
     }
 
     if struct_mask & connect_options::CONNECT_HAS_CD != connect_options::CONNECT_HAS_NONE {
-        structs.cno.set_min_version(sys::MQCNO_VERSION_2);
+        structs.cno.set_min_version(mq::MQCNO_VERSION_2);
         structs.cno.ClientConnOffset = unsafe { (&raw const structs.cd).byte_offset_from(cno_ptr) }
             .try_into()
             .expect("MQCD offset from MQCNO should convert to i32");
     }
 
     if struct_mask & connect_options::CONNECT_HAS_SCO != connect_options::CONNECT_HAS_NONE {
-        structs.cno.set_min_version(sys::MQCNO_VERSION_4);
+        structs.cno.set_min_version(mq::MQCNO_VERSION_4);
         structs.cno.SSLConfigOffset = unsafe { (&raw const structs.sco).byte_offset_from(cno_ptr) }
             .try_into()
             .expect("MQSCO offset from MQCNO should convert to i32");
@@ -210,7 +210,7 @@ where
 
     if struct_mask & connect_options::CONNECT_HAS_CSP != connect_options::CONNECT_HAS_NONE {
         {
-            structs.cno.set_min_version(sys::MQCNO_VERSION_5);
+            structs.cno.set_min_version(mq::MQCNO_VERSION_5);
             structs.cno.SecurityParmsOffset = unsafe { (&raw const structs.csp).byte_offset_from(cno_ptr) }
                 .try_into()
                 .expect("MQCSP offset from MQCNO should convert to i32");

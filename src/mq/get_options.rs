@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use libmqm_sys::lib as sys;
+use libmqm_sys as mq;
 
 use super::get::{
     GetAttr, GetConvert, GetOption, GetParam, GetState, GetStringCcsidError, GetStringError, GetValue, GetWait, Headers,
@@ -56,7 +56,7 @@ impl GetOption for GetConvert {
 
 impl<C: Conn> GetOption for &mut Properties<C> {
     fn apply_param(&self, param: &mut GetParam) {
-        param.gmo.set_min_version(sys::MQGMO_VERSION_4);
+        param.gmo.set_min_version(mq::MQGMO_VERSION_4);
         let gmo_options: &mut types::MQGMO = param.gmo.Options.as_mut();
         gmo_options.insert(constants::MQGMO_PROPERTIES_IN_HANDLE);
         param.gmo.MsgHandle = unsafe { self.handle().raw_handle() }
@@ -80,10 +80,10 @@ impl GetOption for MatchOptions<'_> {
 
         // Set up the GMO
         if let Some(token) = self.token {
-            param.gmo.set_min_version(sys::MQGMO_VERSION_3);
+            param.gmo.set_min_version(mq::MQGMO_VERSION_3);
             param.gmo.MsgToken = token.0;
         }
-        param.gmo.set_min_version(sys::MQGMO_VERSION_2);
+        param.gmo.set_min_version(mq::MQGMO_VERSION_2);
         *param.gmo.MatchOptions.as_mut() = self
             .correl_id
             .map_or(constants::MQMO_NONE, |_| constants::MQMO_MATCH_CORREL_ID)

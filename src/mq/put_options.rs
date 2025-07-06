@@ -1,4 +1,4 @@
-use libmqm_sys::lib as sys;
+use libmqm_sys as mq;
 
 use super::{
     Object,
@@ -49,7 +49,7 @@ unsafe impl<'po, C: Conn> PutOption<'po> for Context<&Object<C>> {
 
 unsafe impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
     fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
-        pmo.set_min_version(sys::MQPMO_VERSION_3);
+        pmo.set_min_version(mq::MQPMO_VERSION_3);
         *pmo.Action.as_mut() = constants::MQACTP_NEW;
         pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
     }
@@ -144,7 +144,7 @@ unsafe impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2
             PropertyAction::Forward(original, new) => (constants::MQACTP_FORWARD, original, new),
             PropertyAction::Report(original, new) => (constants::MQACTP_REPORT, original, new),
         };
-        pmo.set_min_version(sys::MQPMO_VERSION_3);
+        pmo.set_min_version(mq::MQPMO_VERSION_3);
         *pmo.Action.as_mut() = action;
         pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
         pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };
@@ -275,8 +275,8 @@ mod test {
     fn property_action() -> Result<(), Box<dyn Error>> {
         let qm = mock::connect_ok(|mock_library| {
             let mut seq = mockall::Sequence::new();
-            mock_library.properties_ok(0xf0f0, 1, &mut seq);
-            mock_library.properties_ok(0x0e0e, 1, &mut seq);
+            mock::properties_ok(mock_library, 0xf0f0, 1, &mut seq);
+            mock::properties_ok(mock_library, 0x0e0e, 1, &mut seq);
         });
 
         let mut put_param = (

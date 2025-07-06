@@ -1,5 +1,5 @@
 #[cfg(feature = "dlopen2")]
-pub use libmqm_sys::dlopen2::LoadMqm as _;
+pub use libmqm_sys::dlopen2::LoadMqmExt as _;
 
 #[cfg(feature = "mqai")]
 pub use super::QueueManagerAdmin as _;

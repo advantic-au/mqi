@@ -55,7 +55,7 @@ impl<C: Conn> Subscription<C> {
         request_options.apply_param(&mut srp);
         self.connection
             .mq()
-            .mqsubrq(self.connection.handle(), &self.handle, srp.sr, &mut srp.sro)
+            .mqsubrq(self.connection.handle(), &self.handle, srp.sr, Some(&mut srp.sro))
             .map_completion(|()| srp.sro.NumPubs)
     }
 }
@@ -93,7 +93,7 @@ pub trait SubscribeAttr<C: Conn> {
     message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
 )]
 /// # Safety
-/// This trait can directly manipulate the [`MQSD`](structs::MQSD) structure which is used by [`MQSUB`](libmqm_sys::Mqi::MQSUB).
+/// This trait can directly manipulate the [`MQSD`](structs::MQSD) structure which is used by [`MQSUB`](libmqm_sys::MQSUB).
 /// Incorrect values in the [`MQSD`](structs::MQSD) can lead to undefined behaviour.
 ///
 /// Implementations of [`SubscribeOption`] must ensure that pointers and offsets contained in the structure point to active data.
@@ -146,7 +146,7 @@ impl<C: Conn + Clone> Subscription<C> {
     where
         R: SubscribeValue<C>,
     {
-        use libmqm_sys::lib::MQHO_NONE;
+        use libmqm_sys::MQHO_NONE;
 
         let mut so = SubscribeParam {
             close_options: MQCO::default(),
@@ -195,20 +195,16 @@ mod test {
             mock_library
                 .expect_MQSUBRQ()
                 .returning(|_, _, _, sro, cc, rc| {
-                    let mqsro = unsafe {
-                        sro.cast::<structs::MQSRO>()
-                            .as_mut()
-                            .expect("MQRSO should never be a null pointer")
-                    };
+                    let mqsro = sro.expect("MQRSO should never be a null pointer");
                     mqsro.NumPubs = 5;
-                    mock::MockFunctions::mqi_outcome_ok(cc, rc);
+                    mock::mqi_outcome_ok(cc, rc);
                 })
                 .once();
             mock_library
                 .expect_MQCLOSE()
-                .withf(|_, &hobj, _, _, _| 1 == unsafe { *hobj })
+                .withf(|_, &hobj, _, _, _| 1 == hobj)
                 .returning(|_, _, _, cc, rc| {
-                    mock::MockFunctions::mqi_outcome_ok(cc, rc);
+                    mock::mqi_outcome_ok(cc, rc);
                 })
                 .once();
         });
