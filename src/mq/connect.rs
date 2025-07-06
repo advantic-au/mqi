@@ -63,7 +63,7 @@ where
     L: Library<MQ: Mqi> + Clone,
 {
     #[inline]
-    pub fn connection_ref(&self) -> ConnectionRef<L, H> {
+    pub fn connection_ref(&self) -> ConnectionRef<'_, L, H> {
         ConnectionRef::from_parts(self.handle, self.mq.clone())
     }
 

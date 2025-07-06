@@ -28,20 +28,20 @@ pub struct ConnectStructFlags(usize);
 
 pub const CONNECT_HAS_NONE: ConnectStructFlags = ConnectStructFlags(0b00000);
 
-/// A [`MQCNO`](libmqm_mqi::lib::MQCNO) structure is required for the connection option
+/// A [`MQCNO`](libmqm_sys::MQCNO) structure is required for the connection option
 pub const CONNECT_HAS_CNO: ConnectStructFlags = ConnectStructFlags(0b00000);
 
-/// A [`MQSCO`](libmqm_mqi::lib::MQSCO) structure is required for the connection option
+/// A [`MQSCO`](libmqm_sys::MQSCO) structure is required for the connection option
 pub const CONNECT_HAS_SCO: ConnectStructFlags = ConnectStructFlags(0b00010);
 
-/// A [`MQSCD`](libmqm_mqi::lib::MQCD) structure is required for the connection option
+/// A [`MQSCD`](libmqm_sys::MQCD) structure is required for the connection option
 pub const CONNECT_HAS_CD: ConnectStructFlags = ConnectStructFlags(0b00100);
 
-/// A [`MQSCSP`](libmqm_mqi::lib::MQCSP) structure is required for the connection option
+/// A [`MQSCSP`](libmqm_sys::MQCSP) structure is required for the connection option
 pub const CONNECT_HAS_CSP: ConnectStructFlags = ConnectStructFlags(0b01000);
 
 #[cfg(feature = "mqc_9_3_0_0")]
-/// A [`MQBNO`](libmqm_mqi::lib::MQBNO) structure is required for the connection option
+/// A [`MQBNO`](libmqm_sys::MQBNO) structure is required for the connection option
 pub const CONNECT_HAS_BNO: ConnectStructFlags = ConnectStructFlags(0b10000);
 
 /// A collection of MQ structures used by MQ at connection time
@@ -61,7 +61,7 @@ pub struct ConnectStructs<'ptr> {
     message = "{Self} does not implement `ConnectOption` so it can't be used as an argument for MQI connect"
 )]
 /// # Safety
-/// This trait can directly manipulate the [`MQCNO`](structs::MQCNO) structure which is used by [`MQCONNX`](libmqm_mqi::Mqi::MQCONNX).
+/// This trait can directly manipulate the [`MQCNO`](structs::MQCNO) structure which is used by [`MQCONNX`](libmqm_sys::MQCONNX).
 /// Incorrect values in the [`MQCNO`](structs::MQCNO) structure can lead to undefined behaviour.
 ///
 /// Implementations of [`ConnectOption`] must ensure that pointers and offsets contained in the structure point to active data.
@@ -294,7 +294,7 @@ pub type Credentials<'cred, S> = CredentialsSecret<'cred, ProtectedSecret<S>>;
 
 /// Holds TLS parameters for use with [`connect`](crate::connect).
 ///
-/// It is a wrapper around the [`MQSCO`](libmqm_mqi::lib::MQSCO) structure.
+/// It is a wrapper around the [`MQSCO`](libmqm_sys::MQSCO) structure.
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct Tls<'pw>(structs::MQSCO<'pw>, CipherSpec);

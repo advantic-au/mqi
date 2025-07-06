@@ -3,7 +3,6 @@
 
 use std::{cmp, rc::Rc, slice};
 
-#[cfg(feature = "mqai")]
 use libmqm_sys::{self as mq, mock::MockMq};
 
 use crate::{Connection, Library, ResultCompExt, ThreadNone, connect_lib, constants, put::PutMessage, types};

@@ -107,7 +107,7 @@ pub struct EncodedHeader<'a, T: ChainedHeader> {
 }
 
 impl Header<'_> {
-    pub const fn iter(data: &[u8], format: MessageFormat) -> HeaderIter {
+    pub const fn iter(data: &[u8], format: MessageFormat) -> HeaderIter<'_> {
         HeaderIter {
             format,
             data,

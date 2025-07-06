@@ -993,7 +993,7 @@ mod tests {
     }
 
     #[allow(clippy::unnecessary_wraps)]
-    const fn value_property_state(bv: &[u8]) -> ResultComp<PropertyState> {
+    const fn value_property_state(bv: &[u8]) -> ResultComp<PropertyState<'_>> {
         Ok(Completion::new(PropertyState {
             name: None,
             value: Cow::Borrowed(bv),
@@ -1032,7 +1032,7 @@ mod tests {
     #[test]
     fn property_attr_name() -> Result<(), Box<dyn Error>> {
         #[expect(clippy::unnecessary_wraps)]
-        fn name_state(name: &[u8]) -> ResultComp<PropertyState> {
+        fn name_state(name: &[u8]) -> ResultComp<PropertyState<'_>> {
             Ok(Completion::new(PropertyState {
                 name: Some(Cow::from(slice_byte_to_mqchar(name))),
                 value: Cow::from(b""),
@@ -1040,7 +1040,7 @@ mod tests {
         }
 
         #[expect(clippy::unnecessary_wraps)]
-        fn name_state_warning(name: &[u8]) -> ResultComp<PropertyState> {
+        fn name_state_warning(name: &[u8]) -> ResultComp<PropertyState<'_>> {
             Ok(Completion::new_warning(
                 PropertyState {
                     name: Some(Cow::from(slice_byte_to_mqchar(name))),

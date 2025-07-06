@@ -14,14 +14,14 @@ use crate::{
 /// A trait that provides a rendered message for the [`mqput`](`crate::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put")]
 pub trait PutMessage {
-    fn render(&self) -> Cow<[u8]>;
+    fn render(&self) -> Cow<'_, [u8]>;
     fn format(&self) -> MessageFormat;
 }
 
 pub type PutParam<'a> = (structs::MQMD2, structs::MQPMO<'a>);
 
 impl PutMessage for str {
-    fn render(&self) -> Cow<[u8]> {
+    fn render(&self) -> Cow<'_, [u8]> {
         self.as_bytes().into()
     }
 
@@ -35,7 +35,7 @@ impl PutMessage for str {
 }
 
 impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
-    fn render(&self) -> Cow<[u8]> {
+    fn render(&self) -> Cow<'_, [u8]> {
         Cow::Borrowed(self.0.as_ref())
     }
 
