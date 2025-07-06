@@ -30,7 +30,7 @@ jobs:
           - client-version: 9.3
             feature: mqc_9_3_5_0
           - client-version: 9.4
-            feature: mqc_9_4_2_0
+            feature: mqc_9_4_3_0
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       mq:
-        image: icr.io/ibm-messaging/mq:9.4.2.1-r2
+        image: icr.io/ibm-messaging/mq:9.4.3.0-r1
         env:
           MQ_ENABLE_EMBEDDED_WEB_SERVER: false
           LICENSE: accept
@@ -80,7 +80,7 @@ jobs:
         with:
           tool: nextest
       - name: Test
-        run: cargo nextest run --profile ci --no-default-features --features link,mqai,exits,mqc_9_4_2_0
+        run: cargo nextest run --profile ci --no-default-features --features link,mqai,exits,mqc_latest
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
           MQSERVER: DEV.APP.SVRCONN/TCP/localhost(1414)
@@ -164,7 +164,7 @@ jobs:
           MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-env-forward=PROPTEST_DISABLE_FAILURE_PERSISTENCE -Zmiri-env-forward=PROPTEST_CASES
           PROPTEST_CASES: 64
           PROPTEST_DISABLE_FAILURE_PERSISTENCE: true
-        run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,exits,mqc_9_4_2_0 --target ${{ matrix.target }}
+        run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,exits,mqc_latest --target ${{ matrix.target }}
 
   incremental_mutants:
     runs-on: ubuntu-24.04

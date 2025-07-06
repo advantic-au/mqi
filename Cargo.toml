@@ -24,7 +24,7 @@ docsrs = [
     "exits",
     "link",
     "dlopen2",
-    "mqc_9_4_2_0",
+    "mqc_latest",
 ]
 ## Enable tracing in the MQI calls
 tracing = ["dep:tracing"]
@@ -112,6 +112,8 @@ mqc_9_4_3_0 = [
     "libmqm-constants/mqc_9_4_3_0",
     "mqc_9_4_2_0",
 ]
+
+mqc_latest = [ "mqc_9_4_3_0" ]
 
 [dependencies]
 libmqm-sys = { version = "0.10.0", default-features = false, git = "https://github.com/advantic-au/libmqm-sys", branch = "develop" }
