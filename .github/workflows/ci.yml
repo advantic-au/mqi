@@ -71,8 +71,6 @@ jobs:
           persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
-        with:
-          client-version: latest
       - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
         with:
           toolchain: stable
@@ -106,8 +104,6 @@ jobs:
           persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
-        with:
-          client-version: latest
       - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
         with:
           toolchain: ${{matrix.toolchain}}
@@ -177,8 +173,6 @@ jobs:
           fetch-depth: 0
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
-        with:
-          client-version: latest
       - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
         with:
           toolchain: stable
@@ -233,8 +227,6 @@ jobs:
           persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
-        with:
-          client-version: latest
       - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
         with:
           toolchain: ${{ matrix.toolchain }}
@@ -263,8 +255,6 @@ jobs:
           persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
-        with:
-          client-version: latest
       # Re-resolve Cargo.lock with minimal versions
       - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
         with:
