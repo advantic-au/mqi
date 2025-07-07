@@ -116,9 +116,9 @@ mqc_9_4_3_0 = [
 mqc_latest = [ "mqc_9_4_3_0" ]
 
 [dependencies]
-libmqm-sys = { version = "0.10.1", default-features = false, git = "https://github.com/advantic-au/libmqm-sys", branch = "develop" }
-libmqm-default = { version = "0.10.1", default-features = false, git = "https://github.com/advantic-au/libmqm-sys", branch = "develop" }
-libmqm-constants = { version = "0.8.3", default-features = false, git = "https://github.com/advantic-au/libmqm-sys", branch = "develop" }
+libmqm-sys = { version = "0.10.1", default-features = false }
+libmqm-default = { version = "0.10.1", default-features = false }
+libmqm-constants = { version = "0.8.3", default-features = false }
 tracing = { version = "0.1.40", optional = true }
 dlopen2 = { version = "0.8.0", optional = true }
 derive_more = { version = "2.0.1", features = [
