@@ -10,6 +10,8 @@ use crate::ResultComp;
 
 /// Create a connection to a queue manager using the compile time linked MQ library
 /// and type inferred [`ConnectValue`].
+/// 
+/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) MQ API function.
 #[inline]
 pub fn connect_as<'co, R, H>(options: &impl ConnectOption<'co>) -> ResultComp<R>
 where
@@ -26,7 +28,7 @@ where
 ///
 /// The [`Threading`] type parameter controls the threaded capability of the connection.
 ///
-/// This uses the [`MQCONNX`](libmqm_sys::MQCONNX) function.
+/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) MQ API function.
 ///
 /// # Examples
 ///
@@ -61,7 +63,7 @@ where
 ///
 /// Refer to [`connect`] for parameter details.
 ///
-/// This uses the [`MQCONNX`](libmqm_sys::MQCONNX) function.
+/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) MQ API function.
 ///
 /// Common [`ConnectAttr`] that can be returned include [`ConnTag`](crate::ConnTag) and [`ConnectionId`](crate::ConnectionId).
 #[inline]

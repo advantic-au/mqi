@@ -26,7 +26,7 @@ impl<C: Conn> Syncpoint<C> {
 
     /// Begins a unit of work that is coordinated by the queue manager, and that can involve external resource managers.
     ///
-    /// Uses the `MQBEGIN` MQ API call
+    /// This function uses the [`MQBEGIN`](libmqm_sys::MQBEGIN) MQ API function.
     pub fn begin(connection: C, mqbo: MQBO) -> ResultComp<Self> {
         let mut bo = structs::MQBO::new(libmqm_sys::MQBO {
             Options: mqbo.0,
@@ -38,6 +38,7 @@ impl<C: Conn> Syncpoint<C> {
             .map_completion(|()| Self::new(connection))
     }
 
+    /// This function uses the [`MQCMIT`](libmqm_sys::MQCMIT) MQ API function.
     pub fn commit(self) -> ResultComp<()> {
         let result = self.connection.mq().mqcmit(self.connection.handle());
         let mut self_mut = self;
@@ -45,6 +46,7 @@ impl<C: Conn> Syncpoint<C> {
         result
     }
 
+    /// This function uses the [`MQBACK`](libmqm_sys::MQBACK) MQ API function.
     pub fn backout(self) -> ResultComp<()> {
         let result = self.connection.mq().mqback(self.connection.handle());
         let mut self_mut = self;

@@ -18,7 +18,7 @@ pub struct Object<C: Conn> {
     pub(super) close_options: MQCO,
 }
 
-/// A trait that manipulates the parameters to the [`mqopen`](`crate::MqFunctions::mqopen`) function
+/// A trait that manipulates the parameters to the [`MQOPEN`](`::libmqm_sys::MQOPEN`) function
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `OpenOption` so it can't be used as an argument for MQI open"
 )]

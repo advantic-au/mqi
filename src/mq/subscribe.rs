@@ -36,7 +36,7 @@ pub struct SubscribeRequestParam {
 impl<C: Conn> Subscription<C> {
     /// Close the subscription.
     ///
-    /// This utilises the MQI function `MQCLOSE`.
+    /// This function uses the [`MQCLOSE`](libmqm_sys::MQCLOSE) MQ API function.
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
         s.connection
@@ -46,7 +46,7 @@ impl<C: Conn> Subscription<C> {
 
     /// Request the retained publication(s) for the subscription.
     ///
-    /// This utilises the MQI function `MQSUBRQ`.
+    /// This function uses the [`MQSUBRQ`](libmqm_sys::MQSUBRQ) MQ API function.
     pub fn request_retained(&self, request_options: &impl SubscribeRequestOption) -> ResultComp<MQLONG> {
         let mut srp = SubscribeRequestParam {
             sro: structs::MQSRO::new(default::MQSRO_DEFAULT),
@@ -88,7 +88,7 @@ pub trait SubscribeAttr<C: Conn> {
         Self: Sized;
 }
 
-/// A trait that manipulates the parameters to the [`mqsub`](`crate::MqFunctions::mqsub`) function
+/// A trait that manipulates the parameters to the [`MQSUB`](`libmqm_sys::MQSUB`) function
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
 )]
@@ -107,10 +107,12 @@ pub trait SubscribeRequestOption {
 
 // Blanket implementation for SubscribeValue<C>
 impl<C: Conn + Clone> Subscription<C> {
+    /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
     pub fn subscribe<'so>(connection: C, subscribe_option: &impl SubscribeOption<'so>) -> ResultComp<Self> {
         Self::subscribe_as(connection, subscribe_option)
     }
 
+    /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
     pub fn subscribe_with<'so, A>(connection: C, subscribe_option: &impl SubscribeOption<'so>) -> ResultComp<(Self, A)>
     where
         A: SubscribeAttr<C>,
@@ -118,6 +120,7 @@ impl<C: Conn + Clone> Subscription<C> {
         Self::subscribe_as(connection, subscribe_option)
     }
 
+    /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
     pub fn subscribe_managed_with<'so, A>(
         connection: C,
         subscribe_option: impl SubscribeOption<'so>,
@@ -135,10 +138,12 @@ impl<C: Conn + Clone> Subscription<C> {
             })
     }
 
+    /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
     pub fn subscribe_managed<'so>(connection: C, subscribe_option: impl SubscribeOption<'so>) -> ResultComp<(Self, Object<C>)> {
         Self::subscribe_managed_with::<()>(connection, subscribe_option).map_completion(|(sub, queue, ..)| (sub, queue))
     }
 
+    /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
     pub(super) fn subscribe_as<'so, R>(
         connection: C,
         subscribe_option: &impl SubscribeOption<'so>,

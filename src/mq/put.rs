@@ -120,7 +120,7 @@ impl<C: Conn> Object<C> {
     }
 }
 
-/// A trait that manipulates the parameters to the [`mqput`](`crate::MqFunctions::mqput`) function
+/// A trait that manipulates the parameters to the [`MQPUT`](`::libmqm_sys::MQPUT`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put")]
 /// # Safety
 /// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)

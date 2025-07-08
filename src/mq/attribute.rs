@@ -110,6 +110,7 @@ impl<'a> Iterator for MultiItemIter<'a> {
 }
 
 impl<C: Conn> Object<C> {
+    /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
     pub fn inq<'a>(&self, selectors: impl IntoIterator<Item = &'a AttributeType>) -> ResultComp<MultiItem> {
         let mut text_total = 0;
         let mut int_count = 0;
@@ -156,6 +157,7 @@ impl<C: Conn> Object<C> {
             })
     }
 
+    /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
     pub fn inq_item(&self, selector: AttributeType) -> ResultComp<Option<InqResItem<Vec<types::MQCHAR>>>> {
         self.inq(iter::once(&selector)).map_completion(MultiItem::into_first)
     }
@@ -326,6 +328,7 @@ impl<T: AsRef<[types::MQCHAR]>> SetItems for TextItem<T> {
 }
 
 impl<C: Conn> Object<C> {
+    /// This function uses the [`MQSET`](libmqm_sys::MQSET) MQ API function.
     pub fn set(&self, items: &impl SetItems) -> ResultComp<()> {
         let connection = self.connection();
         connection.mq().mqset(

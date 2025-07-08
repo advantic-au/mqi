@@ -55,7 +55,7 @@ pub struct ConnectStructs<'ptr> {
     pub bno: structs::MQBNO,
 }
 
-/// A trait that manipulates the parameters to the [`mqconnx`](`crate::MqFunctions::mqconnx`) function
+/// A trait that manipulates the parameters to the [`MQCONNX`](::libmqm_sys::MQCONNX) function
 #[expect(unused_variables)]
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `ConnectOption` so it can't be used as an argument for MQI connect"

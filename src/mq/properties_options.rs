@@ -8,7 +8,7 @@ use crate::{
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
     structs,
-    types::{MQBYTE, MQCHAR, MQCOPY, MQENC, MQIMPO, MQINT64, MQLONG, MQPD, MQTYPE},
+    types::{MQBYTE, MQCHAR, MQCOPY, MQENC, MQFLOAT32, MQFLOAT64, MQIMPO, MQINT8, MQINT16, MQINT64, MQLONG, MQPD, MQTYPE},
 };
 
 pub const INQUIRE_ALL: &str = "%";
@@ -137,12 +137,12 @@ impl<T> Raw<T> {
 #[derive(Debug, Clone)]
 pub enum Value {
     Boolean(bool),
-    Int8(i8),
-    Int16(i16),
-    Int32(i32),
-    Int64(i64),
-    Float32(f32),
-    Float64(f64),
+    Int8(MQINT8),
+    Int16(MQINT16),
+    Int32(MQLONG),
+    Int64(MQINT64),
+    Float32(MQFLOAT32),
+    Float64(MQFLOAT64),
     ByteString(Vec<MQBYTE>),
     String(StrCcsidOwned),
     Null,
@@ -268,12 +268,12 @@ impl SetProperty for bool {
     }
 }
 
-impl_primitive_setproptype!(i8, constants::MQTYPE_INT8);
-impl_primitive_setproptype!(i16, constants::MQTYPE_INT16);
-impl_primitive_setproptype!(i32, constants::MQTYPE_INT32);
-impl_primitive_setproptype!(i64, constants::MQTYPE_INT64);
-impl_primitive_setproptype!(f32, constants::MQTYPE_FLOAT32);
-impl_primitive_setproptype!(f64, constants::MQTYPE_FLOAT64);
+impl_primitive_setproptype!(MQINT8, constants::MQTYPE_INT8);
+impl_primitive_setproptype!(MQINT16, constants::MQTYPE_INT16);
+impl_primitive_setproptype!(MQLONG, constants::MQTYPE_INT32);
+impl_primitive_setproptype!(MQINT64, constants::MQTYPE_INT64);
+impl_primitive_setproptype!(MQFLOAT32, constants::MQTYPE_FLOAT32);
+impl_primitive_setproptype!(MQFLOAT64, constants::MQTYPE_FLOAT64);
 impl_primitive_setproptype!(Null, constants::MQTYPE_NULL);
 
 impl ReadRaw for Null {}
@@ -443,19 +443,19 @@ unsafe impl PropertyValue for Value {
         impo_options.insert(constants::MQIMPO_NONE);
         param.value_type = constants::MQTYPE_AS_SET;
         mqinqmp(param).map_completion(|state| match param.value_type {
-            constants::MQTYPE_BOOLEAN => Self::Boolean(i32::as_primitive(&state.value) != 0),
+            constants::MQTYPE_BOOLEAN => Self::Boolean(MQLONG::as_primitive(&state.value) != 0),
             constants::MQTYPE_STRING => Self::String(StringCcsid {
                 ccsid: CCSID(param.impo.ReturnedCCSID),
                 data: conversion::bytes_to_cow_mqchar(state.value).into_owned(),
                 le: MQENC(param.impo.ReturnedEncoding).contains(constants::MQENC_INTEGER_REVERSED),
             }),
             constants::MQTYPE_BYTE_STRING => Self::ByteString(state.value.into()),
-            constants::MQTYPE_INT8 => Self::Int8(i8::as_primitive(&state.value)),
-            constants::MQTYPE_INT16 => Self::Int16(i16::as_primitive(&state.value)),
-            constants::MQTYPE_INT32 => Self::Int32(i32::as_primitive(&state.value)),
-            constants::MQTYPE_INT64 => Self::Int64(i64::as_primitive(&state.value)),
-            constants::MQTYPE_FLOAT32 => Self::Float32(f32::as_primitive(&state.value)),
-            constants::MQTYPE_FLOAT64 => Self::Float64(f64::as_primitive(&state.value)),
+            constants::MQTYPE_INT8 => Self::Int8(MQINT8::as_primitive(&state.value)),
+            constants::MQTYPE_INT16 => Self::Int16(MQINT16::as_primitive(&state.value)),
+            constants::MQTYPE_INT32 => Self::Int32(MQLONG::as_primitive(&state.value)),
+            constants::MQTYPE_INT64 => Self::Int64(MQINT64::as_primitive(&state.value)),
+            constants::MQTYPE_FLOAT32 => Self::Float32(MQFLOAT32::as_primitive(&state.value)),
+            constants::MQTYPE_FLOAT64 => Self::Float64(MQFLOAT64::as_primitive(&state.value)),
             constants::MQTYPE_NULL => Self::Null,
             _ => unreachable!(),
         })
@@ -499,10 +499,10 @@ trait AsPrimitive {
     fn as_primitive(buffer: &[u8]) -> Self;
 }
 
-impl_primitive_propertyvalue!(f32, constants::MQTYPE_FLOAT32);
-impl_primitive_propertyvalue!(f64, constants::MQTYPE_FLOAT64);
-impl_primitive_propertyvalue!(i8, constants::MQTYPE_INT8);
-impl_primitive_propertyvalue!(i16, constants::MQTYPE_INT16);
+impl_primitive_propertyvalue!(MQFLOAT32, constants::MQTYPE_FLOAT32);
+impl_primitive_propertyvalue!(MQFLOAT64, constants::MQTYPE_FLOAT64);
+impl_primitive_propertyvalue!(MQINT8, constants::MQTYPE_INT8);
+impl_primitive_propertyvalue!(MQINT16, constants::MQTYPE_INT16);
 impl_primitive_propertyvalue!(MQLONG, constants::MQTYPE_INT32);
 impl_primitive_propertyvalue!(MQINT64, constants::MQTYPE_INT64);
 
@@ -913,10 +913,10 @@ mod tests {
             assert_eq!(constants::MQTYPE_BOOLEAN, mq_type);
         });
 
-        test_simple_sp::<i8>(&99, constants::MQTYPE_INT8);
-        test_simple_sp::<i16>(&99, constants::MQTYPE_INT16);
-        test_simple_sp::<f32>(&99.0, constants::MQTYPE_FLOAT32);
-        test_simple_sp::<f64>(&99.0, constants::MQTYPE_FLOAT64);
+        test_simple_sp::<MQINT8>(&99, constants::MQTYPE_INT8);
+        test_simple_sp::<MQINT16>(&99, constants::MQTYPE_INT16);
+        test_simple_sp::<MQFLOAT32>(&99.0, constants::MQTYPE_FLOAT32);
+        test_simple_sp::<MQFLOAT64>(&99.0, constants::MQTYPE_FLOAT64);
         test_simple_sp::<MQLONG>(&99, constants::MQTYPE_INT32);
         test_simple_sp::<MQINT64>(&99, constants::MQTYPE_INT64);
 

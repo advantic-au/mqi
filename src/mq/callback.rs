@@ -45,7 +45,7 @@ where
     L: Library<MQ: Mqi> + Clone,
 {
     /// # Safety
-    /// Consumers of [`register_event_handler`](Connection::register_event_handler) must handle and read the pointers in [`MQCBDO`](types::MQCBDO) correctly
+    /// Consumers of [`register_event_handler`](Connection::register_event_handler) must handle and read the pointers in [`MQCBC`](structs::MQCBC) correctly
     pub unsafe fn register_event_handler<F>(&mut self, options: types::MQCBDO, closure: F) -> Result<(), Error>
     where
         F: FnMut(ConnectionRef<L, H>, &structs::MQCBC),

@@ -232,9 +232,10 @@ impl<C: Conn> Properties<C> {
         &self.handle
     }
 
+    /// This function uses the [`MQCRTMH`](libmqm_sys::MQCRTMH) MQ API function.
     pub fn new(connection: C, options: MQCMHO) -> ResultErr<Self> {
         let mqcmho = mq::MQCMHO {
-            Options: options.0,
+             Options: options.0,
             ..default::MQCMHO_DEFAULT
         };
         connection
@@ -260,6 +261,7 @@ impl<C: Conn> Properties<C> {
         }
     }
 
+    /// This function uses the [`MQINQMP`](libmqm_sys::MQINQMP) MQ API function.
     pub fn property<P>(&self, name: &(impl EncodedString + ?Sized), options: MQIMPO) -> ResultCompErr<Option<P>, Error>
     where
         P: PropertyValue,
@@ -343,6 +345,7 @@ impl<C: Conn> Properties<C> {
         }
     }
 
+    /// This function uses the [`MQDLTMP`](libmqm_sys::MQDLTMP) MQ API function.
     pub fn delete_property(&self, name: &(impl EncodedString + ?Sized), options: MQDMPO) -> ResultComp<()> {
         let mut mqdmpo = structs::MQDMPO::new(default::MQDMPO_DEFAULT);
         *mqdmpo.Options.as_mut() = options;
@@ -354,6 +357,7 @@ impl<C: Conn> Properties<C> {
             .mqdltmp(Some(self.connection.handle()), &self.handle, &mqdmpo, &name_mqcharv)
     }
 
+    /// This function uses the [`MQSETMP`](libmqm_sys::MQSETMP) MQ API function.
     pub fn set_property(
         &self,
         name: &(impl EncodedString + ?Sized),
@@ -380,12 +384,14 @@ impl<C: Conn> Properties<C> {
         }
     }
 
+    /// This function uses the [`MQDLTMH`](libmqm_sys::MQDLTMH) MQ API function.
     pub fn close(self) -> ResultErr<()> {
         let mut s = self;
         let mqdmho = default::MQDMHO_DEFAULT;
         s.connection.mq().mqdltmh(Some(s.connection.handle()), &mut s.handle, &mqdmho)
     }
 
+    /// This function uses the [`MQMHBUF`](libmqm_sys::MQMHBUF) MQ API function.
     pub fn to_buffer<'a, A: Buffer<'a, impl WriteRaw<MQBYTE>>>(
         &self,
         name: &(impl EncodedString + ?Sized),
@@ -420,6 +426,7 @@ impl<C: Conn> Properties<C> {
         }
     }
 
+    /// This function uses the [`MQMHBUF`](libmqm_sys::MQMHBUF) MQ API function.
     pub fn to_buffer_mut<'a, A: Buffer<'a, impl WriteRaw<MQBYTE>>>(
         &mut self,
         name: &(impl EncodedString + ?Sized),
@@ -455,6 +462,7 @@ impl<C: Conn> Properties<C> {
         }
     }
 
+    /// This function uses the [`MQBUFMH`](libmqm_sys::MQBUFMH) MQ API function.
     pub fn from_buffer(&mut self, options: MQBMHO, format: &MessageFormat, buffer: &[MQBYTE]) -> ResultComp<()> {
         // Drop the delete properties option as this fn does not modify the buffer
         let options_read_only = options - constants::MQBMHO_DELETE_PROPERTIES;
@@ -470,6 +478,7 @@ impl<C: Conn> Properties<C> {
             .map_completion(|_| {})
     }
 
+    /// This function uses the [`MQBUFMH`](libmqm_sys::MQBUFMH) MQ API function.
     pub fn from_buffer_mut<'a>(
         &mut self,
         options: MQBMHO,
@@ -532,7 +541,7 @@ mod test {
 
                         // Set the returned real length
                         *mut_real_length = data.len().try_into().expect("i32 in range of usize");
-
+                                   
                         // Copy the supplied name
                         if let Some(mut_name_mqcharv) = maybe_name_mqcharv {
                             let name_copied_length = std::cmp::min(

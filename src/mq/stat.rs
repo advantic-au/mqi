@@ -104,6 +104,7 @@ impl ReconnectionErrorStat {
     }
 }
 
+/// This function uses the [`MQSTAT`](libmqm_sys::MQSTAT) MQ API function.
 pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: ConnectionHandle) -> ResultComp<AsyncPutStat> {
     let mut sts = structs::MQSTS::new(mq::MQSTS {
         Version: mq::MQSTS_VERSION_2,
@@ -129,6 +130,7 @@ pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: Connect
     }
 }
 
+/// This function uses the [`MQSTAT`](libmqm_sys::MQSTAT) MQ API function.
 pub fn stat_reconnection<L: Library<MQ: Mqi>>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,
@@ -143,6 +145,7 @@ pub fn stat_reconnection<L: Library<MQ: Mqi>>(
     }
 }
 
+/// This function uses the [`MQSTAT`](libmqm_sys::MQSTAT) MQ API function.
 pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
     functions: &MqFunctions<L>,
     handle: ConnectionHandle,

@@ -7,7 +7,7 @@ use crate::{
     CCSID, Completion, EncodedString, Error, Filter, Library, MqStr, NATIVE_IS_LE, ResultComp, ResultCompErr, StrCcsidOwned,
     StringCcsid, WithMqError, constants,
     prelude::*,
-    types::{MQBYTE, MQIND, MQITEM, MQLONG, Selector},
+    types::{MQBYTE, MQIND, MQINT64, MQITEM, MQLONG, Selector},
 };
 
 #[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
@@ -81,7 +81,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<MQLONG> {
     type Error = crate::Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for i64 {
+impl<L: Library<MQ: Mqai>> BagItemPut<L> for MQINT64 {
     type Error = Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
@@ -93,7 +93,7 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for i64 {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for i64 {
+impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQINT64 {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_integer64(bag, selector, index)
     }
@@ -420,8 +420,8 @@ mod tests {
         // MQLONG
         test_put_inq_bag_item(&69i32, &lib, |subject: MQLONG| assert_eq!(subject, 69))?;
 
-        // i64
-        test_put_inq_bag_item(&169i64, &lib, |subject: i64| assert_eq!(subject, 169))?;
+        // MQINT64
+        test_put_inq_bag_item(&169i64, &lib, |subject: MQINT64| assert_eq!(subject, 169))?;
 
         // Filter<MQLONG>
         test_put_inq_bag_item(&Filter::greater(69i32), &lib, |subject: Filter<MQLONG>| {

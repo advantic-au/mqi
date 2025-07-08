@@ -46,7 +46,7 @@ impl ExecuteOption<'_> for MQCMD {
     }
 }
 
-/// A trait that manipulates the parameters to the [`mq_execute`](`crate::MqFunctions::mq_execute`) function
+/// A trait that manipulates the parameters to the [`mqExecute`](`::libmqm_sys::mqai::mqExecute`) function
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `ExecuteOption` so it can't be used as an argument for MQI mqExecute"
 )]
@@ -55,6 +55,7 @@ pub trait ExecuteOption<'a> {
 }
 
 pub trait QueueManagerAdmin: Conn<Lib: Library<MQ: Mqai>> {
+    /// This function uses the [`mqExecute`](libmqm_sys::mqai::mqExecute) MQ API function
     fn execute<'a>(
         &self,
         admin: &Bag<impl BagDrop, Self::Lib>,

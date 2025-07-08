@@ -181,7 +181,7 @@ pub trait GetValue<'b, R, B>: std::marker::Sized {
     }
 }
 
-/// A trait that manipulates the parameters to the [`mqget`](`crate::MqFunctions::mqget`) function
+/// A trait that manipulates the parameters to the [`MQGET`](`::libmqm_sys::MQGET`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get")]
 pub trait GetOption {
     fn apply_param(&self, param: &mut GetParam);
@@ -241,6 +241,8 @@ mod mqai {
 }
 
 impl<C: Conn> Object<C> {
+
+    /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
     pub fn get_data<'b, R>(&self, options: &impl GetOption, buffer: &'b mut [R]) -> ResultComp<Option<&'b [R]>>
     where
         R: WriteRaw<u8>,
@@ -249,6 +251,7 @@ impl<C: Conn> Object<C> {
             .map_completion(|o| o.map(|buffer: &mut [R]| &*buffer))
     }
 
+    /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
     pub fn get_data_with<'b, A, R>(&self, options: &impl GetOption, buffer: &'b mut [R]) -> ResultComp<Option<(&'b [R], A)>>
     where
         A: GetAttr<'b, R>,
@@ -258,6 +261,7 @@ impl<C: Conn> Object<C> {
             .map_completion(|o| o.map(|(buffer, attr): (&mut [R], A)| (&*buffer, attr)))
     }
 
+    /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
     pub fn get_string<'b>(
         &self,
         options: &impl GetOption,
@@ -266,6 +270,7 @@ impl<C: Conn> Object<C> {
         self.get_as(options, buffer)
     }
 
+    /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
     pub fn get_string_with<'b, A>(
         &self,
         options: &impl GetOption,
@@ -277,6 +282,7 @@ impl<C: Conn> Object<C> {
         self.get_as(options, buffer)
     }
 
+    /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
     pub fn get_as<'b, V, R, B>(&self, options: &impl GetOption, buffer: B) -> ResultCompErr<Option<V>, V::Error>
     where
         B: Buffer<'b, R>,

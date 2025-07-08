@@ -85,6 +85,7 @@ impl<T: BagDrop, L: Library<MQ: Mqai>> std::ops::Deref for Bag<T, L> {
 }
 
 impl<L: Library<MQ: Mqai>> Bag<Owned, L> {
+    /// This function uses the [`mqCreateBag`](libmqm_sys::mqai::mqCreateBag) MQ API function.
     pub fn new_lib(lib: L, options: MQCBO) -> ResultComp<Self> {
         let mq = MqFunctions(lib);
         let bag = mq.mq_create_bag(options)?;
@@ -122,10 +123,12 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
         &mut self.handle
     }
 
+    /// This function uses the [`mqAddInquiry`](libmqm_sys::mqai::mqAddInquiry) MQ API function.
     pub fn add_inquiry(&self, selector: Selector) -> ResultComp<()> {
         self.mq.mq_add_inquiry(self, selector)
     }
 
+    /// This function uses the [`mqAddBag`](libmqm_sys::mqai::mqAddBag) MQ API function.
     pub fn add_bag<'a, 'bag: 'a>(&'a self, selector: Selector, to_attach: &'bag Bag<Owned, L>) -> ResultComp<()> {
         self.mq.mq_add_bag(self, selector, to_attach)
     }
@@ -148,23 +151,25 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
         T::set_bag_item(value, selector.selector(), selector.index().unwrap_or_default(), self)
     }
 
+    /// This function uses the [`mqDeleteItem`](libmqm_sys::mqai::mqDeleteItem) MQ API function.
     pub fn delete(&self, selector: impl InqSelect) -> ResultComp<()> {
         self.mq
             .mq_delete_item(self, selector.selector(), selector.index().unwrap_or_default())
     }
 
+    /// This function uses the [`mqClearBag`](libmqm_sys::mqai::mqClearBag) MQ API function.
     pub fn clear(&self) -> ResultComp<()> {
         self.mq.mq_clear_bag(self)
     }
 
+    /// This function uses the [`mqTruncateBag`](libmqm_sys::mqai::mqTruncateBag) MQ API function.
     pub fn truncate(&self, count: MQLONG) -> ResultComp<()> {
         self.mq.mq_truncate_bag(self, count)
     }
 
     /// Renders the [`Bag`] to the provided [`Buffer`]
     ///
-    /// Uses the [`mqBagToBuffer`](libmqm_sys::Mqai::mqBagToBuffer) MQ API function
-    ///
+    /// This function uses the [`mqBagToBuffer`](libmqm_sys::mqai::mqBagToBuffer) MQ API function.
     pub fn to_buffer<'b, A: Buffer<'b, impl WriteRaw<MQBYTE>>>(&self, buffer: A) -> ResultCompErr<A, MqInqError> {
         let mut buf = buffer;
         self.mq
@@ -174,8 +179,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
 
     /// Calculates the required buffer length in bytes for the [`Bag::to_buffer`] function.
     ///
-    /// Uses the [`mqBagToBuffer`](libmqm_sys::Mqai::mqBagToBuffer) MQ API function
-    ///
+    /// This function uses the [`mqBagToBuffer`](libmqm_sys::mqai::mqBagToBuffer) MQ API function
     pub fn buffer_len(&self) -> ResultComp<usize> {
         match self.mq.mq_bag_to_buffer(
             &BagHandle::from(mqai::MQHB_NONE),
@@ -189,6 +193,9 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
         .map_err(std::convert::Into::into)
     }
 
+    /// Renders the [`Buffer`] into the [`Bag`](Self)
+    ///
+    /// This function uses the [`mqBufferToBag`](libmqm_sys::mqai::mqBufferToBag) MQ API function
     pub fn from_buffer(&mut self, buffer: &[MQBYTE]) -> ResultComp<()> {
         let mq = &mut self.mq;
         let handle = &mut self.handle;
@@ -198,8 +205,7 @@ impl<B: BagDrop, L: Library<MQ: Mqai>> Bag<B, L> {
 
     /// The number of items in a [`Bag`] that matches the selector
     ///
-    /// Uses the [`mqCountItems`](libmqm_sys::Mqai::mqCountItems) MQ API function
-    ///
+    /// This function uses the [`mqCountItems`](libmqm_sys::mqai::mqCountItems) MQ API function
     pub fn count(&self, selector: Selector) -> ResultComp<MQLONG> {
         self.mq.mq_count_items(self, selector)
     }
