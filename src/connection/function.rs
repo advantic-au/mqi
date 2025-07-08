@@ -11,7 +11,7 @@ use std::{
 use libmqm_sys::{self as mq, Mqi};
 
 use super::option;
-use crate::{Library, MqFunctions, handle::ConnectionHandle, prelude::*, result::ResultComp, types};
+use crate::{Library, MqFunctions, connection::AsConnection, handle::ConnectionHandle, prelude::*, result::ResultComp, types};
 
 /// A connection to an IBM MQ queue manager
 ///
@@ -37,6 +37,14 @@ pub struct ConnectionRef<'conn, L: Library<MQ: Mqi>, H> {
     conn: ManuallyDrop<Connection<L, H>>,
     /// Reference to original connectio
     _ref: PhantomData<&'conn ()>,
+}
+
+/// Holds a [`Connection`] or a referenced connection [`ConnectionRef`]
+#[derive(Debug)]
+#[must_use]
+pub enum ConnectionEither<'conn, L: Library<MQ: Mqi>, H> {
+    Owned(Connection<L, H>),
+    Ref(ConnectionRef<'conn, L, H>),
 }
 
 impl<L: Library<MQ: Mqi> + Clone, H> Clone for ConnectionRef<'_, L, H> {
@@ -107,6 +115,30 @@ where
                 _share: PhantomData,
             }),
             _ref: PhantomData,
+        }
+    }
+}
+
+impl<L: Library<MQ: Mqi>, H> AsConnection for ConnectionEither<'_, L, H> {
+    type Lib = L;
+    type Thread = H;
+
+    fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread> {
+        match self {
+            ConnectionEither::Owned(connection) => connection.as_connection(),
+            ConnectionEither::Ref(connection_ref) => connection_ref.as_connection(),
+        }
+    }
+}
+
+impl<'a, L: Library<MQ: Mqi>, H> ConnectionEither<'a, L, H> {
+    pub fn connection_ref<'b: 'a>(&'b self) -> ConnectionRef<'a, L, H>
+    where
+        L: Clone,
+    {
+        match self {
+            ConnectionEither::Owned(connection) => connection.connection_ref(),
+            ConnectionEither::Ref(connection_ref) => connection_ref.clone(),
         }
     }
 }
