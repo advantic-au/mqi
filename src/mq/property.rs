@@ -4,13 +4,81 @@ use libmqm_default as default;
 use libmqm_sys::{self as mq, Mqi};
 
 use crate::{
-    Buffer, Completion, Conn, ConnectionHandle, EncodedString, Error, Library, MessageHandle, MqFunctions, MqInqError,
-    ResultComp, ResultCompErr, ResultErr, WriteRaw, constants,
+    Buffer, Completion, ConnectionHandle, EncodedString, Error, Library, MessageHandle, MqFunctions, MqInqError, ResultComp,
+    ResultCompErr, ResultErr, WriteRaw, constants,
+    option::Conn,
     prelude::*,
-    properties_options::{NameUsage, PropertyParam, PropertyState, PropertyValue, SetProperty},
     structs,
     types::{MQBMHO, MQBYTE, MQCHAR, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE, MessageFormat},
 };
+
+pub(super) mod option {
+    use std::{borrow::Cow, num::NonZero};
+
+    use crate::{Error, ReadRaw, ResultComp, ResultCompErr, structs, types};
+
+    #[derive(Debug, Clone)]
+    pub struct PropertyState<'s> {
+        pub name: Option<Cow<'s, [types::MQCHAR]>>,
+        pub value: Cow<'s, [u8]>,
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct PropertyParam<'p> {
+        pub value_type: types::MQTYPE,
+        pub impo: structs::MQIMPO<'p>,
+        pub mqpd: structs::MQPD,
+        pub name_required: NameUsage,
+    }
+
+    /// # Safety
+    /// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::MQINQMP) function.
+    /// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
+    ///
+    /// Implementations of the [`PropertyValue`] trait must ensure that pointers and offsets contained in the structure point to active data.
+    pub unsafe trait PropertyValue {
+        type Error: From<Error> + Into<Error> + std::fmt::Debug;
+
+        fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
+        where
+            F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+            Self: std::marker::Sized;
+
+        #[must_use]
+        fn max_value_size() -> Option<NonZero<usize>> {
+            None
+        }
+    }
+
+    /// # Safety
+    /// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::MQINQMP).
+    /// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
+    ///
+    /// Implementations of the [`PropertyAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
+    pub unsafe trait PropertyAttr {
+        fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultComp<(Self, PropertyState<'s>)>
+        where
+            F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+            Self: Sized;
+    }
+
+    pub trait SetProperty {
+        type Data: ReadRaw + ?Sized;
+        fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, types::MQTYPE);
+    }
+
+    pub trait SetPropertyAttr {
+        fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO);
+    }
+
+    #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+    pub enum NameUsage {
+        #[default]
+        Ignored,
+        MaxLength(NonZero<usize>),
+        AnyLength,
+    }
+}
 
 #[derive(Debug)]
 pub struct Properties<C: Conn> {
@@ -211,7 +279,7 @@ pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
     _marker: PhantomData<P>,
 }
 
-impl<P: PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
+impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
     type Item = ResultCompErr<P, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -235,7 +303,7 @@ impl<C: Conn> Properties<C> {
     /// This function uses the [`MQCRTMH`](libmqm_sys::MQCRTMH) MQ API function.
     pub fn new(connection: C, options: MQCMHO) -> ResultErr<Self> {
         let mqcmho = mq::MQCMHO {
-             Options: options.0,
+            Options: options.0,
             ..default::MQCMHO_DEFAULT
         };
         connection
@@ -250,7 +318,7 @@ impl<C: Conn> Properties<C> {
         options: MQIMPO,
     ) -> MsgPropIter<'name, 'message, P, N, C>
     where
-        P: PropertyValue,
+        P: option::PropertyValue,
         N: EncodedString + ?Sized,
     {
         MsgPropIter {
@@ -264,7 +332,7 @@ impl<C: Conn> Properties<C> {
     /// This function uses the [`MQINQMP`](libmqm_sys::MQINQMP) MQ API function.
     pub fn property<P>(&self, name: &(impl EncodedString + ?Sized), options: MQIMPO) -> ResultCompErr<Option<P>, Error>
     where
-        P: PropertyValue,
+        P: option::PropertyValue,
     {
         const DEFAULT_BUF_SIZE: usize = 1024;
         let mut val_return_buffer = [0; DEFAULT_BUF_SIZE]; // Returned value buffer
@@ -272,14 +340,14 @@ impl<C: Conn> Properties<C> {
 
         let mut property_not_available = false;
 
-        let mut param = PropertyParam {
+        let mut param = option::PropertyParam {
             impo: structs::MQIMPO::new(mq::MQIMPO {
                 Options: options.0,
                 ..default::MQIMPO_DEFAULT
             }),
             value_type: MQTYPE::default(),
             mqpd: structs::MQPD::new(default::MQPD_DEFAULT),
-            name_required: NameUsage::default(),
+            name_required: option::NameUsage::default(),
         };
 
         let mut inq_value_buffer = InqBuffer::Slice(val_return_buffer.as_mut_slice());
@@ -291,11 +359,11 @@ impl<C: Conn> Properties<C> {
 
         let result = P::property_consume(&mut param, |param| {
             let mut inq_name_buffer = match param.name_required {
-                NameUsage::Ignored => None,
+                option::NameUsage::Ignored => None,
                 used => {
                     let buf = InqBuffer::Slice(name_return_buffer.as_mut_slice());
                     Some(match used {
-                        NameUsage::MaxLength(length) => buf.truncate(length.into()),
+                        option::NameUsage::MaxLength(length) => buf.truncate(length.into()),
                         _ => buf,
                     })
                 }
@@ -325,7 +393,7 @@ impl<C: Conn> Properties<C> {
                     param.name_required.into(),
                 )
                 .map_err(Into::into) // Convert the error into an ordinary MQ error
-                .map_completion(|(value, name)| PropertyState {
+                .map_completion(|(value, name)| option::PropertyState {
                     name: name.map(Into::into),
                     value: value.into(),
                 })
@@ -361,7 +429,7 @@ impl<C: Conn> Properties<C> {
     pub fn set_property(
         &self,
         name: &(impl EncodedString + ?Sized),
-        value: &(impl SetProperty + ?Sized),
+        value: &(impl option::SetProperty + ?Sized),
         location: MQSMPO,
     ) -> ResultComp<()> {
         let mut mqpd = structs::MQPD::new(default::MQPD_DEFAULT);
@@ -513,13 +581,13 @@ mod test {
 
     use super::*;
     use crate::{
-        CCSID, Connection, ResultErr, ThreadNone, constants,
+        CCSID, Connection, ResultErr, ThreadNone,
         constants::{
-            MQCC_FAILED, MQCC_OK, MQRC_CALL_IN_PROGRESS, MQRC_NONE, MQRC_PROPERTY_NAME_TOO_BIG, MQRC_PROPERTY_NOT_AVAILABLE,
-            MQRC_PROPERTY_VALUE_TOO_BIG, MQTYPE_BYTE_STRING,
+            self, MQCC_FAILED, MQCC_OK, MQRC_CALL_IN_PROGRESS, MQRC_NONE, MQRC_PROPERTY_NAME_TOO_BIG,
+            MQRC_PROPERTY_NOT_AVAILABLE, MQRC_PROPERTY_VALUE_TOO_BIG, MQTYPE_BYTE_STRING,
         },
         headers::{TextEnc, fmt::MQFMT_NONE},
-        properties_options::Name,
+        param::Name,
         test::mock,
         types::{MQCC, MQRC, MessageFormat},
     };
@@ -541,7 +609,7 @@ mod test {
 
                         // Set the returned real length
                         *mut_real_length = data.len().try_into().expect("i32 in range of usize");
-                                   
+
                         // Copy the supplied name
                         if let Some(mut_name_mqcharv) = maybe_name_mqcharv {
                             let name_copied_length = std::cmp::min(

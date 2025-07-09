@@ -1,13 +1,14 @@
-use std::{borrow::Cow, cmp, num::NonZero, str::Utf8Error};
+use std::{borrow::Cow, cmp, str::Utf8Error};
 
 use libmqm_default as default;
 
 use crate::{
-    Buffer, CCSID, Completion, Conn, Error, Object, ResultComp, ResultCompErr, StrCcsidCow, WriteRaw, constants,
+    Buffer, CCSID, Completion, Error, Object, ResultComp, ResultCompErr, StrCcsidCow, WriteRaw, constants,
     headers::{ChainedHeader, EncodedHeader, Header, HeaderError, TextEnc},
+    option::Conn,
     prelude::*,
-    structs, types,
-    types::MQENC,
+    structs,
+    types::{self, MQENC},
 };
 
 #[derive(Clone, Debug, derive_more::Constructor)]
@@ -92,99 +93,107 @@ pub enum GetConvert {
     ConvertTo(CCSID, MQENC),
 }
 
-pub struct GetParam {
-    pub md: structs::MQMD2,
-    pub gmo: structs::MQGMO,
-}
+pub(super) mod option {
+    use std::num::NonZero;
 
-pub struct GetState<B> {
-    /// The buffer holding the message data from the `MQGET` call.
-    pub buffer: B,
-    /// The length of the message data returned by the `MQGET` call, confined by buffer size
-    pub data_length: usize,
-    /// The full length of the message data unconfined by buffer size
-    pub message_length: usize,
-    /// The format of the returned message
-    pub format: types::MessageFormat,
-}
+    use crate::{Buffer, ResultComp, ResultCompErr, structs, types};
 
-impl<B> GetState<B> {
-    pub fn into_truncated_buffer<'b, R>(self) -> B
-    where
-        B: Buffer<'b, R>,
-    {
-        self.buffer.truncate(self.data_length)
+    pub struct GetParam {
+        pub md: structs::MQMD2,
+        pub gmo: structs::MQGMO,
     }
-}
 
-pub trait GetAttr<'b, R> {
-    fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
-    where
-        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-        B: Buffer<'b, R>,
-        Self: Sized;
+    /// # Examples
+    /// Implements [`GetValue`] for a fixed array of bytes
+    ///
+    /// ```
+    /// use std::num::NonZero;
+    /// use mqi::{get, prelude::*, Buffer, Error, ResultComp};
+    ///
+    /// pub struct Fixed<const N: usize>(pub [u8; N]);
+    ///
+    /// impl<'b, const N: usize, B> get::GetValue<'b, u8, B> for Fixed<N> {
+    ///    type Error = Error;
+    ///
+    ///    fn get_consume<F>(param: &mut get::GetParam, get: F) -> ResultComp<Self>
+    ///    where
+    ///        F: FnOnce(&mut get::GetParam) -> ResultComp<get::GetState<B>>,
+    ///        B: Buffer<'b, u8>,
+    ///    {
+    ///        get(param).map_completion(|state| {
+    ///            // Copy the message data into the fixed array
+    ///            let msg_data: &[u8] = &state.buffer.as_ref()[..state.data_length];
+    ///            let mut target = Self([0; N]);
+    ///            target.0[..state.data_length].copy_from_slice(msg_data);
+    ///            target
+    ///        })
+    ///    }
+    ///
+    ///    fn get_max_data_size() -> Option<NonZero<usize>> {
+    ///        NonZero::new(N)
+    ///    }
+    /// }
+    /// ```
+    pub trait GetValue<'b, R, B>: std::marker::Sized {
+        type Error: std::fmt::Debug;
+
+        /// Execute and consumes the result of the provided `get` function, creating `Self` from the [`GetState`]
+        fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+        where
+            F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+            B: Buffer<'b, R>;
+
+        /// The maximum size in bytes `Self` can consume from a `get` function call
+        #[must_use]
+        #[inline]
+        fn get_max_data_size() -> Option<NonZero<usize>> {
+            None
+        }
+    }
+
+    /// A trait that manipulates the parameters to the [`MQGET`](`::libmqm_sys::MQGET`) function
+    #[diagnostic::on_unimplemented(
+        message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get"
+    )]
+    pub trait GetOption {
+        fn apply_param(&self, param: &mut GetParam);
+    }
+
+    pub trait GetAttr<'b, R> {
+        fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
+        where
+            F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+            B: Buffer<'b, R>,
+            Self: Sized;
+    }
+
+    pub struct GetState<B> {
+        /// The buffer holding the message data from the `MQGET` call.
+        pub buffer: B,
+        /// The length of the message data returned by the `MQGET` call, confined by buffer size
+        pub data_length: usize,
+        /// The full length of the message data unconfined by buffer size
+        pub message_length: usize,
+        /// The format of the returned message
+        pub format: types::MessageFormat,
+    }
+
+    impl<B> GetState<B> {
+        pub fn into_truncated_buffer<'b, R>(self) -> B
+        where
+            B: Buffer<'b, R>,
+        {
+            self.buffer.truncate(self.data_length)
+        }
+    }
 }
 
 #[cfg(feature = "mqai")]
 pub trait GetBagAttr {
-    fn get_bag_extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<Self>
+    fn get_bag_extract<F>(param: &mut option::GetParam, mqi: F) -> ResultComp<Self>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<()>,
+        F: FnOnce(&mut option::GetParam) -> ResultComp<()>,
         Self: Sized;
-}
-
-/// # Examples
-/// Implements [`GetValue`] for a fixed array of bytes
-///
-/// ```
-/// use std::num::NonZero;
-/// use mqi::{get, prelude::*, Buffer, Error, ResultComp};
-///
-/// pub struct Fixed<const N: usize>(pub [u8; N]);
-///
-/// impl<'b, const N: usize, B> get::GetValue<'b, u8, B> for Fixed<N> {
-///    type Error = Error;
-///
-///    fn get_consume<F>(param: &mut get::GetParam, get: F) -> ResultComp<Self>
-///    where
-///        F: FnOnce(&mut get::GetParam) -> ResultComp<get::GetState<B>>,
-///        B: Buffer<'b, u8>,
-///    {
-///        get(param).map_completion(|state| {
-///            // Copy the message data into the fixed array
-///            let msg_data: &[u8] = &state.buffer.as_ref()[..state.data_length];
-///            let mut target = Self([0; N]);
-///            target.0[..state.data_length].copy_from_slice(msg_data);
-///            target
-///        })
-///    }
-///
-///    fn get_max_data_size() -> Option<NonZero<usize>> {
-///        NonZero::new(N)
-///    }
-/// }
-/// ```
-pub trait GetValue<'b, R, B>: std::marker::Sized {
-    type Error: std::fmt::Debug;
-
-    /// Execute and consumes the result of the provided `get` function, creating `Self` from the [`GetState`]
-    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
-    where
-        F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
-        B: Buffer<'b, R>;
-
-    /// The maximum size in bytes `Self` can consume from a `get` function call
-    #[must_use]
-    #[inline]
-    fn get_max_data_size() -> Option<NonZero<usize>> {
-        None
-    }
-}
-
-/// A trait that manipulates the parameters to the [`MQGET`](`::libmqm_sys::MQGET`) function
-#[diagnostic::on_unimplemented(message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get")]
-pub trait GetOption {
-    fn apply_param(&self, param: &mut GetParam);
 }
 
 #[cfg(feature = "mqai")]
@@ -192,8 +201,9 @@ mod mqai {
     use libmqm_default as default;
     use libmqm_sys::Mqai;
 
-    use super::{GetBagAttr, GetOption, GetParam};
-    use crate::{Bag, Completion, Conn, Error, Library, Object, Owned, ResultComp, constants, prelude::*, structs};
+    use super::GetBagAttr;
+    use super::option;
+    use crate::{Bag, Completion, Error, Library, Object, Owned, ResultComp, constants, option::Conn, prelude::*, structs};
 
     impl<C: Conn> Object<C>
     where
@@ -201,10 +211,10 @@ mod mqai {
     {
         pub fn get_bag_with<R: GetBagAttr>(
             &self,
-            options: &impl GetOption,
+            options: &impl option::GetOption,
             bag: &mut Bag<Owned, impl Library<MQ: Mqai>>,
         ) -> ResultComp<Option<R>> {
-            let mut param = GetParam {
+            let mut param = option::GetParam {
                 md: structs::MQMD2::new(default::MQMD2_DEFAULT),
                 gmo: structs::MQGMO::new(default::MQGMO_DEFAULT),
             };
@@ -234,16 +244,19 @@ mod mqai {
             }
         }
 
-        pub fn get_bag(&self, options: &impl GetOption, bag: &mut Bag<Owned, impl Library<MQ: Mqai>>) -> ResultComp<bool> {
+        pub fn get_bag(
+            &self,
+            options: &impl option::GetOption,
+            bag: &mut Bag<Owned, impl Library<MQ: Mqai>>,
+        ) -> ResultComp<bool> {
             self.get_bag_with::<()>(options, bag).map_completion(|o| o.is_some())
         }
     }
 }
 
 impl<C: Conn> Object<C> {
-
     /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
-    pub fn get_data<'b, R>(&self, options: &impl GetOption, buffer: &'b mut [R]) -> ResultComp<Option<&'b [R]>>
+    pub fn get_data<'b, R>(&self, options: &impl option::GetOption, buffer: &'b mut [R]) -> ResultComp<Option<&'b [R]>>
     where
         R: WriteRaw<u8>,
     {
@@ -252,9 +265,13 @@ impl<C: Conn> Object<C> {
     }
 
     /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
-    pub fn get_data_with<'b, A, R>(&self, options: &impl GetOption, buffer: &'b mut [R]) -> ResultComp<Option<(&'b [R], A)>>
+    pub fn get_data_with<'b, A, R>(
+        &self,
+        options: &impl option::GetOption,
+        buffer: &'b mut [R],
+    ) -> ResultComp<Option<(&'b [R], A)>>
     where
-        A: GetAttr<'b, R>,
+        A: option::GetAttr<'b, R>,
         R: WriteRaw<u8>,
     {
         self.get_as(options, buffer)
@@ -264,7 +281,7 @@ impl<C: Conn> Object<C> {
     /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
     pub fn get_string<'b>(
         &self,
-        options: &impl GetOption,
+        options: &impl option::GetOption,
         buffer: impl Buffer<'b, u8>,
     ) -> ResultCompErr<Option<StrCcsidCow<'b>>, GetStringCcsidError> {
         self.get_as(options, buffer)
@@ -273,25 +290,25 @@ impl<C: Conn> Object<C> {
     /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
     pub fn get_string_with<'b, A>(
         &self,
-        options: &impl GetOption,
+        options: &impl option::GetOption,
         buffer: impl Buffer<'b, u8>,
     ) -> ResultCompErr<Option<(StrCcsidCow<'b>, A)>, GetStringCcsidError>
     where
-        A: GetAttr<'b, u8>,
+        A: option::GetAttr<'b, u8>,
     {
         self.get_as(options, buffer)
     }
 
     /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
-    pub fn get_as<'b, V, R, B>(&self, options: &impl GetOption, buffer: B) -> ResultCompErr<Option<V>, V::Error>
+    pub fn get_as<'b, V, R, B>(&self, options: &impl option::GetOption, buffer: B) -> ResultCompErr<Option<V>, V::Error>
     where
         B: Buffer<'b, R>,
-        V: GetValue<'b, R, B>,
+        V: option::GetValue<'b, R, B>,
         R: WriteRaw<u8>,
     {
         use libmqm_sys as mq;
 
-        let mut param = GetParam {
+        let mut param = option::GetParam {
             md: structs::MQMD2::new(default::MQMD2_DEFAULT),
             gmo: structs::MQGMO::new(mq::MQGMO {
                 Version: mq::MQGMO_VERSION_3, // Version 3 for ReturnedLength
@@ -334,7 +351,7 @@ impl<C: Conn> Object<C> {
                         },
                     )
                 })
-                .map_completion(|(message_length, data_length)| GetState {
+                .map_completion(|(message_length, data_length)| option::GetState {
                     buffer,
                     data_length: data_length
                         .try_into()

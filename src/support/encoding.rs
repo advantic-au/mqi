@@ -1,7 +1,7 @@
 use crate::{MqChar, types};
 
 /// `(CCSID, encoding, short description)`
-pub type CcsidEntry = (i32, u8, &'static str);
+type CcsidEntry = (i32, u8, &'static str);
 
 // Extracted from "ccsid.tbl" file from IBM MQ
 // `grep -v '^[[:space:]]*#' | awk '{ print $1, $6, $8}' | sort -n > character_sets.txt`
@@ -938,16 +938,11 @@ pub fn ccsid_lookup(ccsid: u32) -> Option<&'static CcsidEntry> {
     }
 }
 
-#[must_use]
-pub fn is_ebcdic(ccsid: u32) -> Option<bool> {
-    ccsid_lookup(ccsid).map(|(_, encoding, _)| *encoding == 1)
-}
-
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::EBCDIC_ASCII7;
-    use crate::encoding::{ASCII7_EBCDIC, ccsid_lookup, is_ebcdic};
+    use crate::encoding::{ASCII7_EBCDIC, ccsid_lookup};
 
     #[test]
     fn ccsid_lookup_all() {
@@ -955,13 +950,6 @@ mod tests {
         assert!(ccsid_lookup(3000).is_none());
         assert!(ccsid_lookup(37).is_some_and(|(.., name)| *name == "IBM-037"));
         assert!(ccsid_lookup(8612).is_some_and(|(.., name)| *name == "IBM-8612"));
-    }
-
-    #[test]
-    fn is_ebcdic_all() {
-        assert!(is_ebcdic(1).is_none());
-        assert!(is_ebcdic(37).is_some_and(|ebcdic| ebcdic));
-        assert!(is_ebcdic(1208).is_some_and(|ebcdic| !ebcdic));
     }
 
     #[test]

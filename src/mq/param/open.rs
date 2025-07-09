@@ -1,36 +1,38 @@
 use libmqm_sys as mq;
 
-use super::{Object, OpenAttr, OpenOption, OpenParam, OpenParamOption, OpenValue};
+use super::Object;
 use crate::{
-    CCSID, Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, constants,
+    CCSID, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, constants,
     macros::{all_multi_tuples, impl_from_str, reverse_ident},
+    option,
+    option::Conn,
     prelude::*,
     structs,
     types::{MQLONG, MQOO, MQOT, MQPMO, QueueManagerName, QueueName},
 };
 
-unsafe impl<'oo, O, T: OpenOption<'oo, O>> OpenOption<'oo, O> for Option<T> {
-    fn apply_param(&self, param: &mut OpenParamOption<'oo, O>) {
+unsafe impl<'oo, O, T: option::OpenOption<'oo, O>> option::OpenOption<'oo, O> for Option<T> {
+    fn apply_param(&self, param: &mut option::OpenParamOption<'oo, O>) {
         if let Some(value) = self {
             value.apply_param(param);
         }
     }
 }
 
-unsafe impl<'oo, O> OpenOption<'oo, O> for () {
-    fn apply_param(&self, _param: &mut OpenParamOption<'oo, O>) {}
+unsafe impl<'oo, O> option::OpenOption<'oo, O> for () {
+    fn apply_param(&self, _param: &mut option::OpenParamOption<'oo, O>) {}
 }
 
 macro_rules! impl_openoption_tuple {
     ([$($rest:ident),*]) => {
         #[expect(non_snake_case)]
         #[diagnostic::do_not_recommend]
-        unsafe impl <'oo, O, $($rest),*> OpenOption<'oo, O> for ($($rest),*)
+        unsafe impl <'oo, O, $($rest),*> option::OpenOption<'oo, O> for ($($rest),*)
         where
-            $($rest: OpenOption<'oo, O> ),*
+            $($rest: option::OpenOption<'oo, O> ),*
         {
             #[inline]
-            fn apply_param(&self,param: &mut OpenParamOption<'oo, O>){
+            fn apply_param(&self,param: &mut option::OpenParamOption<'oo, O>){
                 let reverse_ident!($($rest),*) = self;
                 $($rest.apply_param(param);)*
             }
@@ -53,68 +55,68 @@ impl_from_str!(AlternateUserId, MqStr<12>);
 #[derive(Debug, Clone)]
 pub struct ResObjectString(pub StrCcsidOwned);
 
-unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for SelectionString<&'a T> {
-    fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
+unsafe impl<'a, T: EncodedString + ?Sized, O> option::OpenOption<'a, O> for SelectionString<&'a T> {
+    fn apply_param(&self, option::OpenParamOption { mqod, .. }: &mut option::OpenParamOption<'a, O>) {
         mqod.attach_selection_string(self.0);
     }
 }
 
 structs::impl_min_version!(['a], structs::MQOD<'a>);
 
-unsafe impl<'a, T: EncodedString + ?Sized, O> OpenOption<'a, O> for ObjectString<&'a T> {
-    fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<'a, O>) {
+unsafe impl<'a, T: EncodedString + ?Sized, O> option::OpenOption<'a, O> for ObjectString<&'a T> {
+    fn apply_param(&self, option::OpenParamOption { mqod, .. }: &mut option::OpenParamOption<'a, O>) {
         *mqod.ObjectType.as_mut() = constants::MQOT_TOPIC;
         mqod.attach_object_string(self.0);
     }
 }
 
-unsafe impl<O> OpenOption<'_, O> for QueueName {
-    fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
+unsafe impl<O> option::OpenOption<'_, O> for QueueName {
+    fn apply_param(&self, option::OpenParamOption { mqod, .. }: &mut option::OpenParamOption<O>) {
         mqod.ObjectName = self.0.into();
         *mqod.ObjectType.as_mut() = constants::MQOT_Q;
     }
 }
 
-unsafe impl<O> OpenOption<'_, O> for QueueManagerName {
-    fn apply_param(&self, OpenParamOption { mqod, .. }: &mut OpenParamOption<O>) {
+unsafe impl<O> option::OpenOption<'_, O> for QueueManagerName {
+    fn apply_param(&self, option::OpenParamOption { mqod, .. }: &mut option::OpenParamOption<O>) {
         mqod.ObjectQMgrName = self.0.into();
         *mqod.ObjectType.as_mut() = constants::MQOT_Q_MGR;
     }
 }
 
-unsafe impl<'b> OpenOption<'b, Self> for MQOO {
-    fn apply_param(&self, param: &mut OpenParamOption<'b, Self>) {
+unsafe impl<'b> option::OpenOption<'b, Self> for MQOO {
+    fn apply_param(&self, param: &mut option::OpenParamOption<'b, Self>) {
         param.options.insert(*self);
     }
 }
 
-unsafe impl<'b> OpenOption<'b, Self> for MQPMO {
-    fn apply_param(&self, param: &mut OpenParamOption<'b, Self>) {
+unsafe impl<'b> option::OpenOption<'b, Self> for MQPMO {
+    fn apply_param(&self, param: &mut option::OpenParamOption<'b, Self>) {
         param.options.insert(*self);
     }
 }
 
-unsafe impl OpenOption<'_, MQOO> for AlternateUserId {
-    fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQOO>) {
+unsafe impl option::OpenOption<'_, MQOO> for AlternateUserId {
+    fn apply_param(&self, option::OpenParamOption { mqod, options }: &mut option::OpenParamOption<MQOO>) {
         options.insert(constants::MQOO_ALTERNATE_USER_AUTHORITY);
         mqod.set_min_version(mq::MQOD_VERSION_3);
         mqod.AlternateUserId = self.0.into();
     }
 }
 
-unsafe impl OpenOption<'_, MQPMO> for AlternateUserId {
-    fn apply_param(&self, OpenParamOption { mqod, options }: &mut OpenParamOption<MQPMO>) {
+unsafe impl option::OpenOption<'_, MQPMO> for AlternateUserId {
+    fn apply_param(&self, option::OpenParamOption { mqod, options }: &mut option::OpenParamOption<MQPMO>) {
         options.insert(constants::MQPMO_ALTERNATE_USER_AUTHORITY);
         mqod.set_min_version(mq::MQOD_VERSION_3);
         mqod.AlternateUserId = self.0.into();
     }
 }
 
-unsafe impl<S, O> OpenAttr<S, O> for Option<QueueName> {
+unsafe impl<S, O> option::OpenAttr<S, O> for Option<QueueName> {
     #[inline]
-    fn open_extract<'b, F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
+    fn open_extract<'b, F>(param: &mut option::OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
+        F: FnOnce(&mut option::OpenParamOption<'b, O>) -> ResultComp<S>,
     {
         param.mqod.set_min_version(mq::MQOD_VERSION_3); // For ResolvedQName
         open(param).map_completion(|state| {
@@ -126,34 +128,34 @@ unsafe impl<S, O> OpenAttr<S, O> for Option<QueueName> {
     }
 }
 
-unsafe impl<S, O> OpenAttr<S, O> for MQOT {
+unsafe impl<S, O> option::OpenAttr<S, O> for MQOT {
     #[inline]
-    fn open_extract<'b, F>(param: &mut OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
+    fn open_extract<'b, F>(param: &mut option::OpenParamOption<'b, O>, open: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut OpenParamOption<'b, O>) -> ResultComp<S>,
+        F: FnOnce(&mut option::OpenParamOption<'b, O>) -> ResultComp<S>,
     {
         param.mqod.set_min_version(mq::MQOD_VERSION_4);
         open(param).map_completion(|state| (param.mqod.ResolvedType.into(), state))
     }
 }
 
-unsafe impl<C: Conn> OpenValue<Self> for Object<C> {
+unsafe impl<C: Conn> option::OpenValue<Self> for Object<C> {
     type Error = Error;
 
     #[inline]
-    fn open_consume<'oo, F>(param: &mut OpenParam<'oo>, open: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn open_consume<'oo, F>(param: &mut option::OpenParam<'oo>, open: F) -> crate::ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut OpenParam<'oo>) -> ResultComp<Self>,
+        F: FnOnce(&mut option::OpenParam<'oo>) -> ResultComp<Self>,
     {
         open(param)
     }
 }
 
-unsafe impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
+unsafe impl<S, O> option::OpenAttr<S, O> for Option<QueueManagerName> {
     #[inline]
-    fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
+    fn open_extract<'a, F>(param: &mut option::OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
+        F: FnOnce(&mut option::OpenParamOption<'a, O>) -> ResultComp<S>,
     {
         param.mqod.set_min_version(mq::MQOD_VERSION_3); // For ResolvedQMgrName
         open(param).map_completion(|state| {
@@ -167,10 +169,10 @@ unsafe impl<S, O> OpenAttr<S, O> for Option<QueueManagerName> {
 
 const DEFAULT_RESOBJECTSTRING_LENGTH: MQLONG = 4096;
 
-unsafe impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
-    fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
+unsafe impl<S, O> option::OpenAttr<S, O> for Option<ResObjectString> {
+    fn open_extract<'a, F>(param: &mut option::OpenParamOption<'a, O>, open: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
+        F: FnOnce(&mut option::OpenParamOption<'a, O>) -> ResultComp<S>,
     {
         let od = &mut param.mqod;
         if od.ResObjectString.VSBufSize == 0 {
@@ -211,28 +213,28 @@ unsafe impl<S, O> OpenAttr<S, O> for Option<ResObjectString> {
 
 #[expect(unused_parens)]
 mod open_impl {
-    use super::{OpenAttr, OpenParam, OpenParamOption, OpenValue};
+    use crate::option;
     use crate::{ResultComp, ResultCompErr, macros::all_multi_tuples, prelude::*, types::MQOO};
 
     macro_rules! impl_openvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            unsafe impl<S, $first, $($ty),*> OpenValue<S> for ($first, $($ty),*)
+            unsafe impl<S, $first, $($ty),*> option::OpenValue<S> for ($first, $($ty),*)
             where
-                $first: OpenValue<S>,
-                $($ty: OpenAttr<S, MQOO>),*
+                $first: option::OpenValue<S>,
+                $($ty: option::OpenAttr<S, MQOO>),*
             {
                 type Error = $first::Error;
 
                 #[expect(non_snake_case)]
                 #[inline]
-                fn open_consume<'a, F>(param: &mut OpenParam<'a>, mqi: F) -> ResultCompErr<Self, Self::Error>
+                fn open_consume<'a, F>(param: &mut option::OpenParam<'a>, mqi: F) -> ResultCompErr<Self, Self::Error>
                 where
-                    F: FnOnce(&mut OpenParam<'a>) -> ResultComp<S>,
+                    F: FnOnce(&mut option::OpenParam<'a>) -> ResultComp<S>,
                 {
                     let mut rest_outer = None;
                     $first::open_consume(param, |param| {
-                        <($($ty),*) as OpenAttr<S, MQOO>>::open_extract(param, mqi).map_completion(|(rest, state)| {
+                        <($($ty),*) as option::OpenAttr<S, MQOO>>::open_extract(param, mqi).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -249,20 +251,20 @@ mod open_impl {
     macro_rules! impl_openattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            unsafe impl<S, O, $first, $($ty),*> OpenAttr<S, O> for ($first, $($ty),*)
+            unsafe impl<S, O, $first, $($ty),*> option::OpenAttr<S, O> for ($first, $($ty),*)
             where
-                $first: OpenAttr<S, O>,
-                $($ty: OpenAttr<S, O>),*
+                $first: option::OpenAttr<S, O>,
+                $($ty: option::OpenAttr<S, O>),*
             {
                 #[expect(non_snake_case)]
                 #[inline]
-                fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
+                fn open_extract<'a, F>(param: &mut option::OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
                 where
-                    F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>
+                    F: FnOnce(&mut option::OpenParamOption<'a, O>) -> ResultComp<S>
                 {
                     let mut rest_outer = None;
                     $first::open_extract(param, |param| {
-                        <($($ty),*) as OpenAttr<S, O>>::open_extract(param, mqi).map_completion(|(rest, state)| {
+                        <($($ty),*) as option::OpenAttr<S, O>>::open_extract(param, mqi).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })

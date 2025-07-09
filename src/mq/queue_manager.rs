@@ -1,35 +1,31 @@
 use super::{
-    AsyncPutStat, Conn, OpenOption, ReconnectionErrorStat, ReconnectionStat, put::put_message_with, stat_put, stat_reconnection,
+    AsyncPutStat, ReconnectionErrorStat, ReconnectionStat, put::put_message_with, stat_put, stat_reconnection,
     stat_reconnection_error,
 };
-use crate::{
-    ResultComp,
-    put::{PutAttr, PutMessage, PutOption},
-    types::MQPMO,
-};
+use crate::{ResultComp, option, types::MQPMO};
 
 /// A trait that provides functions to put messages to a queue manager and inquire on the status of a previous MQI call or connection
 pub trait QueueManager {
-    /// Put a message to a queue or topic with a specified return type that implements [`PutAttr`].
+    /// Put a message to a queue or topic with a specified return type that implements [`PutAttr`](option::PutAttr).
     ///
     /// Type inference of the return value may not always work so you may have to explicitly state the return type using the
     /// `put_message_with::<Type>` syntax.
     fn put_message_with<'po, 'oo, R>(
         &self,
-        open_options: &impl OpenOption<'oo, MQPMO>,
-        put_options: &impl PutOption<'po>,
-        message: &(impl PutMessage + ?Sized),
+        open_options: &impl option::OpenOption<'oo, MQPMO>,
+        put_options: &impl option::PutOption<'po>,
+        message: &(impl option::PutMessage + ?Sized),
     ) -> ResultComp<R>
     where
-        R: PutAttr;
+        R: option::PutAttr;
 
     /// Put a message to a queue or topic
     #[inline]
     fn put_message<'po, 'oo>(
         &self,
-        open_options: &impl OpenOption<'oo, MQPMO>,
-        put_options: &impl PutOption<'po>,
-        message: &(impl PutMessage + ?Sized),
+        open_options: &impl option::OpenOption<'oo, MQPMO>,
+        put_options: &impl option::PutOption<'po>,
+        message: &(impl option::PutMessage + ?Sized),
     ) -> ResultComp<()> {
         self.put_message_with(open_options, put_options, message)
     }
@@ -39,16 +35,16 @@ pub trait QueueManager {
     fn stat_reconnection_error(&self) -> ResultComp<ReconnectionErrorStat>;
 }
 
-impl<C: Conn> QueueManager for C {
+impl<C: option::Conn> QueueManager for C {
     #[inline]
     fn put_message_with<'po, 'oo, R>(
         &self,
-        open_options: &impl OpenOption<'oo, MQPMO>,
-        put_options: &impl PutOption<'po>,
-        message: &(impl PutMessage + ?Sized),
+        open_options: &impl option::OpenOption<'oo, MQPMO>,
+        put_options: &impl option::PutOption<'po>,
+        message: &(impl option::PutMessage + ?Sized),
     ) -> ResultComp<R>
     where
-        R: PutAttr,
+        R: option::PutAttr,
     {
         put_message_with(self.mq(), self.handle(), open_options, put_options, message)
     }

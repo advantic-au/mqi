@@ -1,10 +1,12 @@
-use super::{
-    Conn, Object, SubscribeAttr, SubscribeOption, SubscribeParam, SubscribeRequestOption, SubscribeRequestParam, SubscribeState,
-    SubscribeValue, Subscription, open_options::ObjectString,
-};
+use super::{Object, Subscription, param::ObjectString};
 use crate::{
     EncodedString, Error, ResultComp, ResultCompErr,
     macros::all_option_tuples,
+    option::Conn,
+    option::{
+        SubscribeAttr, SubscribeOption, SubscribeParam, SubscribeRequestOption, SubscribeRequestParam, SubscribeState,
+        SubscribeValue,
+    },
     prelude::*,
     types::{MQCO, MQSO, MQSR, MQSRO},
 };
@@ -44,13 +46,13 @@ unsafe impl SubscribeOption<'_> for MQSO {
 
 impl SubscribeRequestOption for MQSR {
     #[inline]
-    fn apply_param(&self, param: &mut super::SubscribeRequestParam) {
+    fn apply_param(&self, param: &mut SubscribeRequestParam) {
         param.sr = *self;
     }
 }
 
 impl SubscribeRequestOption for MQSRO {
-    fn apply_param(&self, param: &mut super::SubscribeRequestParam) {
+    fn apply_param(&self, param: &mut SubscribeRequestParam) {
         let sro_options: &mut Self = param.sro.Options.as_mut();
         sro_options.insert(*self);
     }
@@ -82,7 +84,8 @@ impl<C: Conn> SubscribeAttr<C> for Option<Object<C>> {
 #[expect(unused_parens)]
 mod impl_subscribe {
     use super::{SubscribeAttr, SubscribeParam, SubscribeState, SubscribeValue};
-    use crate::{Conn, ResultComp, ResultCompErr, macros::all_multi_tuples, prelude::*};
+    use crate::option::Conn;
+    use crate::{ResultComp, ResultCompErr, macros::all_multi_tuples, prelude::*};
 
     macro_rules! impl_subscribevalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {

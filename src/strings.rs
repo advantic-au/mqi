@@ -3,6 +3,8 @@ use std::{borrow::Cow, ptr};
 use libmqm_default as default;
 use libmqm_sys::MQCHARV;
 
+#[cfg(feature = "exits")]
+use crate::option;
 use crate::{CCSID, constants, conversion, structs, types};
 
 #[derive(Debug, Clone, Copy, Hash)]
@@ -144,7 +146,7 @@ impl<T: AsRef<[types::MQCHAR]>> StringCcsid<T> {
     ) -> crate::ResultComp<StrCcsid<'a>>
     where
         C::Lib: crate::Library<MQ: libmqm_sys::Exits>,
-        C: super::Conn,
+        C: option::Conn,
     {
         use crate::{constants, prelude::*};
 

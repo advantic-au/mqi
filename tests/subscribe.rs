@@ -1,6 +1,6 @@
 #![cfg(feature = "mock")]
 
-use mqi::{Object, Subscription, constants, open_options::ObjectString, prelude::*, test::mock};
+use mqi::{Object, Subscription, constants, param::ObjectString, prelude::*, test::mock};
 
 #[test]
 fn subscribe() -> Result<(), Box<dyn std::error::Error>> {

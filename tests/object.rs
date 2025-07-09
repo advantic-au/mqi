@@ -7,7 +7,7 @@ use mqi::{
     attribute::{AttributeType, AttributeValue, InqResItem},
     constants, get,
     headers::fmt,
-    open_options::SelectionString,
+    param::SelectionString,
     prelude::*,
     test,
     types::{MQCMHO, MQXA, MessageFormat, MessageId, QueueManagerName, QueueName},

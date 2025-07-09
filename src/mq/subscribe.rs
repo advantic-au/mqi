@@ -1,36 +1,77 @@
 use libmqm_default as default;
 
-use super::{Conn, Object};
+use super::Object;
 use crate::{
-    Error, ObjectHandle, ResultComp, ResultCompErr, SubscriptionHandle, constants,
+    ObjectHandle, ResultComp, ResultCompErr, SubscriptionHandle, constants,
+    option::Conn,
     prelude::*,
     structs,
-    types::{MQCO, MQLONG, MQSR},
+    types::{MQCO, MQLONG},
 };
+
+pub(super) mod option {
+    use libmqm_constants::types::{MQCO, MQSR};
+    use libmqm_sys::MQLONG;
+
+    use crate::{Error, Object, ResultComp, ResultCompErr, option::Conn, structs};
+
+    pub struct SubscribeState<C: Conn> {
+        pub subscription: super::Subscription<C>,
+        pub object: Option<Object<C>>,
+    }
+
+    #[derive(Debug)]
+    pub struct SubscribeParam<'a> {
+        pub sd: structs::MQSD<'a>,
+        pub close_options: MQCO,
+        pub provided_object: MQLONG,
+    }
+
+    #[derive(Debug)]
+    pub struct SubscribeRequestParam {
+        pub sro: structs::MQSRO,
+        pub sr: MQSR,
+    }
+
+    pub trait SubscribeValue<C: Conn> {
+        type Error: From<Error> + std::fmt::Debug;
+
+        fn subscribe_consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
+        where
+            F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
+            Self: std::marker::Sized;
+    }
+
+    pub trait SubscribeAttr<C: Conn> {
+        fn subscribe_extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
+        where
+            F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
+            Self: Sized;
+    }
+
+    /// A trait that manipulates the parameters to the [`MQSUB`](`libmqm_sys::MQSUB`) function
+    #[diagnostic::on_unimplemented(
+        message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
+    )]
+    /// # Safety
+    /// This trait can directly manipulate the [`MQSD`](structs::MQSD) structure which is used by [`MQSUB`](libmqm_sys::MQSUB).
+    /// Incorrect values in the [`MQSD`](structs::MQSD) can lead to undefined behaviour.
+    ///
+    /// Implementations of [`SubscribeOption`] must ensure that pointers and offsets contained in the structure point to active data.
+    pub unsafe trait SubscribeOption<'so> {
+        fn apply_param(&self, param: &mut SubscribeParam<'so>);
+    }
+
+    pub trait SubscribeRequestOption {
+        fn apply_param(&self, param: &mut SubscribeRequestParam);
+    }
+}
 
 #[derive(Debug)]
 pub struct Subscription<C: Conn> {
     handle: SubscriptionHandle,
     connection: C,
     close_options: MQCO,
-}
-
-pub struct SubscribeState<C: Conn> {
-    pub subscription: Subscription<C>,
-    pub object: Option<Object<C>>,
-}
-
-#[derive(Debug)]
-pub struct SubscribeParam<'a> {
-    pub sd: structs::MQSD<'a>,
-    pub close_options: MQCO,
-    pub provided_object: MQLONG,
-}
-
-#[derive(Debug)]
-pub struct SubscribeRequestParam {
-    pub sro: structs::MQSRO,
-    pub sr: MQSR,
 }
 
 impl<C: Conn> Subscription<C> {
@@ -47,8 +88,8 @@ impl<C: Conn> Subscription<C> {
     /// Request the retained publication(s) for the subscription.
     ///
     /// This function uses the [`MQSUBRQ`](libmqm_sys::MQSUBRQ) MQ API function.
-    pub fn request_retained(&self, request_options: &impl SubscribeRequestOption) -> ResultComp<MQLONG> {
-        let mut srp = SubscribeRequestParam {
+    pub fn request_retained(&self, request_options: &impl option::SubscribeRequestOption) -> ResultComp<MQLONG> {
+        let mut srp = option::SubscribeRequestParam {
             sro: structs::MQSRO::new(default::MQSRO_DEFAULT),
             sr: constants::MQSR_ACTION_PUBLICATION,
         };
@@ -72,50 +113,17 @@ impl<C: Conn> Drop for Subscription<C> {
     }
 }
 
-pub trait SubscribeValue<C: Conn> {
-    type Error: From<Error> + std::fmt::Debug;
-
-    fn subscribe_consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
-    where
-        F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
-        Self: std::marker::Sized;
-}
-
-pub trait SubscribeAttr<C: Conn> {
-    fn subscribe_extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
-    where
-        F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
-        Self: Sized;
-}
-
-/// A trait that manipulates the parameters to the [`MQSUB`](`libmqm_sys::MQSUB`) function
-#[diagnostic::on_unimplemented(
-    message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
-)]
-/// # Safety
-/// This trait can directly manipulate the [`MQSD`](structs::MQSD) structure which is used by [`MQSUB`](libmqm_sys::MQSUB).
-/// Incorrect values in the [`MQSD`](structs::MQSD) can lead to undefined behaviour.
-///
-/// Implementations of [`SubscribeOption`] must ensure that pointers and offsets contained in the structure point to active data.
-pub unsafe trait SubscribeOption<'so> {
-    fn apply_param(&self, param: &mut SubscribeParam<'so>);
-}
-
-pub trait SubscribeRequestOption {
-    fn apply_param(&self, param: &mut SubscribeRequestParam);
-}
-
 // Blanket implementation for SubscribeValue<C>
 impl<C: Conn + Clone> Subscription<C> {
     /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
-    pub fn subscribe<'so>(connection: C, subscribe_option: &impl SubscribeOption<'so>) -> ResultComp<Self> {
+    pub fn subscribe<'so>(connection: C, subscribe_option: &impl option::SubscribeOption<'so>) -> ResultComp<Self> {
         Self::subscribe_as(connection, subscribe_option)
     }
 
     /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
-    pub fn subscribe_with<'so, A>(connection: C, subscribe_option: &impl SubscribeOption<'so>) -> ResultComp<(Self, A)>
+    pub fn subscribe_with<'so, A>(connection: C, subscribe_option: &impl option::SubscribeOption<'so>) -> ResultComp<(Self, A)>
     where
-        A: SubscribeAttr<C>,
+        A: option::SubscribeAttr<C>,
     {
         Self::subscribe_as(connection, subscribe_option)
     }
@@ -123,10 +131,10 @@ impl<C: Conn + Clone> Subscription<C> {
     /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
     pub fn subscribe_managed_with<'so, A>(
         connection: C,
-        subscribe_option: impl SubscribeOption<'so>,
+        subscribe_option: impl option::SubscribeOption<'so>,
     ) -> ResultComp<(Self, Object<C>, A)>
     where
-        A: SubscribeAttr<C>,
+        A: option::SubscribeAttr<C>,
     {
         Self::subscribe_as::<(Self, Option<Object<C>>, A)>(connection, &(constants::MQSO_MANAGED, subscribe_option))
             .map_completion(|(qm, queue, attr)| {
@@ -139,21 +147,24 @@ impl<C: Conn + Clone> Subscription<C> {
     }
 
     /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
-    pub fn subscribe_managed<'so>(connection: C, subscribe_option: impl SubscribeOption<'so>) -> ResultComp<(Self, Object<C>)> {
+    pub fn subscribe_managed<'so>(
+        connection: C,
+        subscribe_option: impl option::SubscribeOption<'so>,
+    ) -> ResultComp<(Self, Object<C>)> {
         Self::subscribe_managed_with::<()>(connection, subscribe_option).map_completion(|(sub, queue, ..)| (sub, queue))
     }
 
     /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
     pub(super) fn subscribe_as<'so, R>(
         connection: C,
-        subscribe_option: &impl SubscribeOption<'so>,
-    ) -> ResultCompErr<R, <R as SubscribeValue<C>>::Error>
+        subscribe_option: &impl option::SubscribeOption<'so>,
+    ) -> ResultCompErr<R, <R as option::SubscribeValue<C>>::Error>
     where
-        R: SubscribeValue<C>,
+        R: option::SubscribeValue<C>,
     {
         use libmqm_sys::MQHO_NONE;
 
-        let mut so = SubscribeParam {
+        let mut so = option::SubscribeParam {
             close_options: MQCO::default(),
             sd: structs::MQSD::new(default::MQSD_DEFAULT),
             provided_object: MQHO_NONE,
@@ -175,7 +186,7 @@ impl<C: Conn + Clone> Subscription<C> {
                     (original, new) if original == new => None,
                     (_, new) => Some(unsafe { Object::from_parts(connection.clone(), ObjectHandle::from(new)) }),
                 };
-                SubscribeState {
+                option::SubscribeState {
                     subscription: Self {
                         handle: sub_handle,
                         connection,

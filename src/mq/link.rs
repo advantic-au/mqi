@@ -5,12 +5,13 @@ use {
     crate::{Bag, Owned},
 };
 
-use super::{ConnectAttr, ConnectValue, Connection, Threading, connect_options::ConnectOption};
-use crate::ResultComp;
+use crate::{Connection, ResultComp};
+
+use crate::option::{ConnectAttr, ConnectOption, ConnectValue, Threading};
 
 /// Create a connection to a queue manager using the compile time linked MQ library
 /// and type inferred [`ConnectValue`].
-/// 
+///
 /// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) MQ API function.
 #[inline]
 pub fn connect_as<'co, R, H>(options: &impl ConnectOption<'co>) -> ResultComp<R>
@@ -65,7 +66,7 @@ where
 ///
 /// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) MQ API function.
 ///
-/// Common [`ConnectAttr`] that can be returned include [`ConnTag`](crate::ConnTag) and [`ConnectionId`](crate::ConnectionId).
+/// Common [`ConnectAttr`] that can be returned include [`ConnTag`](crate::param::ConnTag) and [`ConnectionId`](crate::param::ConnectionId).
 #[inline]
 pub fn connect_with<'co, A, H>(options: &impl ConnectOption<'co>) -> ResultComp<(Connection<LinkedMq, H>, A)>
 where

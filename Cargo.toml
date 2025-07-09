@@ -37,12 +37,6 @@ exits = ["libmqm-sys/exits", "libmqm-constants/exits"]
 link = ["libmqm-sys/link"]
 ## Enable runtime loading of the MQI library using [`dlopen2`](dlopen2)
 dlopen2 = ["libmqm-sys/dlopen2", "dep:dlopen2"]
-## Generate the bindings c bindings, constants and defaults using the provided MQ library
-mqm_generate = [
-    "libmqm-sys/bindgen",
-    "libmqm-default/generate",
-    "libmqm-constants/generate",
-]
 ## MQI and MQAI function mocking for unit and integration tests
 mock = ["libmqm-sys/mock", "dep:mockall"]
 

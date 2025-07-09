@@ -3,24 +3,58 @@ use std::borrow::Cow;
 use libmqm_default as default;
 use libmqm_sys::{MQMD2, Mqi};
 
-use super::{OpenOption, OpenParamOption};
 use crate::{
-    CCSID, Conn, ConnectionHandle, Library, MqFunctions, Object, ResultComp, constants,
+    CCSID, ConnectionHandle, Library, MqFunctions, Object, ResultComp, constants,
     headers::{TextEnc, fmt},
+    option::{Conn, OpenOption, OpenParamOption},
     structs,
     types::{MQPMO, MessageFormat},
 };
 
-/// A trait that provides a rendered message for the [`mqput`](`crate::MqFunctions::mqput`) function
-#[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put")]
-pub trait PutMessage {
-    fn render(&self) -> Cow<'_, [u8]>;
-    fn format(&self) -> MessageFormat;
+pub(super) mod option {
+    use std::borrow::Cow;
+
+    use crate::{ResultComp, structs, types::MessageFormat};
+
+    /// A trait that provides a rendered message for the [`mqput`](`crate::MqFunctions::mqput`) function
+    #[diagnostic::on_unimplemented(
+        message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put"
+    )]
+    pub trait PutMessage {
+        fn render(&self) -> Cow<'_, [u8]>;
+        fn format(&self) -> MessageFormat;
+    }
+
+    pub type PutParam<'a> = (structs::MQMD2, structs::MQPMO<'a>);
+
+    /// A trait that manipulates the parameters to the [`MQPUT`](`::libmqm_sys::MQPUT`) function
+    ///
+    /// # Safety
+    /// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
+    /// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
+    ///
+    /// Implementations of the [`PutOption`] trait must ensure that pointers and offsets contained in the structure point to active data.
+    #[diagnostic::on_unimplemented(
+        message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put"
+    )]
+    pub unsafe trait PutOption<'po> {
+        fn apply_param(&self, param: &mut PutParam<'po>);
+    }
+
+    /// # Safety
+    /// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
+    /// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
+    ///
+    /// Implementations of the [`PutAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
+    pub unsafe trait PutAttr {
+        fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
+        where
+            F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
+            Self: Sized;
+    }
 }
 
-pub type PutParam<'a> = (structs::MQMD2, structs::MQPMO<'a>);
-
-impl PutMessage for str {
+impl option::PutMessage for str {
     fn render(&self) -> Cow<'_, [u8]> {
         self.as_bytes().into()
     }
@@ -34,7 +68,7 @@ impl PutMessage for str {
     }
 }
 
-impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
+impl<B: AsRef<[u8]>> option::PutMessage for (B, MessageFormat) {
     fn render(&self) -> Cow<'_, [u8]> {
         Cow::Borrowed(self.0.as_ref())
     }
@@ -46,11 +80,12 @@ impl<B: AsRef<[u8]>> PutMessage for (B, MessageFormat) {
 
 #[cfg(feature = "mqai")]
 mod mqai {
+    use super::option;
     use libmqm_default as default;
     use libmqm_sys::{MQMD2, Mqai};
 
-    use super::{PutAttr, PutOption};
-    use crate::{Bag, BagDrop, Conn, Library, Object, ResultComp, headers::TextEnc, structs, types};
+    use crate::{Bag, BagDrop, Library, Object, ResultComp, headers::TextEnc, option::Conn, structs, types};
+    use option::{PutAttr, PutOption};
 
     impl<C: Conn> Object<C>
     where
@@ -96,17 +131,21 @@ mod mqai {
 }
 
 impl<C: Conn> Object<C> {
-    pub fn put_message<'po>(&self, put_options: &impl PutOption<'po>, message: &(impl PutMessage + ?Sized)) -> ResultComp<()> {
+    pub fn put_message<'po>(
+        &self,
+        put_options: &impl option::PutOption<'po>,
+        message: &(impl option::PutMessage + ?Sized),
+    ) -> ResultComp<()> {
         self.put_message_with(put_options, message)
     }
 
     pub fn put_message_with<'po, R>(
         &self,
-        put_options: &impl PutOption<'po>,
-        message: &(impl PutMessage + ?Sized),
+        put_options: &impl option::PutOption<'po>,
+        message: &(impl option::PutMessage + ?Sized),
     ) -> ResultComp<R>
     where
-        R: PutAttr,
+        R: option::PutAttr,
     {
         put(put_options, message, |(md, pmo), data| {
             let connection = self.connection();
@@ -120,38 +159,15 @@ impl<C: Conn> Object<C> {
     }
 }
 
-/// A trait that manipulates the parameters to the [`MQPUT`](`::libmqm_sys::MQPUT`) function
-#[diagnostic::on_unimplemented(message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put")]
-/// # Safety
-/// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
-/// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
-///
-/// Implementations of the [`PutOption`] trait must ensure that pointers and offsets contained in the structure point to active data.
-pub unsafe trait PutOption<'po> {
-    fn apply_param(&self, param: &mut PutParam<'po>);
-}
-
-/// # Safety
-/// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
-/// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
-///
-/// Implementations of the [`PutAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
-pub unsafe trait PutAttr {
-    fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
-    where
-        F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
-        Self: Sized;
-}
-
 pub(super) fn put_message_with<'po, 'oo, R>(
     functions: &MqFunctions<impl Library<MQ: Mqi>>,
     handle: ConnectionHandle,
     open_options: &impl OpenOption<'oo, MQPMO>,
-    put_options: &impl PutOption<'po>,
-    message: &(impl PutMessage + ?Sized),
+    put_options: &impl option::PutOption<'po>,
+    message: &(impl option::PutMessage + ?Sized),
 ) -> ResultComp<R>
 where
-    R: PutAttr,
+    R: option::PutAttr,
 {
     let mut open_params = OpenParamOption {
         mqod: structs::MQOD::new(default::MQOD_DEFAULT),
@@ -167,10 +183,10 @@ where
     })
 }
 
-fn put<'po, T, F>(options: &impl PutOption<'po>, message: &(impl PutMessage + ?Sized), put: F) -> ResultComp<T>
+fn put<'po, T, F>(options: &impl option::PutOption<'po>, message: &(impl option::PutMessage + ?Sized), put: F) -> ResultComp<T>
 where
-    T: PutAttr,
-    F: FnOnce(&mut PutParam, &[u8]) -> ResultComp<()>,
+    T: option::PutAttr,
+    F: FnOnce(&mut option::PutParam, &[u8]) -> ResultComp<()>,
 {
     let MessageFormat {
         ccsid: CCSID(ccsid),

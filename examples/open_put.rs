@@ -9,11 +9,9 @@ use clap::{Args, Parser};
 mod args;
 
 use mqi::{
-    CCSID, MqStr, Object, ThreadNone,
-    connect_options::Tls,
-    constants,
+    CCSID, MqStr, Object, ThreadNone, constants,
     headers::TextEnc,
-    open_options::ObjectString,
+    param::{ObjectString, Tls},
     prelude::*,
     types::{ApplName, CipherSpec, MQENC, MQOO, MQPMO, MessageFormat, QueueManagerName, QueueName},
 };

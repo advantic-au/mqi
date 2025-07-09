@@ -6,7 +6,7 @@ use libmqm_sys::link;
 use {dlopen2::wrapper::Container, libmqm_sys::dlopen2::MqWrapper};
 
 /// A set of wrapper functions on the native IBM MQ API's
-/// 
+///
 /// The functions provided wrap the native functions in [`Mqi`](libmqm_sys::Mqi) and [`Mqai`](libmqm_sys::Mqai) with additional functionality:
 /// * [`MQRC`](crate::types::MQRC) and [`MQCC`](crate::types::MQCC) and return values are returned in a [`ResultComp`](crate::ResultComp)
 /// * [`Tracing`](::tracing) capabilities

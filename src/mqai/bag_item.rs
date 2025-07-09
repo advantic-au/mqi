@@ -4,8 +4,9 @@ use libmqm_sys::Mqai;
 
 use super::{Bag, BagDrop};
 use crate::{
-    CCSID, Completion, EncodedString, Error, Filter, Library, MqStr, NATIVE_IS_LE, ResultComp, ResultCompErr, StrCcsidOwned,
-    StringCcsid, WithMqError, constants,
+    CCSID, Completion, EncodedString, Error, Library, MqStr, NATIVE_IS_LE, ResultComp, ResultCompErr, StrCcsidOwned, StringCcsid,
+    WithMqError, constants,
+    mqai::Filter,
     prelude::*,
     types::{MQBYTE, MQIND, MQINT64, MQITEM, MQLONG, Selector},
 };

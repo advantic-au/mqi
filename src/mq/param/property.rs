@@ -1,80 +1,28 @@
 #![expect(clippy::allow_attributes, reason = "Macro include 'allow' for generation purposes")]
 
 use core::str;
-use std::{borrow::Cow, mem, num::NonZero, ptr, slice};
+use std::{mem, num::NonZero, ptr, slice};
 
 use crate::{
-    CCSID, Completion, Error, MqStr, ReadRaw, ResultComp, ResultCompErr, StrCcsidOwned, StringCcsid, constants, conversion,
+    CCSID, Completion, Error, MqStr, ReadRaw, ResultComp, StrCcsidOwned, StringCcsid, constants, conversion,
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
     structs,
     types::{MQBYTE, MQCHAR, MQCOPY, MQENC, MQFLOAT32, MQFLOAT64, MQIMPO, MQINT8, MQINT16, MQINT64, MQLONG, MQPD, MQTYPE},
 };
 
+use crate::option;
+
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
-
-#[derive(Debug, Clone)]
-pub struct PropertyState<'s> {
-    pub name: Option<Cow<'s, [MQCHAR]>>,
-    pub value: Cow<'s, [u8]>,
-}
-
-#[derive(Clone, Debug)]
-pub struct PropertyParam<'p> {
-    pub value_type: MQTYPE,
-    pub impo: structs::MQIMPO<'p>,
-    pub mqpd: structs::MQPD,
-    pub name_required: NameUsage,
-}
-
-/// # Safety
-/// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::MQINQMP) function.
-/// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
-///
-/// Implementations of the [`PropertyValue`] trait must ensure that pointers and offsets contained in the structure point to active data.
-pub unsafe trait PropertyValue {
-    type Error: From<Error> + Into<Error> + std::fmt::Debug;
-
-    fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
-    where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
-        Self: std::marker::Sized;
-
-    #[must_use]
-    fn max_value_size() -> Option<NonZero<usize>> {
-        None
-    }
-}
-
-/// # Safety
-/// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::MQINQMP).
-/// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
-///
-/// Implementations of the [`PropertyAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
-pub unsafe trait PropertyAttr {
-    fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultComp<(Self, PropertyState<'s>)>
-    where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
-        Self: Sized;
-}
-
-pub trait SetProperty {
-    type Data: ReadRaw + ?Sized;
-    fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE);
-}
-
-pub trait SetPropertyAttr {
-    fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO);
-}
 
 macro_rules! impl_setproperty_tuple {
     ([$first:ident, $($ty:ident),*]) => {
         #[diagnostic::do_not_recommend]
-        impl<$first, $($ty),*> SetProperty for ($first, $($ty),*)
+        impl<$first, $($ty),*> option::SetProperty for ($first, $($ty),*)
         where
-            $first: SetProperty,
-            $($ty: SetPropertyAttr),*
+            $first: option::SetProperty,
+            $($ty: option::SetPropertyAttr),*
         {
             type Data = $first::Data;
 
@@ -88,7 +36,7 @@ macro_rules! impl_setproperty_tuple {
     };
 }
 
-impl SetPropertyAttr for Attributes {
+impl option::SetPropertyAttr for Attributes {
     fn apply_mqsetmp(&self, pd: &mut structs::MQPD, _smpo: &mut structs::MQSMPO) {
         self.mqpd.clone_into(pd);
     }
@@ -111,14 +59,6 @@ pub struct Metadata {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Null;
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum NameUsage {
-    #[default]
-    Ignored,
-    MaxLength(NonZero<usize>),
-    AnyLength,
-}
 
 #[derive(Debug, Clone, derive_more::Deref, derive_more::DerefMut, derive_more::Constructor)]
 pub struct Raw<T> {
@@ -186,21 +126,27 @@ impl Metadata {
     }
 }
 
-unsafe impl PropertyAttr for Metadata {
+unsafe impl option::PropertyAttr for Metadata {
     #[inline]
-    fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+    fn property_extract<'p, 's, F>(
+        param: &mut option::PropertyParam<'p>,
+        mqinqmp: F,
+    ) -> ResultComp<(Self, option::PropertyState<'s>)>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         mqinqmp(param).map_completion(|state| (Self::new(state.value.len(), &param.impo, param.value_type), state))
     }
 }
 
-unsafe impl PropertyAttr for Attributes {
+unsafe impl option::PropertyAttr for Attributes {
     #[inline]
-    fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+    fn property_extract<'p, 's, F>(
+        param: &mut option::PropertyParam<'p>,
+        mqinqmp: F,
+    ) -> ResultComp<(Self, option::PropertyState<'s>)>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         mqinqmp(param).map_completion(|state| {
             (
@@ -250,7 +196,7 @@ impl Attributes {
 
 macro_rules! impl_primitive_setproptype {
     ($type:ty, $mqtype:path) => {
-        impl SetProperty for $type {
+        impl option::SetProperty for $type {
             type Data = Self;
             fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
                 *smpo.ValueEncoding.as_mut() = constants::MQENC_NATIVE;
@@ -260,7 +206,7 @@ macro_rules! impl_primitive_setproptype {
     };
 }
 
-impl SetProperty for bool {
+impl option::SetProperty for bool {
     type Data = MQLONG;
     fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         *smpo.ValueEncoding.as_mut() = constants::MQENC_NATIVE;
@@ -278,7 +224,7 @@ impl_primitive_setproptype!(Null, constants::MQTYPE_NULL);
 
 impl ReadRaw for Null {}
 
-impl SetProperty for str {
+impl option::SetProperty for str {
     type Data = Self;
     fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         smpo.ValueCCSID = 1208;
@@ -286,7 +232,7 @@ impl SetProperty for str {
     }
 }
 
-impl<T: AsRef<[MQCHAR]>> SetProperty for StringCcsid<T> {
+impl<T: AsRef<[MQCHAR]>> option::SetProperty for StringCcsid<T> {
     type Data = [MQCHAR];
 
     fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
@@ -296,7 +242,7 @@ impl<T: AsRef<[MQCHAR]>> SetProperty for StringCcsid<T> {
     }
 }
 
-impl<const N: usize> SetProperty for MqStr<N> {
+impl<const N: usize> option::SetProperty for MqStr<N> {
     type Data = [u8; N];
 
     fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
@@ -305,20 +251,20 @@ impl<const N: usize> SetProperty for MqStr<N> {
     }
 }
 
-impl SetProperty for [MQBYTE] {
+impl option::SetProperty for [MQBYTE] {
     type Data = Self;
     fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, _smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         (self, constants::MQTYPE_BYTE_STRING)
     }
 }
 
-impl SetProperty for Value {
+impl option::SetProperty for Value {
     type Data = [u8];
 
     fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
         #[inline]
         /// Ensure the data is of type `[u8]`
-        fn set_as_u8<'a, T: SetProperty + ?Sized>(
+        fn set_as_u8<'a, T: option::SetProperty + ?Sized>(
             value: &'a T,
             pd: &mut structs::MQPD,
             smpo: &mut structs::MQSMPO,
@@ -346,10 +292,10 @@ impl SetProperty for Value {
     }
 }
 
-impl From<NameUsage> for Option<NonZero<usize>> {
-    fn from(value: NameUsage) -> Self {
+impl From<option::NameUsage> for Option<NonZero<usize>> {
+    fn from(value: option::NameUsage) -> Self {
         match value {
-            NameUsage::MaxLength(length) => Some(length),
+            option::NameUsage::MaxLength(length) => Some(length),
             _ => None,
         }
     }
@@ -364,12 +310,15 @@ impl<T: PartialEq<Y>, Y> PartialEq<Name<Y>> for Name<T> {
     }
 }
 
-unsafe impl PropertyAttr for Name<String> {
-    fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+unsafe impl option::PropertyAttr for Name<String> {
+    fn property_extract<'p, 's, F>(
+        param: &mut option::PropertyParam<'p>,
+        mqinqmp: F,
+    ) -> ResultComp<(Self, option::PropertyState<'s>)>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
-        param.name_required = NameUsage::AnyLength;
+        param.name_required = option::NameUsage::AnyLength;
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_CONVERT_VALUE);
         match mqinqmp(param)? {
@@ -388,14 +337,17 @@ unsafe impl PropertyAttr for Name<String> {
     }
 }
 
-unsafe impl<const N: usize> PropertyAttr for Name<MqStr<N>> {
-    fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+unsafe impl<const N: usize> option::PropertyAttr for Name<MqStr<N>> {
+    fn property_extract<'p, 's, F>(
+        param: &mut option::PropertyParam<'p>,
+        mqinqmp: F,
+    ) -> ResultComp<(Self, option::PropertyState<'s>)>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_CONVERT_VALUE);
-        param.name_required = NameUsage::MaxLength(unsafe { NonZero::new_unchecked(N) });
+        param.name_required = option::NameUsage::MaxLength(unsafe { NonZero::new_unchecked(N) });
         match mqinqmp(param)? {
             Completion(_, Some((rc @ constants::MQRC_PROP_NAME_NOT_CONVERTED, verb))) => {
                 Err(Error(constants::MQCC_WARNING, verb, rc))
@@ -412,12 +364,15 @@ unsafe impl<const N: usize> PropertyAttr for Name<MqStr<N>> {
     }
 }
 
-unsafe impl PropertyAttr for Name<StrCcsidOwned> {
-    fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<(Self, PropertyState<'s>)>
+unsafe impl option::PropertyAttr for Name<StrCcsidOwned> {
+    fn property_extract<'p, 's, F>(
+        param: &mut option::PropertyParam<'p>,
+        mqinqmp: F,
+    ) -> ResultComp<(Self, option::PropertyState<'s>)>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
-        param.name_required = NameUsage::AnyLength;
+        param.name_required = option::NameUsage::AnyLength;
         mqinqmp(param).map_completion(|state| {
             let name = state.name.as_ref().expect("Name should not be None");
             (
@@ -432,12 +387,12 @@ unsafe impl PropertyAttr for Name<StrCcsidOwned> {
     }
 }
 
-unsafe impl PropertyValue for Value {
+unsafe impl option::PropertyValue for Value {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_NONE);
@@ -465,12 +420,12 @@ unsafe impl PropertyValue for Value {
 macro_rules! impl_primitive_propertyvalue {
     ($type:ty, $mqtype:path) => {
         impl_as_primitive!($type);
-        unsafe impl PropertyValue for $type {
+        unsafe impl option::PropertyValue for $type {
             type Error = Error;
 
-            fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
+            fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
             where
-                F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+                F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
             {
                 param.value_type = $mqtype;
                 let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
@@ -506,12 +461,12 @@ impl_primitive_propertyvalue!(MQINT16, constants::MQTYPE_INT16);
 impl_primitive_propertyvalue!(MQLONG, constants::MQTYPE_INT32);
 impl_primitive_propertyvalue!(MQINT64, constants::MQTYPE_INT64);
 
-unsafe impl PropertyValue for bool {
+unsafe impl option::PropertyValue for bool {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> ResultComp<Self>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         param.value_type = constants::MQTYPE_BOOLEAN;
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
@@ -524,12 +479,12 @@ unsafe impl PropertyValue for bool {
     }
 }
 
-unsafe impl PropertyValue for Vec<MQBYTE> {
+unsafe impl option::PropertyValue for Vec<MQBYTE> {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_CONVERT_TYPE);
@@ -538,12 +493,12 @@ unsafe impl PropertyValue for Vec<MQBYTE> {
     }
 }
 
-unsafe impl<const N: usize> PropertyValue for [u8; N] {
+unsafe impl<const N: usize> option::PropertyValue for [u8; N] {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_CONVERT_TYPE);
@@ -560,12 +515,12 @@ unsafe impl<const N: usize> PropertyValue for [u8; N] {
     }
 }
 
-unsafe impl<const N: usize> PropertyValue for MqStr<N> {
+unsafe impl<const N: usize> option::PropertyValue for MqStr<N> {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_CONVERT_VALUE | constants::MQIMPO_CONVERT_TYPE);
@@ -581,7 +536,7 @@ unsafe impl<const N: usize> PropertyValue for MqStr<N> {
     }
 }
 
-impl<T: AsRef<[u8]>> SetProperty for Raw<T> {
+impl<T: AsRef<[u8]>> option::SetProperty for Raw<T> {
     type Data = [u8];
 
     fn apply_mqsetmp(&self, _pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, MQTYPE) {
@@ -592,12 +547,12 @@ impl<T: AsRef<[u8]>> SetProperty for Raw<T> {
     }
 }
 
-unsafe impl PropertyValue for Raw<Vec<u8>> {
+unsafe impl option::PropertyValue for Raw<Vec<u8>> {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_NONE);
@@ -609,12 +564,12 @@ unsafe impl PropertyValue for Raw<Vec<u8>> {
     }
 }
 
-unsafe impl<const N: usize> PropertyValue for Raw<[u8; N]> {
+unsafe impl<const N: usize> option::PropertyValue for Raw<[u8; N]> {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_NONE);
@@ -632,12 +587,12 @@ unsafe impl<const N: usize> PropertyValue for Raw<[u8; N]> {
     }
 }
 
-unsafe impl PropertyValue for String {
+unsafe impl option::PropertyValue for String {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         param.value_type = constants::MQTYPE_STRING;
@@ -653,12 +608,12 @@ unsafe impl PropertyValue for String {
     }
 }
 
-unsafe impl PropertyValue for StrCcsidOwned {
+unsafe impl option::PropertyValue for StrCcsidOwned {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+        F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_CONVERT_TYPE);
@@ -673,28 +628,29 @@ unsafe impl PropertyValue for StrCcsidOwned {
 
 #[expect(unused_parens)]
 mod impl_property {
-    use super::{PropertyAttr, PropertyParam, PropertyState, PropertyValue, all_multi_tuples};
+    use super::all_multi_tuples;
+    use crate::option;
     use crate::{ResultComp, ResultCompErr, prelude::*};
 
     macro_rules! impl_propertyvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            unsafe impl<$first, $($ty),*> PropertyValue for ($first, $($ty),*)
+            unsafe impl<$first, $($ty),*> option::PropertyValue for ($first, $($ty),*)
             where
-                $first: PropertyValue,
-                $($ty: PropertyAttr),*
+                $first: option::PropertyValue,
+                $($ty: option::PropertyAttr),*
             {
                 type Error = $first::Error;
 
                 #[expect(non_snake_case)]
                 #[inline]
-                fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
+                fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
                 where
-                    F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
+                    F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
                 {
                     let mut rest_outer = None;
                     $first::property_consume(param, |param| {
-                        <($($ty),*) as PropertyAttr>::property_extract(param, mqi).map_completion(|(rest, state)| {
+                        <($($ty),*) as option::PropertyAttr>::property_extract(param, mqi).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -716,20 +672,20 @@ mod impl_property {
     macro_rules! impl_propertyattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            unsafe impl<$first, $($ty),*> PropertyAttr for ($first, $($ty),*)
+            unsafe impl<$first, $($ty),*> option::PropertyAttr for ($first, $($ty),*)
             where
-                $first: PropertyAttr,
-                $($ty: PropertyAttr),*
+                $first: option::PropertyAttr,
+                $($ty: option::PropertyAttr),*
             {
                 #[expect(non_snake_case)]
                 #[inline]
-                fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultComp<(Self, PropertyState<'s>)>
+                fn property_extract<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqi: F) -> ResultComp<(Self, option::PropertyState<'s>)>
                 where
-                    F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>
+                    F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>
                 {
                     let mut rest_outer = None;
                     $first::property_extract(param, |param| {
-                        <($($ty),*) as PropertyAttr>::property_extract(param, mqi).map_completion(|(rest, state)| {
+                        <($($ty),*) as option::PropertyAttr>::property_extract(param, mqi).map_completion(|(rest, state)| {
                             rest_outer = Some(rest);
                             state
                         })
@@ -756,11 +712,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        Completion, MqStr, ResultComp, ResultCompExt, StrCcsid, StrCcsidOwned,
-        conversion::slice_byte_to_mqchar,
-        mqstr,
-        properties_options::{Metadata, Name},
-        types,
+        Completion, MqStr, ResultComp, ResultCompErr, ResultCompExt, StrCcsid, StrCcsidOwned, conversion::slice_byte_to_mqchar,
+        mqstr, types,
     };
 
     #[test]
@@ -768,7 +721,7 @@ mod tests {
     fn property_value() {
         const BOOL_BYTES: &[u8] = &1i32.to_ne_bytes();
 
-        fn assert_primitive_pv<P: PropertyValue + std::cmp::PartialEq + Copy>(
+        fn assert_primitive_pv<P: option::PropertyValue + std::cmp::PartialEq + Copy>(
             value: &[u8],
             expected_type: MQTYPE,
             expected_value: P,
@@ -965,7 +918,7 @@ mod tests {
     fn test_simple_sp<S>(s: &S, mq_type: MQTYPE)
     where
         S::Data: PartialEq<S> + std::fmt::Debug,
-        S: SetProperty + std::fmt::Debug,
+        S: option::SetProperty + std::fmt::Debug,
     {
         test_sp(s, |_, _, data, t| {
             assert_eq!(data, s);
@@ -973,28 +926,28 @@ mod tests {
         });
     }
 
-    fn test_sp<S: SetProperty + ?Sized>(sp: &S, f: impl FnOnce(&structs::MQPD, &structs::MQSMPO, &S::Data, MQTYPE)) {
+    fn test_sp<S: option::SetProperty + ?Sized>(sp: &S, f: impl FnOnce(&structs::MQPD, &structs::MQSMPO, &S::Data, MQTYPE)) {
         let mut pd = structs::MQPD::new(default::MQPD_DEFAULT);
         let mut smpo = structs::MQSMPO::new(default::MQSMPO_DEFAULT);
         let (data, mq_type) = sp.apply_mqsetmp(&mut pd, &mut smpo);
         f(&pd, &smpo, data, mq_type);
     }
 
-    fn execute_pv<'a, P: PropertyValue>(
-        f: impl FnMut(&mut PropertyParam) -> ResultComp<PropertyState<'a>>,
-    ) -> ResultCompErr<(P, PropertyParam<'a>), P::Error> {
-        let mut param = PropertyParam {
+    fn execute_pv<'a, P: option::PropertyValue>(
+        f: impl FnMut(&mut option::PropertyParam) -> ResultComp<option::PropertyState<'a>>,
+    ) -> ResultCompErr<(P, option::PropertyParam<'a>), P::Error> {
+        let mut param = option::PropertyParam {
             impo: structs::MQIMPO::new(default::MQIMPO_DEFAULT),
             value_type: MQTYPE::default(),
             mqpd: structs::MQPD::new(default::MQPD_DEFAULT),
-            name_required: NameUsage::default(),
+            name_required: option::NameUsage::default(),
         };
         P::property_consume(&mut param, f).map_completion(|value| (value, param))
     }
 
     #[allow(clippy::unnecessary_wraps)]
-    const fn value_property_state(bv: &[u8]) -> ResultComp<PropertyState<'_>> {
-        Ok(Completion::new(PropertyState {
+    const fn value_property_state(bv: &[u8]) -> ResultComp<option::PropertyState<'_>> {
+        Ok(Completion::new(option::PropertyState {
             name: None,
             value: Cow::Borrowed(bv),
         }))
@@ -1004,7 +957,7 @@ mod tests {
     fn property_attr() -> Result<(), Box<dyn Error>> {
         let (attribute, _) = execute_pa::<Attributes>(|param| {
             param.mqpd.Context = 99;
-            Ok(Completion::new(PropertyState {
+            Ok(Completion::new(option::PropertyState {
                 name: None,
                 value: Cow::from(b"test"),
             }))
@@ -1016,7 +969,7 @@ mod tests {
             param.value_type = constants::MQTYPE_STRING;
             param.impo.ReturnedCCSID = 1208;
             *param.impo.ReturnedEncoding.as_mut() = constants::MQENC_INTEGER_NORMAL;
-            Ok(Completion::new(PropertyState {
+            Ok(Completion::new(option::PropertyState {
                 name: None,
                 value: Cow::from(b"test"),
             }))
@@ -1032,17 +985,17 @@ mod tests {
     #[test]
     fn property_attr_name() -> Result<(), Box<dyn Error>> {
         #[expect(clippy::unnecessary_wraps)]
-        fn name_state(name: &[u8]) -> ResultComp<PropertyState<'_>> {
-            Ok(Completion::new(PropertyState {
+        fn name_state(name: &[u8]) -> ResultComp<option::PropertyState<'_>> {
+            Ok(Completion::new(option::PropertyState {
                 name: Some(Cow::from(slice_byte_to_mqchar(name))),
                 value: Cow::from(b""),
             }))
         }
 
         #[expect(clippy::unnecessary_wraps)]
-        fn name_state_warning(name: &[u8]) -> ResultComp<PropertyState<'_>> {
+        fn name_state_warning(name: &[u8]) -> ResultComp<option::PropertyState<'_>> {
             Ok(Completion::new_warning(
-                PropertyState {
+                option::PropertyState {
                     name: Some(Cow::from(slice_byte_to_mqchar(name))),
                     value: Cow::from(b""),
                 },
@@ -1051,7 +1004,7 @@ mod tests {
         }
 
         let (name, _) = execute_pa::<Name<String>>(|param| {
-            assert_eq!(param.name_required, NameUsage::AnyLength);
+            assert_eq!(param.name_required, option::NameUsage::AnyLength);
             assert!(MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_VALUE));
             name_state(b"name")
         })
@@ -1064,7 +1017,7 @@ mod tests {
         let (name, _) = execute_pa::<Name<MqStr<25>>>(|param| {
             assert_eq!(
                 param.name_required,
-                NameUsage::MaxLength(unsafe { NonZero::new_unchecked(25) })
+                option::NameUsage::MaxLength(unsafe { NonZero::new_unchecked(25) })
             );
             assert!(types::MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_VALUE));
             name_state(b"name")
@@ -1074,7 +1027,7 @@ mod tests {
 
         let (name, _) = execute_pa::<Name<StrCcsidOwned>>(|param| {
             param.impo.ReturnedName.VSCCSID = 1208;
-            assert_eq!(param.name_required, NameUsage::AnyLength);
+            assert_eq!(param.name_required, option::NameUsage::AnyLength);
             assert!(!types::MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_VALUE));
             name_state(b"name")
         })
@@ -1083,14 +1036,14 @@ mod tests {
 
         Ok(())
     }
-    fn execute_pa<'a, A: PropertyAttr>(
-        f: impl FnOnce(&mut PropertyParam<'_>) -> ResultComp<PropertyState<'a>>,
-    ) -> ResultComp<(A, PropertyState<'a>)> {
-        let mut param = PropertyParam {
+    fn execute_pa<'a, A: option::PropertyAttr>(
+        f: impl FnOnce(&mut option::PropertyParam<'_>) -> ResultComp<option::PropertyState<'a>>,
+    ) -> ResultComp<(A, option::PropertyState<'a>)> {
+        let mut param = option::PropertyParam {
             impo: structs::MQIMPO::new(default::MQIMPO_DEFAULT),
             value_type: MQTYPE::default(),
             mqpd: structs::MQPD::new(default::MQPD_DEFAULT),
-            name_required: NameUsage::default(),
+            name_required: option::NameUsage::default(),
         };
 
         A::property_extract(&mut param, |p| f(p))

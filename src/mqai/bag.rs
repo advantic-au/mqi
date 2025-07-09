@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use libmqm_sys::{Mqai, mqai};
 
 use crate::{
-    BagHandle, Buffer, Completion, Error, Library, MqFunctions, MqInqError, ResultComp, ResultCompErr, WriteRaw, constants,
+    Buffer, Completion, Error, Library, MqFunctions, MqInqError, ResultComp, ResultCompErr, WriteRaw, constants,
     prelude::*,
     types::{MQBYTE, MQCA, MQCBO, MQIA, MQIND, MQLONG, Selector},
 };
@@ -12,7 +12,7 @@ pub trait BagDrop: Sized {
     fn drop_bag<L: Library<MQ: Mqai>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
 }
 
-use super::{BagItemGet, BagItemPut};
+use super::{BagHandle, BagItemGet, BagItemPut};
 
 pub trait InqSelect: Copy {
     fn selector(&self) -> Selector;

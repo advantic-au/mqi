@@ -1,94 +1,26 @@
-use libmqm_sys::Mqai;
+pub(super) mod option {
+    use crate::macros::all_option_tuples;
 
-use super::{Bag, BagDrop, Owned};
-use crate::{
-    BagHandle, Conn, Library, Object, ObjectHandle, ResultComp, constants, macros::all_option_tuples, prelude::*, types::MQCMD,
-};
+    use libmqm_constants::types::MQCMD;
 
-#[derive(Debug, Default)]
-pub struct ExecuteParam<'a> {
-    command: MQCMD,
-    options: Option<&'a BagHandle>,
-    admin_object: Option<&'a ObjectHandle>,
-    reply_object: Option<&'a ObjectHandle>,
-}
+    use crate::BagHandle;
+    use crate::ObjectHandle;
 
-#[derive(Debug, Clone, Copy)]
-pub struct OptionsBag<'a, B: BagDrop, L: Library<MQ: Mqai>>(&'a Bag<B, L>);
-#[derive(Debug, Clone, Copy)]
-pub struct ReplyObject<'a, C: Conn>(&'a Object<C>);
-#[derive(Debug, Clone, Copy)]
-pub struct AdminObject<'a, C: Conn>(&'a Object<C>);
-
-all_option_tuples!('e, ExecuteOption, ExecuteParam<'e>);
-
-impl<'a, B: BagDrop, L: Library<MQ: Mqai>> ExecuteOption<'a> for OptionsBag<'a, B, L> {
-    fn apply_param(&self, param: &mut ExecuteParam<'a>) {
-        param.options.replace(self.0.handle());
+    #[derive(Debug, Default)]
+    pub struct ExecuteParam<'a> {
+        pub command: MQCMD,
+        pub options: Option<&'a BagHandle>,
+        pub admin_object: Option<&'a ObjectHandle>,
+        pub reply_object: Option<&'a ObjectHandle>,
     }
-}
 
-impl<'a, C: Conn> ExecuteOption<'a> for ReplyObject<'a, C> {
-    fn apply_param(&self, param: &mut ExecuteParam<'a>) {
-        param.reply_object.replace(self.0.handle());
+    /// A trait that manipulates the parameters to the [`mqExecute`](`::libmqm_sys::mqai::mqExecute`) function
+    #[diagnostic::on_unimplemented(
+        message = "{Self} does not implement `ExecuteOption` so it can't be used as an argument for MQI mqExecute"
+    )]
+    pub trait ExecuteOption<'a> {
+        fn apply_param(&self, param: &mut ExecuteParam<'a>);
     }
-}
 
-impl<'a, C: Conn> ExecuteOption<'a> for AdminObject<'a, C> {
-    fn apply_param(&self, param: &mut ExecuteParam<'a>) {
-        param.reply_object.replace(self.0.handle());
-    }
-}
-
-impl ExecuteOption<'_> for MQCMD {
-    fn apply_param(&self, param: &mut ExecuteParam) {
-        param.command = *self;
-    }
-}
-
-/// A trait that manipulates the parameters to the [`mqExecute`](`::libmqm_sys::mqai::mqExecute`) function
-#[diagnostic::on_unimplemented(
-    message = "{Self} does not implement `ExecuteOption` so it can't be used as an argument for MQI mqExecute"
-)]
-pub trait ExecuteOption<'a> {
-    fn apply_param(&self, param: &mut ExecuteParam<'a>);
-}
-
-pub trait QueueManagerAdmin: Conn<Lib: Library<MQ: Mqai>> {
-    /// This function uses the [`mqExecute`](libmqm_sys::mqai::mqExecute) MQ API function
-    fn execute<'a>(
-        &self,
-        admin: &Bag<impl BagDrop, Self::Lib>,
-        options: &impl ExecuteOption<'a>,
-    ) -> ResultComp<Bag<Owned, Self::Lib>>;
-}
-
-impl<C> QueueManagerAdmin for C
-where
-    C: Conn<Lib: Library<MQ: Mqai> + Clone>, // A clonable connnection that supports MQAI functions
-{
-    fn execute<'a>(
-        &self,
-        admin: &Bag<impl BagDrop, Self::Lib>,
-        options: &impl ExecuteOption<'a>,
-    ) -> ResultComp<Bag<Owned, Self::Lib>> {
-        let lib = self.mq().0.clone();
-        // There shouldn't be any warnings for creating a bag - so treat the warning as an error
-        let response_bag = Bag::new_lib(lib, constants::MQCBO_ADMIN_BAG).warn_as_error()?;
-
-        let mut param = ExecuteParam::default();
-        options.apply_param(&mut param);
-
-        self.mq()
-            .mq_execute(
-                self.handle(),
-                param.command,
-                param.options,
-                admin,
-                response_bag.handle(),
-                param.admin_object,
-                param.reply_object,
-            )
-            .map_completion(|()| response_bag)
-    }
+    all_option_tuples!('e, ExecuteOption, ExecuteParam<'e>);
 }

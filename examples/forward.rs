@@ -5,11 +5,10 @@ mod args;
 use anyhow::Context as _;
 use clap::{Parser, ValueEnum};
 use mqi::{
-    Object, Properties, Syncpoint, ThreadNone,
-    connect_options::Tls,
-    constants,
+    Object, Properties, Syncpoint, ThreadNone, constants,
+    param::Tls,
+    param::{Context, PropertyAction},
     prelude::*,
-    put_options::{Context, PropertyAction},
     structs,
     types::{ApplName, CipherSpec, MQCMHO, MessageFormat, QueueManagerName, QueueName},
 };

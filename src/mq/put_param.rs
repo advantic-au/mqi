@@ -1,10 +1,9 @@
 use libmqm_sys as mq;
 
-use super::{
-    Object,
-    put::{PutAttr, PutOption, PutParam},
+use super::Object;
+use crate::{
+    MqStr, Properties, ResultComp, constants, macros::all_multi_tuples, option, option::Conn, prelude::*, structs, types,
 };
-use crate::{Conn, MqStr, Properties, ResultComp, constants, macros::all_multi_tuples, prelude::*, structs, types};
 
 structs::impl_min_version!(['a], structs::MQPMO<'a>);
 
@@ -15,12 +14,12 @@ macro_rules! impl_putoption_tuple {
     ([$($rest:ident),*]) => {
         #[expect(non_snake_case)]
         #[diagnostic::do_not_recommend]
-        unsafe impl <'po, $($rest),*> PutOption<'po> for ($($rest),*)
+        unsafe impl <'po, $($rest),*> option::PutOption<'po> for ($($rest),*)
         where
-            $($rest: PutOption<'po> ),*
+            $($rest: option::PutOption<'po> ),*
         {
             #[inline]
-            fn apply_param(&self, param: &mut PutParam<'po>) {
+            fn apply_param(&self, param: &mut option::PutParam<'po>) {
                 let $crate::macros::reverse_ident!($($rest),*) = self;
                 $($rest.apply_param(param);)*
             }
@@ -28,8 +27,8 @@ macro_rules! impl_putoption_tuple {
     };
 }
 
-unsafe impl PutOption<'_> for () {
-    fn apply_param(&self, _: &mut PutParam<'_>) {}
+unsafe impl option::PutOption<'_> for () {
+    fn apply_param(&self, _: &mut option::PutParam<'_>) {}
 }
 
 all_multi_tuples!(impl_putoption_tuple);
@@ -41,14 +40,14 @@ pub enum PropertyAction<'handle, C: Conn, C2: Conn> {
     Report(&'handle Properties<C>, &'handle mut Properties<C2>),
 }
 
-unsafe impl<'po, C: Conn> PutOption<'po> for Context<&Object<C>> {
-    fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
+unsafe impl<'po, C: Conn> option::PutOption<'po> for Context<&Object<C>> {
+    fn apply_param(&self, (.., pmo): &mut option::PutParam<'po>) {
         pmo.Context = unsafe { self.0.handle.raw_handle() };
     }
 }
 
-unsafe impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
-    fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
+unsafe impl<'po, C: Conn> option::PutOption<'po> for &mut Properties<C> {
+    fn apply_param(&self, (.., pmo): &mut option::PutParam<'po>) {
         pmo.set_min_version(mq::MQPMO_VERSION_3);
         *pmo.Action.as_mut() = constants::MQACTP_NEW;
         pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
@@ -57,8 +56,8 @@ unsafe impl<'po, C: Conn> PutOption<'po> for &mut Properties<C> {
 
 macro_rules! impl_putoption_deref {
     ($field:tt, $ty:ty) => {
-        unsafe impl PutOption<'_> for $ty {
-            fn apply_param(&self, (mqmd, _): &mut PutParam<'_>) {
+        unsafe impl option::PutOption<'_> for $ty {
+            fn apply_param(&self, (mqmd, _): &mut option::PutParam<'_>) {
                 let mut_field: &mut Self = mqmd.$field.as_mut();
                 *mut_field = *self;
             }
@@ -68,29 +67,29 @@ macro_rules! impl_putoption_deref {
 
 macro_rules! impl_putoption_mqchar {
     ($field:tt, $ty:ty) => {
-        unsafe impl PutOption<'_> for $ty {
-            fn apply_param(&self, (mqmd, _): &mut PutParam<'_>) {
+        unsafe impl option::PutOption<'_> for $ty {
+            fn apply_param(&self, (mqmd, _): &mut option::PutParam<'_>) {
                 mqmd.$field = *self.as_mqchar();
             }
         }
     };
 }
 
-unsafe impl PutOption<'_> for types::MQPMO {
-    fn apply_param(&self, (.., pmo): &mut PutParam<'_>) {
+unsafe impl option::PutOption<'_> for types::MQPMO {
+    fn apply_param(&self, (.., pmo): &mut option::PutParam<'_>) {
         let pmo_options: &mut Self = pmo.Options.as_mut();
         pmo_options.insert(*self);
     }
 }
 
-unsafe impl PutOption<'_> for structs::MQMD2 {
-    fn apply_param(&self, param: &mut PutParam<'_>) {
+unsafe impl option::PutOption<'_> for structs::MQMD2 {
+    fn apply_param(&self, param: &mut option::PutParam<'_>) {
         self.clone_into(&mut param.0);
     }
 }
 
-unsafe impl PutOption<'_> for types::MQRO {
-    fn apply_param(&self, (mqmd, _): &mut PutParam<'_>) {
+unsafe impl option::PutOption<'_> for types::MQRO {
+    fn apply_param(&self, (mqmd, _): &mut option::PutParam<'_>) {
         let mut_report: &mut Self = mqmd.Report.as_mut();
         mut_report.insert(*self);
     }
@@ -104,26 +103,26 @@ impl_putoption_deref!(Persistence, types::MQPER);
 impl_putoption_deref!(PutApplType, types::MQAT);
 impl_putoption_deref!(MsgFlags, types::MQMF);
 
-unsafe impl PutOption<'_> for types::MessageId {
-    fn apply_param(&self, (mqmd, _): &mut PutParam<'_>) {
+unsafe impl option::PutOption<'_> for types::MessageId {
+    fn apply_param(&self, (mqmd, _): &mut option::PutParam<'_>) {
         mqmd.MsgId = self.0;
     }
 }
 
-unsafe impl PutOption<'_> for types::CorrelationId {
-    fn apply_param(&self, (mqmd, _): &mut PutParam<'_>) {
+unsafe impl option::PutOption<'_> for types::CorrelationId {
+    fn apply_param(&self, (mqmd, _): &mut option::PutParam<'_>) {
         mqmd.CorrelId = self.0;
     }
 }
 
-unsafe impl PutOption<'_> for types::GroupId {
-    fn apply_param(&self, (mqmd, _): &mut PutParam<'_>) {
+unsafe impl option::PutOption<'_> for types::GroupId {
+    fn apply_param(&self, (mqmd, _): &mut option::PutParam<'_>) {
         mqmd.GroupId = self.0;
     }
 }
 
-unsafe impl PutOption<'_> for types::AccountingToken {
-    fn apply_param(&self, (mqmd, _): &mut PutParam<'_>) {
+unsafe impl option::PutOption<'_> for types::AccountingToken {
+    fn apply_param(&self, (mqmd, _): &mut option::PutParam<'_>) {
         mqmd.AccountingToken = self.0;
     }
 }
@@ -137,8 +136,8 @@ impl_putoption_mqchar!(UserIdentifier, types::UserIdentifier);
 impl_putoption_mqchar!(ApplIdentityData, types::ApplIdentityData);
 impl_putoption_mqchar!(ApplOriginData, types::ApplOriginData);
 
-unsafe impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2> {
-    fn apply_param(&self, (.., pmo): &mut PutParam<'po>) {
+unsafe impl<'po, C: Conn, C2: Conn> option::PutOption<'po> for PropertyAction<'po, C, C2> {
+    fn apply_param(&self, (.., pmo): &mut option::PutParam<'po>) {
         let (action, original, new) = match self {
             PropertyAction::Reply(original, new) => (constants::MQACTP_REPLY, original, new),
             PropertyAction::Forward(original, new) => (constants::MQACTP_FORWARD, original, new),
@@ -151,11 +150,11 @@ unsafe impl<'po, C: Conn, C2: Conn> PutOption<'po> for PropertyAction<'po, C, C2
     }
 }
 
-unsafe impl PutAttr for structs::MQMD2 {
+unsafe impl option::PutAttr for structs::MQMD2 {
     #[inline]
-    fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
+    fn put_bag_extract<'b, F>(param: &mut option::PutParam<'b>, put: F) -> ResultComp<Self>
     where
-        F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
+        F: FnOnce(&mut option::PutParam<'b>) -> ResultComp<()>,
     {
         put(param).map_completion(|()| {
             let (md, ..) = param;
@@ -166,11 +165,11 @@ unsafe impl PutAttr for structs::MQMD2 {
 
 macro_rules! impl_putattr_mqmd_mqstr {
     ($field:tt, $ty:ty) => {
-        unsafe impl PutAttr for $ty {
+        unsafe impl option::PutAttr for $ty {
             #[inline]
-            fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
+            fn put_bag_extract<'b, F>(param: &mut option::PutParam<'b>, put: F) -> ResultComp<Self>
             where
-                F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
+                F: FnOnce(&mut option::PutParam<'b>) -> ResultComp<()>,
             {
                 put(param).map_completion(|()| {
                     let (md, ..) = param;
@@ -183,11 +182,11 @@ macro_rules! impl_putattr_mqmd_mqstr {
 
 macro_rules! impl_putattr_mqmd {
     ($field:tt, $ty:ty) => {
-        unsafe impl PutAttr for $ty {
+        unsafe impl option::PutAttr for $ty {
             #[inline]
-            fn put_bag_extract<'b, F>(param: &mut PutParam<'b>, put: F) -> ResultComp<Self>
+            fn put_bag_extract<'b, F>(param: &mut option::PutParam<'b>, put: F) -> ResultComp<Self>
             where
-                F: FnOnce(&mut PutParam<'b>) -> ResultComp<()>,
+                F: FnOnce(&mut option::PutParam<'b>) -> ResultComp<()>,
             {
                 put(param).map_completion(|()| {
                     let (md, ..) = param;
@@ -210,30 +209,25 @@ impl_putattr_mqmd_mqstr!(ApplOriginData, types::ApplOriginData);
 
 #[expect(unused_parens)]
 mod impl_put {
-    use crate::{
-        ResultComp,
-        macros::all_multi_tuples,
-        prelude::*,
-        put::{PutAttr, PutParam},
-    };
+    use crate::{ResultComp, macros::all_multi_tuples, option, prelude::*};
 
     macro_rules! impl_putattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            unsafe impl<$first, $($ty),*> PutAttr for ($first, $($ty),*)
+            unsafe impl<$first, $($ty),*> option::PutAttr for ($first, $($ty),*)
             where
-                $first: PutAttr,
-                $($ty: PutAttr),*
+                $first: option::PutAttr,
+                $($ty: option::PutAttr),*
             {
                 #[expect(non_snake_case)]
                 #[inline]
-                fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
+                fn put_bag_extract<'p, F>(param: &mut option::PutParam<'p>, mqi: F) -> ResultComp<Self>
                 where
-                    F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>
+                    F: FnOnce(&mut option::PutParam<'p>) -> ResultComp<()>
                 {
                     let mut rest_outer = None;
                     $first::put_bag_extract(param, |param| {
-                        <($($ty),*) as PutAttr>::put_bag_extract(param, mqi).map_completion(|rest| {
+                        <($($ty),*) as option::PutAttr>::put_bag_extract(param, mqi).map_completion(|rest| {
                             rest_outer = Some(rest);
                         })
                     })
@@ -246,11 +240,11 @@ mod impl_put {
         }
     }
 
-    unsafe impl PutAttr for () {
+    unsafe impl option::PutAttr for () {
         #[inline]
-        fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
+        fn put_bag_extract<'p, F>(param: &mut option::PutParam<'p>, mqi: F) -> ResultComp<Self>
         where
-            F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
+            F: FnOnce(&mut option::PutParam<'p>) -> ResultComp<()>,
             Self: Sized,
         {
             mqi(param)
@@ -269,7 +263,7 @@ mod test {
     use libmqm_default as default;
 
     use super::*;
-    use crate::{Properties, put::PutOption, test::mock, types::MQCMHO};
+    use crate::{Properties, option::PutOption, test::mock, types::MQCMHO};
 
     #[test]
     fn property_action() -> Result<(), Box<dyn Error>> {

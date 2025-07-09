@@ -1,7 +1,6 @@
 use libmqm_default as default;
 
-use super::Conn;
-use crate::{ResultComp, ResultCompErrExt, structs, types::MQBO};
+use crate::{ResultComp, ResultCompErrExt, option::Conn, structs, types::MQBO};
 
 #[derive(Debug, PartialEq)]
 enum SyncpointState {

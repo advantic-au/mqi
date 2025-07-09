@@ -1,14 +1,15 @@
-use std::{mem::size_of_val, ptr};
+use std::ptr;
 
 use libmqm_sys::{self as mq, Mqai, mqai};
-#[cfg(feature = "tracing")]
-use {crate::outcome::tracing_outcome, tracing::instrument};
 
-use super::{BagHandle, Filter};
+#[cfg(feature = "tracing")]
+use {crate::support::outcome::tracing_outcome, tracing::instrument};
+
 use crate::{
     CCSID, ConnectionHandle, Error, Library, MQMD, MqFunctions, MqInqError, ObjectHandle, ResultComp, ResultCompErr, WriteRaw,
     constants,
-    outcome::{MqiOutcome, MqiOutcomeVoid},
+    mqai::{filter::Filter, handle::BagHandle},
+    support::outcome::{MqiOutcome, MqiOutcomeVoid},
     types::{MQCBO, MQCFOP, MQCMD, MQIND, MQITEM, MQLONG, Selector},
 };
 

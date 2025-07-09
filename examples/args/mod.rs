@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use clap::Args;
 use mqi::{
-    MqStr,
-    connect_options::{Binding, Ccdt, ConnectOption, Credentials, MqServer},
-    constants,
+    MqStr, constants,
+    option::ConnectOption,
+    param::{Binding, Ccdt, Credentials, MqServer},
     types::{CertificateLabel, CipherSpec, KeyRepo, MQCNO, QueueManagerName},
 };
 

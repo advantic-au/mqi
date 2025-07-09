@@ -111,11 +111,28 @@ mod mq_types;
 mod mq;
 pub use mq::*;
 
+#[cfg(feature = "mqai")]
+mod mqai;
+#[cfg(feature = "mqai")]
+pub use mqai::*;
+
 pub mod types {
     pub use libmqm_constants::types::*;
     pub use libmqm_sys::{MQBYTE, MQCHAR, MQFLOAT32, MQFLOAT64, MQINT8, MQINT16, MQINT64, MQLONG};
 
     pub use super::mq_types::*;
+}
+
+pub mod param {
+    pub use super::mq::param::*;
+    #[cfg(feature = "mqai")]
+    pub use super::mqai::param::*;
+}
+
+pub mod option {
+    pub use super::mq::option::*;
+    #[cfg(feature = "mqai")]
+    pub use super::mqai::option::*;
 }
 
 mod struct_attach;
@@ -143,9 +160,6 @@ pub use mqstr::*;
 mod strings;
 pub use strings::*;
 
-mod encoding;
-pub use encoding::*;
-
 mod result;
 pub use result::*;
 
@@ -154,33 +168,13 @@ pub use handles::*;
 
 mod traits;
 pub use traits::*;
-#[cfg(feature = "mqai")]
-mod mqai {
-    mod filter;
-    pub use filter::*;
-
-    mod handles;
-    pub use handles::*;
-
-    mod bag;
-    pub use bag::*;
-
-    mod bag_item;
-    pub use bag_item::*;
-
-    mod execute;
-    pub use execute::*;
-
-    mod iterator;
-    mod verbs;
-}
-#[cfg(feature = "mqai")]
-pub use mqai::*;
 
 mod support {
     pub mod conversion;
+    pub mod encoding;
     pub mod macros;
+    pub mod outcome;
 }
-pub(crate) use support::{conversion, macros};
+pub(crate) use support::{conversion, encoding, macros};
 
 pub mod headers;

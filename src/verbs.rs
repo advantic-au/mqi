@@ -1,13 +1,11 @@
-pub mod outcome;
-
 use std::ptr;
 
+use crate::support::outcome::{MqiOutcome, MqiOutcomeVoid};
 use libmqm_constants::types::MQDCC;
 use libmqm_sys::{self as mq, Mqi};
-use outcome::{MqiOutcome, MqiOutcomeVoid};
 #[cfg(feature = "tracing")]
 use {
-    outcome::{tracing_outcome, tracing_outcome_basic},
+    crate::support::outcome::{tracing_outcome, tracing_outcome_basic},
     tracing::instrument,
 };
 

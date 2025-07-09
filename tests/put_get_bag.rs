@@ -3,7 +3,7 @@
 use mqi::{
     Bag, Object, constants,
     headers::{TextEnc, fmt},
-    open_options,
+    param,
     prelude::*,
     test, types,
 };
@@ -130,7 +130,7 @@ fn bag_no_message() -> Result<(), Box<dyn std::error::Error>> {
         &(
             QUEUE,
             constants::MQOO_INPUT_AS_Q_DEF,
-            open_options::SelectionString("Root.MQMD.CorrelId = 0x0c0c0c0c"), // This should not exist
+            param::SelectionString("Root.MQMD.CorrelId = 0x0c0c0c0c"), // This should not exist
         ),
     )?;
 
