@@ -11,7 +11,7 @@ use crate::{
     types::{MQBYTE, MQCHAR, MQCOPY, MQENC, MQFLOAT32, MQFLOAT64, MQIMPO, MQINT8, MQINT16, MQINT64, MQLONG, MQPD, MQTYPE},
 };
 
-use crate::option;
+use super::option;
 
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
@@ -629,7 +629,7 @@ unsafe impl option::PropertyValue for StrCcsidOwned {
 #[expect(unused_parens)]
 mod impl_property {
     use super::all_multi_tuples;
-    use crate::option;
+    use super::option;
     use crate::{ResultComp, ResultCompErr, prelude::*};
 
     macro_rules! impl_propertyvalue_tuple {

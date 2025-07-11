@@ -1,7 +1,7 @@
 use libmqm_constants::types::MQCMD;
 use libmqm_sys::Mqai;
 
-use crate::{Library, Object, mqai::option, option::Conn};
+use crate::{Library, Object, mqai::option, connection::Conn};
 
 use super::{Bag, BagDrop};
 

@@ -6,82 +6,16 @@ use libmqm_sys::{self as mq, Mqi};
 use crate::{
     Buffer, Completion, ConnectionHandle, EncodedString, Error, Library, MessageHandle, MqFunctions, MqInqError, ResultComp,
     ResultCompErr, ResultErr, WriteRaw, constants,
-    option::Conn,
     prelude::*,
     structs,
+    connection,
     types::{MQBMHO, MQBYTE, MQCHAR, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE, MessageFormat},
 };
 
-pub(super) mod option {
-    use std::{borrow::Cow, num::NonZero};
-
-    use crate::{Error, ReadRaw, ResultComp, ResultCompErr, structs, types};
-
-    #[derive(Debug, Clone)]
-    pub struct PropertyState<'s> {
-        pub name: Option<Cow<'s, [types::MQCHAR]>>,
-        pub value: Cow<'s, [u8]>,
-    }
-
-    #[derive(Clone, Debug)]
-    pub struct PropertyParam<'p> {
-        pub value_type: types::MQTYPE,
-        pub impo: structs::MQIMPO<'p>,
-        pub mqpd: structs::MQPD,
-        pub name_required: NameUsage,
-    }
-
-    /// # Safety
-    /// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::MQINQMP) function.
-    /// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
-    ///
-    /// Implementations of the [`PropertyValue`] trait must ensure that pointers and offsets contained in the structure point to active data.
-    pub unsafe trait PropertyValue {
-        type Error: From<Error> + Into<Error> + std::fmt::Debug;
-
-        fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
-        where
-            F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
-            Self: std::marker::Sized;
-
-        #[must_use]
-        fn max_value_size() -> Option<NonZero<usize>> {
-            None
-        }
-    }
-
-    /// # Safety
-    /// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::MQINQMP).
-    /// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
-    ///
-    /// Implementations of the [`PropertyAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
-    pub unsafe trait PropertyAttr {
-        fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultComp<(Self, PropertyState<'s>)>
-        where
-            F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
-            Self: Sized;
-    }
-
-    pub trait SetProperty {
-        type Data: ReadRaw + ?Sized;
-        fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO) -> (&Self::Data, types::MQTYPE);
-    }
-
-    pub trait SetPropertyAttr {
-        fn apply_mqsetmp(&self, pd: &mut structs::MQPD, smpo: &mut structs::MQSMPO);
-    }
-
-    #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-    pub enum NameUsage {
-        #[default]
-        Ignored,
-        MaxLength(NonZero<usize>),
-        AnyLength,
-    }
-}
+use super::option;
 
 #[derive(Debug)]
-pub struct Properties<C: Conn> {
+pub struct Properties<C: connection::Conn> {
     handle: MessageHandle,
     connection: C,
 }
@@ -164,7 +98,7 @@ impl<'a, T: Clone> Buffer<'a, T> for InqBuffer<'a, T> {
     }
 }
 
-impl<C: Conn> Drop for Properties<C> {
+impl<C: connection::Conn> Drop for Properties<C> {
     fn drop(&mut self) {
         let mqdmho = default::MQDMHO_DEFAULT;
 
@@ -272,14 +206,14 @@ unsafe fn inqmp<'a, 'b, A: Library<MQ: Mqi>>(
     }
 }
 
-pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
+pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: connection::Conn> {
     name: &'name N,
     message: &'message Properties<C>,
     options: MQIMPO,
     _marker: PhantomData<P>,
 }
 
-impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
+impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: connection::Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
     type Item = ResultCompErr<P, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -295,7 +229,7 @@ impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for 
     }
 }
 
-impl<C: Conn> Properties<C> {
+impl<C: connection::Conn> Properties<C> {
     pub const fn handle(&self) -> &MessageHandle {
         &self.handle
     }
@@ -587,7 +521,7 @@ mod test {
             MQRC_PROPERTY_NOT_AVAILABLE, MQRC_PROPERTY_VALUE_TOO_BIG, MQTYPE_BYTE_STRING,
         },
         headers::{TextEnc, fmt::MQFMT_NONE},
-        param::Name,
+        property::Name,
         test::mock,
         types::{MQCC, MQRC, MessageFormat},
     };

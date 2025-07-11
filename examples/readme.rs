@@ -2,7 +2,7 @@ use std::error::Error;
 
 use mqi::{
     ThreadNone,
-    param::Credentials,
+    connection::Credentials,
     prelude::*,
     types::{ApplName, QueueName},
 };

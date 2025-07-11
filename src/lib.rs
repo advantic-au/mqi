@@ -124,13 +124,11 @@ pub mod types {
 }
 
 pub mod param {
-    pub use super::mq::param::*;
     #[cfg(feature = "mqai")]
     pub use super::mqai::param::*;
 }
 
 pub mod option {
-    pub use super::mq::option::*;
     #[cfg(feature = "mqai")]
     pub use super::mqai::option::*;
 }
@@ -178,3 +176,68 @@ mod support {
 pub(crate) use support::{conversion, encoding, macros};
 
 pub mod headers;
+
+#[cfg(feature = "link")]
+mod link;
+#[cfg(feature = "link")]
+pub use link::*;
+
+pub mod get {
+    pub(super) mod function;
+    mod option;
+    mod param;
+
+    pub use option::*;
+    pub use param::*;
+}
+
+pub mod connection {
+    pub(super) mod function;
+    mod option;
+    mod param;
+
+    pub use option::*;
+    pub use param::*;
+}
+
+pub mod open {
+    pub(super) mod function;
+    mod option;
+    mod param;
+
+    pub use option::*;
+    pub use param::*;
+}
+
+pub mod property {
+    pub(super) mod function;
+    mod option;
+    mod param;
+
+    pub use option::*;
+    pub use param::*;
+}
+
+pub mod put {
+    pub(super) mod function;
+    mod option;
+    mod param;
+
+    pub use option::*;
+    pub use param::*;
+}
+
+pub mod subscribe {
+    pub(super) mod function;
+    mod option;
+    mod param;
+
+    pub use option::*;
+    // pub use param::*;
+}
+
+pub use connection::function::*;
+pub use property::function::*;
+pub use subscribe::function::*;
+pub(crate) use put::function::put_message_with;
+// pub use open::function::*;

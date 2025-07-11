@@ -29,10 +29,13 @@ fn thread() {
         mock::mqi_outcome_ok(cc, rc);
     });
 
-    let (qm, (tag, id)) =
-        mqi::connect_lib_with::<(mqi::param::ConnTag, mqi::param::ConnectionId), mqi::ThreadBlock, _>(mock, &())
-            .discard_warning() // ignore warning
-            .expect("connection should be established");
+    let (qm, (tag, id)) = mqi::connect_lib_with::<
+        (mqi::connection::ConnTag, mqi::connection::ConnectionId),
+        mqi::ThreadBlock,
+        _,
+    >(mock, &())
+    .discard_warning() // ignore warning
+    .expect("connection should be established");
     let qm = Arc::new(qm);
     println!("Connection ID: {id}");
     println!("{:?}", tag.0);

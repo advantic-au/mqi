@@ -5,7 +5,7 @@ use crate::mqai::{Bag, BagDrop, Owned};
 use crate::{
     Library, ResultComp,
     mqai::option::{ExecuteOption, ExecuteParam},
-    option::Conn,
+    connection::Conn,
     prelude::*,
 };
 

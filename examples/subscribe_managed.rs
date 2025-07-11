@@ -9,8 +9,9 @@ use anyhow::Context as _;
 use clap::Parser;
 use mqi::{
     Subscription, ThreadNone, constants,
+    connection::Tls,
     get::GetWait,
-    param::{ObjectString, Tls},
+    open::ObjectString,
     prelude::*,
     types::{ApplName, CipherSpec, MessageFormat},
 };

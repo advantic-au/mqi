@@ -114,4 +114,6 @@ macro_rules! impl_min_version {
     };
 }
 
+impl_min_version!([], MQGMO);
+
 pub(crate) use impl_min_version;

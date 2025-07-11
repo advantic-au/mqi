@@ -1,11 +1,11 @@
-use crate::{ObjectHandle, ResultComp, constants, option::Conn, types::MQCO};
+use crate::{ObjectHandle, ResultComp, constants, connection::Conn, types::MQCO};
 
 #[must_use]
 #[derive(Debug)]
 pub struct Object<C: Conn> {
-    pub(super) handle: ObjectHandle,
-    pub(super) connection: C,
-    pub(super) close_options: MQCO,
+    pub(crate) handle: ObjectHandle,
+    pub(crate) connection: C,
+    pub(crate) close_options: MQCO,
 }
 
 impl<C: Conn> Object<C> {

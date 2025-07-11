@@ -7,7 +7,8 @@ use {
 
 use crate::{Connection, ResultComp};
 
-use crate::option::{ConnectAttr, ConnectOption, ConnectValue, Threading};
+use crate::connection::{ConnectAttr, ConnectOption, ConnectValue, Threading};
+use crate::connect_lib_as;
 
 /// Create a connection to a queue manager using the compile time linked MQ library
 /// and type inferred [`ConnectValue`].
@@ -19,7 +20,7 @@ where
     R: ConnectValue<Connection<LinkedMq, H>>,
     H: Threading,
 {
-    super::connect_lib_as(LinkedMq, options)
+    connect_lib_as(LinkedMq, options)
 }
 
 /// Create a connection to a queue manager using the compile time linked MQ library.
@@ -50,13 +51,13 @@ where
 ///
 /// See also [`connect_as`] and [`connect_with`] for creating connections with additional
 /// return attribute. For connections using dynamically loaded or custom implementation of the
-/// MQ library refer to [`connect_lib`](crate::connect_lib).
+/// MQ library refer to [`connect_lib`](crate::connection_lib).
 #[inline]
 pub fn connect<'co, H>(options: &impl ConnectOption<'co>) -> ResultComp<Connection<LinkedMq, H>>
 where
     H: Threading,
 {
-    super::connect_lib_as(LinkedMq, options)
+    connect_lib_as(LinkedMq, options)
 }
 
 /// Create a connection to a queue manager and return an implementation of [`ConnectAttr`] in tuple
@@ -73,7 +74,7 @@ where
     A: ConnectAttr<Connection<LinkedMq, H>>,
     H: Threading,
 {
-    super::connect_lib_as(LinkedMq, options)
+    connect_lib_as(LinkedMq, options)
 }
 
 #[cfg(feature = "mqai")]

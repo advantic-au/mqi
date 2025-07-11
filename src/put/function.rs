@@ -6,53 +6,13 @@ use libmqm_sys::{MQMD2, Mqi};
 use crate::{
     CCSID, ConnectionHandle, Library, MqFunctions, Object, ResultComp, constants,
     headers::{TextEnc, fmt},
-    option::{Conn, OpenOption, OpenParamOption},
+    connection::Conn,
+    open::{OpenOption, OpenParamOption},
     structs,
     types::{MQPMO, MessageFormat},
 };
 
-pub(super) mod option {
-    use std::borrow::Cow;
-
-    use crate::{ResultComp, structs, types::MessageFormat};
-
-    /// A trait that provides a rendered message for the [`mqput`](`crate::MqFunctions::mqput`) function
-    #[diagnostic::on_unimplemented(
-        message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put"
-    )]
-    pub trait PutMessage {
-        fn render(&self) -> Cow<'_, [u8]>;
-        fn format(&self) -> MessageFormat;
-    }
-
-    pub type PutParam<'a> = (structs::MQMD2, structs::MQPMO<'a>);
-
-    /// A trait that manipulates the parameters to the [`MQPUT`](`::libmqm_sys::MQPUT`) function
-    ///
-    /// # Safety
-    /// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
-    /// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
-    ///
-    /// Implementations of the [`PutOption`] trait must ensure that pointers and offsets contained in the structure point to active data.
-    #[diagnostic::on_unimplemented(
-        message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put"
-    )]
-    pub unsafe trait PutOption<'po> {
-        fn apply_param(&self, param: &mut PutParam<'po>);
-    }
-
-    /// # Safety
-    /// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
-    /// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
-    ///
-    /// Implementations of the [`PutAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
-    pub unsafe trait PutAttr {
-        fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
-        where
-            F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
-            Self: Sized;
-    }
-}
+use super::option;
 
 impl option::PutMessage for str {
     fn render(&self) -> Cow<'_, [u8]> {
@@ -80,12 +40,12 @@ impl<B: AsRef<[u8]>> option::PutMessage for (B, MessageFormat) {
 
 #[cfg(feature = "mqai")]
 mod mqai {
-    use super::option;
+    // use super::option;
     use libmqm_default as default;
     use libmqm_sys::{MQMD2, Mqai};
 
-    use crate::{Bag, BagDrop, Library, Object, ResultComp, headers::TextEnc, option::Conn, structs, types};
-    use option::{PutAttr, PutOption};
+    use crate::{Bag, BagDrop, Library, Object, ResultComp, headers::TextEnc, connection::Conn, structs, types};
+    use super::option;
 
     impl<C: Conn> Object<C>
     where
@@ -93,7 +53,7 @@ mod mqai {
     {
         pub fn put_bag<'po>(
             &self,
-            put_options: &impl PutOption<'po>,
+            put_options: &impl option::PutOption<'po>,
             format: TextEnc<types::Fmt>,
             bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
         ) -> ResultComp<()> {
@@ -102,12 +62,12 @@ mod mqai {
 
         pub fn put_bag_with<'po, R>(
             &self,
-            put_options: &impl PutOption<'po>,
+            put_options: &impl option::PutOption<'po>,
             format: TextEnc<types::Fmt>,
             bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
         ) -> ResultComp<R>
         where
-            R: PutAttr,
+            R: option::PutAttr,
         {
             let md = structs::MQMD2::new(MQMD2 {
                 Format: format.into_ascii().into(),
@@ -159,7 +119,7 @@ impl<C: Conn> Object<C> {
     }
 }
 
-pub(super) fn put_message_with<'po, 'oo, R>(
+pub fn put_message_with<'po, 'oo, R>(
     functions: &MqFunctions<impl Library<MQ: Mqi>>,
     handle: ConnectionHandle,
     open_options: &impl OpenOption<'oo, MQPMO>,

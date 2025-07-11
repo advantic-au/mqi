@@ -6,8 +6,8 @@ use anyhow::Context as _;
 use clap::{Parser, ValueEnum};
 use mqi::{
     Object, Properties, Syncpoint, ThreadNone, constants,
-    param::Tls,
-    param::{Context, PropertyAction},
+    connection::Tls,
+    put::{Context, PropertyAction},
     prelude::*,
     structs,
     types::{ApplName, CipherSpec, MQCMHO, MessageFormat, QueueManagerName, QueueName},

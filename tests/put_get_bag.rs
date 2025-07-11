@@ -3,9 +3,9 @@
 use mqi::{
     Bag, Object, constants,
     headers::{TextEnc, fmt},
-    param,
     prelude::*,
     test, types,
+    open,
 };
 #[cfg(not(feature = "mock"))]
 use mqi::{ThreadNone, connect_options::Credentials};
@@ -130,7 +130,7 @@ fn bag_no_message() -> Result<(), Box<dyn std::error::Error>> {
         &(
             QUEUE,
             constants::MQOO_INPUT_AS_Q_DEF,
-            param::SelectionString("Root.MQMD.CorrelId = 0x0c0c0c0c"), // This should not exist
+            open::SelectionString("Root.MQMD.CorrelId = 0x0c0c0c0c"), // This should not exist
         ),
     )?;
 

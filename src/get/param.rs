@@ -1,32 +1,105 @@
 use std::borrow::Cow;
 
+use libmqm_constants::types::MQENC;
 use libmqm_sys as mq;
 
-use super::get::{GetConvert, GetStringCcsidError, GetStringError, GetWait, Headers, MatchOptions};
+use crate::{
+    connection::Conn, constants, conversion, headers, prelude::*, structs, types, Buffer, Completion, Error, Properties, ResultComp, ResultCompErr, StrCcsidCow, CCSID
+};
 
 use super::option;
 
-use crate::{
-    Buffer, Completion, Error, Properties, ResultComp, ResultCompErr, StrCcsidCow, constants, conversion, headers,
-    macros::all_option_tuples,
-    option::{Conn, GetOption, GetParam},
-    prelude::*,
-    structs, types,
+#[derive(Debug, Clone, Default)]
+pub struct MatchOptions<'a> {
+    pub msg_id: Option<&'a types::MessageId>,
+    pub correl_id: Option<&'a types::CorrelationId>,
+    pub group_id: Option<&'a types::GroupId>,
+    pub seq_number: Option<types::MQLONG>,
+    pub offset: Option<types::MQLONG>,
+    pub token: Option<&'a types::MsgToken>,
+}
+
+pub const ANY_MESSAGE: MatchOptions = MatchOptions {
+    msg_id: None,
+    correl_id: None,
+    group_id: None,
+    seq_number: None,
+    offset: None,
+    token: None,
 };
 
-all_option_tuples!(GetOption, GetParam);
+#[derive(Default)]
+pub enum GetWait {
+    #[default]
+    NoWait,
+    Wait(types::MQLONG),
+}
 
-structs::impl_min_version!([], structs::MQGMO);
+pub enum GetConvert {
+    NoConvert,
+    Convert,
+    ConvertTo(CCSID, MQENC),
+}
 
-impl GetOption for types::MQGMO {
-    fn apply_param(&self, param: &mut GetParam) {
+#[derive(Clone, Debug, derive_more::Constructor)]
+pub struct Headers<'a> {
+    message_length: usize,
+    init_format: types::MessageFormat,
+    data: Cow<'a, [u8]>,
+    error: Option<headers::HeaderError>,
+}
+
+impl<'a> Headers<'a> {
+    pub fn all_headers(&'a self) -> impl Iterator<Item = headers::Header<'a>> {
+        headers::Header::iter(&self.data, self.init_format).filter_map(|result| match result {
+            Ok((header, ..)) => Some(header),
+            Err(_) => None,
+        })
+    }
+
+    pub fn header<C: headers::ChainedHeader + 'a>(&'a self) -> impl Iterator<Item = headers::EncodedHeader<'a, C>> {
+        self.all_headers().filter_map(C::from_header)
+    }
+
+    #[must_use]
+    pub const fn error(&self) -> Option<&headers::HeaderError> {
+        self.error.as_ref()
+    }
+
+    #[must_use]
+    pub const fn message_length(&self) -> usize {
+        self.message_length
+    }
+}
+
+// TODO: add MQ warnings to error messages
+#[derive(derive_more::Error, derive_more::From, derive_more::Display, Debug)]
+pub enum GetStringError {
+    #[display("Message parsing error: {_0}")]
+    Utf8Parse(std::str::Utf8Error, Option<types::Warning>),
+    #[display("Unexpected format or CCSID. Message format = '{_0}', CCSID = {_1}")]
+    UnexpectedFormat(headers::TextEnc<types::Fmt>, CCSID, Option<types::Warning>),
+    #[from]
+    MQ(Error),
+}
+
+#[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
+pub enum GetStringCcsidError {
+    #[display("Unexpected format. Message format = '{_0}'")]
+    UnexpectedFormat(headers::TextEnc<types::Fmt>, Option<types::Warning>),
+    #[from]
+    MQ(Error),
+}
+
+impl option::GetOption for types::MQGMO {
+    fn apply_param(&self, param: &mut option::GetParam) {
         let gmo_options: &mut Self = param.gmo.Options.as_mut();
         gmo_options.insert(*self);
     }
 }
 
-impl GetOption for GetWait {
-    fn apply_param(&self, param: &mut GetParam) {
+impl option::GetOption for GetWait {
+    fn apply_param(&self, param: &mut option::GetParam) {
         let gmo_options: &mut types::MQGMO = param.gmo.Options.as_mut();
         match self {
             Self::NoWait => {
@@ -42,8 +115,8 @@ impl GetOption for GetWait {
     }
 }
 
-impl GetOption for GetConvert {
-    fn apply_param(&self, param: &mut GetParam) {
+impl option::GetOption for GetConvert {
+    fn apply_param(&self, param: &mut option::GetParam) {
         let gmo_options: &mut types::MQGMO = param.gmo.Options.as_mut();
         match self {
             Self::NoConvert => gmo_options.remove(constants::MQGMO_CONVERT),
@@ -57,8 +130,8 @@ impl GetOption for GetConvert {
     }
 }
 
-impl<C: Conn> GetOption for &mut Properties<C> {
-    fn apply_param(&self, param: &mut GetParam) {
+impl<C: Conn> option::GetOption for &mut Properties<C> {
+    fn apply_param(&self, param: &mut option::GetParam) {
         param.gmo.set_min_version(mq::MQGMO_VERSION_4);
         let gmo_options: &mut types::MQGMO = param.gmo.Options.as_mut();
         gmo_options.insert(constants::MQGMO_PROPERTIES_IN_HANDLE);
@@ -66,8 +139,8 @@ impl<C: Conn> GetOption for &mut Properties<C> {
     }
 }
 
-impl GetOption for MatchOptions<'_> {
-    fn apply_param(&self, param: &mut GetParam) {
+impl option::GetOption for MatchOptions<'_> {
+    fn apply_param(&self, param: &mut option::GetParam) {
         // Set up the MQMD
         if let Some(msg_id) = self.msg_id {
             param.md.MsgId = msg_id.0;
@@ -100,32 +173,32 @@ impl GetOption for MatchOptions<'_> {
     }
 }
 
-impl GetOption for types::CorrelationId {
-    fn apply_param(&self, param: &mut GetParam) {
+impl option::GetOption for types::CorrelationId {
+    fn apply_param(&self, param: &mut option::GetParam) {
         param.md.CorrelId = self.0;
         let match_options: &mut types::MQMO = param.gmo.MatchOptions.as_mut();
         match_options.insert(constants::MQMO_MATCH_CORREL_ID);
     }
 }
 
-impl GetOption for types::MessageId {
-    fn apply_param(&self, param: &mut GetParam) {
+impl option::GetOption for types::MessageId {
+    fn apply_param(&self, param: &mut option::GetParam) {
         param.md.MsgId = self.0;
         let match_options: &mut types::MQMO = param.gmo.MatchOptions.as_mut();
         match_options.insert(constants::MQMO_MATCH_MSG_ID);
     }
 }
 
-impl GetOption for types::GroupId {
-    fn apply_param(&self, param: &mut GetParam) {
+impl option::GetOption for types::GroupId {
+    fn apply_param(&self, param: &mut option::GetParam) {
         param.md.GroupId = self.0;
         let match_options: &mut types::MQMO = param.gmo.MatchOptions.as_mut();
         match_options.insert(constants::MQMO_MATCH_GROUP_ID);
     }
 }
 
-impl GetOption for types::MsgToken {
-    fn apply_param(&self, param: &mut GetParam) {
+impl option::GetOption for types::MsgToken {
+    fn apply_param(&self, param: &mut option::GetParam) {
         param.gmo.MsgToken = self.0;
         let match_options: &mut types::MQMO = param.gmo.MatchOptions.as_mut();
         match_options.insert(constants::MQMO_MATCH_MSG_TOKEN);
@@ -135,17 +208,18 @@ impl GetOption for types::MsgToken {
 #[cfg(feature = "mqai")]
 #[expect(unused_parens)]
 mod get_bag_impl {
+    use super::option;
 
-    use crate::{ResultComp, get::GetBagAttr, macros::all_multi_tuples, option, prelude::*};
+    use crate::{ResultComp, macros::all_multi_tuples, prelude::*};
 
     macro_rules! impl_getbagattr {
         ([$first:ident, $($ty:ident),*]) => {
             #[expect(non_snake_case)]
             #[diagnostic::do_not_recommend]
-            impl<'b, $first, $($ty),*> GetBagAttr for ($first, $($ty),*)
+            impl<'b, $first, $($ty),*> option::GetBagAttr for ($first, $($ty),*)
             where
-                $first: GetBagAttr,
-                $($ty: GetBagAttr),*
+                $first: option::GetBagAttr,
+                $($ty: option::GetBagAttr),*
             {
                 #[inline]
                 fn get_bag_extract<F>(param: &mut option::GetParam, get_bag: F) -> ResultComp<Self>
@@ -154,7 +228,7 @@ mod get_bag_impl {
                 {
                     let mut rest_outer = None;
                     $first::get_bag_extract(param, |param| {
-                        <($($ty),*) as GetBagAttr>::get_bag_extract(param, get_bag).map_completion(|rest| {
+                        <($($ty),*) as option::GetBagAttr>::get_bag_extract(param, get_bag).map_completion(|rest| {
                             rest_outer = Some(rest);
                         })
                     })
@@ -169,7 +243,7 @@ mod get_bag_impl {
 
     all_multi_tuples!(impl_getbagattr);
 
-    impl GetBagAttr for () {
+    impl option::GetBagAttr for () {
         fn get_bag_extract<F>(param: &mut option::GetParam, get_bag: F) -> ResultComp<Self>
         where
             F: FnOnce(&mut option::GetParam) -> ResultComp<()>,
@@ -181,10 +255,11 @@ mod get_bag_impl {
 
 #[expect(unused_parens)]
 mod get_impl {
+    use super::option;
     use crate::{
         Buffer, ResultComp, ResultCompErr,
         macros::all_multi_tuples,
-        option::{GetAttr, GetParam, GetState, GetValue},
+        get::{GetAttr, GetState, GetValue},
         prelude::*,
     };
 
@@ -200,9 +275,9 @@ mod get_impl {
                 type Error = $first::Error;
 
                 #[inline]
-                fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+                fn get_consume<F>(param: &mut option::GetParam, get: F) -> ResultCompErr<Self, Self::Error>
                 where
-                    F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+                    F: FnOnce(&mut option::GetParam) -> ResultComp<GetState<B>>,
                     B: Buffer<'b, R>,
                 {
                     let mut rest_outer = None;
@@ -235,9 +310,9 @@ mod get_impl {
                 $($ty: GetAttr<'b, R>),*
             {
                 #[inline]
-                fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
+                fn get_extract<F, B>(param: &mut option::GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
                 where
-                    F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
+                    F: FnOnce(&mut option::GetParam) -> ResultComp<GetState<B>>,
                     B: Buffer<'b, R>,
                 {
                     let mut rest_outer = None;
@@ -263,9 +338,9 @@ mod get_impl {
 impl<'b, B> option::GetValue<'b, u8, B> for StrCcsidCow<'b> {
     type Error = GetStringCcsidError;
 
-    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    fn get_consume<F>(param: &mut option::GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<option::GetState<B>>,
+        F: FnOnce(&mut option::GetParam) -> ResultComp<super::GetState<B>>,
         B: Buffer<'b, u8>,
     {
         let state = get(param)?;
@@ -284,9 +359,9 @@ impl<'b, B> option::GetValue<'b, u8, B> for StrCcsidCow<'b> {
 impl<'b, B> option::GetValue<'b, u8, B> for Cow<'b, str> {
     type Error = GetStringError;
 
-    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    fn get_consume<F>(param: &mut option::GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<option::GetState<B>>,
+        F: FnOnce(&mut option::GetParam) -> ResultComp<super::GetState<B>>,
         B: Buffer<'b, u8>,
     {
         // TODO: set 1208 in MQMD?
@@ -320,9 +395,9 @@ where
     type Error = Error;
 
     #[inline]
-    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultComp<Self>
+    fn get_consume<F>(param: &mut option::GetParam, get: F) -> ResultComp<Self>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<option::GetState<B>>,
+        F: FnOnce(&mut option::GetParam) -> ResultComp<super::GetState<B>>,
         B: Buffer<'b, R>,
     {
         get(param).map_completion(|state| state.into_truncated_buffer().into_cow())
@@ -335,9 +410,9 @@ where
 {
     type Error = Error;
 
-    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    fn get_consume<F>(param: &mut option::GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<option::GetState<B>>,
+        F: FnOnce(&mut option::GetParam) -> ResultComp<super::GetState<B>>,
         B: Buffer<'b, R>,
     {
         get(param).map_completion(|state| state.into_truncated_buffer().into())
@@ -351,19 +426,19 @@ where
     type Error = Error;
 
     #[inline]
-    fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
+    fn get_consume<F>(param: &mut option::GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<option::GetState<B>>,
+        F: FnOnce(&mut option::GetParam) -> ResultComp<super::GetState<B>>,
         B: Buffer<'b, R>,
     {
         get(param).map_completion(|state| state.into_truncated_buffer().into())
     }
 }
 
-impl<'b> option::GetAttr<'b, u8> for Headers<'b> {
-    fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, option::GetState<B>)>
+impl<'b> super::GetAttr<'b, u8> for Headers<'b> {
+    fn get_extract<F, B>(param: &mut option::GetParam, get: F) -> ResultComp<(Self, super::GetState<B>)>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<option::GetState<B>>,
+        F: FnOnce(&mut option::GetParam) -> ResultComp<super::GetState<B>>,
         B: Buffer<'b, u8>,
     {
         let state = get(param)?;
@@ -386,7 +461,7 @@ impl<'b> option::GetAttr<'b, u8> for Headers<'b> {
             let (headers, tail) = state.buffer.split_at(header_length);
             (
                 Self::new(state.message_length, state.format, headers.into_cow(), error),
-                option::GetState {
+                super::GetState {
                     buffer: tail,
                     data_length: state.data_length - header_length,
                     message_length: state.message_length - header_length,
@@ -397,33 +472,33 @@ impl<'b> option::GetAttr<'b, u8> for Headers<'b> {
     }
 }
 
-impl<'b, R> option::GetAttr<'b, R> for types::MessageFormat {
+impl<'b, R> super::GetAttr<'b, R> for types::MessageFormat {
     #[inline]
-    fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, option::GetState<B>)>
+    fn get_extract<F, B>(param: &mut option::GetParam, get: F) -> ResultComp<(Self, super::GetState<B>)>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<option::GetState<B>>,
+        F: FnOnce(&mut option::GetParam) -> ResultComp<super::GetState<B>>,
         B: Buffer<'b, R>,
     {
         get(param).map_completion(|state| (state.format, state))
     }
 }
 
-impl<'b, R> option::GetAttr<'b, R> for structs::MQMD2 {
+impl<'b, R> super::GetAttr<'b, R> for structs::MQMD2 {
     #[inline]
-    fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, option::GetState<B>)>
+    fn get_extract<F, B>(param: &mut option::GetParam, get: F) -> ResultComp<(Self, super::GetState<B>)>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<option::GetState<B>>,
+        F: FnOnce(&mut option::GetParam) -> ResultComp<super::GetState<B>>,
         B: Buffer<'b, R>,
     {
         get(param).map_completion(|state| (param.md.clone(), state))
     }
 }
 
-impl<'b, R> option::GetAttr<'b, R> for types::MessageId {
+impl<'b, R> super::GetAttr<'b, R> for types::MessageId {
     #[inline]
-    fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, option::GetState<B>)>
+    fn get_extract<F, B>(param: &mut option::GetParam, get: F) -> ResultComp<(Self, super::GetState<B>)>
     where
-        F: FnOnce(&mut GetParam) -> ResultComp<option::GetState<B>>,
+        F: FnOnce(&mut option::GetParam) -> ResultComp<super::GetState<B>>,
         B: Buffer<'b, R>,
     {
         get(param).map_completion(|state| (Self(param.md.MsgId), state))
@@ -451,14 +526,14 @@ mod test {
         fmt: headers::TextEnc::Ascii(headers::fmt::MQFMT_NONE),
     };
 
-    fn mock_get_failure<T>(rc: types::MQRC) -> impl FnOnce(&mut GetParam) -> ResultComp<T> {
+    fn mock_get_failure<T>(rc: types::MQRC) -> impl FnOnce(&mut option::GetParam) -> ResultComp<T> {
         move |_| Err(Error(constants::MQCC_FAILED, "MQGET", rc))
     }
 
     fn mock_get_message<'b, B: Buffer<'b, u8>>(
         buffer: B,
         fmt: types::MessageFormat,
-    ) -> impl FnOnce(&mut GetParam) -> ResultComp<option::GetState<B>> + use<B> {
+    ) -> impl FnOnce(&mut option::GetParam) -> ResultComp<option::GetState<B>> + use<B> {
         let len = buffer.len();
         move |_| {
             Ok(Completion::new(option::GetState {
@@ -470,16 +545,16 @@ mod test {
         }
     }
 
-    const fn default_getparam() -> GetParam {
-        GetParam {
+    const fn default_getparam() -> option::GetParam {
+        option::GetParam {
             md: structs::MQMD2::new(default::MQMD2_DEFAULT),
             gmo: structs::MQGMO::new(default::MQGMO_DEFAULT),
         }
     }
 
-    fn test_get_option<F>(params: &mut GetParam, option: &impl GetOption, f: F)
+    fn test_get_option<F>(params: &mut option::GetParam, option: &impl option::GetOption, f: F)
     where
-        F: FnOnce(&GetParam),
+        F: FnOnce(&option::GetParam),
     {
         option.apply_param(params);
         f(params);

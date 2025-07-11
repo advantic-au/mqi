@@ -3,8 +3,8 @@ use std::str::FromStr;
 use clap::Args;
 use mqi::{
     MqStr, constants,
-    option::ConnectOption,
-    param::{Binding, Ccdt, Credentials, MqServer},
+    connection::ConnectOption,
+    connection::{Binding, Ccdt, Credentials, MqServer},
     types::{CertificateLabel, CipherSpec, KeyRepo, MQCNO, QueueManagerName},
 };
 

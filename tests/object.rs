@@ -5,9 +5,10 @@ use std::{borrow::Cow, collections::HashMap, error::Error};
 use mqi::{
     Object, Properties, attribute,
     attribute::{AttributeType, AttributeValue, InqResItem},
-    constants, get,
+    constants,
     headers::fmt,
-    param::SelectionString,
+    get::Headers,
+    open::SelectionString,
     prelude::*,
     test,
     types::{MQCMHO, MQXA, MessageFormat, MessageId, QueueManagerName, QueueName},
@@ -94,7 +95,7 @@ fn put_get_message() -> Result<(), Box<dyn std::error::Error>> {
         buffer,
     )?;
 
-    let (msg, _msgid, format, headers): (Cow<[u8]>, MessageId, MessageFormat, get::Headers) =
+    let (msg, _msgid, format, headers): (Cow<[u8]>, MessageId, MessageFormat, Headers) =
         msg.discard_warning().expect("Message to be present");
 
     assert!(headers.all_headers().next().is_none());

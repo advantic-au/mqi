@@ -11,7 +11,8 @@ mod args;
 use mqi::{
     CCSID, MqStr, Object, ThreadNone, constants,
     headers::TextEnc,
-    param::{ObjectString, Tls},
+    connection::Tls,
+    open::ObjectString,
     prelude::*,
     types::{ApplName, CipherSpec, MQENC, MQOO, MQPMO, MessageFormat, QueueManagerName, QueueName},
 };
