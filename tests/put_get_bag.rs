@@ -3,9 +3,9 @@
 use mqi::{
     Bag, Object, constants,
     headers::{TextEnc, fmt},
+    open,
     prelude::*,
     test, types,
-    open,
 };
 #[cfg(not(feature = "mock"))]
 use mqi::{ThreadNone, connect_options::Credentials};

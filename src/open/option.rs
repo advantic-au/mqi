@@ -44,5 +44,3 @@ pub unsafe trait OpenAttr<S, O> {
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,
         Self: Sized;
 }
-
-

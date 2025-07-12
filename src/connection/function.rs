@@ -1,5 +1,5 @@
-use std::{fmt::Debug, marker::PhantomData, ops::Deref, rc::Rc, sync::Arc};
 use super::option;
+use std::{fmt::Debug, marker::PhantomData, ops::Deref, rc::Rc, sync::Arc};
 
 use libmqm_sys::{self as mq, Mqi};
 

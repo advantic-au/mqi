@@ -4,8 +4,8 @@ use libmqm_sys::Mqai;
 use crate::mqai::{Bag, BagDrop, Owned};
 use crate::{
     Library, ResultComp,
-    mqai::option::{ExecuteOption, ExecuteParam},
     connection::Conn,
+    mqai::option::{ExecuteOption, ExecuteParam},
     prelude::*,
 };
 

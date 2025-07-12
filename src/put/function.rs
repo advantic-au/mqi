@@ -4,9 +4,10 @@ use libmqm_default as default;
 use libmqm_sys::{MQMD2, Mqi};
 
 use crate::{
-    CCSID, ConnectionHandle, Library, MqFunctions, Object, ResultComp, constants,
-    headers::{TextEnc, fmt},
+    CCSID, ConnectionHandle, Library, MqFunctions, Object, ResultComp,
     connection::Conn,
+    constants,
+    headers::{TextEnc, fmt},
     open::{OpenOption, OpenParamOption},
     structs,
     types::{MQPMO, MessageFormat},
@@ -44,8 +45,8 @@ mod mqai {
     use libmqm_default as default;
     use libmqm_sys::{MQMD2, Mqai};
 
-    use crate::{Bag, BagDrop, Library, Object, ResultComp, headers::TextEnc, connection::Conn, structs, types};
     use super::option;
+    use crate::{Bag, BagDrop, Library, Object, ResultComp, connection::Conn, headers::TextEnc, structs, types};
 
     impl<C: Conn> Object<C>
     where

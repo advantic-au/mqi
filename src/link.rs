@@ -7,8 +7,8 @@ use {
 
 use crate::{Connection, ResultComp};
 
-use crate::connection::{ConnectAttr, ConnectOption, ConnectValue, Threading};
 use crate::connect_lib_as;
+use crate::connection::{ConnectAttr, ConnectOption, ConnectValue, Threading};
 
 /// Create a connection to a queue manager using the compile time linked MQ library
 /// and type inferred [`ConnectValue`].
@@ -51,7 +51,7 @@ where
 ///
 /// See also [`connect_as`] and [`connect_with`] for creating connections with additional
 /// return attribute. For connections using dynamically loaded or custom implementation of the
-/// MQ library refer to [`connect_lib`](crate::connection_lib).
+/// MQ library refer to [`connect_lib`](crate::connect_lib).
 #[inline]
 pub fn connect<'co, H>(options: &impl ConnectOption<'co>) -> ResultComp<Connection<LinkedMq, H>>
 where
@@ -67,7 +67,7 @@ where
 ///
 /// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) MQ API function.
 ///
-/// Common [`ConnectAttr`] that can be returned include [`ConnTag`](crate::param::ConnTag) and [`ConnectionId`](crate::param::ConnectionId).
+/// Common [`ConnectAttr`] that can be returned include [`ConnTag`](crate::connection::ConnTag) and [`ConnectionId`](crate::connection::ConnectionId).
 #[inline]
 pub fn connect_with<'co, A, H>(options: &impl ConnectOption<'co>) -> ResultComp<(Connection<LinkedMq, H>, A)>
 where

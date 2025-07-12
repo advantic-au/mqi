@@ -2,11 +2,12 @@ use libmqm_sys as mq;
 
 use crate::Object;
 use crate::{
-    CCSID, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, constants,
+    CCSID, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned,
+    connection::Conn,
+    constants,
     macros::{all_multi_tuples, impl_from_str, reverse_ident},
     prelude::*,
     structs,
-    connection::Conn,
     types::{MQLONG, MQOO, MQOT, MQPMO, QueueManagerName, QueueName},
 };
 

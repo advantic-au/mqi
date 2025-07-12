@@ -1,7 +1,7 @@
 use libmqm_constants::types::{MQCO, MQSR};
 use libmqm_sys::MQLONG;
 
-use crate::{connection::Conn, structs, Error, Object, ResultComp, ResultCompErr};
+use crate::{Error, Object, ResultComp, ResultCompErr, connection::Conn, structs};
 
 pub struct SubscribeState<C: Conn> {
     pub subscription: super::function::Subscription<C>,

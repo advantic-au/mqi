@@ -1,8 +1,8 @@
 #![expect(clippy::allow_attributes)]
 #![expect(non_snake_case)]
 
-use std::{cmp, rc::Rc, slice};
 use libmqm_sys::{self as mq, mock::MockMq};
+use std::{cmp, rc::Rc, slice};
 
 use crate::{Connection, Library, ResultCompExt, ThreadNone, connect_lib, constants, put, types};
 

@@ -4,7 +4,8 @@ use libmqm_constants::types::MQENC;
 use libmqm_sys as mq;
 
 use crate::{
-    connection::Conn, constants, conversion, headers, prelude::*, structs, types, Buffer, Completion, Error, Properties, ResultComp, ResultCompErr, StrCcsidCow, CCSID
+    Buffer, CCSID, Completion, Error, Properties, ResultComp, ResultCompErr, StrCcsidCow, connection::Conn, constants,
+    conversion, headers, prelude::*, structs, types,
 };
 
 use super::option;
@@ -258,8 +259,8 @@ mod get_impl {
     use super::option;
     use crate::{
         Buffer, ResultComp, ResultCompErr,
-        macros::all_multi_tuples,
         get::{GetAttr, GetState, GetValue},
+        macros::all_multi_tuples,
         prelude::*,
     };
 

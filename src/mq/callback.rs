@@ -2,7 +2,7 @@ use libmqm_default as default;
 use libmqm_sys::{self as mq, Mqi};
 
 use crate::{Connection, ConnectionRef};
-use crate::{Error, Library, MqFunctions, constants, connection::Conn, structs, types};
+use crate::{Error, Library, MqFunctions, connection::Conn, constants, structs, types};
 
 struct CallbackData<F, L> {
     options: types::MQCBDO,

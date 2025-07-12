@@ -1,19 +1,22 @@
-use crate::{prelude::*, connection::Conn, headers::TextEnc, structs, Buffer, Completion, Error, ResultComp, ResultCompErr, StrCcsidCow, WriteRaw, CCSID};
+use crate::{
+    Buffer, CCSID, Completion, Error, ResultComp, ResultCompErr, StrCcsidCow, WriteRaw, connection::Conn, headers::TextEnc,
+    prelude::*, structs,
+};
 
 use super::option;
 use crate::{Object, types};
 
-use libmqm_default as default;
 use libmqm_constants::{constants, types::MQENC};
+use libmqm_default as default;
 
 #[cfg(feature = "mqai")]
 mod mqai {
+    use super::option;
     use libmqm_default as default;
     use libmqm_sys::Mqai;
-    use super::option;
 
-    use crate::{Object, Bag, Completion, Error, Library, Owned, ResultComp, constants, prelude::*, structs};
     use crate::connection::Conn;
+    use crate::{Bag, Completion, Error, Library, Object, Owned, ResultComp, constants, prelude::*, structs};
 
     impl<C: Conn> Object<C>
     where

@@ -1,6 +1,6 @@
 use std::num::NonZero;
 
-use crate::{macros::all_option_tuples, structs, types, Buffer, ResultComp, ResultCompErr};
+use crate::{Buffer, ResultComp, ResultCompErr, macros::all_option_tuples, structs, types};
 
 pub struct GetParam {
     pub md: structs::MQMD2,

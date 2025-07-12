@@ -1,6 +1,7 @@
 use libmqm_sys as mq;
 
-use super::attribute::AttributeType;
+use super::option::AttributeType;
+
 use crate::{constants, types};
 
 // Create a string based InqReqType
@@ -21,7 +22,7 @@ const fn inqreq_long(mqca: types::MQIA) -> AttributeType {
 }
 
 // All MQIA_* and MQCA_* constants (excluding MQCA_NAMES) supported by MQINQ as documented at
-// https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-mqinq-inquire-object-attributes
+// https://www.ibm.com/docs/en/SSFKSJ_latest/refdev/q101840_.html
 
 // MQIA constants
 pub const MQIA_ACCOUNTING_CONN_OVERRIDE: AttributeType = inqreq_long(constants::MQIA_ACCOUNTING_CONN_OVERRIDE);

@@ -191,6 +191,15 @@ pub mod get {
     pub use param::*;
 }
 
+pub mod attribute {
+    pub(super) mod function;
+    mod option;
+    mod param;
+
+    pub use option::*;
+    pub use param::*;
+}
+
 pub mod connection {
     pub(super) mod function;
     mod option;
@@ -227,7 +236,7 @@ pub mod put {
     pub use param::*;
 }
 
-pub mod subscribe {
+pub mod subscription {
     pub(super) mod function;
     mod option;
     mod param;
@@ -238,6 +247,10 @@ pub mod subscribe {
 
 pub use connection::function::*;
 pub use property::function::*;
-pub use subscribe::function::*;
 pub(crate) use put::function::put_message_with;
+pub use subscription::function::*;
 // pub use open::function::*;
+// pub use inquire::function::*;
+
+mod object;
+pub use object::Object;

@@ -361,7 +361,7 @@ const CCSID: &[CcsidEntry] = &[
 
 // Originated from (with modifications / fixes)
 // * https://www.ibm.com/docs/en/iis/latest?topic=tables-ebcdic-ascii
-// * https://www.ibm.com/docs/en/iis/11.7?topic=tables-ascii-ebcdic
+// * https://www.ibm.com/docs/en/iis/latest?topic=tables-ascii-ebcdic
 
 const ASCII7_EBCDIC: [u8; 256] = [
     0x00, // NUL

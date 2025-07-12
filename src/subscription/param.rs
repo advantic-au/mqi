@@ -2,7 +2,12 @@ use super::option::{
     SubscribeAttr, SubscribeOption, SubscribeParam, SubscribeRequestOption, SubscribeRequestParam, SubscribeState, SubscribeValue,
 };
 use crate::{
-    connection::Conn, macros::all_option_tuples, open::ObjectString, prelude::*, types::{MQCO, MQSO, MQSR, MQSRO}, EncodedString, Error, ResultComp, ResultCompErr
+    EncodedString, Error, ResultComp, ResultCompErr,
+    connection::Conn,
+    macros::all_option_tuples,
+    open::ObjectString,
+    prelude::*,
+    types::{MQCO, MQSO, MQSR, MQSRO},
 };
 
 use crate::{Object, Subscription};
@@ -79,8 +84,8 @@ impl<C: Conn> SubscribeAttr<C> for Option<Object<C>> {
 
 #[expect(unused_parens)]
 mod impl_subscribe {
-    use crate::connection::Conn;
     use super::{SubscribeAttr, SubscribeParam, SubscribeState, SubscribeValue};
+    use crate::connection::Conn;
     use crate::{ResultComp, ResultCompErr, macros::all_multi_tuples, prelude::*};
 
     macro_rules! impl_subscribevalue_tuple {

@@ -4,7 +4,7 @@ Progress
 MQ verbs
 --------
 
-Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-descriptions>
+Refer to <https://www.ibm.com/docs/en/SSFKSJ_latest/refdev/q101650_.html>
 
 | Verb    | Description                         | Wrapped  | API | Comments |
 |---------|-------------------------------------|----------|----------|-|
@@ -38,7 +38,7 @@ Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=calls-call-description
 MQAI functions
 --------------
 
-Refer to <https://www.ibm.com/docs/en/ibm-mq/latest?topic=reference-mqai-calls>
+Refer to <https://www.ibm.com/docs/en/SSFKSJ_latest/refadmin/q089140_.html>
 
 | Function                  | Description                                                            | Wrapped | API | Comments |
 |---------------------------|------------------------------------------------------------------------|---|---|---|

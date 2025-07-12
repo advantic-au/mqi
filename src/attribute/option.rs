@@ -1,7 +1,6 @@
-use std::{collections::VecDeque, iter, slice};
+use std::slice;
 
-pub use super::attribute_types::*;
-use crate::{Object, ResultComp, connection::Conn, prelude::*, types};
+use crate::types;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AttributeType {
@@ -33,6 +32,18 @@ pub enum InqResItem<T> {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub struct IntItem {
+    selector: types::MQXA,
+    value: types::MQLONG,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TextItem<T> {
+    selector: types::MQXA,
+    value: T,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum AttributeValue<T> {
     Text(T),
     Long(types::MQLONG),
@@ -48,12 +59,71 @@ impl<T> InqResItem<T> {
     }
 }
 
+impl IntItem {
+    pub const fn new(selector: types::MQXA, value: types::MQLONG) -> Result<Self, AttributeError> {
+        if selector.is_int() {
+            Ok(Self { selector, value })
+        } else {
+            Err(AttributeError::NotIntType(selector))
+        }
+    }
+
+    /// # Safety
+    /// Consumers must ensure the `selector` is within the MQIA constant range
+    #[must_use]
+    pub const unsafe fn new_unchecked(selector: types::MQXA, value: types::MQLONG) -> Self {
+        Self { selector, value }
+    }
+}
+
+impl<'a> TextItem<&'a [types::MQCHAR]> {
+    pub const fn new(attr_type: AttributeType, value: &'a [types::MQCHAR]) -> Result<Self, AttributeError> {
+        if !attr_type.attribute.is_text() {
+            Err(AttributeError::NotTextType(attr_type.attribute))
+        } else if value.len() != attr_type.text_len as usize {
+            Err(AttributeError::InvalidTextLength(attr_type.text_len as usize, value.len()))
+        } else {
+            Ok(Self {
+                selector: attr_type.attribute,
+                value,
+            })
+        }
+    }
+
+    /// # Safety
+    /// Consumers must ensure the `selector` is within the MQCA constant range and the slice is the correct length
+    #[must_use]
+    pub const unsafe fn new_unchecked(selector: types::MQXA, value: &'a [types::MQCHAR]) -> Self {
+        Self { selector, value }
+    }
+}
+
+#[derive(derive_more::Display, derive_more::Error, Debug)]
+pub enum AttributeError {
+    #[error(ignore)]
+    #[display("{_0} is not an integer attribute")]
+    NotIntType(types::MQXA),
+    #[error(ignore)]
+    #[display("{_0} is not a text attribute")]
+    NotTextType(types::MQXA),
+    #[display("actual text attribute length = {_0}, expected length = {_1}")]
+    InvalidTextLength(usize, usize),
+}
+
 struct MultiItemIter<'a> {
     text_pos: usize,
     text_attr: &'a [types::MQCHAR],
     text_len: slice::Iter<'a, u32>,
     selectors: slice::Iter<'a, types::MQXA>,
     int_attr: slice::Iter<'a, types::MQLONG>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MultiItem {
+    pub(crate) selectors: Vec<types::MQXA>,
+    pub(crate) int_attr: Vec<types::MQLONG>,
+    pub(crate) text_attr: Vec<types::MQCHAR>,
+    pub(crate) text_len: Vec<u32>,
 }
 
 impl MultiItem {
@@ -109,60 +179,6 @@ impl<'a> Iterator for MultiItemIter<'a> {
     }
 }
 
-impl<C: Conn> Object<C> {
-    /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
-    pub fn inq<'a>(&self, selectors: impl IntoIterator<Item = &'a AttributeType>) -> ResultComp<MultiItem> {
-        let mut text_total = 0;
-        let mut int_count = 0;
-        let mut text_len = Vec::new();
-
-        let select: VecDeque<_> = selectors.into_iter().collect();
-        let mut selectors = Vec::with_capacity(select.len());
-        for &AttributeType {
-            attribute,
-            text_len: len,
-        } in select
-        {
-            if attribute.is_text() {
-                text_total += len;
-                text_len.push(len);
-            } else if attribute.is_int() {
-                int_count += 1;
-            }
-            selectors.push(attribute);
-        }
-        let mut output = MultiItem {
-            selectors,
-            int_attr: Vec::with_capacity(int_count),
-            text_attr: Vec::with_capacity(text_total as usize),
-            text_len,
-        };
-
-        let connection = self.connection();
-        connection
-            .mq()
-            .mqinq(
-                connection.handle(),
-                self.handle(),
-                &output.selectors,
-                &mut output.int_attr.spare_capacity_mut()[..int_count],
-                &mut output.text_attr.spare_capacity_mut()[..text_total as usize],
-            )
-            .map_completion(|()| {
-                unsafe {
-                    output.text_attr.set_len(text_total as usize);
-                    output.int_attr.set_len(int_count);
-                };
-                output
-            })
-    }
-
-    /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
-    pub fn inq_item(&self, selector: AttributeType) -> ResultComp<Option<InqResItem<Vec<types::MQCHAR>>>> {
-        self.inq(iter::once(&selector)).map_completion(MultiItem::into_first)
-    }
-}
-
 pub trait SetItems: sealed::Sealed {
     fn selectors(&self) -> &[types::MQXA];
     fn int_attr(&self) -> &[types::MQLONG];
@@ -171,26 +187,6 @@ pub trait SetItems: sealed::Sealed {
 
 mod sealed {
     pub trait Sealed {}
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct IntItem {
-    selector: types::MQXA,
-    value: types::MQLONG,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct TextItem<T> {
-    selector: types::MQXA,
-    value: T,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct MultiItem {
-    selectors: Vec<types::MQXA>,
-    int_attr: Vec<types::MQLONG>,
-    text_attr: Vec<types::MQCHAR>,
-    text_len: Vec<u32>,
 }
 
 impl sealed::Sealed for MultiItem {}
@@ -208,18 +204,6 @@ impl SetItems for MultiItem {
     }
 }
 
-#[derive(derive_more::Display, derive_more::Error, Debug)]
-pub enum AttributeError {
-    #[error(ignore)]
-    #[display("{_0} is not an integer attribute")]
-    NotIntType(types::MQXA),
-    #[error(ignore)]
-    #[display("{_0} is not a text attribute")]
-    NotTextType(types::MQXA),
-    #[display("actual text attribute length = {_0}, expected length = {_1}")]
-    InvalidTextLength(usize, usize),
-}
-
 impl MultiItem {
     pub fn push_text_item(&mut self, text_item: &TextItem<&[types::MQCHAR]>) {
         self.selectors.push(text_item.selector);
@@ -228,48 +212,9 @@ impl MultiItem {
         self.text_attr.extend_from_slice(text_item.value);
     }
 
-    pub fn push_int_item(&mut self, int_item: &IntItem) {
+    pub fn push_int_item(&mut self, int_item: IntItem) {
         self.selectors.push(int_item.selector);
         self.int_attr.push(int_item.value);
-    }
-}
-
-impl IntItem {
-    pub const fn new(selector: types::MQXA, value: types::MQLONG) -> Result<Self, AttributeError> {
-        if selector.is_int() {
-            Ok(Self { selector, value })
-        } else {
-            Err(AttributeError::NotIntType(selector))
-        }
-    }
-
-    /// # Safety
-    /// Consumers must ensure the `selector` is within the MQIA constant range
-    #[must_use]
-    pub const unsafe fn new_unchecked(selector: types::MQXA, value: types::MQLONG) -> Self {
-        Self { selector, value }
-    }
-}
-
-impl<'a> TextItem<&'a [types::MQCHAR]> {
-    pub const fn new(attr_type: AttributeType, value: &'a [types::MQCHAR]) -> Result<Self, AttributeError> {
-        if !attr_type.attribute.is_text() {
-            Err(AttributeError::NotTextType(attr_type.attribute))
-        } else if value.len() != attr_type.text_len as usize {
-            Err(AttributeError::InvalidTextLength(attr_type.text_len as usize, value.len()))
-        } else {
-            Ok(Self {
-                selector: attr_type.attribute,
-                value,
-            })
-        }
-    }
-
-    /// # Safety
-    /// Consumers must ensure the `selector` is within the MQCA constant range and the slice is the correct length
-    #[must_use]
-    pub const unsafe fn new_unchecked(selector: types::MQXA, value: &'a [types::MQCHAR]) -> Self {
-        Self { selector, value }
     }
 }
 
@@ -324,19 +269,5 @@ impl<T: AsRef<[types::MQCHAR]>> SetItems for TextItem<T> {
 
     fn text_attr(&self) -> &[types::MQCHAR] {
         self.value.as_ref()
-    }
-}
-
-impl<C: Conn> Object<C> {
-    /// This function uses the [`MQSET`](libmqm_sys::MQSET) MQ API function.
-    pub fn set(&self, items: &impl SetItems) -> ResultComp<()> {
-        let connection = self.connection();
-        connection.mq().mqset(
-            connection.handle(),
-            self.handle(),
-            items.selectors(),
-            items.int_attr(),
-            items.text_attr(),
-        )
     }
 }

@@ -1,9 +1,7 @@
 use libmqm_sys as mq;
 
 use crate::Object;
-use crate::{
-    MqStr, Properties, ResultComp, constants, macros::all_multi_tuples, connection::Conn, prelude::*, structs, types,
-};
+use crate::{MqStr, Properties, ResultComp, connection::Conn, constants, macros::all_multi_tuples, prelude::*, structs, types};
 
 use super::option;
 
@@ -211,8 +209,8 @@ impl_putattr_mqmd_mqstr!(ApplOriginData, types::ApplOriginData);
 
 #[expect(unused_parens)]
 mod impl_put {
-    use crate::{ResultComp, macros::all_multi_tuples, prelude::*};
     use super::option;
+    use crate::{ResultComp, macros::all_multi_tuples, prelude::*};
 
     macro_rules! impl_putattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
@@ -266,7 +264,7 @@ mod test {
     use libmqm_default as default;
 
     use super::*;
-    use crate::{Properties, test::mock, types::MQCMHO, put::PutOption as _};
+    use crate::{Properties, put::PutOption as _, test::mock, types::MQCMHO};
 
     #[test]
     fn property_action() -> Result<(), Box<dyn Error>> {
