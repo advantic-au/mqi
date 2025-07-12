@@ -1,15 +1,11 @@
-use libmqm_default as default;
-use libmqm_sys::{self as mq, Mqi};
 
 use crate::{
-    CCSID, ConnectionHandle, Library, MqFunctions, MqStr, ResultComp, StrCcsidOwned, constants,
-    prelude::*,
-    structs,
+    CCSID, MqStr, StrCcsidOwned, structs,
     types::{MQCC, MQCHAR, MQLONG, MQOO, MQOT, MQRC, MQSO, ObjectName},
 };
 
 impl AsyncPutStat {
-    fn new(sts: &structs::MQSTS, buffer: Vec<MQCHAR>) -> Self {
+    pub(crate) fn new(sts: &structs::MQSTS, buffer: Vec<MQCHAR>) -> Self {
         let mut buffer = buffer;
         unsafe {
             buffer.set_len(
@@ -44,7 +40,7 @@ impl AsyncPutStat {
 }
 
 impl ReconnectionStat {
-    fn new(sts: &structs::MQSTS) -> Self {
+    pub(crate) fn new(sts: &structs::MQSTS) -> Self {
         Self {
             warning: match sts.CompCode {
                 0 => None,
@@ -59,7 +55,7 @@ impl ReconnectionStat {
 }
 
 impl ReconnectionErrorStat {
-    fn new(sts: &structs::MQSTS, object_string_buffer: Vec<MQCHAR>, sub_name_buffer: Vec<MQCHAR>) -> Self {
+    pub(crate) fn new(sts: &structs::MQSTS, object_string_buffer: Vec<MQCHAR>, sub_name_buffer: Vec<MQCHAR>) -> Self {
         let mut object_string_buffer = object_string_buffer;
         unsafe {
             object_string_buffer.set_len(
@@ -103,85 +99,6 @@ impl ReconnectionErrorStat {
         }
     }
 }
-
-/// This function uses the [`MQSTAT`](libmqm_sys::MQSTAT) MQ API function.
-pub fn stat_put<L: Library<MQ: Mqi>>(functions: &MqFunctions<L>, handle: ConnectionHandle) -> ResultComp<AsyncPutStat> {
-    let mut sts = structs::MQSTS::new(mq::MQSTS {
-        Version: mq::MQSTS_VERSION_2,
-        ..default::MQSTS_DEFAULT
-    });
-
-    if sts.ObjectString.VSBufSize == 0 {
-        sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-    }
-    let mut buffer = Vec::with_capacity(
-        sts.ObjectString
-            .VSBufSize
-            .try_into()
-            .expect("buffer length should convert to usize"),
-    );
-    sts.ObjectString.VSPtr = (&raw mut *buffer).cast();
-
-    // SAFETY: MQSTS ObjectString MQCHARV constructed from buffer
-    unsafe {
-        functions
-            .mqstat(handle, constants::MQSTAT_TYPE_ASYNC_ERROR, &mut sts)
-            .map_completion(|()| AsyncPutStat::new(&sts, buffer))
-    }
-}
-
-/// This function uses the [`MQSTAT`](libmqm_sys::MQSTAT) MQ API function.
-pub fn stat_reconnection<L: Library<MQ: Mqi>>(
-    functions: &MqFunctions<L>,
-    handle: ConnectionHandle,
-) -> ResultComp<ReconnectionStat> {
-    let mut sts = structs::MQSTS::new(default::MQSTS_DEFAULT);
-
-    // SAFETY: MQSTS No pointers populated
-    unsafe {
-        functions
-            .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION, &mut sts)
-            .map_completion(|()| ReconnectionStat::new(&sts))
-    }
-}
-
-/// This function uses the [`MQSTAT`](libmqm_sys::MQSTAT) MQ API function.
-pub fn stat_reconnection_error<L: Library<MQ: Mqi>>(
-    functions: &MqFunctions<L>,
-    handle: ConnectionHandle,
-) -> ResultComp<ReconnectionErrorStat> {
-    let mut sts = structs::MQSTS::new(mq::MQSTS {
-        Version: mq::MQSTS_VERSION_2,
-        ..default::MQSTS_DEFAULT
-    });
-
-    sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-    let mut object_string_buffer = Vec::with_capacity(
-        sts.ObjectString
-            .VSBufSize
-            .try_into()
-            .expect("buffer length should convert to usize"),
-    );
-    sts.ObjectString.VSPtr = (&raw mut *object_string_buffer).cast();
-
-    sts.SubName.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-    let mut sub_name_buffer = Vec::with_capacity(
-        sts.SubName
-            .VSBufSize
-            .try_into()
-            .expect("buffer length should convert to usize"),
-    );
-    sts.SubName.VSPtr = (&raw mut *sub_name_buffer).cast();
-
-    // SAFETY: MQSTS ObjectString and SubName MQCHARV constructed from buffers
-    unsafe {
-        functions
-            .mqstat(handle, constants::MQSTAT_TYPE_RECONNECTION_ERROR, &mut sts)
-            .map_completion(|()| ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
-    }
-}
-
-const DEFAULT_OBJECTSTRING_LENGTH: MQLONG = 4096;
 
 pub struct AsyncPutStat {
     pub warning: Option<MQCC>,

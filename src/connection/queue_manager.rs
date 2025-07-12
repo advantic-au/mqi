@@ -1,5 +1,7 @@
-use super::{AsyncPutStat, ReconnectionErrorStat, ReconnectionStat, stat_put, stat_reconnection, stat_reconnection_error};
-use crate::{ResultComp, put_message_with, types::MQPMO};
+use crate::stat::function::{stat_put, stat_reconnection, stat_reconnection_error};
+use crate::stat::{AsyncPutStat, ReconnectionErrorStat, ReconnectionStat};
+use crate::put::function::put_message_with;
+use crate::{ResultComp, types::MQPMO};
 use crate::{connection, open, put};
 
 /// A trait that provides functions to put messages to a queue manager and inquire on the status of a previous MQI call or connection
