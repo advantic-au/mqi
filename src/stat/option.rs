@@ -1,4 +1,3 @@
-
 use crate::{
     CCSID, MqStr, StrCcsidOwned, structs,
     types::{MQCC, MQCHAR, MQLONG, MQOO, MQOT, MQRC, MQSO, ObjectName},

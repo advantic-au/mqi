@@ -4,7 +4,7 @@ use std::{sync::Arc, thread};
 
 use libmqm_sys::mock::MockMq;
 use mqi::{
-    Properties, constants,
+    Properties, connection, constants,
     prelude::*,
     test::mock,
     types::{FORMAT_NONE, MQCMHO, MQSMPO, MessageId, QueueName},
@@ -30,7 +30,7 @@ fn thread() {
     });
 
     let (qm, (tag, id)) =
-        mqi::connect_lib_with::<(mqi::connection::ConnTag, mqi::connection::ConnectionId), mqi::ThreadBlock, _>(mock, &())
+        mqi::connect_lib_with::<(connection::ConnTag, connection::ConnectionId), mqi::ThreadBlock, _>(mock, &())
             .discard_warning() // ignore warning
             .expect("connection should be established");
     let qm = Arc::new(qm);

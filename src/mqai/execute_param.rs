@@ -1,7 +1,6 @@
-use libmqm_constants::types::MQCMD;
 use libmqm_sys::Mqai;
 
-use crate::{Library, Object, connection::Conn, mqai::option};
+use crate::{Conn, Library, Object, mqai::option, types};
 
 use super::{Bag, BagDrop};
 
@@ -30,7 +29,7 @@ impl<'a, C: Conn> option::ExecuteOption<'a> for AdminObject<'a, C> {
     }
 }
 
-impl option::ExecuteOption<'_> for MQCMD {
+impl option::ExecuteOption<'_> for types::MQCMD {
     fn apply_param(&self, param: &mut option::ExecuteParam) {
         param.command = *self;
     }

@@ -1,7 +1,7 @@
 use libmqm_default as default;
 
 use crate::Object;
-use crate::{ResultComp, ResultCompErr, connection::Conn, constants, prelude::*, structs, types};
+use crate::{Conn, ResultComp, ResultCompErr, constants, prelude::*, structs, types};
 
 use super::option;
 

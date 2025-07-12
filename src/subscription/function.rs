@@ -1,7 +1,7 @@
 use libmqm_default as default;
 
+use crate::Conn;
 use crate::Object;
-use crate::connection::Conn;
 use crate::{
     ObjectHandle, ResultComp, ResultCompErr, SubscriptionHandle, constants,
     prelude::*,

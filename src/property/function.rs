@@ -4,8 +4,8 @@ use libmqm_default as default;
 use libmqm_sys::{self as mq, Mqi};
 
 use crate::{
-    Buffer, Completion, ConnectionHandle, EncodedString, Error, Library, MessageHandle, MqFunctions, MqInqError, ResultComp,
-    ResultCompErr, ResultErr, WriteRaw, connection, constants,
+    Buffer, Completion, Conn, ConnectionHandle, EncodedString, Error, Library, MessageHandle, MqFunctions, MqInqError,
+    ResultComp, ResultCompErr, ResultErr, WriteRaw, constants,
     prelude::*,
     structs,
     types::{MQBMHO, MQBYTE, MQCHAR, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE, MessageFormat},
@@ -14,7 +14,7 @@ use crate::{
 use super::option;
 
 #[derive(Debug)]
-pub struct Properties<C: connection::Conn> {
+pub struct Properties<C: Conn> {
     handle: MessageHandle,
     connection: C,
 }
@@ -97,7 +97,7 @@ impl<'a, T: Clone> Buffer<'a, T> for InqBuffer<'a, T> {
     }
 }
 
-impl<C: connection::Conn> Drop for Properties<C> {
+impl<C: Conn> Drop for Properties<C> {
     fn drop(&mut self) {
         let mqdmho = default::MQDMHO_DEFAULT;
 
@@ -205,14 +205,14 @@ unsafe fn inqmp<'a, 'b, A: Library<MQ: Mqi>>(
     }
 }
 
-pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: connection::Conn> {
+pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
     name: &'name N,
     message: &'message Properties<C>,
     options: MQIMPO,
     _marker: PhantomData<P>,
 }
 
-impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: connection::Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
+impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
     type Item = ResultCompErr<P, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -228,7 +228,7 @@ impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: connection::Conn> I
     }
 }
 
-impl<C: connection::Conn> Properties<C> {
+impl<C: Conn> Properties<C> {
     pub const fn handle(&self) -> &MessageHandle {
         &self.handle
     }

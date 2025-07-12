@@ -1,8 +1,7 @@
-use libmqm_default as default;
 use libmqm_sys::{self as mq, Mqi};
 
-use crate::{Connection, ConnectionRef};
-use crate::{Error, Library, MqFunctions, connection::Conn, constants, structs, types};
+use crate::ConnectionRef;
+use crate::{Library, MqFunctions, constants, structs, types};
 
 struct CallbackData<F, L> {
     options: types::MQCBDO,
@@ -40,38 +39,36 @@ unsafe extern "C" fn event_callback<L, H, F>(
     // }
 }
 
-impl<L, H> Connection<L, H>
-where
-    L: Library<MQ: Mqi> + Clone,
-{
+pub mod function {
+    use libmqm_default as default;
+    use libmqm_sys::{MQMD, Mqi};
+
+    use crate::{ConnectionHandle, ConnectionRef, Error, Library, MqFunctions, constants, structs, types};
+
     /// # Safety
     /// Consumers of [`register_event_handler`](Connection::register_event_handler) must handle and read the pointers in [`MQCBC`](structs::MQCBC) correctly
-    pub unsafe fn register_event_handler<F>(&mut self, options: types::MQCBDO, closure: F) -> Result<(), Error>
+    pub unsafe fn register_event_handler<F, L: Library<MQ: Mqi> + Clone, H>(
+        functions: &MqFunctions<L>,
+        handle: ConnectionHandle,
+        options: types::MQCBDO,
+        closure: F,
+    ) -> Result<(), Error>
     where
         F: FnMut(ConnectionRef<L, H>, &structs::MQCBC),
     {
-        let cb_data: *mut CallbackData<F, L> = Box::into_raw(Box::from(CallbackData {
+        let cb_data: *mut super::CallbackData<F, L> = Box::into_raw(Box::from(super::CallbackData {
             options,
             closure,
-            mq: self.mq().clone(),
+            mq: functions.clone(),
         }));
         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
         cbd.CallbackArea = cb_data.cast();
         *cbd.Options.as_mut() = options | constants::MQCBDO_DEREGISTER_CALL; // Always register for the deregister call
-        cbd.CallbackFunction = event_callback::<L, H, F> as *mut _;
+        cbd.CallbackFunction = super::event_callback::<L, H, F> as *mut _;
         *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
 
         // SAFETY: MQCBD registered with valid pointers
-        unsafe {
-            self.mq().mqcb(
-                self.handle(),
-                constants::MQOP_REGISTER,
-                Some(&cbd),
-                None,
-                None::<&mq::MQMD>,
-                None,
-            )
-        }?;
+        unsafe { functions.mqcb(handle, constants::MQOP_REGISTER, Some(&cbd), None, None::<&MQMD>, None) }?;
 
         Ok(())
     }

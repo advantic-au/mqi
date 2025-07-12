@@ -1,7 +1,5 @@
-use libmqm_sys::Mqi;
-
 use crate::{
-    ConnectionHandle, Library, MqFunctions, ResultComp, structs,
+    ResultComp, structs,
     types::{self, QueueManagerName},
 };
 
@@ -39,13 +37,6 @@ pub trait ConnectAttr<S> {
     where
         F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>,
         Self: std::marker::Sized;
-}
-
-/// Associated connection handle and MQ library
-pub trait Conn {
-    type Lib: Library<MQ: Mqi>;
-    fn mq(&self) -> &MqFunctions<Self::Lib>;
-    fn handle(&self) -> ConnectionHandle;
 }
 
 /// A trait that manipulates the parameters to the [`MQCONNX`](`::libmqm_sys::MQCONNX`) function

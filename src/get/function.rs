@@ -1,12 +1,11 @@
 use crate::{
-    Buffer, CCSID, Completion, Error, ResultComp, ResultCompErr, StrCcsidCow, WriteRaw, connection::Conn, headers::TextEnc,
-    prelude::*, structs,
+    Buffer, CCSID, Completion, Conn, Error, ResultComp, ResultCompErr, StrCcsidCow, WriteRaw, headers::TextEnc, prelude::*,
+    structs,
 };
 
 use super::option;
-use crate::{Object, types};
+use crate::{Object, constants, types};
 
-use libmqm_constants::{constants, types::MQENC};
 use libmqm_default as default;
 
 #[cfg(feature = "mqai")]
@@ -15,7 +14,7 @@ mod mqai {
     use libmqm_default as default;
     use libmqm_sys::Mqai;
 
-    use crate::connection::Conn;
+    use crate::Conn;
     use crate::{Bag, Completion, Error, Library, Object, Owned, ResultComp, constants, prelude::*, structs};
 
     impl<C: Conn> Object<C>
@@ -174,7 +173,7 @@ impl<C: Conn> Object<C> {
                         .expect("message length should be within positive usize range"),
                     format: types::MessageFormat {
                         ccsid: CCSID(param.md.CodedCharSetId),
-                        encoding: MQENC(param.md.Encoding),
+                        encoding: types::MQENC(param.md.Encoding),
                         fmt: TextEnc::Ascii(param.md.Format),
                     },
                 });

@@ -146,7 +146,7 @@ pub fn subscribe_managed_ok(
 
 #[cfg(feature = "mqai")]
 pub mod mqai {
-    use libmqm_constants::constants;
+    use crate::constants;
     use libmqm_sys::{Mqai, mock::MockMq};
 
     use crate::{Library, types};

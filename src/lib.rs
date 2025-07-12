@@ -29,7 +29,7 @@ offering proven stability and performance.
 |-------------|------------------------------|
 | [`MQCONN`](libmqm_sys::MQCONN)    | *Not used*                   |
 | [`MQCONNX`](libmqm_sys::MQCONNX)   | [`connect`], [`connect_as`], [`connect_with`], [`connect_lib`], [`connect_lib_with`] |
-| [`MQPUT1`](libmqm_sys::MQPUT1)    | [`QueueManager::put_message`], [`QueueManager::put_message_with`] |
+| [`MQPUT1`](libmqm_sys::MQPUT1)    | [`Conn::put_message`], [`Conn::put_message_with`] |
 | [`MQDISC`](libmqm_sys::MQDISC)    | [`Connection::disconnect`], [`Connection::drop`]  |
 | [`MQOPEN`](libmqm_sys::MQOPEN)    | [`Object::open`], [`Object::open_with`] |
 | [`MQGET`](libmqm_sys::MQGET)     | [`Object::get_data`], [`Object::get_data_with`], [`Object::get_string`], [`Object::get_string_with`], [`Object::get_as`] |
@@ -46,11 +46,11 @@ offering proven stability and performance.
 | [`MQBUFMH`](libmqm_sys::MQBUFMH)   | [`Properties::from_buffer`], [`Properties::from_buffer_mut`] |
 | [`MQMHBUF`](libmqm_sys::MQMHBUF)   | [`Properties::to_buffer`], [`Properties::to_buffer_mut`] |
 | [`MQDLTMH`](libmqm_sys::MQDLTMH)   | [`Properties::close`], [`Properties::drop`]  |
-| [`MQSTAT`](libmqm_sys::MQSTAT)    | [`stat_put`], [`stat_reconnection`], [`stat_reconnection_error`] |
+| [`MQSTAT`](libmqm_sys::MQSTAT)    | [`Conn::stat_put`], [`Conn::stat_reconnection`], [`Conn::stat_reconnection_error`] |
 | [`MQBEGIN`](libmqm_sys::MQBEGIN)   | [`Syncpoint::begin`]         |
 | [`MQBACK`](libmqm_sys::MQBACK)    | [`Syncpoint::backout`]       |
 | [`MQCMIT`](libmqm_sys::MQCMIT)    | [`Syncpoint::commit`]        |
-| [`MQCB`](libmqm_sys::MQCB)      | [`Connection::register_event_handler`] |
+| [`MQCB`](libmqm_sys::MQCB)      | [`Conn::register_event_handler`] |
 | [`MQCTL`](libmqm_sys::MQCTL)     | *Not implemented yet*        |
 
 | MQAI function               | Crate function(s)                                                      |
@@ -107,8 +107,6 @@ offering proven stability and performance.
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg, doc_cfg_hide))]
 
 mod mq_types;
-
-mod mq;
 
 #[cfg(feature = "mqai")]
 mod mqai;
@@ -200,15 +198,15 @@ pub mod attribute {
 }
 
 pub mod connection {
+    pub(crate) mod conn;
     pub(crate) mod function;
     mod option;
     mod param;
-    mod queue_manager;
 
     pub use option::*;
     pub use param::*;
-    pub use queue_manager::*;
 }
+pub use connection::conn::Conn;
 
 pub mod open {
     pub(crate) mod function;
@@ -262,3 +260,5 @@ pub use object::Object;
 
 mod syncpoint;
 pub use syncpoint::Syncpoint;
+
+mod callback;

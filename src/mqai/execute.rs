@@ -1,10 +1,9 @@
 pub(super) mod option {
     use crate::macros::all_option_tuples;
 
-    use libmqm_constants::types::MQCMD;
-
     use crate::BagHandle;
     use crate::ObjectHandle;
+    use crate::types::MQCMD;
 
     #[derive(Debug, Default)]
     pub struct ExecuteParam<'a> {

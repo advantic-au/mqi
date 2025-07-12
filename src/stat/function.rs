@@ -1,9 +1,8 @@
-use libmqm_constants::constants;
-use libmqm_sys::Mqi;
-use libmqm_sys as mq;
 use libmqm_default as default;
+use libmqm_sys as mq;
+use libmqm_sys::Mqi;
 
-use crate::{prelude::*, structs, types, ConnectionHandle, Library, MqFunctions, ResultComp};
+use crate::{ConnectionHandle, Library, MqFunctions, ResultComp, constants, prelude::*, structs, types};
 
 use super::option;
 

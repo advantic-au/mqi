@@ -16,7 +16,7 @@ use mqi::{
 #[test]
 fn qm() -> Result<(), Box<dyn Error>> {
     let mock_library = mock::callback::connect_ok_event_cb();
-    let mut qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, &()).warn_as_error()?;
+    let qm = mqi::connect_lib::<ThreadNone, _>(&mock_library, &()).warn_as_error()?;
 
     unsafe {
         qm.register_event_handler(

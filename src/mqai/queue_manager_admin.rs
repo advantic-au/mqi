@@ -1,10 +1,9 @@
-use libmqm_constants::constants;
+use crate::constants;
 use libmqm_sys::Mqai;
 
 use crate::mqai::{Bag, BagDrop, Owned};
 use crate::{
-    Library, ResultComp,
-    connection::Conn,
+    Conn, Library, ResultComp,
     mqai::option::{ExecuteOption, ExecuteParam},
     prelude::*,
 };

@@ -1,7 +1,4 @@
-use libmqm_constants::types::{MQCO, MQSR};
-use libmqm_sys::MQLONG;
-
-use crate::{Error, Object, ResultComp, ResultCompErr, connection::Conn, structs};
+use crate::{Conn, Error, Object, ResultComp, ResultCompErr, structs, types};
 
 pub struct SubscribeState<C: Conn> {
     pub subscription: super::function::Subscription<C>,
@@ -11,14 +8,14 @@ pub struct SubscribeState<C: Conn> {
 #[derive(Debug)]
 pub struct SubscribeParam<'a> {
     pub sd: structs::MQSD<'a>,
-    pub close_options: MQCO,
-    pub provided_object: MQLONG,
+    pub close_options: types::MQCO,
+    pub provided_object: types::MQLONG,
 }
 
 #[derive(Debug)]
 pub struct SubscribeRequestParam {
     pub sro: structs::MQSRO,
-    pub sr: MQSR,
+    pub sr: types::MQSR,
 }
 
 pub trait SubscribeValue<C: Conn> {

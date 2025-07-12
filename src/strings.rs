@@ -4,8 +4,7 @@ use libmqm_default as default;
 use libmqm_sys::MQCHARV;
 
 #[cfg(feature = "exits")]
-use crate::connection;
-use crate::{CCSID, constants, conversion, structs, types};
+use crate::{CCSID, Conn, constants, conversion, structs, types};
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
@@ -146,7 +145,7 @@ impl<T: AsRef<[types::MQCHAR]>> StringCcsid<T> {
     ) -> crate::ResultComp<StrCcsid<'a>>
     where
         C::Lib: crate::Library<MQ: libmqm_sys::Exits>,
-        C: connection::Conn,
+        C: Conn,
     {
         use crate::{constants, prelude::*};
 

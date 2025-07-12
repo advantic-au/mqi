@@ -2,9 +2,7 @@ use libmqm_sys as mq;
 
 use crate::Object;
 use crate::{
-    CCSID, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned,
-    connection::Conn,
-    constants,
+    CCSID, Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, constants,
     macros::{all_multi_tuples, impl_from_str, reverse_ident},
     prelude::*,
     structs,

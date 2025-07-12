@@ -1,7 +1,7 @@
 use std::ptr;
 
 use crate::support::outcome::{MqiOutcome, MqiOutcomeVoid};
-use libmqm_constants::types::MQDCC;
+use crate::types::MQDCC;
 use libmqm_sys::{self as mq, Mqi};
 #[cfg(feature = "tracing")]
 use {

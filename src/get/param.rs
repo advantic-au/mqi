@@ -1,11 +1,10 @@
 use std::borrow::Cow;
 
-use libmqm_constants::types::MQENC;
 use libmqm_sys as mq;
 
 use crate::{
-    Buffer, CCSID, Completion, Error, Properties, ResultComp, ResultCompErr, StrCcsidCow, connection::Conn, constants,
-    conversion, headers, prelude::*, structs, types,
+    Buffer, CCSID, Completion, Conn, Error, Properties, ResultComp, ResultCompErr, StrCcsidCow, constants, conversion, headers,
+    prelude::*, structs, types,
 };
 
 use super::option;
@@ -39,7 +38,7 @@ pub enum GetWait {
 pub enum GetConvert {
     NoConvert,
     Convert,
-    ConvertTo(CCSID, MQENC),
+    ConvertTo(CCSID, types::MQENC),
 }
 
 #[derive(Clone, Debug, derive_more::Constructor)]

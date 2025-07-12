@@ -106,7 +106,7 @@ impl WithMqError for Error {
 
 /// Extends a `ResultCompErr` with additional methods to handle warnings.
 pub trait ResultCompErrExt<T, E> {
-    /// Maps the the value of the MQI API Result, maintaining the `Completion` wrapper with any associated warning.
+    /// Maps the value of the MQI API Result, maintaining the `Completion` wrapper with any associated warning.
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E>;
 
     /// Discards the completion

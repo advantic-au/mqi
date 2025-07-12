@@ -1,13 +1,11 @@
-use libmqm_constants::types::MQOO;
-
-use crate::{Error, ResultComp, ResultCompErr, structs};
+use crate::{Error, ResultComp, ResultCompErr, structs, types};
 
 pub struct OpenParamOption<'a, T> {
     pub mqod: structs::MQOD<'a>,
     pub options: T,
 }
 
-pub type OpenParam<'a> = OpenParamOption<'a, MQOO>;
+pub type OpenParam<'a> = OpenParamOption<'a, types::MQOO>;
 
 /// A trait that manipulates the parameters to the [`MQOPEN`](`::libmqm_sys::MQOPEN`) function
 #[diagnostic::on_unimplemented(

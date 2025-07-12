@@ -1,7 +1,7 @@
 use libmqm_sys as mq;
 
 use crate::Object;
-use crate::{MqStr, Properties, ResultComp, connection::Conn, constants, macros::all_multi_tuples, prelude::*, structs, types};
+use crate::{Conn, MqStr, Properties, ResultComp, constants, macros::all_multi_tuples, prelude::*, structs, types};
 
 use super::option;
 
