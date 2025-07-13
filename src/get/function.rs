@@ -1,21 +1,18 @@
-use crate::{
-    Buffer, CCSID, Completion, Conn, Error, ResultComp, ResultCompErr, StrCcsidCow, WriteRaw, headers::TextEnc, prelude::*,
-    structs,
-};
+use libmqm_default as default;
 
 use super::option;
-use crate::{Object, constants, types};
-
-use libmqm_default as default;
+use crate::{
+    Buffer, CCSID, Completion, Conn, Error, Object, ResultComp, ResultCompErr, StrCcsidCow, WriteRaw, constants,
+    headers::TextEnc, prelude::*, structs, types,
+};
 
 #[cfg(feature = "mqai")]
 mod mqai {
-    use super::option;
     use libmqm_default as default;
     use libmqm_sys::Mqai;
 
-    use crate::Conn;
-    use crate::{Bag, Completion, Error, Library, Object, Owned, ResultComp, constants, prelude::*, structs};
+    use super::option;
+    use crate::{Completion, Conn, Error, Library, Object, ResultComp, bag, constants, prelude::*, structs};
 
     impl<C: Conn> Object<C>
     where
@@ -24,7 +21,7 @@ mod mqai {
         pub fn get_bag_with<R: option::GetBagAttr>(
             &self,
             options: &impl option::GetOption,
-            bag: &mut Bag<Owned, impl Library<MQ: Mqai>>,
+            bag: &mut bag::Bag<bag::Owned, impl Library<MQ: Mqai>>,
         ) -> ResultComp<Option<R>> {
             let mut param = option::GetParam {
                 md: structs::MQMD2::new(default::MQMD2_DEFAULT),
@@ -59,7 +56,7 @@ mod mqai {
         pub fn get_bag(
             &self,
             options: &impl option::GetOption,
-            bag: &mut Bag<Owned, impl Library<MQ: Mqai>>,
+            bag: &mut bag::Bag<bag::Owned, impl Library<MQ: Mqai>>,
         ) -> ResultComp<bool> {
             self.get_bag_with::<()>(options, bag).map_completion(|o| o.is_some())
         }

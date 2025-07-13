@@ -2,11 +2,10 @@ use std::{fmt::Debug, mem};
 
 use libmqm_sys::Mqai;
 
-use super::{Bag, BagDrop};
+use super::{Bag, BagDrop, Filter};
 use crate::{
     CCSID, Completion, EncodedString, Error, Library, MqStr, NATIVE_IS_LE, ResultComp, ResultCompErr, StrCcsidOwned, StringCcsid,
     WithMqError, constants,
-    mqai::Filter,
     prelude::*,
     types::{MQBYTE, MQIND, MQINT64, MQITEM, MQLONG, Selector},
 };

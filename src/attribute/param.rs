@@ -1,7 +1,6 @@
 use libmqm_sys as mq;
 
 use super::option::AttributeType;
-
 use crate::{constants, types};
 
 // Create a string based InqReqType

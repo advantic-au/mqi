@@ -3,6 +3,7 @@ use std::{borrow::Cow, marker::PhantomData, num::NonZero, ptr};
 use libmqm_default as default;
 use libmqm_sys::{self as mq, Mqi};
 
+use super::option;
 use crate::{
     Buffer, Completion, Conn, ConnectionHandle, EncodedString, Error, Library, MessageHandle, MqFunctions, MqInqError,
     ResultComp, ResultCompErr, ResultErr, WriteRaw, constants,
@@ -10,8 +11,6 @@ use crate::{
     structs,
     types::{MQBMHO, MQBYTE, MQCHAR, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE, MessageFormat},
 };
-
-use super::option;
 
 #[derive(Debug)]
 pub struct Properties<C: Conn> {

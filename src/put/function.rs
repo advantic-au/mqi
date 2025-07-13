@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use libmqm_default as default;
 use libmqm_sys::{MQMD2, Mqi};
 
+use super::option;
 use crate::{
     CCSID, Conn, ConnectionHandle, Library, MqFunctions, Object, ResultComp, constants,
     headers::{TextEnc, fmt},
@@ -10,8 +11,6 @@ use crate::{
     structs,
     types::{MQPMO, MessageFormat},
 };
-
-use super::option;
 
 impl option::PutMessage for str {
     fn render(&self) -> Cow<'_, [u8]> {
@@ -44,7 +43,7 @@ mod mqai {
     use libmqm_sys::{MQMD2, Mqai};
 
     use super::option;
-    use crate::{Bag, BagDrop, Conn, Library, Object, ResultComp, headers::TextEnc, structs, types};
+    use crate::{Conn, Library, Object, ResultComp, bag, headers::TextEnc, structs, types};
 
     impl<C: Conn> Object<C>
     where
@@ -54,7 +53,7 @@ mod mqai {
             &self,
             put_options: &impl option::PutOption<'po>,
             format: TextEnc<types::Fmt>,
-            bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
+            bag: &bag::Bag<impl bag::BagDrop, impl Library<MQ: Mqai>>,
         ) -> ResultComp<()> {
             self.put_bag_with(put_options, format, bag)
         }
@@ -63,7 +62,7 @@ mod mqai {
             &self,
             put_options: &impl option::PutOption<'po>,
             format: TextEnc<types::Fmt>,
-            bag: &Bag<impl BagDrop, impl Library<MQ: Mqai>>,
+            bag: &bag::Bag<impl bag::BagDrop, impl Library<MQ: Mqai>>,
         ) -> ResultComp<R>
         where
             R: option::PutAttr,

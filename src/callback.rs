@@ -1,7 +1,6 @@
 use libmqm_sys::{self as mq, Mqi};
 
-use crate::ConnectionRef;
-use crate::{Library, MqFunctions, constants, structs, types};
+use crate::{ConnectionRef, Library, MqFunctions, constants, structs, types};
 
 struct CallbackData<F, L> {
     options: types::MQCBDO,

@@ -1,15 +1,13 @@
 use libmqm_sys as mq;
 
-use crate::Object;
+use super::option;
 use crate::{
-    CCSID, Conn, EncodedString, Error, MqStr, ResultComp, StrCcsidOwned, constants,
+    CCSID, Conn, EncodedString, Error, MqStr, Object, ResultComp, StrCcsidOwned, constants,
     macros::{all_multi_tuples, impl_from_str, reverse_ident},
     prelude::*,
     structs,
     types::{MQLONG, MQOO, MQOT, MQPMO, QueueManagerName, QueueName},
 };
-
-use super::option;
 
 unsafe impl<'oo, O, T: option::OpenOption<'oo, O>> option::OpenOption<'oo, O> for Option<T> {
     fn apply_param(&self, param: &mut option::OpenParamOption<'oo, O>) {

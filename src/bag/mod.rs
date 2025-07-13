@@ -4,15 +4,22 @@ use libmqm_sys::{Mqai, mqai};
 
 use crate::{
     Buffer, Completion, Error, Library, MqFunctions, MqInqError, ResultComp, ResultCompErr, WriteRaw, constants,
+    mqai::BagHandle,
     prelude::*,
     types::{MQBYTE, MQCA, MQCBO, MQIA, MQIND, MQLONG, Selector},
 };
 
+mod bag_item;
+mod filter;
+
+pub use bag_item::*;
+pub use filter::*;
+
+pub mod iterator;
+
 pub trait BagDrop: Sized {
     fn drop_bag<L: Library<MQ: Mqai>>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
 }
-
-use super::{BagHandle, BagItemGet, BagItemPut};
 
 pub trait InqSelect: Copy {
     fn selector(&self) -> Selector;

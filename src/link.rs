@@ -1,14 +1,11 @@
 use libmqm_sys::link::LinkedMq;
 #[cfg(feature = "mqai")]
-use {
-    crate::types::MQCBO,
-    crate::{Bag, Owned},
+use {crate::bag, crate::types::MQCBO};
+
+use crate::{
+    Connection, ResultComp, connect_lib_as,
+    connection::{ConnectAttr, ConnectOption, ConnectValue, Threading},
 };
-
-use crate::{Connection, ResultComp};
-
-use crate::connect_lib_as;
-use crate::connection::{ConnectAttr, ConnectOption, ConnectValue, Threading};
 
 /// Create a connection to a queue manager using the compile time linked MQ library
 /// and type inferred [`ConnectValue`].
@@ -78,7 +75,7 @@ where
 }
 
 #[cfg(feature = "mqai")]
-impl Bag<Owned, LinkedMq> {
+impl bag::Bag<bag::Owned, LinkedMq> {
     pub fn new(options: MQCBO) -> ResultComp<Self> {
         Self::new_lib(LinkedMq, options)
     }

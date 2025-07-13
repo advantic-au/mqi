@@ -1,9 +1,7 @@
 use libmqm_sys as mq;
 
-use crate::Object;
-use crate::{Conn, MqStr, Properties, ResultComp, constants, macros::all_multi_tuples, prelude::*, structs, types};
-
 use super::option;
+use crate::{Conn, MqStr, Object, Properties, ResultComp, constants, macros::all_multi_tuples, prelude::*, structs, types};
 
 structs::impl_min_version!(['a], structs::MQPMO<'a>);
 

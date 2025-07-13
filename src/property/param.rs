@@ -3,6 +3,7 @@
 use core::str;
 use std::{mem, num::NonZero, ptr, slice};
 
+use super::option;
 use crate::{
     CCSID, Completion, Error, MqStr, ReadRaw, ResultComp, StrCcsidOwned, StringCcsid, constants, conversion,
     macros::{all_multi_tuples, reverse_ident},
@@ -10,8 +11,6 @@ use crate::{
     structs,
     types::{MQBYTE, MQCHAR, MQCOPY, MQENC, MQFLOAT32, MQFLOAT64, MQIMPO, MQINT8, MQINT16, MQINT64, MQLONG, MQPD, MQTYPE},
 };
-
-use super::option;
 
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
@@ -628,8 +627,7 @@ unsafe impl option::PropertyValue for StrCcsidOwned {
 
 #[expect(unused_parens)]
 mod impl_property {
-    use super::all_multi_tuples;
-    use super::option;
+    use super::{all_multi_tuples, option};
     use crate::{ResultComp, ResultCompErr, prelude::*};
 
     macro_rules! impl_propertyvalue_tuple {

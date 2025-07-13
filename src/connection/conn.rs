@@ -1,11 +1,25 @@
 use libmqm_sys::Mqi;
+#[cfg(feature = "mqai")]
+use {
+    crate::{
+        bag::{Bag, BagDrop, Owned},
+        execute,
+    },
+    libmqm_sys::Mqai,
+};
 
-use crate::callback::function::register_event_handler;
-use crate::put::function::put_message_with;
-use crate::stat::function::{stat_put, stat_reconnection, stat_reconnection_error};
-use crate::stat::{AsyncPutStat, ReconnectionErrorStat, ReconnectionStat};
-use crate::{ConnectionHandle, ConnectionRef, Error, Library, MqFunctions, open, put, structs, types};
-use crate::{ResultComp, types::MQPMO};
+use crate::{
+    ConnectionHandle, ConnectionRef, Error, Library, MqFunctions, ResultComp,
+    callback::function::register_event_handler,
+    open, put,
+    put::function::put_message_with,
+    stat::{
+        AsyncPutStat, ReconnectionErrorStat, ReconnectionStat,
+        function::{stat_put, stat_reconnection, stat_reconnection_error},
+    },
+    structs, types,
+    types::MQPMO,
+};
 
 /// Associated connection handle and MQ library
 pub trait Conn {
@@ -65,5 +79,17 @@ pub trait Conn {
     #[inline]
     fn stat_reconnection_error(&self) -> ResultComp<ReconnectionErrorStat> {
         stat_reconnection_error(self.mq(), self.handle())
+    }
+
+    #[cfg(feature = "mqai")]
+    fn execute<'a>(
+        &self,
+        admin: &Bag<impl BagDrop, Self::Lib>,
+        options: &impl execute::ExecuteOption<'a>,
+    ) -> ResultComp<Bag<Owned, Self::Lib>>
+    where
+        Self::Lib: Library<MQ: Mqai> + Clone,
+    {
+        crate::execute::function::execute(self.mq(), self.handle(), admin, options)
     }
 }

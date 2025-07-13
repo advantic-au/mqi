@@ -1,8 +1,9 @@
 #![expect(clippy::allow_attributes)]
 #![expect(non_snake_case)]
 
-use libmqm_sys::{self as mq, mock::MockMq};
 use std::{cmp, rc::Rc, slice};
+
+use libmqm_sys::{self as mq, mock::MockMq};
 
 use crate::{Connection, Library, ResultCompExt, ThreadNone, connect_lib, constants, put, types};
 
@@ -146,10 +147,9 @@ pub fn subscribe_managed_ok(
 
 #[cfg(feature = "mqai")]
 pub mod mqai {
-    use crate::constants;
     use libmqm_sys::{Mqai, mock::MockMq};
 
-    use crate::{Library, types};
+    use crate::{Library, constants, types};
 
     pub fn get_bag_error(
         mock: &mut MockMq,

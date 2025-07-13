@@ -2,12 +2,11 @@ use std::borrow::Cow;
 
 use libmqm_sys as mq;
 
+use super::option;
 use crate::{
     Buffer, CCSID, Completion, Conn, Error, Properties, ResultComp, ResultCompErr, StrCcsidCow, constants, conversion, headers,
     prelude::*, structs, types,
 };
-
-use super::option;
 
 #[derive(Debug, Clone, Default)]
 pub struct MatchOptions<'a> {
@@ -209,7 +208,6 @@ impl option::GetOption for types::MsgToken {
 #[expect(unused_parens)]
 mod get_bag_impl {
     use super::option;
-
     use crate::{ResultComp, macros::all_multi_tuples, prelude::*};
 
     macro_rules! impl_getbagattr {

@@ -1,7 +1,9 @@
 #![cfg(feature = "mqai")]
 
 use mqi::{
-    Bag, Object, constants,
+    Object,
+    bag::Bag,
+    constants,
     headers::{TextEnc, fmt},
     open,
     prelude::*,

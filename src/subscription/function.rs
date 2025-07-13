@@ -1,15 +1,12 @@
 use libmqm_default as default;
 
-use crate::Conn;
-use crate::Object;
+use super::option;
 use crate::{
-    ObjectHandle, ResultComp, ResultCompErr, SubscriptionHandle, constants,
+    Conn, Object, ObjectHandle, ResultComp, ResultCompErr, SubscriptionHandle, constants,
     prelude::*,
     structs,
     types::{MQCO, MQLONG},
 };
-
-use super::option;
 
 #[derive(Debug)]
 pub struct Subscription<C: Conn> {

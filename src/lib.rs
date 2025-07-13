@@ -87,7 +87,7 @@ offering proven stability and performance.
 | [`mqInquireByteStringFilter`](libmqm_sys::mqai::mqInquireByteStringFilter) | [`Bag::inquire`] with [`Filter<Vec<MQBYTE>>`]                          |
 | [`mqInquireBag`](libmqm_sys::mqai::mqInquireBag)              | [`Bag::inquire`] with [`Bag`]                                          |
 | [`mqCountItems`](libmqm_sys::mqai::mqCountItems)              | [`Bag::count`]                                                         |
-| [`mqExecute`](libmqm_sys::mqai::mqExecute)                 | [`Conn::execute`](QueueManagerAdmin::execute)                          |
+| [`mqExecute`](libmqm_sys::mqai::mqExecute)                 | [`Conn::execute`]                          |
 | [`mqBagToBuffer`](libmqm_sys::mqai::mqBagToBuffer)             | [`Bag::to_buffer`], [`Bag::buffer_len`]                                |
 | [`mqBufferToBag`](libmqm_sys::mqai::mqBufferToBag)             | [`Bag::from_buffer`]                                                   |
 | [`mqInquireItemInfo`](libmqm_sys::mqai::mqInquireItemInfo)         | [`Bag::inquire`] with ([`Selector`](types::Selector), [`MQITEM`](types::MQITEM)) tuple |
@@ -106,28 +106,38 @@ offering proven stability and performance.
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg, doc_cfg_hide))]
 
+#[expect(unused_imports, reason = "Used in docsrs only")]
+#[cfg(feature = "mqai")]
+use bag::{Bag, Filter};
+
 mod mq_types;
 
 #[cfg(feature = "mqai")]
-mod mqai;
+pub mod execute {
+    pub(crate) mod function;
+    mod option;
+    mod param;
+
+    pub use option::*;
+    pub use param::*;
+}
+
 #[cfg(feature = "mqai")]
-pub use mqai::*;
+pub mod bag;
+
+#[cfg(feature = "mqai")]
+mod mqai {
+    mod handle;
+    mod verbs;
+
+    pub use handle::*;
+}
 
 pub mod types {
     pub use libmqm_constants::types::*;
     pub use libmqm_sys::{MQBYTE, MQCHAR, MQFLOAT32, MQFLOAT64, MQINT8, MQINT16, MQINT64, MQLONG};
 
     pub use super::mq_types::*;
-}
-
-pub mod param {
-    #[cfg(feature = "mqai")]
-    pub use super::mqai::param::*;
-}
-
-pub mod option {
-    #[cfg(feature = "mqai")]
-    pub use super::mqai::option::*;
 }
 
 mod struct_attach;

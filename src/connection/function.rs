@@ -1,8 +1,8 @@
-use super::option;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, rc::Rc, sync::Arc};
 
 use libmqm_sys::{self as mq, Mqi};
 
+use super::option;
 // #[cfg(feature = "link")]
 // pub use crate::link::*;
 use crate::{ConnectionHandle, Library, MqFunctions, ResultComp, prelude::*, types};
