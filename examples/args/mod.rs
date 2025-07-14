@@ -4,7 +4,7 @@ use clap::Args;
 use mqi::{
     MqStr,
     connection::{Binding, Ccdt, ConnectOption, Credentials, MqServer},
-    constants,
+    constants, string,
     types::{CertificateLabel, CipherSpec, KeyRepo, MQCNO, QueueManagerName},
 };
 
@@ -63,7 +63,7 @@ impl ConnectionArgs {
         Ok(cno_all)
     }
 
-    pub fn queue_manager_name(&self) -> Result<Option<QueueManagerName>, mqi::MqStrError> {
+    pub fn queue_manager_name(&self) -> Result<Option<QueueManagerName>, string::MqStrError> {
         self.connect_queue_manager
             .as_deref()
             .map(QueueManagerName::from_str) // Convert to QueueManagerName which has 48 character length
@@ -84,7 +84,7 @@ impl ConnectionArgs {
     pub fn tls(
         &self,
         default_cipher: &CipherSpec,
-    ) -> Result<Option<(KeyRepo, CipherSpec, Option<CertificateLabel>)>, mqi::MqStrError> {
+    ) -> Result<Option<(KeyRepo, CipherSpec, Option<CertificateLabel>)>, string::MqStrError> {
         let cipher = self
             .tls_cipher_spec
             .as_ref()

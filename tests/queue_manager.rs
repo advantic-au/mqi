@@ -30,7 +30,7 @@ fn thread() {
     });
 
     let (qm, (tag, id)) =
-        mqi::connect_lib_with::<(connection::ConnTag, connection::ConnectionId), mqi::ThreadBlock, _>(mock, &())
+        mqi::connect_lib_with::<(connection::ConnTag, connection::ConnectionId), connection::ThreadBlock, _>(mock, &())
             .discard_warning() // ignore warning
             .expect("connection should be established");
     let qm = Arc::new(qm);

@@ -2,9 +2,11 @@ use libmqm_sys as mq;
 
 use super::option;
 use crate::{
-    CCSID, Conn, EncodedString, result::Error, MqStr, Object, result::ResultComp, StrCcsidOwned, constants,
+    Conn, MqStr, Object, constants,
     macros::{all_multi_tuples, impl_from_str, reverse_ident},
     prelude::*,
+    result::{Error, ResultComp},
+    string::{CCSID, EncodedString, StrCcsidOwned},
     structs,
     types::{MQLONG, MQOO, MQOT, MQPMO, QueueManagerName, QueueName},
 };
@@ -212,7 +214,12 @@ unsafe impl<S, O> option::OpenAttr<S, O> for Option<ResObjectString> {
 #[expect(unused_parens)]
 mod open_impl {
     use super::option;
-    use crate::{result::ResultComp, result::ResultCompErr, macros::all_multi_tuples, prelude::*, types::MQOO};
+    use crate::{
+        macros::all_multi_tuples,
+        prelude::*,
+        result::{ResultComp, ResultCompErr},
+        types::MQOO,
+    };
 
     macro_rules! impl_openvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {

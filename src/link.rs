@@ -3,8 +3,9 @@ use libmqm_sys::link::LinkedMq;
 use {crate::bag, crate::types::MQCBO};
 
 use crate::{
-    Connection, result::ResultComp, connect_lib_as,
+    Connection, connect_lib_as,
     connection::{ConnectAttr, ConnectOption, ConnectValue, Threading},
+    result::ResultComp,
 };
 
 /// Create a connection to a queue manager using the compile time linked MQ library

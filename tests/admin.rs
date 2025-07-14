@@ -1,8 +1,9 @@
 #![cfg(all(feature = "mqai", feature = "mock", any(feature = "link", feature = "dlopen2")))]
 
 use mqi::{
-    MqStr, ThreadNone,
+    MqStr,
     bag::Bag,
+    connection::ThreadNone,
     constants,
     prelude::*,
     test,

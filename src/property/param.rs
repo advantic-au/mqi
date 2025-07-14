@@ -5,11 +5,13 @@ use std::{mem, num::NonZero, ptr, slice};
 
 use super::option;
 use crate::{
-    CCSID, result::Completion, result::Error, MqStr, ReadRaw, result::ResultComp, StrCcsidOwned, StringCcsid, constants, conversion,
+    MqStr, constants, conversion,
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
-    result::ResultCompErr,
+    result::{Completion, Error, ResultComp, ResultCompErr},
+    string::{CCSID, StrCcsidOwned, StringCcsid},
     structs,
+    traits::ReadRaw,
     types::{MQBYTE, MQCHAR, MQCOPY, MQENC, MQFLOAT32, MQFLOAT64, MQIMPO, MQINT8, MQINT16, MQINT64, MQLONG, MQPD, MQTYPE},
 };
 
@@ -629,7 +631,10 @@ unsafe impl option::PropertyValue for StrCcsidOwned {
 #[expect(unused_parens)]
 mod impl_property {
     use super::{all_multi_tuples, option};
-    use crate::{result::ResultComp, result::ResultCompErr, prelude::*};
+    use crate::{
+        prelude::*,
+        result::{ResultComp, ResultCompErr},
+    };
 
     macro_rules! impl_propertyvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
@@ -711,8 +716,12 @@ mod tests {
 
     use super::*;
     use crate::{
-        result::Completion, MqStr, result::ResultComp, result::ResultCompErr, result::ResultCompExt, StrCcsid, StrCcsidOwned, conversion::slice_byte_to_mqchar,
-        mqstr, types,
+        MqStr,
+        conversion::slice_byte_to_mqchar,
+        mqstr,
+        result::{Completion, ResultComp, ResultCompErr, ResultCompExt},
+        string::{StrCcsid, StrCcsidOwned},
+        types,
     };
 
     #[test]

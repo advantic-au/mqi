@@ -4,7 +4,7 @@ use mqi::{
     Object,
     bag::Bag,
     constants,
-    headers::{TextEnc, fmt},
+    header::{TextEnc, fmt},
     open,
     prelude::*,
     test, types,

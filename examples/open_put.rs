@@ -9,12 +9,13 @@ use clap::{Args, Parser};
 mod args;
 
 use mqi::{
-    CCSID, MqStr, Object, ThreadNone,
-    connection::Tls,
+    MqStr, Object,
+    connection::{ThreadNone, Tls},
     constants,
-    headers::TextEnc,
+    header::TextEnc,
     open::ObjectString,
     prelude::*,
+    string::CCSID,
     types::{ApplName, CipherSpec, MQENC, MQOO, MQPMO, MessageFormat, QueueManagerName, QueueName},
 };
 use tracing::Level;

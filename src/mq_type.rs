@@ -7,10 +7,12 @@ use libmqm_default as default;
 use libmqm_sys as mq;
 
 use crate::{
-    CCSID, MqChar, MqStr, Secret, constants,
-    headers::TextEnc,
+    MqChar, MqStr, constants,
+    header::TextEnc,
     macros::impl_from_str,
+    string::CCSID,
     structs,
+    traits::Secret,
     types::{MQBYTE, MQCHAR, MQENC, MQRC},
 };
 
@@ -156,7 +158,7 @@ impl MessageFormat {
 pub const FORMAT_NONE: MessageFormat = MessageFormat {
     ccsid: CCSID(1208),
     encoding: constants::MQENC_NATIVE,
-    fmt: TextEnc::Ascii(crate::headers::fmt::MQFMT_NONE),
+    fmt: TextEnc::Ascii(crate::header::fmt::MQFMT_NONE),
 };
 
 pub type Identifier<const N: usize> = [MQBYTE; N];

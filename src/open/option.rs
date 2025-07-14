@@ -1,4 +1,7 @@
-use crate::{result::Error, result::ResultComp, result::ResultCompErr, structs, types};
+use crate::{
+    result::{Error, ResultComp, ResultCompErr},
+    structs, types,
+};
 
 pub struct OpenParamOption<'a, T> {
     pub mqod: structs::MQOD<'a>,

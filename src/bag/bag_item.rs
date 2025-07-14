@@ -4,9 +4,10 @@ use libmqm_sys::Mqai;
 
 use super::{Bag, BagDrop, Filter};
 use crate::{
-    CCSID, result::Completion, EncodedString, result::Error, Library, MqStr, NATIVE_IS_LE, result::ResultComp, result::ResultCompErr, StrCcsidOwned, StringCcsid,
-    result::WithMqError, constants,
+    Library, MqStr, constants,
     prelude::*,
+    result::{Completion, Error, ResultComp, ResultCompErr, WithMqError},
+    string::{CCSID, EncodedString, StrCcsidOwned, StringCcsid},
     types::{MQBYTE, MQIND, MQINT64, MQITEM, MQLONG, Selector},
 };
 
@@ -228,14 +229,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for StrCcsidOwned {
             data.set_len(str_length);
         }
 
-        Ok(Completion(
-            Self {
-                le: NATIVE_IS_LE,
-                ccsid,
-                data,
-            },
-            warning,
-        ))
+        Ok(Completion(Self::from_vec(data, ccsid), warning))
     }
 
     type Error = Error;
@@ -261,17 +255,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<StrCcsidOwned> {
             data.set_len(str_length);
         }
 
-        Ok(Completion(
-            Self::new(
-                StringCcsid {
-                    le: NATIVE_IS_LE,
-                    ccsid,
-                    data,
-                },
-                operator,
-            ),
-            warning,
-        ))
+        Ok(Completion(Self::new(StringCcsid::from_vec(data, ccsid), operator), warning))
     }
 
     type Error = Error;
@@ -368,7 +352,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Selector {
 #[cfg(all(test, any(feature = "link", feature = "dlopen2")))]
 mod tests {
     use super::*;
-    use crate::{StrCcsidOwned, test::mq_library};
+    use crate::{string::StrCcsidOwned, test::mq_library};
 
     #[allow(
         clippy::allow_attributes,

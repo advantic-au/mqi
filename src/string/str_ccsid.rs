@@ -4,7 +4,7 @@ use libmqm_default as default;
 use libmqm_sys::MQCHARV;
 
 #[cfg(feature = "exits")]
-use crate::{CCSID, Conn, constants, conversion, structs, types};
+use crate::{Conn, constants, conversion, string::CCSID, structs, types};
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
@@ -23,7 +23,7 @@ pub type StrCcsid<'a> = StringCcsid<&'a [types::MQCHAR]>;
 pub type StrCcsidOwned = StringCcsid<Vec<types::MQCHAR>>;
 pub type StrCcsidCow<'a> = StringCcsid<Cow<'a, [types::MQCHAR]>>;
 
-pub const NATIVE_IS_LE: bool = constants::MQENC_NATIVE.contains(constants::MQENC_INTEGER_REVERSED);
+const NATIVE_IS_LE: bool = constants::MQENC_NATIVE.contains(constants::MQENC_INTEGER_REVERSED);
 
 #[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
 pub enum FromStringCcsidError {
@@ -240,7 +240,10 @@ mod test {
     use std::{borrow::Cow, mem};
 
     use super::NATIVE_IS_LE;
-    use crate::{CCSID, StrCcsid, StrCcsidCow, StringCcsid, types};
+    use crate::{
+        string::{CCSID, StrCcsid, StrCcsidCow, StringCcsid},
+        types,
+    };
 
     const NON_UTF8_COW: StrCcsidCow = StrCcsidCow {
         ccsid: CCSID(450),

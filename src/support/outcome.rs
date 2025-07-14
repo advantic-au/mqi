@@ -1,5 +1,6 @@
 use crate::{
-    result::Completion, result::Error, result::ResultCompErr, constants,
+    constants,
+    result::{Completion, Error, ResultCompErr},
     types::{MQCC, MQRC},
 };
 

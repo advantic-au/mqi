@@ -8,8 +8,8 @@ mod args;
 use anyhow::Context as _;
 use clap::Parser;
 use mqi::{
-    Subscription, ThreadNone,
-    connection::Tls,
+    Subscription,
+    connection::{ThreadNone, Tls},
     constants,
     get::GetWait,
     open::ObjectString,

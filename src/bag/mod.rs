@@ -3,10 +3,13 @@ use std::marker::PhantomData;
 use libmqm_sys::{Mqai, mqai};
 
 use crate::{
-    Buffer, result::Completion, result::Error, Library, MqFunctions, MqInqError, result::ResultComp, result::ResultCompErr, WriteRaw, constants,
+    Library, MqFunctions, constants,
     handle::BagHandle,
     prelude::*,
+    result::{Completion, Error, ResultComp, ResultCompErr},
+    traits::{Buffer, WriteRaw},
     types::{MQBYTE, MQCA, MQCBO, MQIA, MQIND, MQLONG, Selector},
+    verb::MqInqError,
 };
 
 mod bag_item;

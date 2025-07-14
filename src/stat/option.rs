@@ -1,5 +1,7 @@
 use crate::{
-    CCSID, MqStr, StrCcsidOwned, structs,
+    MqStr,
+    string::{CCSID, StrCcsidOwned},
+    structs,
     types::{MQCC, MQCHAR, MQLONG, MQOO, MQOT, MQRC, MQSO, ObjectName},
 };
 

@@ -1,6 +1,12 @@
 use std::num::NonZero;
 
-use crate::{Buffer, result::ResultComp, result::ResultCompErr, macros::all_option_tuples, structs, types};
+use crate::{
+    macros::all_option_tuples,
+    result::{ResultComp, ResultCompErr},
+    structs,
+    traits::Buffer,
+    types,
+};
 
 pub struct GetParam {
     pub md: structs::MQMD,

@@ -5,8 +5,8 @@ mod args;
 use anyhow::Context as _;
 use clap::{Parser, ValueEnum};
 use mqi::{
-    Object, Properties, Syncpoint, ThreadNone,
-    connection::Tls,
+    Object, Properties, Syncpoint,
+    connection::{ThreadNone, Tls},
     constants,
     prelude::*,
     put::{Context, PropertyAction},

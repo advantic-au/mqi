@@ -1,4 +1,8 @@
-use crate::{Conn, result::Error, Object, result::ResultComp, result::ResultCompErr, structs, types};
+use crate::{
+    Conn, Object,
+    result::{Error, ResultComp, ResultCompErr},
+    structs, types,
+};
 
 pub struct SubscribeState<C: Conn> {
     pub subscription: super::function::Subscription<C>,

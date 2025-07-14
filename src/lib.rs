@@ -66,7 +66,7 @@ offering proven stability and performance.
 | [`mqAddInteger`](libmqm_sys::mqai::mqAddInteger)              | [`Bag::add`] with [`MQLONG`](types::MQLONG)                            |
 | [`mqAddIntegerFilter`](libmqm_sys::mqai::mqAddIntegerFilter)        | [`Bag::add`] with [`Filter<MQLONG>`]                            |
 | [`mqAddInteger64`](libmqm_sys::mqai::mqAddInteger64)            | [`Bag::add`] with [`MQINT64`](types::MQINT64)                          |
-| [`mqAddString`](libmqm_sys::mqai::mqAddString)               | [`Bag::add`] with [`EncodedString`]                                    |
+| [`mqAddString`](libmqm_sys::mqai::mqAddString)               | [`Bag::add`] with [`EncodedString`](string::EncodedString)                                    |
 | [`mqAddStringFilter`](libmqm_sys::mqai::mqAddStringFilter)         | [`Bag::add`] with [`Filter<impl EncodedString>`]                       |
 | [`mqAddByteString`](libmqm_sys::mqai::mqAddByteString)           | [`Bag::add`] with [[`MQBYTE`](types::MQBYTE)]                          |
 | [`mqAddByteStringFilter`](libmqm_sys::mqai::mqAddByteStringFilter)     | [`Bag::add`] with [`Filter<&[MQBYTE]>`](Filter)                        |
@@ -74,7 +74,7 @@ offering proven stability and performance.
 | [`mqSetIntegerFilter`](libmqm_sys::mqai::mqSetIntegerFilter)        | [`Bag::set`] with [`Filter<MQLONG>`]                                      |
 | [`mqSetInteger64`](libmqm_sys::mqai::mqSetInteger64)            | [`Bag::set`] with [`MQINT64`](types::MQINT64)                                              |
 | [`mqAddBag`](libmqm_sys::mqai::mqAddBag)                  | [`Bag::add`] with [`Bag`]                                              |
-| [`mqSetString`](libmqm_sys::mqai::mqSetString)               | [`Bag::set`] with [`EncodedString`]                                    |
+| [`mqSetString`](libmqm_sys::mqai::mqSetString)               | [`Bag::set`] with [`EncodedString`](string::EncodedString)                                    |
 | [`mqSetStringFilter`](libmqm_sys::mqai::mqSetStringFilter)         | [`Bag::set`] with [`Filter<impl EncodedString>`]                       |
 | [`mqSetByteString`](libmqm_sys::mqai::mqSetByteString)           | [`Bag::set`] with [[`MQBYTE`](types::MQBYTE)]                          |
 | [`mqSetByteStringFilter`](libmqm_sys::mqai::mqSetByteStringFilter)     | [`Bag::set`] with [`Filter<&[MQBYTE]>`](Filter)                        |
@@ -82,7 +82,7 @@ offering proven stability and performance.
 | [`mqInquireIntegerFilter`](libmqm_sys::mqai::mqInquireIntegerFilter)    | [`Bag::inquire`] with [`Filter<MQLONG>`]                               |
 | [`mqInquireInteger64`](libmqm_sys::mqai::mqInquireInteger64)        | [`Bag::inquire`] with [`MQINT64`](types::MQINT64)                      |
 | [`mqInquireByteString`](libmqm_sys::mqai::mqInquireByteString)       | [`Bag::inquire`] with [`Vec<MQBYTE>`]                                  |
-| [`mqInquireString`](libmqm_sys::mqai::mqInquireString)           | [`Bag::inquire`] with [`StringCcsidOwned`](StringCcsid)                |
+| [`mqInquireString`](libmqm_sys::mqai::mqInquireString)           | [`Bag::inquire`] with [`StringCcsidOwned`](string::StringCcsid)                |
 | [`mqInquireStringFilter`](libmqm_sys::mqai::mqInquireStringFilter)     | [`Bag::inquire`] with [`Filter<StringCcsidOwned>`]                     |
 | [`mqInquireByteStringFilter`](libmqm_sys::mqai::mqInquireByteStringFilter) | [`Bag::inquire`] with [`Filter<Vec<MQBYTE>>`]                          |
 | [`mqInquireBag`](libmqm_sys::mqai::mqInquireBag)              | [`Bag::inquire`] with [`Bag`]                                          |
@@ -96,7 +96,7 @@ offering proven stability and performance.
 
 | Exits API     | Crate function(s)               |
 |---------------|---------------------------------|
-| [`MQXCNVC`](libmqm_sys::MQXCNVC) | [`StringCcsid::try_mq_convert`] |
+| [`MQXCNVC`](libmqm_sys::MQXCNVC) | [`StringCcsid::try_mq_convert`](string::StringCcsid::try_mq_convert) |
 | [`MQXEP`](libmqm_sys::exits::MQXEP) | *Not implemented yet* |
 | [`MQXCLWLN`](libmqm_sys::exits::MQXCLWLN) | *Not implemented yet* |
 | [`MQXDX`](libmqm_sys::exits::MQXDX) | *Not implemented yet* |
@@ -110,7 +110,7 @@ offering proven stability and performance.
 #[cfg(feature = "mqai")]
 use bag::{Bag, Filter};
 
-mod mq_types;
+mod mq_type;
 
 #[cfg(feature = "mqai")]
 pub mod execute {
@@ -125,16 +125,11 @@ pub mod execute {
 #[cfg(feature = "mqai")]
 pub mod bag;
 
-#[cfg(feature = "mqai")]
-mod mqai {
-    mod verbs;
-}
-
 pub mod types {
     pub use libmqm_constants::types::*;
     pub use libmqm_sys::{MQBYTE, MQCHAR, MQFLOAT32, MQFLOAT64, MQINT8, MQINT16, MQINT64, MQLONG};
 
-    pub use super::mq_types::*;
+    pub use super::mq_type::*;
 }
 
 mod struct_attach;
@@ -150,24 +145,31 @@ pub mod test;
 mod library;
 pub use library::*;
 
-mod verbs;
-pub use verbs::*;
+pub mod verb {
+    #[cfg(feature = "mqai")]
+    mod mqai;
+    mod mqi;
 
-mod ccsid;
-pub use ccsid::*;
+    pub use mqi::MqInqError;
+}
 
-mod mqstr;
-pub use mqstr::*;
+pub mod string {
+    mod ccsid;
+    pub(super) mod mqstr;
+    mod str_ccsid;
 
-mod strings;
-pub use strings::*;
+    pub use ccsid::CCSID;
+    pub use mqstr::MqStrError;
+    pub use str_ccsid::*;
+}
+
+pub use string::mqstr::{MqChar, MqStr};
 
 pub mod result;
 
 pub mod handle;
 
-mod traits;
-pub use traits::*;
+pub mod traits;
 
 mod support {
     pub mod conversion;
@@ -177,7 +179,7 @@ mod support {
 }
 pub(crate) use support::{conversion, encoding, macros};
 
-pub mod headers;
+pub mod header;
 
 #[cfg(feature = "link")]
 mod link;
@@ -185,7 +187,7 @@ mod link;
 pub use link::*;
 
 pub mod get {
-    pub(crate) mod function;
+    mod function;
     mod option;
     mod param;
 
@@ -194,7 +196,7 @@ pub mod get {
 }
 
 pub mod attribute {
-    pub(crate) mod function;
+    mod function;
     mod option;
     mod param;
 
@@ -203,18 +205,22 @@ pub mod attribute {
 }
 
 pub mod connection {
-    pub(crate) mod conn;
-    pub(crate) mod function;
+    pub(super) mod conn;
+    pub(super) mod function;
     mod option;
     mod param;
 
+    pub use function::{ThreadBlock, ThreadNoBlock, ThreadNone};
     pub use option::*;
     pub use param::*;
 }
-pub use connection::conn::Conn;
+pub use connection::{
+    conn::Conn,
+    function::{Connection, ConnectionRef, connect_lib, connect_lib_as, connect_lib_with},
+};
 
 pub mod open {
-    pub(crate) mod function;
+    mod function;
     mod option;
     mod param;
 
@@ -223,31 +229,35 @@ pub mod open {
 }
 
 pub mod property {
-    pub(crate) mod function;
+    pub(super) mod function;
     mod option;
     mod param;
 
+    pub use function::MsgPropIter;
     pub use option::*;
     pub use param::*;
 }
+pub use property::function::Properties;
 
 pub mod put {
-    pub(crate) mod function;
+    mod function;
     mod option;
     mod param;
 
+    pub use function::put_message_with;
     pub use option::*;
     pub use param::*;
 }
 
 pub mod subscription {
-    pub(crate) mod function;
+    pub(super) mod function;
     mod option;
     mod param;
 
     pub use option::*;
     // pub use param::*;
 }
+pub use subscription::function::Subscription;
 
 pub mod stat {
     pub(crate) mod function;
@@ -255,10 +265,6 @@ pub mod stat {
 
     pub use option::*;
 }
-
-pub use connection::function::*;
-pub use property::function::*;
-pub use subscription::function::*;
 
 mod object;
 pub use object::Object;

@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, iter};
 
 use super::option;
-use crate::{Conn, Object, result::ResultComp, prelude::*, types};
+use crate::{Conn, Object, prelude::*, result::ResultComp, types};
 
 impl<C: Conn> Object<C> {
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.

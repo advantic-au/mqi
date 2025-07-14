@@ -7,12 +7,13 @@ use std::{
 use libmqm_sys as mq;
 use maybe_owned::MaybeOwned;
 
-use super::{
-    StrCcsid, StringCcsid,
+use crate::{
+    MqChar, constants, conversion,
     encoding::{ascii7_ebcdic, ebcdic_ascii7},
+    string::{CCSID, StrCcsid, StringCcsid},
+    types,
     types::{Fmt, MessageFormat, StrucId},
 };
-use crate::{CCSID, MqChar, constants, conversion, types};
 
 /// Copy a Cstr to an array of length N (const)
 const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
@@ -683,7 +684,7 @@ mod tests {
     use super::*;
     use crate::{
         constants,
-        headers::{EncodedHeader, Header, HeaderError},
+        header::{EncodedHeader, Header, HeaderError},
         types::MessageFormat,
     };
 

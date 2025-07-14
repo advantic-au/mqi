@@ -7,7 +7,7 @@ use mqi::{
     attribute::{AttributeType, AttributeValue, InqResItem},
     constants,
     get::Headers,
-    headers::fmt,
+    header::fmt,
     open::SelectionString,
     prelude::*,
     test,

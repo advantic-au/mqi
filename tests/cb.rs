@@ -6,11 +6,14 @@ use std::{error::Error, ptr, sync::Arc, thread};
 use libmqm_default as default;
 use libmqm_sys as mq;
 use mqi::{
-    MQMD, Object, ThreadBlock, ThreadNone, constants,
+    Object,
+    connection::{ThreadBlock, ThreadNone},
+    constants,
     handle::ConnectionHandle,
     prelude::*,
     structs,
     test::mock,
+    traits::MQMD,
     types::{MQCBCF, MQCBCT, MQCC, MQCS, MQRC, MQRD},
 };
 

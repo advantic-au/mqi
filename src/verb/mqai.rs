@@ -5,12 +5,16 @@ use libmqm_sys::{self as mq, Mqai, mqai};
 use {crate::support::outcome::tracing_outcome, tracing::instrument};
 
 use crate::{
-    CCSID, result::Error, Library, MQMD, MqFunctions, MqInqError, result::ResultComp, result::ResultCompErr, WriteRaw,
+    Library, MqFunctions,
     bag::Filter,
     constants,
     handle::{BagHandle, ConnectionHandle, ObjectHandle},
+    result::{Error, ResultComp, ResultCompErr},
+    string::CCSID,
     support::outcome::{MqiOutcome, MqiOutcomeVoid},
+    traits::{MQMD, WriteRaw},
     types::{MQCBO, MQCFOP, MQCMD, MQIND, MQITEM, MQLONG, Selector},
+    verb::MqInqError,
 };
 
 impl<L: Library<MQ: Mqai>> MqFunctions<L> {

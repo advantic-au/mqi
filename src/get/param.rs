@@ -4,8 +4,13 @@ use libmqm_sys as mq;
 
 use super::option;
 use crate::{
-    Buffer, CCSID, result::Completion, Conn, result::Error, Properties, result::ResultComp, result::ResultCompErr, StrCcsidCow, constants, conversion, headers,
-    prelude::*, structs, types,
+    Conn, Properties, constants, conversion, header,
+    prelude::*,
+    result::{Completion, Error, ResultComp, ResultCompErr},
+    string::{CCSID, StrCcsidCow},
+    structs,
+    traits::Buffer,
+    types,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -45,23 +50,23 @@ pub struct Headers<'a> {
     message_length: usize,
     init_format: types::MessageFormat,
     data: Cow<'a, [u8]>,
-    error: Option<headers::HeaderError>,
+    error: Option<header::HeaderError>,
 }
 
 impl<'a> Headers<'a> {
-    pub fn all_headers(&'a self) -> impl Iterator<Item = headers::Header<'a>> {
-        headers::Header::iter(&self.data, self.init_format).filter_map(|result| match result {
+    pub fn all_headers(&'a self) -> impl Iterator<Item = header::Header<'a>> {
+        header::Header::iter(&self.data, self.init_format).filter_map(|result| match result {
             Ok((header, ..)) => Some(header),
             Err(_) => None,
         })
     }
 
-    pub fn header<C: headers::ChainedHeader + 'a>(&'a self) -> impl Iterator<Item = headers::EncodedHeader<'a, C>> {
+    pub fn header<C: header::ChainedHeader + 'a>(&'a self) -> impl Iterator<Item = header::EncodedHeader<'a, C>> {
         self.all_headers().filter_map(C::from_header)
     }
 
     #[must_use]
-    pub const fn error(&self) -> Option<&headers::HeaderError> {
+    pub const fn error(&self) -> Option<&header::HeaderError> {
         self.error.as_ref()
     }
 
@@ -77,7 +82,7 @@ pub enum GetStringError {
     #[display("Message parsing error: {_0}")]
     Utf8Parse(std::str::Utf8Error, Option<types::Warning>),
     #[display("Unexpected format or CCSID. Message format = '{_0}', CCSID = {_1}")]
-    UnexpectedFormat(headers::TextEnc<types::Fmt>, CCSID, Option<types::Warning>),
+    UnexpectedFormat(header::TextEnc<types::Fmt>, CCSID, Option<types::Warning>),
     #[from]
     MQ(Error),
 }
@@ -85,7 +90,7 @@ pub enum GetStringError {
 #[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
 pub enum GetStringCcsidError {
     #[display("Unexpected format. Message format = '{_0}'")]
-    UnexpectedFormat(headers::TextEnc<types::Fmt>, Option<types::Warning>),
+    UnexpectedFormat(header::TextEnc<types::Fmt>, Option<types::Warning>),
     #[from]
     MQ(Error),
 }
@@ -208,7 +213,7 @@ impl option::GetOption for types::MsgToken {
 #[expect(unused_parens)]
 mod get_bag_impl {
     use super::option;
-    use crate::{result::ResultComp, macros::all_multi_tuples, prelude::*};
+    use crate::{macros::all_multi_tuples, prelude::*, result::ResultComp};
 
     macro_rules! impl_getbagattr {
         ([$first:ident, $($ty:ident),*]) => {
@@ -255,10 +260,11 @@ mod get_bag_impl {
 mod get_impl {
     use super::option;
     use crate::{
-        Buffer, result::ResultComp, result::ResultCompErr,
         get::{GetAttr, GetState, GetValue},
         macros::all_multi_tuples,
         prelude::*,
+        result::{ResultComp, ResultCompErr},
+        traits::Buffer,
     };
 
     macro_rules! impl_getvalue {
@@ -342,7 +348,7 @@ impl<'b, B> option::GetValue<'b, u8, B> for StrCcsidCow<'b> {
         B: Buffer<'b, u8>,
     {
         let state = get(param)?;
-        if state.format.fmt != headers::TextEnc::Ascii(headers::fmt::MQFMT_STRING) {
+        if state.format.fmt != header::TextEnc::Ascii(header::fmt::MQFMT_STRING) {
             return Err(GetStringCcsidError::UnexpectedFormat(state.format.fmt, state.warning()));
         }
 
@@ -365,7 +371,7 @@ impl<'b, B> option::GetValue<'b, u8, B> for Cow<'b, str> {
         // TODO: set 1208 in MQMD?
         let get_result = get(param)?;
 
-        if get_result.format.fmt != headers::TextEnc::Ascii(headers::fmt::MQFMT_STRING) || get_result.format.ccsid != 1208 {
+        if get_result.format.fmt != header::TextEnc::Ascii(header::fmt::MQFMT_STRING) || get_result.format.ccsid != 1208 {
             return Err(GetStringError::UnexpectedFormat(
                 get_result.format.fmt,
                 get_result.format.ccsid,
@@ -445,7 +451,7 @@ impl<'b> super::GetAttr<'b, u8> for Headers<'b> {
         let mut header_length = 0;
         let mut final_format = state.format;
         let mut error = None;
-        for result in headers::Header::iter(data, state.format) {
+        for result in header::Header::iter(data, state.format) {
             match result {
                 Ok((.., header_size, message_format)) => {
                     header_length += header_size;
@@ -510,18 +516,18 @@ mod test {
     use types::{CorrelationId, Identifier, MessageFormat};
 
     use super::*;
-    use crate::{CCSID, constants};
+    use crate::{constants, string::CCSID};
 
     const FMT_STRING: types::MessageFormat = types::MessageFormat {
         ccsid: CCSID(1208),
         encoding: constants::MQENC_NATIVE,
-        fmt: headers::TextEnc::Ascii(headers::fmt::MQFMT_STRING),
+        fmt: header::TextEnc::Ascii(header::fmt::MQFMT_STRING),
     };
 
     const FMT_BYTES: types::MessageFormat = types::MessageFormat {
         ccsid: CCSID(1208),
         encoding: constants::MQENC_NATIVE,
-        fmt: headers::TextEnc::Ascii(headers::fmt::MQFMT_NONE),
+        fmt: header::TextEnc::Ascii(header::fmt::MQFMT_NONE),
     };
 
     fn mock_get_failure<T>(rc: types::MQRC) -> impl FnOnce(&mut option::GetParam) -> ResultComp<T> {
@@ -600,7 +606,7 @@ mod test {
         assert!(matches!(
             empty_bytes,
             Err(GetStringCcsidError::UnexpectedFormat(
-                headers::TextEnc::Ascii(headers::fmt::MQFMT_NONE),
+                header::TextEnc::Ascii(header::fmt::MQFMT_NONE),
                 None
             ))
         ));
@@ -633,7 +639,7 @@ mod test {
         assert!(matches!(
             empty_bytes,
             Err(GetStringError::UnexpectedFormat(
-                headers::TextEnc::Ascii(headers::fmt::MQFMT_NONE),
+                header::TextEnc::Ascii(header::fmt::MQFMT_NONE),
                 _,
                 None
             ))

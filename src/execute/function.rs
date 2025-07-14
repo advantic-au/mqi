@@ -2,11 +2,12 @@ use libmqm_sys::Mqai;
 
 use super::option::{ExecuteOption, ExecuteParam};
 use crate::{
-    Library, MqFunctions, result::ResultComp,
+    Library, MqFunctions,
     bag::{Bag, BagDrop, Owned},
     constants,
     handle::ConnectionHandle,
     prelude::*,
+    result::ResultComp,
 };
 
 pub fn execute<'a, L: Library<MQ: Mqai> + Clone>(

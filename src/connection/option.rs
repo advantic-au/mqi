@@ -1,5 +1,6 @@
 use crate::{
-    result::ResultComp, structs,
+    result::ResultComp,
+    structs,
     types::{self, QueueManagerName},
 };
 
@@ -10,8 +11,8 @@ pub(super) trait Sealed {}
 
 /// [`Connection`](crate::Connection) threading behaviour.
 ///
-/// This must be one of [`ThreadNone`](crate::ThreadNone), [`ThreadNoBlock`](crate::ThreadBlock)
-/// or [`ThreadBlock`](crate::ThreadBlock). This value will influence the [`Send`] and [`Sync`] traits
+/// This must be one of [`ThreadNone`](crate::connection::ThreadNone), [`ThreadNoBlock`](crate::connection::ThreadBlock)
+/// or [`ThreadBlock`](crate::connection::ThreadBlock). This value will influence the [`Send`] and [`Sync`] traits
 /// on the [`Connection`](crate::Connection).
 ///
 /// For more information on multithreading support for MQ connections refer to [thread independent connections].

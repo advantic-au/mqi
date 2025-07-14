@@ -2,8 +2,14 @@ use libmqm_default as default;
 
 use super::option;
 use crate::{
-    Buffer, CCSID, result::Completion, Conn, result::Error, Object, result::ResultComp, result::ResultCompErr, StrCcsidCow, WriteRaw, constants,
-    headers::TextEnc, prelude::*, structs, types,
+    Conn, Object, constants,
+    header::TextEnc,
+    prelude::*,
+    result::{Completion, Error, ResultComp, ResultCompErr},
+    string::{CCSID, StrCcsidCow},
+    structs,
+    traits::{Buffer, WriteRaw},
+    types,
 };
 
 #[cfg(feature = "mqai")]
@@ -12,7 +18,12 @@ mod mqai {
     use libmqm_sys::Mqai;
 
     use super::option;
-    use crate::{result::Completion, Conn, result::Error, Library, Object, result::ResultComp, bag, constants, prelude::*, structs};
+    use crate::{
+        Conn, Library, Object, bag, constants,
+        prelude::*,
+        result::{Completion, Error, ResultComp},
+        structs,
+    };
 
     impl<C: Conn> Object<C>
     where

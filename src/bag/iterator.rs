@@ -4,8 +4,9 @@ use libmqm_sys::Mqai;
 
 use super::{Bag, BagDrop, BagItemGet, Embedded};
 use crate::{
-    result::Error, Library, result::ResultComp, result::ResultCompErr, result::WithMqError as _, constants,
+    Library, constants,
     prelude::*,
+    result::{Error, ResultComp, ResultCompErr, WithMqError as _},
     types::{MQIND, MQLONG, Selector},
 };
 

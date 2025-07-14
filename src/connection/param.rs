@@ -6,18 +6,19 @@ use libmqm_sys as mq;
 
 use super::option;
 use crate::{
-    MqStr, Secret, constants, conversion,
+    MqStr, constants, conversion,
     macros::{all_multi_tuples, reverse_ident},
-    result::ResultComp,
     prelude::*,
+    result::ResultComp,
     structs,
+    traits::Secret,
     types::{self, CertificateLabel, CipherSpec, CryptoHardware, KeyRepo, ProtectedSecret, QueueManagerName},
 };
 
 #[expect(unused_parens)]
 mod connect_impl {
     use super::option::{ConnectAttr, ConnectParam, ConnectValue};
-    use crate::{result::ResultComp, macros::all_multi_tuples, prelude::*};
+    use crate::{macros::all_multi_tuples, prelude::*, result::ResultComp};
 
     macro_rules! impl_connectvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {

@@ -9,11 +9,12 @@ use {
 };
 
 use crate::{
-    ConnectionRef, result::Error, Library, MqFunctions, result::ResultComp,
+    ConnectionRef, Library, MqFunctions,
     callback::function::register_event_handler,
     handle::ConnectionHandle,
     open, put,
-    put::function::put_message_with,
+    put::put_message_with,
+    result::{Error, ResultComp},
     stat::{
         AsyncPutStat, ReconnectionErrorStat, ReconnectionStat,
         function::{stat_put, stat_reconnection, stat_reconnection_error},

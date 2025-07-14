@@ -3,7 +3,7 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, rc::Rc, sync::Arc};
 use libmqm_sys::{self as mq, Mqi};
 
 use super::option;
-use crate::{Library, MqFunctions, result::ResultComp, handle::ConnectionHandle, prelude::*, types};
+use crate::{Library, MqFunctions, handle::ConnectionHandle, prelude::*, result::ResultComp, types};
 
 /// A connection to an IBM MQ queue manager
 #[derive(Debug)]

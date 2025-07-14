@@ -5,12 +5,15 @@ use libmqm_sys::{self as mq, Mqi};
 
 use super::option;
 use crate::{
-    Buffer, result::Completion, Conn, EncodedString, result::Error, Library, MqFunctions, MqInqError, result::ResultComp, result::ResultCompErr, result::ResultErr,
-    WriteRaw, constants,
+    Conn, Library, MqFunctions, constants,
     handle::{ConnectionHandle, MessageHandle},
     prelude::*,
+    result::{Completion, Error, ResultComp, ResultCompErr, ResultErr},
+    string::EncodedString,
     structs,
+    traits::{Buffer, WriteRaw},
     types::{MQBMHO, MQBYTE, MQCHAR, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE, MessageFormat},
+    verb::MqInqError,
 };
 
 #[derive(Debug)]
@@ -514,13 +517,16 @@ mod test {
 
     use super::*;
     use crate::{
-        CCSID, Connection, result::ResultErr, ThreadNone,
+        Connection,
+        connection::ThreadNone,
         constants::{
             self, MQCC_FAILED, MQCC_OK, MQRC_CALL_IN_PROGRESS, MQRC_NONE, MQRC_PROPERTY_NAME_TOO_BIG,
             MQRC_PROPERTY_NOT_AVAILABLE, MQRC_PROPERTY_VALUE_TOO_BIG, MQTYPE_BYTE_STRING,
         },
-        headers::{TextEnc, fmt::MQFMT_NONE},
+        header::{TextEnc, fmt::MQFMT_NONE},
         property::Name,
+        result::ResultErr,
+        string::CCSID,
         test::mock,
         types::{MQCC, MQRC, MessageFormat},
     };
