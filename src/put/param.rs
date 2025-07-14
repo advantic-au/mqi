@@ -80,7 +80,7 @@ unsafe impl option::PutOption<'_> for types::MQPMO {
     }
 }
 
-unsafe impl option::PutOption<'_> for structs::MQMD2 {
+unsafe impl option::PutOption<'_> for structs::MQMD {
     fn apply_param(&self, param: &mut option::PutParam<'_>) {
         self.clone_into(&mut param.0);
     }
@@ -148,7 +148,7 @@ unsafe impl<'po, C: Conn, C2: Conn> option::PutOption<'po> for PropertyAction<'p
     }
 }
 
-unsafe impl option::PutAttr for structs::MQMD2 {
+unsafe impl option::PutAttr for structs::MQMD {
     #[inline]
     fn put_bag_extract<'b, F>(param: &mut option::PutParam<'b>, put: F) -> ResultComp<Self>
     where
@@ -273,7 +273,7 @@ mod test {
         });
 
         let mut put_param = (
-            structs::MQMD2::new(default::MQMD2_DEFAULT),
+            structs::MQMD::new(default::MQMD_DEFAULT),
             structs::MQPMO::new(default::MQPMO_DEFAULT),
         );
 

@@ -402,7 +402,7 @@ impl<C: Conn> Properties<C> {
         let mut buf = buffer;
         let mut mhbo = structs::MQMHBO::new(default::MQMHBO_DEFAULT);
         *mhbo.Options.as_mut() = read_only_options;
-        let mut mqmd = structs::MQMD2::new(default::MQMD2_DEFAULT);
+        let mut mqmd = structs::MQMD::new(default::MQMD_DEFAULT);
         let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
 
         // SAFETY: The name MQCHARV formed from references
@@ -419,7 +419,7 @@ impl<C: Conn> Properties<C> {
                 )
                 .map_completion(|len| {
                     (
-                        MessageFormat::from_mqmd2(&mqmd),
+                        MessageFormat::from_mqmd(&mqmd),
                         buf.truncate(len.try_into().expect("length should convert to usize")),
                     )
                 })
@@ -438,7 +438,7 @@ impl<C: Conn> Properties<C> {
             Options: options.0,
             ..default::MQMHBO_DEFAULT
         });
-        let mut mqmd = structs::MQMD2::new(default::MQMD2_DEFAULT);
+        let mut mqmd = structs::MQMD::new(default::MQMD_DEFAULT);
         let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
 
         // SAFETY: The name MQCHARV is formed from references
@@ -455,7 +455,7 @@ impl<C: Conn> Properties<C> {
                 )
                 .map_completion(|len| {
                     (
-                        MessageFormat::from_mqmd2(&mqmd),
+                        MessageFormat::from_mqmd(&mqmd),
                         buf.truncate(len.try_into().expect("length should convert to usize")),
                     )
                 })
@@ -496,7 +496,7 @@ impl<C: Conn> Properties<C> {
             .mqbufmh(Some(self.connection.handle()), &self.handle, &bmho, &mut *mqmd, buffer)
             .map_completion(|len| {
                 (
-                    MessageFormat::from_mqmd2(&mqmd),
+                    MessageFormat::from_mqmd(&mqmd),
                     &buffer[..len.try_into().expect("length should convert to usize")],
                 )
             })

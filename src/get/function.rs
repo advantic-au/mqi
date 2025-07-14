@@ -24,7 +24,7 @@ mod mqai {
             bag: &mut bag::Bag<bag::Owned, impl Library<MQ: Mqai>>,
         ) -> ResultComp<Option<R>> {
             let mut param = option::GetParam {
-                md: structs::MQMD2::new(default::MQMD2_DEFAULT),
+                md: structs::MQMD::new(default::MQMD_DEFAULT),
                 gmo: structs::MQGMO::new(default::MQGMO_DEFAULT),
             };
             let mut no_msg_available = false;
@@ -118,7 +118,7 @@ impl<C: Conn> Object<C> {
         use libmqm_sys as mq;
 
         let mut param = option::GetParam {
-            md: structs::MQMD2::new(default::MQMD2_DEFAULT),
+            md: structs::MQMD::new(default::MQMD_DEFAULT),
             gmo: structs::MQGMO::new(mq::MQGMO {
                 Version: mq::MQGMO_VERSION_3, // Version 3 for ReturnedLength
                 ..default::MQGMO_DEFAULT

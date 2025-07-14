@@ -9,7 +9,7 @@ pub trait PutMessage {
     fn format(&self) -> MessageFormat;
 }
 
-pub type PutParam<'a> = (structs::MQMD2, structs::MQPMO<'a>);
+pub type PutParam<'a> = (structs::MQMD, structs::MQPMO<'a>);
 
 /// A trait that manipulates the parameters to the [`MQPUT`](`::libmqm_sys::MQPUT`) function
 ///

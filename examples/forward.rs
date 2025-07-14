@@ -99,7 +99,7 @@ fn main() -> anyhow::Result<()> {
     let syncpoint = Syncpoint::new(qm_ref);
 
     let mut properties = Properties::new(&qm, MQCMHO::default())?;
-    let message: Option<(_, structs::MQMD2)> = obj
+    let message: Option<(_, structs::MQMD)> = obj
         .get_data_with(
             &(
                 constants::MQGMO_SYNCPOINT, // Must use the syncpoint option
@@ -116,7 +116,7 @@ fn main() -> anyhow::Result<()> {
             buffer.set_len(len);
         }
         let mut target_properties = Properties::new(&qm, MQCMHO::default())?; // Create a placeholder for target properties
-        let fmt = MessageFormat::from_mqmd2(&md);
+        let fmt = MessageFormat::from_mqmd(&md);
         qm_ref
             .put_message(
                 // Equivalent to MQPUT1
@@ -134,7 +134,7 @@ fn main() -> anyhow::Result<()> {
                 ),
                 &(
                     // Options used when putting to the queue
-                    md,                                                           // Original MQMD2
+                    md,                                                           // Original MQMD
                     Context(&obj),                                                // Source object as context
                     PropertyAction::Forward(&properties, &mut target_properties), // Forward the properties
                 ),

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use libmqm_default as default;
-use libmqm_sys::{MQMD2, Mqi};
+use libmqm_sys::{MQMD, Mqi};
 
 use super::option;
 use crate::{
@@ -38,9 +38,8 @@ impl<B: AsRef<[u8]>> option::PutMessage for (B, MessageFormat) {
 
 #[cfg(feature = "mqai")]
 mod mqai {
-    // use super::option;
     use libmqm_default as default;
-    use libmqm_sys::{MQMD2, Mqai};
+    use libmqm_sys::{MQMD, Mqai};
 
     use super::option;
     use crate::{Conn, Library, Object, ResultComp, bag, headers::TextEnc, structs, types};
@@ -67,9 +66,9 @@ mod mqai {
         where
             R: option::PutAttr,
         {
-            let md = structs::MQMD2::new(MQMD2 {
+            let md = structs::MQMD::new(MQMD {
                 Format: format.into_ascii().into(),
-                ..default::MQMD2_DEFAULT
+                ..default::MQMD_DEFAULT
             });
             let mqpmo = structs::MQPMO::new(default::MQPMO_DEFAULT);
 
@@ -151,11 +150,11 @@ where
         encoding,
         fmt,
     } = message.format();
-    let md = structs::MQMD2::new(MQMD2 {
+    let md = structs::MQMD::new(MQMD {
         CodedCharSetId: ccsid,
         Encoding: encoding.0,
         Format: *fmt.into_ascii().as_ref(),
-        ..default::MQMD2_DEFAULT
+        ..default::MQMD_DEFAULT
     });
     let mqpmo = structs::MQPMO::new(default::MQPMO_DEFAULT);
 

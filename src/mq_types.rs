@@ -134,7 +134,7 @@ pub struct MessageFormat {
 impl MessageFormat {
     #[must_use]
     #[allow(clippy::allow_attributes, clippy::missing_const_for_fn)]
-    pub fn from_mqmd2(md: &structs::MQMD2) -> Self {
+    pub fn from_mqmd(md: &structs::MQMD) -> Self {
         Self {
             ccsid: CCSID(md.CodedCharSetId),
             encoding: MQENC(md.Encoding),
@@ -143,12 +143,12 @@ impl MessageFormat {
     }
 
     #[must_use]
-    pub fn into_mqmd2(&self) -> structs::MQMD2 {
-        structs::MQMD2::new(mq::MQMD2 {
+    pub fn into_mqmd2(&self) -> structs::MQMD {
+        structs::MQMD::new(mq::MQMD {
             CodedCharSetId: self.ccsid.0,
             Encoding: self.encoding.0,
             Format: *self.fmt.into_ascii().as_ref(),
-            ..default::MQMD2_DEFAULT
+            ..default::MQMD_DEFAULT
         })
     }
 }

@@ -481,7 +481,7 @@ impl<'b, R> super::GetAttr<'b, R> for types::MessageFormat {
     }
 }
 
-impl<'b, R> super::GetAttr<'b, R> for structs::MQMD2 {
+impl<'b, R> super::GetAttr<'b, R> for structs::MQMD {
     #[inline]
     fn get_extract<F, B>(param: &mut option::GetParam, get: F) -> ResultComp<(Self, super::GetState<B>)>
     where
@@ -545,7 +545,7 @@ mod test {
 
     const fn default_getparam() -> option::GetParam {
         option::GetParam {
-            md: structs::MQMD2::new(default::MQMD2_DEFAULT),
+            md: structs::MQMD::new(default::MQMD_DEFAULT),
             gmo: structs::MQGMO::new(default::MQGMO_DEFAULT),
         }
     }

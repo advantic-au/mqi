@@ -3,7 +3,7 @@ use std::num::NonZero;
 use crate::{Buffer, ResultComp, ResultCompErr, macros::all_option_tuples, structs, types};
 
 pub struct GetParam {
-    pub md: structs::MQMD2,
+    pub md: structs::MQMD,
     pub gmo: structs::MQGMO,
 }
 

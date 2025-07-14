@@ -106,9 +106,9 @@ fn callback() -> Result<(), Box<dyn Error>> {
         let b = 2;
 
         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
-        let mqmd = structs::MQMD2::new(default::MQMD2_DEFAULT);
+        let mqmd = structs::MQMD::new(default::MQMD_DEFAULT);
         let mut gmo = structs::MQGMO::new(default::MQGMO_DEFAULT);
-        register_cb(&mut cbd, move |_a, _b: Option<&mq::MQMD2>, _c, _d, _e| {
+        register_cb(&mut cbd, move |_a, _b: Option<&mq::MQMD>, _c, _d, _e| {
             println!("{b}");
         });
 

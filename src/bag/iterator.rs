@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use libmqm_sys::Mqai;
 
-// use super::{Bag, BagDrop, BagItemGet, Embedded};
 use super::{Bag, BagDrop, BagItemGet, Embedded};
 use crate::{
     Error, Library, ResultComp, ResultCompErr, WithMqError as _, constants,
