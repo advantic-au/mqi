@@ -3,7 +3,7 @@ use libmqm_sys::link::LinkedMq;
 use {crate::bag, crate::types::MQCBO};
 
 use crate::{
-    Connection, ResultComp, connect_lib_as,
+    Connection, result::ResultComp, connect_lib_as,
     connection::{ConnectAttr, ConnectOption, ConnectValue, Threading},
 };
 

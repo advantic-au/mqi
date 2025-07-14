@@ -142,7 +142,7 @@ impl<T: AsRef<[types::MQCHAR]>> StringCcsid<T> {
         conn: &C,
         target_le: bool,
         buffer: &'a mut [types::MQCHAR],
-    ) -> crate::ResultComp<StrCcsid<'a>>
+    ) -> crate::result::ResultComp<StrCcsid<'a>>
     where
         C::Lib: crate::Library<MQ: libmqm_sys::Exits>,
         C: Conn,

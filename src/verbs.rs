@@ -12,7 +12,7 @@ use super::{
     handle::{ConnectionHandle, MessageHandle, ObjectHandle, SubscriptionHandle},
 };
 use crate::{
-    CCSID, Error, MQMD, MqStr, ResultComp, ResultCompErr, ResultErr, constants,
+    CCSID, result::Error, MQMD, MqStr, result::ResultComp, result::ResultCompErr, result::ResultErr, constants,
     support::outcome::{MqiOutcome, MqiOutcomeVoid},
     types::{MQCO, MQDCC, MQLONG, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA},
 };

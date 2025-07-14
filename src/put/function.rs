@@ -5,7 +5,7 @@ use libmqm_sys::{MQMD, Mqi};
 
 use super::option;
 use crate::{
-    CCSID, Conn, Library, MqFunctions, Object, ResultComp, constants,
+    CCSID, Conn, Library, MqFunctions, Object, result::ResultComp, constants,
     handle::ConnectionHandle,
     headers::{TextEnc, fmt},
     open::{OpenOption, OpenParamOption},
@@ -43,7 +43,7 @@ mod mqai {
     use libmqm_sys::{MQMD, Mqai};
 
     use super::option;
-    use crate::{Conn, Library, Object, ResultComp, bag, headers::TextEnc, structs, types};
+    use crate::{Conn, Library, Object, result::ResultComp, bag, headers::TextEnc, structs, types};
 
     impl<C: Conn> Object<C>
     where

@@ -1,6 +1,6 @@
 use libmqm_default as default;
 
-use crate::{Conn, ResultComp, ResultCompErrExt, structs, types::MQBO};
+use crate::{Conn, result::ResultComp, result::ResultCompErrExt, structs, types::MQBO};
 
 #[derive(Debug, PartialEq)]
 enum SyncpointState {
@@ -67,12 +67,12 @@ impl<C: Conn> Drop for Syncpoint<C> {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     #[cfg(feature = "mock")]
-    use crate::{ResultComp, prelude::*};
+    use crate::{result::ResultComp, prelude::*};
 
     #[test]
     #[cfg(feature = "mock")]
     fn begin() -> ResultComp<()> {
-        use crate::{Completion, Syncpoint, test::mock, types::MQBO};
+        use crate::{result::Completion, Syncpoint, test::mock, types::MQBO};
 
         let mock_connection = mock::connect_ok(|mock_library| {
             mock_library

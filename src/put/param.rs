@@ -1,7 +1,7 @@
 use libmqm_sys as mq;
 
 use super::option;
-use crate::{Conn, MqStr, Object, Properties, ResultComp, constants, macros::all_multi_tuples, prelude::*, structs, types};
+use crate::{Conn, MqStr, Object, Properties, result::ResultComp, constants, macros::all_multi_tuples, prelude::*, structs, types};
 
 structs::impl_min_version!(['a], structs::MQPMO<'a>);
 
@@ -208,7 +208,7 @@ impl_putattr_mqmd_mqstr!(ApplOriginData, types::ApplOriginData);
 #[expect(unused_parens)]
 mod impl_put {
     use super::option;
-    use crate::{ResultComp, macros::all_multi_tuples, prelude::*};
+    use crate::{result::ResultComp, macros::all_multi_tuples, prelude::*};
 
     macro_rules! impl_putattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {

@@ -4,8 +4,8 @@ use libmqm_sys::Mqai;
 
 use super::{Bag, BagDrop, Filter};
 use crate::{
-    CCSID, Completion, EncodedString, Error, Library, MqStr, NATIVE_IS_LE, ResultComp, ResultCompErr, StrCcsidOwned, StringCcsid,
-    WithMqError, constants,
+    CCSID, result::Completion, EncodedString, result::Error, Library, MqStr, NATIVE_IS_LE, result::ResultComp, result::ResultCompErr, StrCcsidOwned, StringCcsid,
+    result::WithMqError, constants,
     prelude::*,
     types::{MQBYTE, MQIND, MQINT64, MQITEM, MQLONG, Selector},
 };
@@ -58,7 +58,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQLONG {
         bag.mq.mq_inquire_integer(bag, selector, index)
     }
 
-    type Error = crate::Error;
+    type Error = Error;
 }
 
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for Filter<MQLONG> {
@@ -78,7 +78,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<MQLONG> {
         bag.mq.mq_inquire_integer_filter(bag, selector, index)
     }
 
-    type Error = crate::Error;
+    type Error = Error;
 }
 
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for MQINT64 {
@@ -98,7 +98,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQINT64 {
         bag.mq.mq_inquire_integer64(bag, selector, index)
     }
 
-    type Error = crate::Error;
+    type Error = Error;
 }
 
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for [MQBYTE] {
@@ -238,7 +238,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for StrCcsidOwned {
         ))
     }
 
-    type Error = crate::Error;
+    type Error = Error;
 }
 
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<StrCcsidOwned> {
@@ -274,7 +274,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<StrCcsidOwned> {
         ))
     }
 
-    type Error = crate::Error;
+    type Error = Error;
 }
 
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<MQBYTE> {
@@ -298,7 +298,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<MQBYTE> {
         Ok(Completion(data, warning))
     }
 
-    type Error = crate::Error;
+    type Error = Error;
 }
 
 impl<L: Library<MQ: Mqai>> BagItemPut<L> for Filter<&[MQBYTE]> {
@@ -335,7 +335,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<Vec<MQBYTE>> {
         Ok(Completion(Self::new(data, operator), warning))
     }
 
-    type Error = crate::Error;
+    type Error = Error;
 }
 
 impl<L: Library<MQ: Mqai>> BagItemGet<L> for (Selector, MQITEM) {

@@ -2,7 +2,7 @@ use libmqm_sys::Mqai;
 
 use super::option::{ExecuteOption, ExecuteParam};
 use crate::{
-    Library, MqFunctions, ResultComp,
+    Library, MqFunctions, result::ResultComp,
     bag::{Bag, BagDrop, Owned},
     constants,
     handle::ConnectionHandle,

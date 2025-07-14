@@ -162,8 +162,7 @@ pub use mqstr::*;
 mod strings;
 pub use strings::*;
 
-mod result;
-pub use result::*;
+pub mod result;
 
 pub mod handle;
 

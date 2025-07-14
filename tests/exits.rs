@@ -1,7 +1,7 @@
 #![cfg(all(feature = "mock", feature = "exits"))]
 
 use libmqm_sys::mock::MockMq;
-use mqi::{CCSID, Error, MqChar, MqFunctions, prelude::*, test::mock, types::MQDCC};
+use mqi::{CCSID, result::Error, MqChar, MqFunctions, prelude::*, test::mock, types::MQDCC};
 
 #[test]
 fn mqxcnvc() -> Result<(), Error> {

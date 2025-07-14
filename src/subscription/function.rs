@@ -2,7 +2,7 @@ use libmqm_default as default;
 
 use super::option;
 use crate::{
-    Conn, Object, ResultComp, ResultCompErr, constants,
+    Conn, Object, result::ResultComp, result::ResultCompErr, constants,
     handle::{ObjectHandle, SubscriptionHandle},
     prelude::*,
     structs,

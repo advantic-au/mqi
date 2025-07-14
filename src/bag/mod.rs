@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use libmqm_sys::{Mqai, mqai};
 
 use crate::{
-    Buffer, Completion, Error, Library, MqFunctions, MqInqError, ResultComp, ResultCompErr, WriteRaw, constants,
+    Buffer, result::Completion, result::Error, Library, MqFunctions, MqInqError, result::ResultComp, result::ResultCompErr, WriteRaw, constants,
     handle::BagHandle,
     prelude::*,
     types::{MQBYTE, MQCA, MQCBO, MQIA, MQIND, MQLONG, Selector},

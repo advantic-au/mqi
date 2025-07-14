@@ -1,6 +1,6 @@
 use std::num::NonZero;
 
-use crate::{Buffer, ResultComp, ResultCompErr, macros::all_option_tuples, structs, types};
+use crate::{Buffer, result::ResultComp, result::ResultCompErr, macros::all_option_tuples, structs, types};
 
 pub struct GetParam {
     pub md: structs::MQMD,
@@ -12,7 +12,7 @@ pub struct GetParam {
 ///
 /// ```
 /// use std::num::NonZero;
-/// use mqi::{get, prelude::*, Buffer, Error, ResultComp};
+/// use mqi::{get, prelude::*, Buffer, result::Error, result::ResultComp};
 ///
 /// pub struct Fixed<const N: usize>(pub [u8; N]);
 ///

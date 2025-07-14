@@ -1,6 +1,6 @@
 use std::{borrow::Cow, num::NonZero};
 
-use crate::{Error, ReadRaw, ResultComp, ResultCompErr, structs, types};
+use crate::{result::Error, ReadRaw, result::ResultComp, result::ResultCompErr, structs, types};
 
 #[derive(Debug, Clone)]
 pub struct PropertyState<'s> {

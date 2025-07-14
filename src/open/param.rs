@@ -2,7 +2,7 @@ use libmqm_sys as mq;
 
 use super::option;
 use crate::{
-    CCSID, Conn, EncodedString, Error, MqStr, Object, ResultComp, StrCcsidOwned, constants,
+    CCSID, Conn, EncodedString, result::Error, MqStr, Object, result::ResultComp, StrCcsidOwned, constants,
     macros::{all_multi_tuples, impl_from_str, reverse_ident},
     prelude::*,
     structs,
@@ -141,7 +141,7 @@ unsafe impl<C: Conn> option::OpenValue<Self> for Object<C> {
     type Error = Error;
 
     #[inline]
-    fn open_consume<'oo, F>(param: &mut option::OpenParam<'oo>, open: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn open_consume<'oo, F>(param: &mut option::OpenParam<'oo>, open: F) -> crate::result::ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut option::OpenParam<'oo>) -> ResultComp<Self>,
     {
@@ -212,7 +212,7 @@ unsafe impl<S, O> option::OpenAttr<S, O> for Option<ResObjectString> {
 #[expect(unused_parens)]
 mod open_impl {
     use super::option;
-    use crate::{ResultComp, ResultCompErr, macros::all_multi_tuples, prelude::*, types::MQOO};
+    use crate::{result::ResultComp, result::ResultCompErr, macros::all_multi_tuples, prelude::*, types::MQOO};
 
     macro_rules! impl_openvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {

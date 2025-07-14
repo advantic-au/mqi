@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{ResultComp, structs, types::MessageFormat};
+use crate::{result::ResultComp, structs, types::MessageFormat};
 
 /// A trait that provides a rendered message for the [`mqput`](`crate::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put")]

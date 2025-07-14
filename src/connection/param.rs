@@ -8,6 +8,7 @@ use super::option;
 use crate::{
     MqStr, Secret, constants, conversion,
     macros::{all_multi_tuples, reverse_ident},
+    result::ResultComp,
     prelude::*,
     structs,
     types::{self, CertificateLabel, CipherSpec, CryptoHardware, KeyRepo, ProtectedSecret, QueueManagerName},
@@ -16,7 +17,7 @@ use crate::{
 #[expect(unused_parens)]
 mod connect_impl {
     use super::option::{ConnectAttr, ConnectParam, ConnectValue};
-    use crate::{ResultComp, macros::all_multi_tuples, prelude::*};
+    use crate::{result::ResultComp, macros::all_multi_tuples, prelude::*};
 
     macro_rules! impl_connectvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
@@ -531,9 +532,9 @@ unsafe impl<'cd> option::ConnectOption<'cd> for structs::MQCD<'cd> {
 
 impl<S> option::ConnectAttr<S> for ConnectionId {
     #[inline]
-    fn connect_extract<'b, F>(param: &mut option::ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
+    fn connect_extract<'b, F>(param: &mut option::ConnectParam<'b>, connect: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut option::ConnectParam<'b>) -> crate::ResultComp<S>,
+        F: FnOnce(&mut option::ConnectParam<'b>) -> ResultComp<S>,
     {
         param.set_min_version(mq::MQCNO_VERSION_5);
         connect(param).map_completion(|state| (Self(param.ConnectionId), state))
@@ -542,9 +543,9 @@ impl<S> option::ConnectAttr<S> for ConnectionId {
 
 impl<S> option::ConnectAttr<S> for ConnTag {
     #[inline]
-    fn connect_extract<'b, F>(param: &mut option::ConnectParam<'b>, connect: F) -> crate::ResultComp<(Self, S)>
+    fn connect_extract<'b, F>(param: &mut option::ConnectParam<'b>, connect: F) -> ResultComp<(Self, S)>
     where
-        F: FnOnce(&mut option::ConnectParam<'b>) -> crate::ResultComp<S>,
+        F: FnOnce(&mut option::ConnectParam<'b>) -> ResultComp<S>,
     {
         let cno_options: &mut types::MQCNO = param.Options.as_mut();
         cno_options.insert(constants::MQCNO_GENERATE_CONN_TAG);

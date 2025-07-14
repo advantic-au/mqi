@@ -5,9 +5,10 @@ use std::{mem, num::NonZero, ptr, slice};
 
 use super::option;
 use crate::{
-    CCSID, Completion, Error, MqStr, ReadRaw, ResultComp, StrCcsidOwned, StringCcsid, constants, conversion,
+    CCSID, result::Completion, result::Error, MqStr, ReadRaw, result::ResultComp, StrCcsidOwned, StringCcsid, constants, conversion,
     macros::{all_multi_tuples, reverse_ident},
     prelude::*,
+    result::ResultCompErr,
     structs,
     types::{MQBYTE, MQCHAR, MQCOPY, MQENC, MQFLOAT32, MQFLOAT64, MQIMPO, MQINT8, MQINT16, MQINT64, MQLONG, MQPD, MQTYPE},
 };
@@ -481,7 +482,7 @@ unsafe impl option::PropertyValue for bool {
 unsafe impl option::PropertyValue for Vec<MQBYTE> {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
@@ -495,7 +496,7 @@ unsafe impl option::PropertyValue for Vec<MQBYTE> {
 unsafe impl<const N: usize> option::PropertyValue for [u8; N] {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
@@ -517,7 +518,7 @@ unsafe impl<const N: usize> option::PropertyValue for [u8; N] {
 unsafe impl<const N: usize> option::PropertyValue for MqStr<N> {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
@@ -549,7 +550,7 @@ impl<T: AsRef<[u8]>> option::SetProperty for Raw<T> {
 unsafe impl option::PropertyValue for Raw<Vec<u8>> {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
@@ -566,7 +567,7 @@ unsafe impl option::PropertyValue for Raw<Vec<u8>> {
 unsafe impl<const N: usize> option::PropertyValue for Raw<[u8; N]> {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
@@ -589,7 +590,7 @@ unsafe impl<const N: usize> option::PropertyValue for Raw<[u8; N]> {
 unsafe impl option::PropertyValue for String {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
@@ -610,7 +611,7 @@ unsafe impl option::PropertyValue for String {
 unsafe impl option::PropertyValue for StrCcsidOwned {
     type Error = Error;
 
-    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> crate::ResultCompErr<Self, Self::Error>
+    fn property_consume<'p, 's, F>(param: &mut option::PropertyParam<'p>, mqinqmp: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
@@ -628,7 +629,7 @@ unsafe impl option::PropertyValue for StrCcsidOwned {
 #[expect(unused_parens)]
 mod impl_property {
     use super::{all_multi_tuples, option};
-    use crate::{ResultComp, ResultCompErr, prelude::*};
+    use crate::{result::ResultComp, result::ResultCompErr, prelude::*};
 
     macro_rules! impl_propertyvalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
@@ -710,7 +711,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        Completion, MqStr, ResultComp, ResultCompErr, ResultCompExt, StrCcsid, StrCcsidOwned, conversion::slice_byte_to_mqchar,
+        result::Completion, MqStr, result::ResultComp, result::ResultCompErr, result::ResultCompExt, StrCcsid, StrCcsidOwned, conversion::slice_byte_to_mqchar,
         mqstr, types,
     };
 

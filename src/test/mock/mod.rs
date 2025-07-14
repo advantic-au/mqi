@@ -5,7 +5,7 @@ use std::{cmp, rc::Rc, slice};
 
 use libmqm_sys::{self as mq, mock::MockMq};
 
-use crate::{Connection, Library, ResultCompExt, ThreadNone, connect_lib, constants, put, types};
+use crate::{Connection, Library, result::ResultCompExt, ThreadNone, connect_lib, constants, put, types};
 
 pub mod callback;
 

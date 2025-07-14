@@ -5,7 +5,7 @@ use libmqm_sys::{self as mq, Mqai, mqai};
 use {crate::support::outcome::tracing_outcome, tracing::instrument};
 
 use crate::{
-    CCSID, Error, Library, MQMD, MqFunctions, MqInqError, ResultComp, ResultCompErr, WriteRaw,
+    CCSID, result::Error, Library, MQMD, MqFunctions, MqInqError, result::ResultComp, result::ResultCompErr, WriteRaw,
     bag::Filter,
     constants,
     handle::{BagHandle, ConnectionHandle, ObjectHandle},

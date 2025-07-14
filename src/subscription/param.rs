@@ -2,7 +2,7 @@ use super::option::{
     SubscribeAttr, SubscribeOption, SubscribeParam, SubscribeRequestOption, SubscribeRequestParam, SubscribeState, SubscribeValue,
 };
 use crate::{
-    Conn, EncodedString, Error, Object, ResultComp, ResultCompErr, Subscription,
+    Conn, EncodedString, result::Error, Object, result::ResultComp, result::ResultCompErr, Subscription,
     macros::all_option_tuples,
     open::ObjectString,
     prelude::*,
@@ -82,7 +82,7 @@ impl<C: Conn> SubscribeAttr<C> for Option<Object<C>> {
 #[expect(unused_parens)]
 mod impl_subscribe {
     use super::{SubscribeAttr, SubscribeParam, SubscribeState, SubscribeValue};
-    use crate::{Conn, ResultComp, ResultCompErr, macros::all_multi_tuples, prelude::*};
+    use crate::{Conn, result::ResultComp, result::ResultCompErr, macros::all_multi_tuples, prelude::*};
 
     macro_rules! impl_subscribevalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
@@ -147,7 +147,7 @@ mod impl_subscribe {
     }
 
     impl<C: Conn> SubscribeValue<C> for () {
-        type Error = crate::Error;
+        type Error = crate::result::Error;
 
         #[inline]
         fn subscribe_consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>

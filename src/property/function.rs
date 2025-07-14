@@ -5,7 +5,7 @@ use libmqm_sys::{self as mq, Mqi};
 
 use super::option;
 use crate::{
-    Buffer, Completion, Conn, EncodedString, Error, Library, MqFunctions, MqInqError, ResultComp, ResultCompErr, ResultErr,
+    Buffer, result::Completion, Conn, EncodedString, result::Error, Library, MqFunctions, MqInqError, result::ResultComp, result::ResultCompErr, result::ResultErr,
     WriteRaw, constants,
     handle::{ConnectionHandle, MessageHandle},
     prelude::*,
@@ -514,7 +514,7 @@ mod test {
 
     use super::*;
     use crate::{
-        CCSID, Connection, ResultErr, ThreadNone,
+        CCSID, Connection, result::ResultErr, ThreadNone,
         constants::{
             self, MQCC_FAILED, MQCC_OK, MQRC_CALL_IN_PROGRESS, MQRC_NONE, MQRC_PROPERTY_NAME_TOO_BIG,
             MQRC_PROPERTY_NOT_AVAILABLE, MQRC_PROPERTY_VALUE_TOO_BIG, MQTYPE_BYTE_STRING,

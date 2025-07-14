@@ -4,7 +4,7 @@ use libmqm_sys::Mqai;
 
 use super::{Bag, BagDrop, BagItemGet, Embedded};
 use crate::{
-    Error, Library, ResultComp, ResultCompErr, WithMqError as _, constants,
+    result::Error, Library, result::ResultComp, result::ResultCompErr, result::WithMqError as _, constants,
     prelude::*,
     types::{MQIND, MQLONG, Selector},
 };
@@ -79,7 +79,7 @@ where
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use crate::{Completion, test::mq_library};
+    use crate::{result::Completion, test::mq_library};
 
     #[test]
     fn test_empty_iterator() -> Result<(), Box<dyn std::error::Error>> {

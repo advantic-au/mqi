@@ -1,5 +1,5 @@
 use crate::{
-    ResultComp, structs,
+    result::ResultComp, structs,
     types::{self, QueueManagerName},
 };
 

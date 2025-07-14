@@ -9,7 +9,7 @@ use {
 };
 
 use crate::{
-    ConnectionRef, Error, Library, MqFunctions, ResultComp,
+    ConnectionRef, result::Error, Library, MqFunctions, result::ResultComp,
     callback::function::register_event_handler,
     handle::ConnectionHandle,
     open, put,
