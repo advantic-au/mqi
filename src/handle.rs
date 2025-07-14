@@ -22,6 +22,9 @@ pub trait RawHandle {
 }
 
 pub mod raw {
+    #[cfg(feature = "mqai")]
+    use libmqm_sys::mqai;
+
     use super::{RawHandle, mq};
 
     #[derive(Debug, Clone, Copy)]
@@ -41,12 +44,66 @@ pub mod raw {
     impl RawHandle for Object {
         type HandleType = mq::MQHOBJ;
     }
+
+    #[derive(Debug)]
+    #[cfg(feature = "mqai")]
+    pub struct Bag;
+
+    #[cfg(feature = "mqai")]
+    impl RawHandle for Bag {
+        type HandleType = mqai::MQHBAG;
+    }
 }
 
 pub type ConnectionHandle = Handle<raw::Connection>;
 pub type ObjectHandle = Handle<raw::Object>;
 pub type MessageHandle = Handle<raw::Message>;
 pub type SubscriptionHandle = ObjectHandle;
+
+#[cfg(feature = "mqai")]
+mod mqai {
+    use libmqm_constants::lookup::{ConstLookup, HasConstLookup};
+    use libmqm_sys::mqai;
+
+    pub type BagHandle = super::Handle<super::raw::Bag>;
+
+    impl From<mqai::MQHBAG> for BagHandle {
+        fn from(value: mqai::MQHBAG) -> Self {
+            Self(value)
+        }
+    }
+
+    impl HasConstLookup for BagHandle {
+        fn const_lookup<'a>() -> &'a (impl ConstLookup + 'static) {
+            &super::mapping::MQHB_MAPSTR
+        }
+    }
+
+    impl std::fmt::Display for BagHandle {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            match Self::const_lookup().by_value(self.0).next() {
+                Some(name) => write!(f, "HBAG({name})"),
+                None => write!(f, "HBAG({:#010X})", self.0),
+            }
+        }
+    }
+
+    impl Default for BagHandle {
+        fn default() -> Self {
+            Self(mqai::MQHB_UNUSABLE_HBAG)
+        }
+    }
+
+    impl BagHandle {
+        #[must_use]
+        pub const fn is_deletable(&self) -> bool {
+            self.0 != mqai::MQHB_NONE && self.0 != mqai::MQHB_UNUSABLE_HBAG
+        }
+    }
+}
+
+#[cfg(feature = "mqai")]
+pub use mqai::*;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[repr(transparent)]
@@ -189,5 +246,12 @@ mod tests {
             MessageHandle::from(mq::MQHM_UNUSABLE_HMSG).to_string(),
             "HMSG(MQHM_UNUSABLE_HMSG)"
         );
+    }
+
+    #[test]
+    #[cfg(feature = "mqai")]
+    fn bag_handle_display() {
+        assert_eq!(BagHandle::default().to_string(), "HBAG(MQHB_UNUSABLE_HBAG)");
+        assert_eq!(Into::<BagHandle>::into(1).to_string(), "HBAG(0x00000001)");
     }
 }

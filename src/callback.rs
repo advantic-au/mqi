@@ -42,7 +42,7 @@ pub mod function {
     use libmqm_default as default;
     use libmqm_sys::{MQMD, Mqi};
 
-    use crate::{ConnectionHandle, ConnectionRef, Error, Library, MqFunctions, constants, structs, types};
+    use crate::{ConnectionRef, Error, Library, MqFunctions, constants, handle::ConnectionHandle, structs, types};
 
     /// # Safety
     /// Consumers of [`register_event_handler`](Connection::register_event_handler) must handle and read the pointers in [`MQCBC`](structs::MQCBC) correctly

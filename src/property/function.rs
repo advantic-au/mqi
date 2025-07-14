@@ -5,8 +5,9 @@ use libmqm_sys::{self as mq, Mqi};
 
 use super::option;
 use crate::{
-    Buffer, Completion, Conn, ConnectionHandle, EncodedString, Error, Library, MessageHandle, MqFunctions, MqInqError,
-    ResultComp, ResultCompErr, ResultErr, WriteRaw, constants,
+    Buffer, Completion, Conn, EncodedString, Error, Library, MqFunctions, MqInqError, ResultComp, ResultCompErr, ResultErr,
+    WriteRaw, constants,
+    handle::{ConnectionHandle, MessageHandle},
     prelude::*,
     structs,
     types::{MQBMHO, MQBYTE, MQCHAR, MQCMHO, MQDMPO, MQIMPO, MQMHBO, MQSMPO, MQTYPE, MessageFormat},

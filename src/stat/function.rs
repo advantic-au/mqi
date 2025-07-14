@@ -3,7 +3,7 @@ use libmqm_sys as mq;
 use libmqm_sys::Mqi;
 
 use super::option;
-use crate::{ConnectionHandle, Library, MqFunctions, ResultComp, constants, prelude::*, structs, types};
+use crate::{Library, MqFunctions, ResultComp, constants, handle::ConnectionHandle, prelude::*, structs, types};
 
 const DEFAULT_OBJECTSTRING_LENGTH: types::MQLONG = 4096;
 

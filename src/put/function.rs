@@ -5,7 +5,8 @@ use libmqm_sys::{MQMD, Mqi};
 
 use super::option;
 use crate::{
-    CCSID, Conn, ConnectionHandle, Library, MqFunctions, Object, ResultComp, constants,
+    CCSID, Conn, Library, MqFunctions, Object, ResultComp, constants,
+    handle::ConnectionHandle,
     headers::{TextEnc, fmt},
     open::{OpenOption, OpenParamOption},
     structs,

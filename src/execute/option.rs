@@ -1,4 +1,8 @@
-use crate::{ObjectHandle, macros::all_option_tuples, mqai::BagHandle, types::MQCMD};
+use crate::{
+    handle::{BagHandle, ObjectHandle},
+    macros::all_option_tuples,
+    types::MQCMD,
+};
 
 #[derive(Debug, Default)]
 pub struct ExecuteParam<'a> {

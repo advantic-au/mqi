@@ -2,9 +2,10 @@ use libmqm_sys::Mqai;
 
 use super::option::{ExecuteOption, ExecuteParam};
 use crate::{
-    ConnectionHandle, Library, MqFunctions, ResultComp,
+    Library, MqFunctions, ResultComp,
     bag::{Bag, BagDrop, Owned},
     constants,
+    handle::ConnectionHandle,
     prelude::*,
 };
 

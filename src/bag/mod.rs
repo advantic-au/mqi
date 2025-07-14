@@ -4,7 +4,7 @@ use libmqm_sys::{Mqai, mqai};
 
 use crate::{
     Buffer, Completion, Error, Library, MqFunctions, MqInqError, ResultComp, ResultCompErr, WriteRaw, constants,
-    mqai::BagHandle,
+    handle::BagHandle,
     prelude::*,
     types::{MQBYTE, MQCA, MQCBO, MQIA, MQIND, MQLONG, Selector},
 };

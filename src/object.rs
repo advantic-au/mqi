@@ -1,4 +1,4 @@
-use crate::{Conn, ObjectHandle, ResultComp, constants, types::MQCO};
+use crate::{Conn, ResultComp, constants, handle::ObjectHandle, types::MQCO};
 
 #[must_use]
 #[derive(Debug)]

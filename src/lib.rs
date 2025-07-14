@@ -127,10 +127,7 @@ pub mod bag;
 
 #[cfg(feature = "mqai")]
 mod mqai {
-    mod handle;
     mod verbs;
-
-    pub use handle::*;
 }
 
 pub mod types {
@@ -168,8 +165,7 @@ pub use strings::*;
 mod result;
 pub use result::*;
 
-mod handles;
-pub use handles::*;
+pub mod handle;
 
 mod traits;
 pub use traits::*;

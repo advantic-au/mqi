@@ -7,7 +7,10 @@ use {
     tracing::instrument,
 };
 
-use super::{ConnectionHandle, Library, MessageHandle, MqFunctions, ObjectHandle, ReadRaw, SubscriptionHandle, WriteRaw};
+use super::{
+    Library, MqFunctions, ReadRaw, WriteRaw,
+    handle::{ConnectionHandle, MessageHandle, ObjectHandle, SubscriptionHandle},
+};
 use crate::{
     CCSID, Error, MQMD, MqStr, ResultComp, ResultCompErr, ResultErr, constants,
     support::outcome::{MqiOutcome, MqiOutcomeVoid},
