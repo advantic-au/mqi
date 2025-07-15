@@ -14,7 +14,7 @@ use mqi::{
     types::{MQCMHO, MQXA, MessageFormat, MessageId, QueueManagerName, QueueName},
 };
 #[cfg(not(feature = "mock"))]
-use mqi::{ThreadNone, connect_options::Credentials};
+use mqi::connection::{ThreadNone, Credentials};
 
 #[test]
 fn no_message() -> Result<(), Box<dyn std::error::Error>> {
@@ -157,7 +157,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 
     let object = Object::open(connection, &(QueueManagerName(mqstr!("")), constants::MQOO_INQUIRE)).warn_as_error()?;
 
-    let result = object.inq(INQ)?;
+    let result = object.inquire(INQ)?;
     if let Some((rc, verb)) = result.warning() {
         eprintln!("MQRC warning: {verb} {rc}");
     }

@@ -1,4 +1,11 @@
-use std::{fmt::Debug, marker::PhantomData, ops::Deref, rc::Rc, sync::Arc};
+use std::{
+    fmt::Debug,
+    marker::PhantomData,
+    mem::{ManuallyDrop, forget},
+    ops::{Deref, DerefMut},
+    rc::Rc,
+    sync::Arc,
+};
 
 use libmqm_sys::{self as mq, Mqi};
 
@@ -13,12 +20,30 @@ pub struct Connection<L: Library<MQ: Mqi>, H> {
     _share: PhantomData<H>, // Send and Sync control
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct ConnectionRef<'conn, L: Library<MQ: Mqi>, H> {
-    handle: ConnectionHandle,
-    mq: MqFunctions<L>,
-    _share: PhantomData<H>,       // Send and Sync control
+    conn: ManuallyDrop<Connection<L, H>>,
     _ref: PhantomData<&'conn ()>, // Reference to original connection handle
+}
+
+impl<L: Library<MQ: Mqi> + Clone, H> Clone for ConnectionRef<'_, L, H> {
+    fn clone(&self) -> Self {
+        ConnectionRef::from_parts(self.handle, self.mq.clone())
+    }
+}
+
+impl<L: Library<MQ: Mqi>, H> Deref for ConnectionRef<'_, L, H> {
+    type Target = Connection<L, H>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.conn
+    }
+}
+
+impl<L: Library<MQ: Mqi>, H> DerefMut for ConnectionRef<'_, L, H> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.conn
+    }
 }
 
 impl<L, H> Connection<L, H>
@@ -26,15 +51,22 @@ where
     L: Library<MQ: Mqi> + Clone,
 {
     #[inline]
-    pub fn connection_ref(&self) -> ConnectionRef<'_, L, H> {
+    pub fn connection_ref<'a>(&self) -> ConnectionRef<'a, L, H>
+    where
+        Self: 'a,
+    {
         ConnectionRef::from_parts(self.handle, self.mq.clone())
     }
 
+    pub fn leak<'a>(self) -> ConnectionRef<'a, L, H> {
+        let handle = self.handle;
+        let mq = self.mq.clone();
+        forget(self);
+        ConnectionRef::from_parts(handle, mq)
+    }
+
     #[inline]
-    pub fn library(&self) -> L
-    where
-        L: Clone,
-    {
+    pub fn library(&self) -> L {
         self.mq.0.clone()
     }
 }
@@ -45,9 +77,11 @@ where
 {
     pub const fn from_parts(handle: ConnectionHandle, mq: MqFunctions<L>) -> Self {
         Self {
-            handle,
-            mq,
-            _share: PhantomData,
+            conn: ManuallyDrop::new(Connection {
+                handle,
+                mq,
+                _share: PhantomData,
+            }),
             _ref: PhantomData,
         }
     }
@@ -190,7 +224,6 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
 
 impl<L: Library<MQ: Mqi>, H> crate::Conn for Arc<Connection<L, H>> {
     type Lib = L;
-    type Thread = H;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
         self.deref().mq()
@@ -203,7 +236,6 @@ impl<L: Library<MQ: Mqi>, H> crate::Conn for Arc<Connection<L, H>> {
 
 impl<L: Library<MQ: Mqi>, H> crate::Conn for Rc<Connection<L, H>> {
     type Lib = L;
-    type Thread = H;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
         self.deref().mq()
@@ -216,7 +248,6 @@ impl<L: Library<MQ: Mqi>, H> crate::Conn for Rc<Connection<L, H>> {
 
 impl<L: Library<MQ: Mqi>, H> crate::Conn for &Connection<L, H> {
     type Lib = L;
-    type Thread = H;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
         Connection::<L, H>::mq(self)
@@ -229,7 +260,6 @@ impl<L: Library<MQ: Mqi>, H> crate::Conn for &Connection<L, H> {
 
 impl<L: Library<MQ: Mqi>, H> crate::Conn for Connection<L, H> {
     type Lib = L;
-    type Thread = H;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
         &self.mq
@@ -242,7 +272,6 @@ impl<L: Library<MQ: Mqi>, H> crate::Conn for Connection<L, H> {
 
 impl<L: Library<MQ: Mqi>, H> crate::Conn for ConnectionRef<'_, L, H> {
     type Lib = L;
-    type Thread = H;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
         &self.mq

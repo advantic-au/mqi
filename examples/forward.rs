@@ -85,7 +85,7 @@ fn main() -> anyhow::Result<()> {
         .context("Unable to connect to the queue manager")?;
     let qm_ref = qm.connection_ref();
     let obj = Object::open(
-        qm_ref,
+        qm_ref.clone(),
         &(
             source_queue,
             constants::MQOO_INPUT_AS_Q_DEF | constants::MQOO_SAVE_ALL_CONTEXT,
@@ -96,7 +96,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut buffer = Vec::<u8>::with_capacity(20 * 1024); // 20kb
     let buf_write = buffer.spare_capacity_mut();
-    let syncpoint = Syncpoint::new(qm_ref);
+    let syncpoint = Syncpoint::new(qm_ref.clone());
 
     let mut properties = Properties::new(&qm, MQCMHO::default())?;
     let message: Option<(_, structs::MQMD)> = obj

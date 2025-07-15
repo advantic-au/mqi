@@ -1,6 +1,7 @@
-use libmqm_sys::{self as mq, Mqi};
+use libmqm_default as default;
+use libmqm_sys::{self as mq, MQMD, Mqi};
 
-use crate::{ConnectionRef, Library, MqFunctions, constants, structs, types};
+use crate::{Conn, Connection, ConnectionRef, Library, MqFunctions, constants, result::Error, structs, types};
 
 struct CallbackData<F, L> {
     options: types::MQCBDO,
@@ -38,24 +39,16 @@ unsafe extern "C" fn event_callback<L, H, F>(
     // }
 }
 
-pub mod function {
-    use libmqm_default as default;
-    use libmqm_sys::{MQMD, Mqi};
-
-    use crate::{ConnectionRef, Library, MqFunctions, constants, handle::ConnectionHandle, result::Error, structs, types};
-
+impl<L: Library<MQ: Mqi> + Clone, H> Connection<L, H> {
     /// # Safety
-    /// Consumers of [`register_event_handler`](Connection::register_event_handler) must handle and read the pointers in [`MQCBC`](structs::MQCBC) correctly
-    pub unsafe fn register_event_handler<F, L: Library<MQ: Mqi> + Clone, H>(
-        functions: &MqFunctions<L>,
-        handle: ConnectionHandle,
-        options: types::MQCBDO,
-        closure: F,
-    ) -> Result<(), Error>
+    /// Consumers of [`register_event_handler`](Self::register_event_handler) must handle and read the pointers in [`MQCBC`](structs::MQCBC) correctly
+    pub unsafe fn register_event_handler<F>(&self, options: types::MQCBDO, closure: F) -> Result<(), Error>
     where
         F: FnMut(ConnectionRef<L, H>, &structs::MQCBC),
     {
-        let cb_data: *mut super::CallbackData<F, L> = Box::into_raw(Box::from(super::CallbackData {
+        let functions = self.mq();
+        let handle = self.handle();
+        let cb_data: *mut CallbackData<F, L> = Box::into_raw(Box::from(CallbackData {
             options,
             closure,
             mq: functions.clone(),
@@ -63,7 +56,7 @@ pub mod function {
         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
         cbd.CallbackArea = cb_data.cast();
         *cbd.Options.as_mut() = options | constants::MQCBDO_DEREGISTER_CALL; // Always register for the deregister call
-        cbd.CallbackFunction = super::event_callback::<L, H, F> as *mut _;
+        cbd.CallbackFunction = event_callback::<L, H, F> as *mut _;
         *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
 
         // SAFETY: MQCBD registered with valid pointers

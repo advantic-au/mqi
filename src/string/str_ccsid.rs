@@ -3,8 +3,7 @@ use std::{borrow::Cow, ptr};
 use libmqm_default as default;
 use libmqm_sys::MQCHARV;
 
-#[cfg(feature = "exits")]
-use crate::{Conn, constants, conversion, string::CCSID, structs, types};
+use crate::{constants, conversion, structs, types, string::CCSID};
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
@@ -145,7 +144,7 @@ impl<T: AsRef<[types::MQCHAR]>> StringCcsid<T> {
     ) -> crate::result::ResultComp<StrCcsid<'a>>
     where
         C::Lib: crate::Library<MQ: libmqm_sys::Exits>,
-        C: Conn,
+        C: crate::Conn,
     {
         use crate::{constants, prelude::*};
 

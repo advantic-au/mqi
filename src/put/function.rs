@@ -5,8 +5,7 @@ use libmqm_sys::{MQMD, Mqi};
 
 use super::option;
 use crate::{
-    Conn, Library, MqFunctions, Object, constants,
-    handle::ConnectionHandle,
+    Conn, Connection, Library, Object, constants,
     header::{TextEnc, fmt},
     open::{OpenOption, OpenParamOption},
     result::ResultComp,
@@ -119,30 +118,6 @@ impl<C: Conn> Object<C> {
     }
 }
 
-pub fn put_message_with<'po, 'oo, R>(
-    functions: &MqFunctions<impl Library<MQ: Mqi>>,
-    handle: ConnectionHandle,
-    open_options: &impl OpenOption<'oo, MQPMO>,
-    put_options: &impl option::PutOption<'po>,
-    message: &(impl option::PutMessage + ?Sized),
-) -> ResultComp<R>
-where
-    R: option::PutAttr,
-{
-    let mut open_params = OpenParamOption {
-        mqod: structs::MQOD::new(default::MQOD_DEFAULT),
-        options: MQPMO::default(),
-    };
-    open_options.apply_param(&mut open_params);
-    put(put_options, message, |(md, pmo), data| {
-        let pmo_options: &mut MQPMO = pmo.Options.as_mut();
-        pmo_options.insert(open_params.options);
-
-        // SAFETY: Implementors of OpenOption and PutOption must ensure the MQOD and MQPMO are populated correctly
-        unsafe { functions.mqput1(handle, &mut open_params.mqod, Some(&mut **md), pmo, data) }
-    })
-}
-
 fn put<'po, T, F>(options: &impl option::PutOption<'po>, message: &(impl option::PutMessage + ?Sized), put: F) -> ResultComp<T>
 where
     T: option::PutAttr,
@@ -165,4 +140,47 @@ where
 
     options.apply_param(&mut put_param);
     T::put_bag_extract(&mut put_param, |param| put(param, &message.render()))
+}
+
+impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
+    /// Put a message to a queue or topic
+    #[inline]
+    pub fn put_message<'po, 'oo>(
+        &self,
+        open_options: &impl OpenOption<'oo, MQPMO>,
+        put_options: &impl option::PutOption<'po>,
+        message: &(impl option::PutMessage + ?Sized),
+    ) -> ResultComp<()> {
+        self.put_message_with(open_options, put_options, message)
+    }
+
+    /// Put a message to a queue or topic with a specified return type that implements [`PutAttr`](option::PutAttr).
+    ///
+    /// Type inference of the return value may not always work so you may have to explicitly state the return type using the
+    /// `put_message_with::<Type>` syntax.
+    pub fn put_message_with<'po, 'oo, R>(
+        &self,
+        open_options: &impl OpenOption<'oo, MQPMO>,
+        put_options: &impl option::PutOption<'po>,
+        message: &(impl option::PutMessage + ?Sized),
+    ) -> ResultComp<R>
+    where
+        R: option::PutAttr,
+    {
+        let mut open_params = OpenParamOption {
+            mqod: structs::MQOD::new(default::MQOD_DEFAULT),
+            options: MQPMO::default(),
+        };
+        open_options.apply_param(&mut open_params);
+        put(put_options, message, |(md, pmo), data| {
+            let pmo_options: &mut MQPMO = pmo.Options.as_mut();
+            pmo_options.insert(open_params.options);
+
+            // SAFETY: Implementors of OpenOption and PutOption must ensure the MQOD and MQPMO are populated correctly
+            unsafe {
+                self.mq()
+                    .mqput1(self.handle(), &mut open_params.mqod, Some(&mut **md), pmo, data)
+            }
+        })
+    }
 }

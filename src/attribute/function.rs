@@ -5,7 +5,7 @@ use crate::{Conn, Object, prelude::*, result::ResultComp, types};
 
 impl<C: Conn> Object<C> {
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
-    pub fn inq<'a>(&self, selectors: impl IntoIterator<Item = &'a option::AttributeType>) -> ResultComp<option::MultiItem> {
+    pub fn inquire<'a>(&self, selectors: impl IntoIterator<Item = &'a option::AttributeType>) -> ResultComp<option::MultiItem> {
         let mut text_total = 0;
         let mut int_count = 0;
         let mut text_len = Vec::new();
@@ -53,7 +53,8 @@ impl<C: Conn> Object<C> {
 
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
     pub fn inq_item(&self, selector: option::AttributeType) -> ResultComp<Option<option::InqResItem<Vec<types::MQCHAR>>>> {
-        self.inq(iter::once(&selector)).map_completion(option::MultiItem::into_first)
+        self.inquire(iter::once(&selector))
+            .map_completion(option::MultiItem::into_first)
     }
 
     /// This function uses the [`MQSET`](libmqm_sys::MQSET) MQ API function.

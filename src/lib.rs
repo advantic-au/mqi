@@ -29,12 +29,12 @@ offering proven stability and performance.
 |-------------|------------------------------|
 | [`MQCONN`](libmqm_sys::MQCONN)    | *Not used*                   |
 | [`MQCONNX`](libmqm_sys::MQCONNX)   | [`connect`], [`connect_as`], [`connect_with`], [`connect_lib`], [`connect_lib_with`] |
-| [`MQPUT1`](libmqm_sys::MQPUT1)    | [`Conn::put_message`], [`Conn::put_message_with`] |
+| [`MQPUT1`](libmqm_sys::MQPUT1)    | [`Connection::put_message`], [`Connection::put_message_with`] |
 | [`MQDISC`](libmqm_sys::MQDISC)    | [`Connection::disconnect`], [`Connection::drop`]  |
 | [`MQOPEN`](libmqm_sys::MQOPEN)    | [`Object::open`], [`Object::open_with`] |
 | [`MQGET`](libmqm_sys::MQGET)     | [`Object::get_data`], [`Object::get_data_with`], [`Object::get_string`], [`Object::get_string_with`], [`Object::get_as`] |
 | [`MQPUT`](libmqm_sys::MQPUT)     | [`Object::put_message`], [`Object::put_message_with`] |
-| [`MQINQ`](libmqm_sys::MQINQ)     | [`Object::inq`]              |
+| [`MQINQ`](libmqm_sys::MQINQ)     | [`Object::inquire`]              |
 | [`MQSET`](libmqm_sys::MQSET)     | [`Object::set`]              |
 | [`MQCLOSE`](libmqm_sys::MQCLOSE)   | [`Object::close`], [`Object::drop`], [`Subscription::close`], [`Subscription::drop`] |
 | [`MQSUB`](libmqm_sys::MQSUB)     | [`Subscription::subscribe`], [`Subscription::subscribe_with`], [`Subscription::subscribe_managed`], [`Subscription::subscribe_managed_with`] |
@@ -46,11 +46,11 @@ offering proven stability and performance.
 | [`MQBUFMH`](libmqm_sys::MQBUFMH)   | [`Properties::from_buffer`], [`Properties::from_buffer_mut`] |
 | [`MQMHBUF`](libmqm_sys::MQMHBUF)   | [`Properties::to_buffer`], [`Properties::to_buffer_mut`] |
 | [`MQDLTMH`](libmqm_sys::MQDLTMH)   | [`Properties::close`], [`Properties::drop`]  |
-| [`MQSTAT`](libmqm_sys::MQSTAT)    | [`Conn::stat_put`], [`Conn::stat_reconnection`], [`Conn::stat_reconnection_error`] |
+| [`MQSTAT`](libmqm_sys::MQSTAT)    | [`Connection::stat_put`], [`Connection::stat_reconnection`], [`Connection::stat_reconnection_error`] |
 | [`MQBEGIN`](libmqm_sys::MQBEGIN)   | [`Syncpoint::begin`]         |
 | [`MQBACK`](libmqm_sys::MQBACK)    | [`Syncpoint::backout`]       |
 | [`MQCMIT`](libmqm_sys::MQCMIT)    | [`Syncpoint::commit`]        |
-| [`MQCB`](libmqm_sys::MQCB)      | [`Conn::register_event_handler`] |
+| [`MQCB`](libmqm_sys::MQCB)      | [`Connection::register_event_handler`] |
 | [`MQCTL`](libmqm_sys::MQCTL)     | *Not implemented yet*        |
 
 | MQAI function               | Crate function(s)                                                      |
@@ -87,7 +87,7 @@ offering proven stability and performance.
 | [`mqInquireByteStringFilter`](libmqm_sys::mqai::mqInquireByteStringFilter) | [`Bag::inquire`] with [`Filter<Vec<MQBYTE>>`]                          |
 | [`mqInquireBag`](libmqm_sys::mqai::mqInquireBag)              | [`Bag::inquire`] with [`Bag`]                                          |
 | [`mqCountItems`](libmqm_sys::mqai::mqCountItems)              | [`Bag::count`]                                                         |
-| [`mqExecute`](libmqm_sys::mqai::mqExecute)                 | [`Conn::execute`]                          |
+| [`mqExecute`](libmqm_sys::mqai::mqExecute)                 | [`Connection::execute`]                          |
 | [`mqBagToBuffer`](libmqm_sys::mqai::mqBagToBuffer)             | [`Bag::to_buffer`], [`Bag::buffer_len`]                                |
 | [`mqBufferToBag`](libmqm_sys::mqai::mqBufferToBag)             | [`Bag::from_buffer`]                                                   |
 | [`mqInquireItemInfo`](libmqm_sys::mqai::mqInquireItemInfo)         | [`Bag::inquire`] with ([`Selector`](types::Selector), [`MQITEM`](types::MQITEM)) tuple |
@@ -205,9 +205,8 @@ pub mod attribute {
 }
 
 pub mod connection {
-    pub(super) mod conn;
     pub(super) mod function;
-    mod option;
+    pub(super) mod option;
     mod param;
 
     pub use function::{ThreadBlock, ThreadNoBlock, ThreadNone};
@@ -215,8 +214,8 @@ pub mod connection {
     pub use param::*;
 }
 pub use connection::{
-    conn::Conn,
     function::{Connection, ConnectionRef, connect_lib, connect_lib_as, connect_lib_with},
+    option::Conn,
 };
 
 pub mod open {
@@ -244,7 +243,6 @@ pub mod put {
     mod option;
     mod param;
 
-    pub use function::put_message_with;
     pub use option::*;
     pub use param::*;
 }
