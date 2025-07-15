@@ -11,6 +11,7 @@ use crate::{
 /// Associated connection handle and MQ library
 pub trait Conn {
     type Lib: Library<MQ: Mqi>;
+    type Thread;
 
     fn mq(&self) -> &MqFunctions<Self::Lib>;
     fn handle(&self) -> ConnectionHandle;

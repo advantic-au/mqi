@@ -607,7 +607,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
         object_handle: Option<&ObjectHandle>,
         mqmd: Option<&impl MQMD>,
         gmo: Option<&mq::MQGMO>,
-    ) -> ResultErr<()> {
+    ) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQCB");
         unsafe {
             self.0.lib().MQCB(

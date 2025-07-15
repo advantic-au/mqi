@@ -261,6 +261,7 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
 
 impl<L: Library<MQ: Mqi>, H> crate::Conn for Arc<Connection<L, H>> {
     type Lib = L;
+    type Thread = H;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
         self.deref().mq()
@@ -273,6 +274,7 @@ impl<L: Library<MQ: Mqi>, H> crate::Conn for Arc<Connection<L, H>> {
 
 impl<L: Library<MQ: Mqi>, H> crate::Conn for Rc<Connection<L, H>> {
     type Lib = L;
+    type Thread = H;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
         self.deref().mq()
@@ -285,6 +287,7 @@ impl<L: Library<MQ: Mqi>, H> crate::Conn for Rc<Connection<L, H>> {
 
 impl<L: Library<MQ: Mqi>, H> crate::Conn for &Connection<L, H> {
     type Lib = L;
+    type Thread = H;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
         Connection::<L, H>::mq(self)
@@ -297,6 +300,7 @@ impl<L: Library<MQ: Mqi>, H> crate::Conn for &Connection<L, H> {
 
 impl<L: Library<MQ: Mqi>, H> crate::Conn for Connection<L, H> {
     type Lib = L;
+    type Thread = H;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
         &self.mq
@@ -309,6 +313,7 @@ impl<L: Library<MQ: Mqi>, H> crate::Conn for Connection<L, H> {
 
 impl<L: Library<MQ: Mqi>, H> crate::Conn for ConnectionRef<'_, L, H> {
     type Lib = L;
+    type Thread = H;
 
     fn mq(&self) -> &MqFunctions<Self::Lib> {
         &self.mq

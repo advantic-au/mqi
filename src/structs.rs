@@ -104,7 +104,7 @@ macro_rules! impl_min_version {
     ([$($lt:lifetime),*], $ty:ty) => {
         impl <$($lt, )*> $ty {
             #[inline]
-            #[doc = "Sets the `Version` field to the minimum required version"]
+            #[doc = "Sets the `Version` field to a minimum"]
             pub fn set_min_version(&mut self, version: $crate::types::MQLONG) {
                 self.Version = std::cmp::max(self.Version, version);
             }
