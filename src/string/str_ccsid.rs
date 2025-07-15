@@ -3,7 +3,7 @@ use std::{borrow::Cow, ptr};
 use libmqm_default as default;
 use libmqm_sys::MQCHARV;
 
-use crate::{constants, conversion, structs, types, string::CCSID};
+use crate::{constants, conversion, string::CCSID, structs, types};
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {

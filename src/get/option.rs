@@ -18,7 +18,7 @@ pub struct GetParam {
 ///
 /// ```
 /// use std::num::NonZero;
-/// use mqi::{get, prelude::*, Buffer, result::Error, result::ResultComp};
+/// use mqi::{get, prelude::*, traits::Buffer, result::Error, result::ResultComp};
 ///
 /// pub struct Fixed<const N: usize>(pub [u8; N]);
 ///

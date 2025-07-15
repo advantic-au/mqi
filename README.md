@@ -58,11 +58,11 @@ Connect to the default queue manager using the `MQSERVER` environment variable w
 
 ```rust
 use std::error::Error;
+
 use mqi::{
-    connect_options::{ApplName, Credentials},
+    connection::{Credentials, ThreadNone},
     prelude::*,
-    types::QueueName,
-    ThreadNone,
+    types::{ApplName, QueueName},
 };
 
 fn main() -> Result<(), Box<dyn Error>> {

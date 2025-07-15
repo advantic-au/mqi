@@ -295,8 +295,8 @@ impl<'pw> Tls<'pw> {
     /// Create a TLS connection
     /// ```
     /// use mqi::types::{KeyRepo, CipherSpec};
-    /// use mqi::{ThreadNone, mqstr};
-    /// use mqi::connect_options::{MqServer, Tls};
+    /// use mqi::connection::{ThreadNone, MqServer, Tls};
+    /// use mqi::mqstr;
     ///
     /// // Set up the Tls connection options
     /// let tls_options = Tls::new(

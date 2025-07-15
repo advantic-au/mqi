@@ -34,7 +34,7 @@ where
 ///
 /// ```no_run
 /// use mqi::prelude::*;
-/// use mqi::{ThreadNone, connect_options::Credentials, constants};
+/// use mqi::{connection::{ThreadNone, Credentials}, constants};
 ///
 /// // Connect to the default queue manager with the provided credentials and MQCNO_RECONNECT_Q_MGR
 /// let connection = mqi::connect::<ThreadNone>(&(
@@ -44,7 +44,7 @@ where
 /// // connection is wrapped in a Completion. Discard the completion with a `discard_warning`
 /// let connection = connection.discard_warning();
 ///
-/// # Ok::<(), mqi::Error>(())
+/// # Ok::<(), mqi::result::Error>(())
 /// ```
 ///
 /// See also [`connect_as`] and [`connect_with`] for creating connections with additional

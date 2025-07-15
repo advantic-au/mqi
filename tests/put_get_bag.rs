@@ -10,7 +10,7 @@ use mqi::{
     test, types,
 };
 #[cfg(not(feature = "mock"))]
-use mqi::{ThreadNone, connect_options::Credentials};
+use mqi::connection::{ThreadNone, Credentials};
 
 #[test]
 fn put_get_bag() -> Result<(), Box<dyn std::error::Error>> {

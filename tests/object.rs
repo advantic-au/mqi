@@ -2,6 +2,8 @@
 
 use std::{borrow::Cow, collections::HashMap, error::Error};
 
+#[cfg(not(feature = "mock"))]
+use mqi::connection::{Credentials, ThreadNone};
 use mqi::{
     Object, Properties, attribute,
     attribute::{AttributeType, AttributeValue, InqResItem},
@@ -13,8 +15,6 @@ use mqi::{
     test,
     types::{MQCMHO, MQXA, MessageFormat, MessageId, QueueManagerName, QueueName},
 };
-#[cfg(not(feature = "mock"))]
-use mqi::connection::{ThreadNone, Credentials};
 
 #[test]
 fn no_message() -> Result<(), Box<dyn std::error::Error>> {
