@@ -1,5 +1,7 @@
 #![cfg(feature = "mqai")]
 
+#[cfg(not(feature = "mock"))]
+use mqi::connection::{Credentials, ThreadNone};
 use mqi::{
     Object,
     bag::Bag,
@@ -9,8 +11,6 @@ use mqi::{
     prelude::*,
     test, types,
 };
-#[cfg(not(feature = "mock"))]
-use mqi::connection::{ThreadNone, Credentials};
 
 #[test]
 fn put_get_bag() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,8 +1,9 @@
 use std::{
     fmt::Debug,
     marker::PhantomData,
-    mem::{ManuallyDrop, forget},
+    mem::ManuallyDrop,
     ops::{Deref, DerefMut},
+    ptr::drop_in_place,
     rc::Rc,
     sync::Arc,
 };
@@ -51,23 +52,29 @@ where
     L: Library<MQ: Mqi> + Clone,
 {
     #[inline]
-    pub fn connection_ref<'a>(&self) -> ConnectionRef<'a, L, H>
-    where
-        Self: 'a,
-    {
+    pub fn connection_ref(&self) -> ConnectionRef<'_, L, H> {
         ConnectionRef::from_parts(self.handle, self.mq.clone())
     }
 
     pub fn leak<'a>(self) -> ConnectionRef<'a, L, H> {
         let handle = self.handle;
         let mq = self.mq.clone();
-        forget(self);
+        let _ = ManuallyDrop::new(self);
         ConnectionRef::from_parts(handle, mq)
     }
 
     #[inline]
     pub fn library(&self) -> L {
         self.mq.0.clone()
+    }
+}
+
+impl<L: Library<MQ: Mqi>, H> Drop for ConnectionRef<'_, L, H> {
+    fn drop(&mut self) {
+        let ConnectionRef { conn, .. } = self;
+        unsafe {
+            drop_in_place(&raw mut conn.mq);
+        }
     }
 }
 
