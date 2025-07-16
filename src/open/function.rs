@@ -35,6 +35,8 @@ impl<C: Conn> Object<C> {
             options: constants::MQOO_BIND_AS_Q_DEF,
         };
         open_option.apply_param(&mut oo);
+        assert!(oo.mqod.Version <= libmqm_sys::MQOD_CURRENT_VERSION);
+
         // SAFETY: Implementors of option::OpenOption must ensure MQOD structure is populated correctly for mqopen
         R::open_consume(&mut oo, |option::OpenParamOption { mqod, options }| unsafe {
             connection

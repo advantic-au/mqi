@@ -372,6 +372,8 @@ impl<C: Conn> Properties<C> {
         let mut mqsmpo = structs::MQSMPO::new(default::MQSMPO_DEFAULT);
         *mqsmpo.Options.as_mut() = location;
         let (data, value_type) = value.apply_mqsetmp(&mut mqpd, &mut mqsmpo);
+        assert!(mqpd.Version <= mq::MQPD_CURRENT_VERSION);
+        assert!(mqsmpo.Version <= mq::MQSMPO_CURRENT_VERSION);
 
         let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
         // SAFETY: The name MQCHARV formed from reference

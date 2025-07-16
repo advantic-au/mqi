@@ -28,7 +28,7 @@ where
 ///
 /// The [`Threading`] type parameter controls the threaded capability of the connection.
 ///
-/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) MQ API function.
+/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) verb.
 ///
 /// # Examples
 ///
@@ -50,6 +50,11 @@ where
 /// See also [`connect_as`] and [`connect_with`] for creating connections with additional
 /// return attribute. For connections using dynamically loaded or custom implementation of the
 /// MQ library refer to [`connect_lib`](crate::connect_lib).
+///
+/// ## Panics
+/// This will panic when:
+/// * Any MQ structure Version numbers exceed the compiled in MQ client
+/// * Any MQ structure Offsets exceed the bounds of an [`MQLONG`](libmqm_sys::MQLONG)
 #[inline]
 pub fn connect<'co, H>(options: &impl ConnectOption<'co>) -> ResultComp<Connection<LinkedMq, H>>
 where

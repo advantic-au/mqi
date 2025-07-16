@@ -1,4 +1,5 @@
 use libmqm_default as default;
+use libmqm_sys as mq;
 
 use super::option;
 use crate::{
@@ -37,6 +38,8 @@ impl<C: Conn> Subscription<C> {
             sr: constants::MQSR_ACTION_PUBLICATION,
         };
         request_options.apply_param(&mut srp);
+        assert!(srp.sro.Version <= mq::MQSRO_CURRENT_VERSION);
+
         self.connection
             .mq()
             .mqsubrq(self.connection.handle(), &self.handle, srp.sr, Some(&mut srp.sro))
@@ -114,6 +117,7 @@ impl<C: Conn + Clone> Subscription<C> {
         };
 
         subscribe_option.apply_param(&mut so);
+        assert!(so.sd.Version <= mq::MQSD_CURRENT_VERSION);
 
         R::subscribe_consume(&mut so, |param| {
             let mut obj_handle = ObjectHandle::from(param.provided_object);
@@ -121,7 +125,7 @@ impl<C: Conn + Clone> Subscription<C> {
             // SAFETY: Implementors of SubscribeOption must ensure the MQSD is populated correctly
             let mqsub_result = unsafe { connection.mq().mqsub(connection.handle(), &mut param.sd, &mut obj_handle) };
 
-            mqsub_result.map_completion(|sub_handle| {
+            mqsub_result.map_completion(|handle| {
                 // Create an Object if there is a unique one issued from the call
                 let new_raw_handle = unsafe { obj_handle.raw_handle() };
                 let object = match (param.provided_object, new_raw_handle) {
@@ -131,7 +135,7 @@ impl<C: Conn + Clone> Subscription<C> {
                 };
                 option::SubscribeState {
                     subscription: Self {
-                        handle: sub_handle,
+                        handle,
                         connection,
                         close_options: param.close_options,
                     },

@@ -19,8 +19,6 @@ pub trait Conn {
 /// [`MQCNO`](libmqm_sys::MQCNO) parameter used to define the connection
 pub type ConnectParam<'a> = structs::MQCNO<'a>;
 
-pub(super) trait Sealed {}
-
 /// [`Connection`](crate::Connection) threading behaviour.
 ///
 /// This must be one of [`ThreadNone`](crate::connection::ThreadNone), [`ThreadNoBlock`](crate::connection::ThreadBlock)
@@ -30,8 +28,7 @@ pub(super) trait Sealed {}
 /// For more information on multithreading support for MQ connections refer to [thread independent connections].
 ///
 /// [thread independent connections]: https://www.ibm.com/docs/en/SSFKSJ_latest/develop/q025940_.html
-#[expect(private_bounds, reason = "sealed trait pattern")]
-pub trait Threading: Sealed {
+pub trait Threading {
     /// One of the `MQCNO_HANDLE_SHARE_*` MQ constants
     const MQCNO_HANDLE_SHARE: types::MQLONG;
 }

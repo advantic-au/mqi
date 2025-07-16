@@ -52,7 +52,7 @@ impl<C: Conn> Object<C> {
     }
 
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
-    pub fn inq_item(&self, selector: option::AttributeType) -> ResultComp<Option<option::InqResItem<Vec<types::MQCHAR>>>> {
+    pub fn inquire_item(&self, selector: option::AttributeType) -> ResultComp<Option<option::InqResItem<Vec<types::MQCHAR>>>> {
         self.inquire(iter::once(&selector))
             .map_completion(option::MultiItem::into_first)
     }

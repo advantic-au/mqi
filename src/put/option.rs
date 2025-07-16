@@ -29,7 +29,7 @@ pub unsafe trait PutOption<'po> {
 ///
 /// Implementations of the [`PutAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PutAttr {
-    fn put_bag_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
+    fn put_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,
         Self: Sized;

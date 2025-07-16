@@ -611,7 +611,7 @@ mod tests {
     }
 
     #[test]
-    fn connect_option_option() {
+    fn connect_option() {
         struct NoExecuteConnectOptions;
 
         unsafe impl option::ConnectOption<'_> for NoExecuteConnectOptions {

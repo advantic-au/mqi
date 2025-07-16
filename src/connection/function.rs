@@ -99,19 +99,16 @@ where
 #[derive(Debug, Clone, Copy)]
 pub struct ThreadNone(PhantomData<*const ()>); // !Send + !Sync
 
-/// The [`Connection`] can be moved to other threads, but only one thread can use it at any one time.
+/// The [`Connection`] can be moved between threads, but only one thread can use it at any one time.
 /// See the `MQCNO_HANDLE_SHARE_NO_BLOCK` connection option.
 #[derive(Debug, Clone, Copy)]
 pub struct ThreadNoBlock(PhantomData<*const ()>); // Send + !Sync
 
-/// The [`Connection`] can be moved to other threads, and be used by multiple threads concurrently. Blocks when multiple threads call a function.
+/// The [`Connection`] can be moved between threads, and be used by multiple threads concurrently. Blocks when multiple threads call a function.
 /// See the `MQCNO_HANDLE_SHARE_BLOCK` connection option.
 #[derive(Debug, Clone, Copy)]
 pub struct ThreadBlock; // Send + Sync
 
-impl option::Sealed for ThreadNone {}
-impl option::Sealed for ThreadNoBlock {}
-impl option::Sealed for ThreadBlock {}
 unsafe impl Send for ThreadNoBlock {}
 
 impl option::Threading for ThreadNone {
@@ -142,7 +139,17 @@ impl<L: Library<MQ: Mqi>, H: option::Threading> option::ConnectValue<Self> for C
     }
 }
 
-/// Create and return a [`Connection`] to a queue manager using a specified MQ [`Library`].
+/// Create a connection to a queue manager using a [`Library`] returning a [`Connection`].
+///
+/// The connection parameters are provided using a [`ConnectOption`](option::ConnectOption). Multiple [`ConnectOption`](option::ConnectOption) can
+/// be supplied using tuples of varying length.
+///
+/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) verb.
+///
+/// ## Panics
+/// This will panic when:
+/// * Any MQ structure Version exceeds the compiled MQ client
+/// * Any MQ structure Offset exceedd the bounds of an [`MQLONG`](types::MQLONG)
 pub fn connect_lib<'co, H, L>(lib: L, options: &impl option::ConnectOption<'co>) -> ResultComp<Connection<L, H>>
 where
     H: option::Threading,
@@ -151,7 +158,17 @@ where
     connect_lib_as(lib, options)
 }
 
-/// Create and return a [`Connection`] to a queue manager using a specified MQ [`Library`] and inferred [`ConnectAttr`](option::ConnectAttr).
+/// Create a connection to a queue manager using a [`Library`] returning a ([`Connection`], [impl `ConnectAttr`](option::ConnectAttr)) tuple.
+///
+/// The connection parameters are provided using a [`ConnectOption`](option::ConnectOption). Multiple [`ConnectOption`](option::ConnectOption) can
+/// be supplied using tuples of varying length.
+///
+/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) verb.
+///
+/// ## Panics
+/// This will panic when:
+/// * Any MQ structure Version exceeds the compiled MQ client
+/// * Any MQ structure Offset exceedd the bounds of an [`MQLONG`](types::MQLONG)
 pub fn connect_lib_with<'co, A, H, L>(lib: L, options: &impl option::ConnectOption<'co>) -> ResultComp<(Connection<L, H>, A)>
 where
     A: option::ConnectAttr<Connection<L, H>>,
@@ -161,7 +178,17 @@ where
     connect_lib_as(lib, options)
 }
 
-/// Create a [`Connection`] to a queue manager using a specified MQ [`Library`] and inferred return value.
+/// Create a connection to a queue manager using a [`Library`] returning a usually inferred [`ConnectValue`](option::ConnectValue).
+///
+/// The connection parameters are provided using a [`ConnectOption`](option::ConnectOption). Multiple [`ConnectOption`](option::ConnectOption) can
+/// be supplied using tuples of varying length.
+///
+/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) verb.
+///
+/// ## Panics
+/// This will panic when:
+/// * Any MQ structure Version exceeds the compiled MQ client
+/// * Any MQ structure Offset exceedd the bounds of an [`MQLONG`](types::MQLONG)
 pub fn connect_lib_as<'co, R, H, L>(lib: L, options: &impl option::ConnectOption<'co>) -> ResultComp<R>
 where
     R: option::ConnectValue<Connection<L, H>>,
@@ -172,48 +199,51 @@ where
 
     let mut structs = option::ConnectStructs::default();
     let struct_mask = options.apply_param(&mut structs);
+    assert!(structs.cno.Version <= mq::MQCNO_CURRENT_VERSION);
 
     let cno_ptr = &raw const structs.cno;
     #[cfg(feature = "mqc_9_3_0_0")]
     if struct_mask & option::CONNECT_HAS_BNO != option::CONNECT_HAS_NONE {
+        assert!(structs.bno.Version <= mq::MQBNO_CURRENT_VERSION);
         structs.cno.set_min_version(mq::MQCNO_VERSION_8);
         structs.cno.BalanceParmsOffset = unsafe { (&raw const structs.bno).byte_offset_from(cno_ptr) }
             .try_into()
-            .expect("MQBNO offset from MQCNO should convert to i32");
+            .expect("MQBNO offset from MQCNO should convert to MQLONG");
     }
 
     if struct_mask & option::CONNECT_HAS_CD != option::CONNECT_HAS_NONE {
+        assert!(structs.cd.Version <= mq::MQCD_CURRENT_VERSION);
         structs.cno.set_min_version(mq::MQCNO_VERSION_2);
         structs.cno.ClientConnOffset = unsafe { (&raw const structs.cd).byte_offset_from(cno_ptr) }
             .try_into()
-            .expect("MQCD offset from MQCNO should convert to i32");
+            .expect("MQCD offset from MQCNO should convert to MQLONG");
     }
 
     if struct_mask & option::CONNECT_HAS_SCO != option::CONNECT_HAS_NONE {
+        assert!(structs.sco.Version <= mq::MQSCO_CURRENT_VERSION);
         structs.cno.set_min_version(mq::MQCNO_VERSION_4);
         structs.cno.SSLConfigOffset = unsafe { (&raw const structs.sco).byte_offset_from(cno_ptr) }
             .try_into()
-            .expect("MQSCO offset from MQCNO should convert to i32");
+            .expect("MQSCO offset from MQCNO should convert to MQLONG");
     }
 
     if struct_mask & option::CONNECT_HAS_CSP != option::CONNECT_HAS_NONE {
-        {
-            structs.cno.set_min_version(mq::MQCNO_VERSION_5);
-            structs.cno.SecurityParmsOffset = unsafe { (&raw const structs.csp).byte_offset_from(cno_ptr) }
-                .try_into()
-                .expect("MQCSP offset from MQCNO should convert to i32");
-        };
+        assert!(structs.csp.Version <= mq::MQCSP_CURRENT_VERSION);
+        structs.cno.set_min_version(mq::MQCNO_VERSION_5);
+        structs.cno.SecurityParmsOffset = unsafe { (&raw const structs.csp).byte_offset_from(cno_ptr) }
+            .try_into()
+            .expect("MQCSP offset from MQCNO should convert to MQLONG");
     }
 
-    R::connect_consume(&mut structs.cno, |param| {
-        param.Options |= H::MQCNO_HANDLE_SHARE;
+    R::connect_consume(&mut structs.cno, |cno| {
+        cno.Options |= H::MQCNO_HANDLE_SHARE;
         let mq = MqFunctions(lib);
         let qm_default = types::QueueManagerName::default(); // TODO: change to constant
         let qm = qm_name.as_ref().map_or(&qm_default, |qm| qm);
 
         // SAFETY: Implementors of ConnectOption must ensure MQCNO and associated structures are correctly populated
         unsafe {
-            mq.mqconnx(qm, param).map_completion(|handle| Connection {
+            mq.mqconnx(qm, cno).map_completion(|handle| Connection {
                 mq,
                 handle,
                 _share: PhantomData,

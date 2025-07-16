@@ -1,4 +1,5 @@
 use libmqm_default as default;
+use libmqm_sys as mq;
 
 use super::option;
 use crate::{
@@ -15,6 +16,7 @@ use crate::{
 #[cfg(feature = "mqai")]
 mod mqai {
     use libmqm_default as default;
+    use libmqm_sys as mq;
     use libmqm_sys::Mqai;
 
     use super::option;
@@ -41,6 +43,8 @@ mod mqai {
             let mut no_msg_available = false;
 
             options.apply_param(&mut param);
+            assert!(param.gmo.Version <= mq::MQGMO_CURRENT_VERSION);
+            assert!(param.md.Version <= mq::MQMD_CURRENT_VERSION);
 
             let result = R::get_bag_extract(&mut param, |param| {
                 let connection = self.connection();
@@ -75,7 +79,14 @@ mod mqai {
 }
 
 impl<C: Conn> Object<C> {
-    /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
+    /// Get a message from an object returning a slice of data.
+    ///
+    /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
+    /// is translated to a return value of [`None`].
+    ///
+    /// ## Panics
+    /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
+    /// * The MQ client returns an invalid data length
     pub fn get_data<'b, R>(&self, options: &impl option::GetOption, buffer: &'b mut [R]) -> ResultComp<Option<&'b [R]>>
     where
         R: WriteRaw<u8>,
@@ -84,7 +95,14 @@ impl<C: Conn> Object<C> {
             .map_completion(|o| o.map(|buffer: &mut [R]| &*buffer))
     }
 
-    /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
+    /// Get a message from an object returning a slice of data in a tuple with a [`GetAttr`](option::GetAttr).
+    ///
+    /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
+    /// is translated to a return value of [`None`].
+    ///
+    /// ## Panics
+    /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
+    /// * The MQ client returns an invalid data length
     pub fn get_data_with<'b, A, R>(
         &self,
         options: &impl option::GetOption,
@@ -98,7 +116,16 @@ impl<C: Conn> Object<C> {
             .map_completion(|o| o.map(|(buffer, attr): (&mut [R], A)| (&*buffer, attr)))
     }
 
-    /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
+    /// Get a string message from an object returning a [`StrCcsidCow`].
+    ///
+    /// No conversion of the message is performed by default.
+    ///
+    /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
+    /// is translated to a return value of [`None`].
+    ///
+    /// ## Panics
+    /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
+    /// * The MQ client returns an invalid data length
     pub fn get_string<'b>(
         &self,
         options: &impl option::GetOption,
@@ -107,7 +134,16 @@ impl<C: Conn> Object<C> {
         self.get_as(options, buffer)
     }
 
-    /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
+    /// Get a string message from an object returning a ([`StrCcsidCow`], [impl `GetAttr`](option::GetAttr)) tuple.
+    ///
+    /// No conversion of the message is performed by default.
+    ///
+    /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
+    /// is translated to a return value of [`None`].
+    ///
+    /// ## Panics
+    /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
+    /// * The MQ client returns an invalid data length
     pub fn get_string_with<'b, A>(
         &self,
         options: &impl option::GetOption,
@@ -119,25 +155,31 @@ impl<C: Conn> Object<C> {
         self.get_as(options, buffer)
     }
 
-    /// This function uses the [`MQGET`](libmqm_sys::MQGET) MQ API function.
+    /// Get a message from an object returning a usually inferred [`GetValue`](option::GetValue).
+    ///
+    /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
+    /// is translated to a return value of [`None`].
+    ///
+    /// ## Panics
+    /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
+    /// * The MQ client returns an invalid data length
     pub fn get_as<'b, V, R, B>(&self, options: &impl option::GetOption, buffer: B) -> ResultCompErr<Option<V>, V::Error>
     where
         B: Buffer<'b, R>,
         V: option::GetValue<'b, R, B>,
         R: WriteRaw<u8>,
     {
-        use libmqm_sys as mq;
-
         let mut param = option::GetParam {
             md: structs::MQMD::new(default::MQMD_DEFAULT),
-            gmo: structs::MQGMO::new(mq::MQGMO {
-                Version: mq::MQGMO_VERSION_3, // Version 3 for ReturnedLength
-                ..default::MQGMO_DEFAULT
-            }),
+            gmo: structs::MQGMO::new(default::MQGMO_DEFAULT),
         };
         let mut no_msg_available = false;
 
         options.apply_param(&mut param);
+        param.gmo.set_min_version(mq::MQGMO_VERSION_3); // Required for ReturnLength
+
+        assert!(param.gmo.Version <= mq::MQGMO_CURRENT_VERSION);
+        assert!(param.md.Version <= mq::MQMD_CURRENT_VERSION);
 
         let result = V::get_consume(&mut param, |param| {
             let mut buffer = buffer;
@@ -164,7 +206,7 @@ impl<C: Conn> Object<C> {
                                 write_area
                                     .len()
                                     .try_into()
-                                    .expect("length of buffer should be within positive i32 range"),
+                                    .expect("length of buffer should be within bounds of MQLONG"),
                                 length,
                             ),
                             returned_length => returned_length.0,
@@ -173,12 +215,10 @@ impl<C: Conn> Object<C> {
                 })
                 .map_completion(|(message_length, data_length)| option::GetState {
                     buffer,
-                    data_length: data_length
-                        .try_into()
-                        .expect("data length should be within positive usize range"),
+                    data_length: data_length.try_into().expect("data length should be within bounds of usize"),
                     message_length: message_length
                         .try_into()
-                        .expect("message length should be within positive usize range"),
+                        .expect("message length should be within bounds of usize"),
                     format: types::MessageFormat {
                         ccsid: CCSID(param.md.CodedCharSetId),
                         encoding: types::MQENC(param.md.Encoding),

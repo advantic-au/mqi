@@ -1,6 +1,6 @@
 #![cfg(feature = "mock")]
 
-use std::{sync::Arc, thread};
+use std::thread;
 
 use libmqm_sys::mock::MockMq;
 use mqi::{
@@ -30,14 +30,13 @@ fn thread() {
     });
 
     let (qm, (tag, id)) =
-        mqi::connect_lib_with::<(connection::ConnTag, connection::ConnectionId), connection::ThreadBlock, _>(mock, &())
+        mqi::connect_lib_with::<(connection::ConnTag, connection::ConnectionId), connection::ThreadNoBlock, _>(mock, &())
             .discard_warning() // ignore warning
             .expect("connection should be established");
-    let qm = Arc::new(qm);
     println!("Connection ID: {id}");
     println!("{:?}", tag.0);
     thread::spawn(move || {
-        let msg = Properties::new(qm.clone(), MQCMHO::default()).expect("message created");
+        let msg = Properties::new(&qm, MQCMHO::default()).expect("message created");
         msg.set_property("wally", "test", MQSMPO::default())
             .warn_as_error()
             .expect("property set should not fail");

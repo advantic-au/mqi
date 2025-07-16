@@ -152,7 +152,7 @@ unsafe impl<'po, C: Conn, C2: Conn> option::PutOption<'po> for PropertyAction<'p
 
 unsafe impl option::PutAttr for structs::MQMD {
     #[inline]
-    fn put_bag_extract<'b, F>(param: &mut option::PutParam<'b>, put: F) -> ResultComp<Self>
+    fn put_extract<'b, F>(param: &mut option::PutParam<'b>, put: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut option::PutParam<'b>) -> ResultComp<()>,
     {
@@ -167,7 +167,7 @@ macro_rules! impl_putattr_mqmd_mqstr {
     ($field:tt, $ty:ty) => {
         unsafe impl option::PutAttr for $ty {
             #[inline]
-            fn put_bag_extract<'b, F>(param: &mut option::PutParam<'b>, put: F) -> ResultComp<Self>
+            fn put_extract<'b, F>(param: &mut option::PutParam<'b>, put: F) -> ResultComp<Self>
             where
                 F: FnOnce(&mut option::PutParam<'b>) -> ResultComp<()>,
             {
@@ -184,7 +184,7 @@ macro_rules! impl_putattr_mqmd {
     ($field:tt, $ty:ty) => {
         unsafe impl option::PutAttr for $ty {
             #[inline]
-            fn put_bag_extract<'b, F>(param: &mut option::PutParam<'b>, put: F) -> ResultComp<Self>
+            fn put_extract<'b, F>(param: &mut option::PutParam<'b>, put: F) -> ResultComp<Self>
             where
                 F: FnOnce(&mut option::PutParam<'b>) -> ResultComp<()>,
             {
@@ -222,13 +222,13 @@ mod impl_put {
             {
                 #[expect(non_snake_case)]
                 #[inline]
-                fn put_bag_extract<'p, F>(param: &mut option::PutParam<'p>, mqi: F) -> ResultComp<Self>
+                fn put_extract<'p, F>(param: &mut option::PutParam<'p>, mqi: F) -> ResultComp<Self>
                 where
                     F: FnOnce(&mut option::PutParam<'p>) -> ResultComp<()>
                 {
                     let mut rest_outer = None;
-                    $first::put_bag_extract(param, |param| {
-                        <($($ty),*) as option::PutAttr>::put_bag_extract(param, mqi).map_completion(|rest| {
+                    $first::put_extract(param, |param| {
+                        <($($ty),*) as option::PutAttr>::put_extract(param, mqi).map_completion(|rest| {
                             rest_outer = Some(rest);
                         })
                     })
@@ -243,7 +243,7 @@ mod impl_put {
 
     unsafe impl option::PutAttr for () {
         #[inline]
-        fn put_bag_extract<'p, F>(param: &mut option::PutParam<'p>, mqi: F) -> ResultComp<Self>
+        fn put_extract<'p, F>(param: &mut option::PutParam<'p>, mqi: F) -> ResultComp<Self>
         where
             F: FnOnce(&mut option::PutParam<'p>) -> ResultComp<()>,
             Self: Sized,

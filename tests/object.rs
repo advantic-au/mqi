@@ -171,7 +171,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let r = object.inq_item(attribute::MQCA_DEF_XMIT_Q_NAME).warn_as_error()?;
+    let r = object.inquire_item(attribute::MQCA_DEF_XMIT_Q_NAME).warn_as_error()?;
     println!("{r:?}");
 
     Ok(())

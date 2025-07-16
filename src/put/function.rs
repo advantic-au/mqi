@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use libmqm_default as default;
-use libmqm_sys::{MQMD, Mqi};
+use libmqm_sys as mq;
 
 use super::option;
 use crate::{
@@ -41,20 +41,20 @@ impl<B: AsRef<[u8]>> option::PutMessage for (B, MessageFormat) {
 #[cfg(feature = "mqai")]
 mod mqai {
     use libmqm_default as default;
-    use libmqm_sys::{MQMD, Mqai};
+    use libmqm_sys as mq;
 
     use super::option;
     use crate::{Conn, Library, Object, bag, header::TextEnc, result::ResultComp, structs, types};
 
     impl<C: Conn> Object<C>
     where
-        C::Lib: Library<MQ: Mqai>,
+        C::Lib: Library<MQ: mq::Mqai>,
     {
         pub fn put_bag<'po>(
             &self,
             put_options: &impl option::PutOption<'po>,
             format: TextEnc<types::Fmt>,
-            bag: &bag::Bag<impl bag::BagDrop, impl Library<MQ: Mqai>>,
+            bag: &bag::Bag<impl bag::BagDrop, impl Library<MQ: mq::Mqai>>,
         ) -> ResultComp<()> {
             self.put_bag_with(put_options, format, bag)
         }
@@ -63,12 +63,12 @@ mod mqai {
             &self,
             put_options: &impl option::PutOption<'po>,
             format: TextEnc<types::Fmt>,
-            bag: &bag::Bag<impl bag::BagDrop, impl Library<MQ: Mqai>>,
+            bag: &bag::Bag<impl bag::BagDrop, impl Library<MQ: mq::Mqai>>,
         ) -> ResultComp<R>
         where
             R: option::PutAttr,
         {
-            let md = structs::MQMD::new(MQMD {
+            let md = structs::MQMD::new(mq::MQMD {
                 Format: format.into_ascii().into(),
                 ..default::MQMD_DEFAULT
             });
@@ -76,7 +76,10 @@ mod mqai {
 
             let mut put_param = (md, mqpmo);
             put_options.apply_param(&mut put_param);
-            R::put_bag_extract(&mut put_param, |(md, pmo)| {
+            assert!(put_param.0.Version <= mq::MQMD_CURRENT_VERSION);
+            assert!(put_param.1.Version <= mq::MQPMO_CURRENT_VERSION);
+
+            R::put_extract(&mut put_param, |(md, pmo)| {
                 let connection = self.connection();
                 // SAFETY: Implementors of PutOption must ensure the MQPMO is correctly populate
                 unsafe {
@@ -128,7 +131,7 @@ where
         encoding,
         fmt,
     } = message.format();
-    let md = structs::MQMD::new(MQMD {
+    let md = structs::MQMD::new(mq::MQMD {
         CodedCharSetId: ccsid,
         Encoding: encoding.0,
         Format: *fmt.into_ascii().as_ref(),
@@ -139,10 +142,13 @@ where
     let mut put_param = (md, mqpmo);
 
     options.apply_param(&mut put_param);
-    T::put_bag_extract(&mut put_param, |param| put(param, &message.render()))
+    assert!(put_param.0.Version <= mq::MQMD_CURRENT_VERSION);
+    assert!(put_param.1.Version <= mq::MQPMO_CURRENT_VERSION);
+
+    T::put_extract(&mut put_param, |param| put(param, &message.render()))
 }
 
-impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
+impl<L: Library<MQ: mq::Mqi>, H> Connection<L, H> {
     /// Put a message to a queue or topic
     #[inline]
     pub fn put_message<'po, 'oo>(
@@ -172,6 +178,7 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
             options: MQPMO::default(),
         };
         open_options.apply_param(&mut open_params);
+        assert!(open_params.mqod.Version <= mq::MQOD_CURRENT_VERSION);
         put(put_options, message, |(md, pmo), data| {
             let pmo_options: &mut MQPMO = pmo.Options.as_mut();
             pmo_options.insert(open_params.options);
