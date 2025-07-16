@@ -48,7 +48,7 @@ jobs:
         with:
           shared-key: "build"
       - name: Check
-        run: cargo check --features ${{ matrix.version.feature }},mqm_generate,exits,mqai,dlopen2
+        run: cargo check --features ${{ matrix.version.feature }},exits,mqai,dlopen2
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
@@ -250,7 +250,7 @@ jobs:
           cargo clippy --tests --examples --no-default-features --features mock,exits,link --
           cargo clippy --tests --examples --no-default-features --features mock,mqai,link --
           cargo clippy --tests --examples --no-default-features --features mock,mqai,exits,dlopen2 --
-          cargo clippy --tests --examples --no-default-features --features mock,mqm_generate,link --
+          cargo clippy --tests --examples --no-default-features --features mock,link --
         env:
           RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}

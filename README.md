@@ -113,7 +113,6 @@ Feature flags
 | mqai           |   | Expose functions and structures related to MQAI |
 | exits          |   | Expose functions and structures related to MQ exits |
 | mqc_*          | mqc_9_2_0_0 | Enable features of a specific MQI library version eg `mqc_9_4_1_0` |
-| mqm_generate   |   | Ensure the dependent MQM bindings are refreshed from the C library |
 
 Version Compatibility
 ---------------------
