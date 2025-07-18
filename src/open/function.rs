@@ -2,13 +2,15 @@ use libmqm_default as default;
 
 use super::option;
 use crate::{
-    Conn, Object, constants,
+    Object,
+    connection::AsConnection,
+    constants,
     prelude::*,
     result::{ResultComp, ResultCompErr},
     structs, types,
 };
 
-impl<C: Conn> Object<C> {
+impl<C: AsConnection> Object<C> {
     /// Establish access and return an MQ object ([`Object`])
     pub fn open<'oo>(connection: C, open_option: &impl option::OpenOption<'oo, types::MQOO>) -> ResultComp<Self> {
         Self::open_as(connection, open_option)
@@ -39,9 +41,10 @@ impl<C: Conn> Object<C> {
 
         // SAFETY: Implementors of option::OpenOption must ensure MQOD structure is populated correctly for mqopen
         R::open_consume(&mut oo, |option::OpenParamOption { mqod, options }| unsafe {
-            connection
-                .mq()
-                .mqopen(connection.handle(), mqod, *options)
+            let as_connection = connection.as_connection();
+            as_connection
+                .mq
+                .mqopen(as_connection.handle, mqod, *options)
                 .map_completion(|handle| Self {
                     handle,
                     connection,

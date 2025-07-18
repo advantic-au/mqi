@@ -28,8 +28,8 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
 
         // SAFETY: MQSTS ObjectString MQCHARV constructed from buffer
         unsafe {
-            self.mq()
-                .mqstat(self.handle(), constants::MQSTAT_TYPE_ASYNC_ERROR, &mut sts)
+            self.mq
+                .mqstat(self.handle, constants::MQSTAT_TYPE_ASYNC_ERROR, &mut sts)
                 .map_completion(|()| option::AsyncPutStat::new(&sts, buffer))
         }
     }
@@ -41,8 +41,8 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
 
         // SAFETY: MQSTS No pointers populated
         unsafe {
-            self.mq()
-                .mqstat(self.handle(), constants::MQSTAT_TYPE_RECONNECTION, &mut sts)
+            self.mq
+                .mqstat(self.handle, constants::MQSTAT_TYPE_RECONNECTION, &mut sts)
                 .map_completion(|()| option::ReconnectionStat::new(&sts))
         }
     }
@@ -75,8 +75,8 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
 
         // SAFETY: MQSTS ObjectString and SubName MQCHARV constructed from buffers
         unsafe {
-            self.mq()
-                .mqstat(self.handle(), constants::MQSTAT_TYPE_RECONNECTION_ERROR, &mut sts)
+            self.mq
+                .mqstat(self.handle, constants::MQSTAT_TYPE_RECONNECTION_ERROR, &mut sts)
                 .map_completion(|()| option::ReconnectionErrorStat::new(&sts, object_string_buffer, sub_name_buffer))
         }
     }

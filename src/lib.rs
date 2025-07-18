@@ -213,10 +213,7 @@ pub mod connection {
     pub use option::*;
     pub use param::*;
 }
-pub use connection::{
-    function::{Connection, ConnectionRef, connect_lib, connect_lib_as, connect_lib_with},
-    option::Conn,
-};
+pub use connection::function::{Connection, ConnectionRef, connect_lib, connect_lib_as, connect_lib_with};
 
 pub mod open {
     mod function;

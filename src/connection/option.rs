@@ -1,20 +1,17 @@
 use libmqm_sys::Mqi;
 
 use crate::{
-    Library, MqFunctions,
-    handle::ConnectionHandle,
+    Library,
     result::ResultComp,
     structs,
     types::{self, QueueManagerName},
 };
 
-/// Associated connection handle and MQ library
-pub trait Conn {
+pub trait AsConnection {
     type Lib: Library<MQ: Mqi>;
     type Thread;
 
-    fn mq(&self) -> &MqFunctions<Self::Lib>;
-    fn handle(&self) -> ConnectionHandle;
+    fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread>;
 }
 
 /// [`MQCNO`](libmqm_sys::MQCNO) parameter used to define the connection

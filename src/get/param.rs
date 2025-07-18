@@ -4,7 +4,9 @@ use libmqm_sys as mq;
 
 use super::option;
 use crate::{
-    Conn, Properties, constants, conversion, header,
+    Properties,
+    connection::AsConnection,
+    constants, conversion, header,
     prelude::*,
     result::{Completion, Error, ResultComp, ResultCompErr},
     string::{CCSID, StrCcsidCow},
@@ -134,7 +136,7 @@ impl option::GetOption for GetConvert {
     }
 }
 
-impl<C: Conn> option::GetOption for &mut Properties<C> {
+impl<C: AsConnection> option::GetOption for &mut Properties<C> {
     fn apply_param(&self, param: &mut option::GetParam) {
         param.gmo.set_min_version(mq::MQGMO_VERSION_4);
         let gmo_options: &mut types::MQGMO = param.gmo.Options.as_mut();

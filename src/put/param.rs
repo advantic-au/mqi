@@ -2,7 +2,8 @@ use libmqm_sys as mq;
 
 use super::option;
 use crate::{
-    Conn, MqStr, Object, Properties, constants, macros::all_multi_tuples, prelude::*, result::ResultComp, structs, types,
+    MqStr, Object, Properties, connection::AsConnection, constants, macros::all_multi_tuples, prelude::*, result::ResultComp,
+    structs, types,
 };
 
 structs::impl_min_version!(['a], structs::MQPMO<'a>);
@@ -34,19 +35,19 @@ unsafe impl option::PutOption<'_> for () {
 all_multi_tuples!(impl_putoption_tuple);
 
 #[derive(Debug)]
-pub enum PropertyAction<'handle, C: Conn, C2: Conn> {
+pub enum PropertyAction<'handle, C: AsConnection, C2: AsConnection> {
     Reply(&'handle Properties<C>, &'handle mut Properties<C2>),
     Forward(&'handle Properties<C>, &'handle mut Properties<C2>),
     Report(&'handle Properties<C>, &'handle mut Properties<C2>),
 }
 
-unsafe impl<'po, C: Conn> option::PutOption<'po> for Context<&Object<C>> {
+unsafe impl<'po, C: AsConnection> option::PutOption<'po> for Context<&Object<C>> {
     fn apply_param(&self, (.., pmo): &mut option::PutParam<'po>) {
         pmo.Context = unsafe { self.0.handle.raw_handle() };
     }
 }
 
-unsafe impl<'po, C: Conn> option::PutOption<'po> for &mut Properties<C> {
+unsafe impl<'po, C: AsConnection> option::PutOption<'po> for &mut Properties<C> {
     fn apply_param(&self, (.., pmo): &mut option::PutParam<'po>) {
         pmo.set_min_version(mq::MQPMO_VERSION_3);
         *pmo.Action.as_mut() = constants::MQACTP_NEW;
@@ -136,7 +137,7 @@ impl_putoption_mqchar!(UserIdentifier, types::UserIdentifier);
 impl_putoption_mqchar!(ApplIdentityData, types::ApplIdentityData);
 impl_putoption_mqchar!(ApplOriginData, types::ApplOriginData);
 
-unsafe impl<'po, C: Conn, C2: Conn> option::PutOption<'po> for PropertyAction<'po, C, C2> {
+unsafe impl<'po, C: AsConnection, C2: AsConnection> option::PutOption<'po> for PropertyAction<'po, C, C2> {
     fn apply_param(&self, (.., pmo): &mut option::PutParam<'po>) {
         let (action, original, new) = match self {
             PropertyAction::Reply(original, new) => (constants::MQACTP_REPLY, original, new),

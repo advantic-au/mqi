@@ -3,7 +3,7 @@ use std::{borrow::Cow, ptr};
 use libmqm_default as default;
 use libmqm_sys::MQCHARV;
 
-use crate::{constants, conversion, string::CCSID, structs, types};
+use crate::{connection::AsConnection, constants, conversion, string::CCSID, structs, types};
 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
@@ -138,13 +138,13 @@ impl<T: AsRef<[types::MQCHAR]>> StringCcsid<T> {
     pub fn try_mq_convert<'a, C>(
         &self,
         ccsid: CCSID,
-        conn: &C,
+        connection: &C,
         target_le: bool,
         buffer: &'a mut [types::MQCHAR],
     ) -> crate::result::ResultComp<StrCcsid<'a>>
     where
         C::Lib: crate::Library<MQ: libmqm_sys::Exits>,
-        C: crate::Conn,
+        C: AsConnection,
     {
         use crate::{constants, prelude::*};
 
@@ -159,8 +159,9 @@ impl<T: AsRef<[types::MQCHAR]>> StringCcsid<T> {
         } else {
             constants::MQDCC_TARGET_ENC_NORMAL
         });
-        conn.mq()
-            .mqxcnvc(Some(conn.handle()), mqdcc, self.ccsid, self.data.as_ref(), ccsid, buffer)
+        let conn = connection.as_connection();
+        conn.mq
+            .mqxcnvc(Some(conn.handle), mqdcc, self.ccsid, self.data.as_ref(), ccsid, buffer)
             .map_completion(|length| StringCcsid {
                 ccsid,
                 le: target_le,

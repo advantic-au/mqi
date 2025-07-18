@@ -5,7 +5,9 @@ use libmqm_sys as mq;
 
 use super::option;
 use crate::{
-    Conn, Connection, Library, Object, constants,
+    Connection, Library, Object,
+    connection::AsConnection,
+    constants,
     header::{TextEnc, fmt},
     open::{OpenOption, OpenParamOption},
     result::ResultComp,
@@ -44,9 +46,9 @@ mod mqai {
     use libmqm_sys as mq;
 
     use super::option;
-    use crate::{Conn, Library, Object, bag, header::TextEnc, result::ResultComp, structs, types};
+    use crate::{Library, Object, bag, connection::AsConnection, header::TextEnc, result::ResultComp, structs, types};
 
-    impl<C: Conn> Object<C>
+    impl<C: AsConnection> Object<C>
     where
         C::Lib: Library<MQ: mq::Mqai>,
     {
@@ -80,19 +82,19 @@ mod mqai {
             assert!(put_param.1.Version <= mq::MQPMO_CURRENT_VERSION);
 
             R::put_extract(&mut put_param, |(md, pmo)| {
-                let connection = self.connection();
+                let connection = self.connection.as_connection();
                 // SAFETY: Implementors of PutOption must ensure the MQPMO is correctly populate
                 unsafe {
                     connection
-                        .mq()
-                        .mq_put_bag(connection.handle(), self.handle(), &mut **md, &mut *pmo, bag.handle())
+                        .mq
+                        .mq_put_bag(connection.handle, self.handle(), &mut **md, &mut *pmo, bag.handle())
                 }
             })
         }
     }
 }
 
-impl<C: Conn> Object<C> {
+impl<C: AsConnection> Object<C> {
     pub fn put_message<'po>(
         &self,
         put_options: &impl option::PutOption<'po>,
@@ -110,12 +112,12 @@ impl<C: Conn> Object<C> {
         R: option::PutAttr,
     {
         put(put_options, message, |(md, pmo), data| {
-            let connection = self.connection();
+            let connection = self.connection.as_connection();
             // SAFETY: Implementors of PutOption must ensure the MQPMO is correctly populated
             unsafe {
                 connection
-                    .mq()
-                    .mqput(connection.handle(), self.handle(), Some(&mut **md), pmo, data)
+                    .mq
+                    .mqput(connection.handle, self.handle(), Some(&mut **md), pmo, data)
             }
         })
     }
@@ -184,10 +186,7 @@ impl<L: Library<MQ: mq::Mqi>, H> Connection<L, H> {
             pmo_options.insert(open_params.options);
 
             // SAFETY: Implementors of OpenOption and PutOption must ensure the MQOD and MQPMO are populated correctly
-            unsafe {
-                self.mq()
-                    .mqput1(self.handle(), &mut open_params.mqod, Some(&mut **md), pmo, data)
-            }
+            unsafe { self.mq.mqput1(self.handle, &mut open_params.mqod, Some(&mut **md), pmo, data) }
         })
     }
 }

@@ -1,9 +1,9 @@
 use std::{collections::VecDeque, iter};
 
 use super::option;
-use crate::{Conn, Object, prelude::*, result::ResultComp, types};
+use crate::{Connection, Object, connection::AsConnection, prelude::*, result::ResultComp, types};
 
-impl<C: Conn> Object<C> {
+impl<C: AsConnection> Object<C> {
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
     pub fn inquire<'a>(&self, selectors: impl IntoIterator<Item = &'a option::AttributeType>) -> ResultComp<option::MultiItem> {
         let mut text_total = 0;
@@ -32,23 +32,21 @@ impl<C: Conn> Object<C> {
             text_len,
         };
 
-        let connection = self.connection();
-        connection
-            .mq()
-            .mqinq(
-                connection.handle(),
-                self.handle(),
-                &output.selectors,
-                &mut output.int_attr.spare_capacity_mut()[..int_count],
-                &mut output.text_attr.spare_capacity_mut()[..text_total as usize],
-            )
-            .map_completion(|()| {
-                unsafe {
-                    output.text_attr.set_len(text_total as usize);
-                    output.int_attr.set_len(int_count);
-                };
-                output
-            })
+        let Connection { mq, handle, .. } = self.connection.as_connection();
+        mq.mqinq(
+            *handle,
+            self.handle(),
+            &output.selectors,
+            &mut output.int_attr.spare_capacity_mut()[..int_count],
+            &mut output.text_attr.spare_capacity_mut()[..text_total as usize],
+        )
+        .map_completion(|()| {
+            unsafe {
+                output.text_attr.set_len(text_total as usize);
+                output.int_attr.set_len(int_count);
+            };
+            output
+        })
     }
 
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
@@ -59,13 +57,7 @@ impl<C: Conn> Object<C> {
 
     /// This function uses the [`MQSET`](libmqm_sys::MQSET) MQ API function.
     pub fn set(&self, items: &impl option::SetItems) -> ResultComp<()> {
-        let connection = self.connection();
-        connection.mq().mqset(
-            connection.handle(),
-            self.handle(),
-            items.selectors(),
-            items.int_attr(),
-            items.text_attr(),
-        )
+        let Connection { mq, handle, .. } = self.connection.as_connection();
+        mq.mqset(*handle, self.handle(), items.selectors(), items.int_attr(), items.text_attr())
     }
 }

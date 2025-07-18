@@ -16,8 +16,8 @@ use crate::{Library, MqFunctions, handle::ConnectionHandle, prelude::*, result::
 /// A connection to an IBM MQ queue manager
 #[derive(Debug)]
 pub struct Connection<L: Library<MQ: Mqi>, H> {
-    handle: ConnectionHandle,
-    mq: MqFunctions<L>,
+    pub(crate) handle: ConnectionHandle,
+    pub(crate) mq: MqFunctions<L>,
     _share: PhantomData<H>, // Send and Sync control
 }
 
@@ -259,67 +259,47 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
     }
 }
 
-impl<L: Library<MQ: Mqi>, H> crate::Conn for Arc<Connection<L, H>> {
+impl<L: Library<MQ: Mqi>, H> option::AsConnection for Connection<L, H> {
     type Lib = L;
     type Thread = H;
 
-    fn mq(&self) -> &MqFunctions<Self::Lib> {
-        self.deref().mq()
-    }
-
-    fn handle(&self) -> ConnectionHandle {
-        self.deref().handle()
+    fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread> {
+        self
     }
 }
 
-impl<L: Library<MQ: Mqi>, H> crate::Conn for Rc<Connection<L, H>> {
+impl<L: Library<MQ: Mqi>, H> option::AsConnection for ConnectionRef<'_, L, H> {
     type Lib = L;
     type Thread = H;
 
-    fn mq(&self) -> &MqFunctions<Self::Lib> {
-        self.deref().mq()
-    }
-
-    fn handle(&self) -> ConnectionHandle {
-        self.deref().handle()
+    fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread> {
+        &self.conn
     }
 }
 
-impl<L: Library<MQ: Mqi>, H> crate::Conn for &Connection<L, H> {
+impl<T: option::AsConnection<Lib = L, Thread = H>, L: Library<MQ: Mqi>, H> option::AsConnection for Rc<T> {
     type Lib = L;
     type Thread = H;
 
-    fn mq(&self) -> &MqFunctions<Self::Lib> {
-        Connection::<L, H>::mq(self)
-    }
-
-    fn handle(&self) -> ConnectionHandle {
-        Connection::<L, H>::handle(self)
+    fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread> {
+        self.deref().as_connection()
     }
 }
 
-impl<L: Library<MQ: Mqi>, H> crate::Conn for Connection<L, H> {
+impl<T: option::AsConnection<Lib = L, Thread = H>, L: Library<MQ: Mqi>, H> option::AsConnection for Arc<T> {
     type Lib = L;
     type Thread = H;
 
-    fn mq(&self) -> &MqFunctions<Self::Lib> {
-        &self.mq
-    }
-
-    fn handle(&self) -> ConnectionHandle {
-        self.handle
+    fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread> {
+        self.deref().as_connection()
     }
 }
 
-impl<L: Library<MQ: Mqi>, H> crate::Conn for ConnectionRef<'_, L, H> {
+impl<T: option::AsConnection<Lib = L, Thread = H>, L: Library<MQ: Mqi>, H> option::AsConnection for &T {
     type Lib = L;
     type Thread = H;
 
-    fn mq(&self) -> &MqFunctions<Self::Lib> {
-        &self.mq
-    }
-
-    fn handle(&self) -> ConnectionHandle {
-        self.handle
+    fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread> {
+        (*self).as_connection()
     }
 }

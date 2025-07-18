@@ -1,14 +1,14 @@
-use crate::{Conn, constants, handle::ObjectHandle, result::ResultComp, types::MQCO};
+use crate::{Connection, connection::AsConnection, constants, handle::ObjectHandle, result::ResultComp, types::MQCO};
 
 #[must_use]
 #[derive(Debug)]
-pub struct Object<C: Conn> {
+pub struct Object<C: AsConnection> {
     pub(crate) handle: ObjectHandle,
     pub(crate) connection: C,
     pub(crate) close_options: MQCO,
 }
 
-impl<C: Conn> Object<C> {
+impl<C: AsConnection> Object<C> {
     #[must_use]
     pub const fn handle(&self) -> &ObjectHandle {
         &self.handle
@@ -36,20 +36,24 @@ impl<C: Conn> Object<C> {
 
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
-        s.connection
-            .mq()
-            .mqclose(s.connection.handle(), &mut s.handle, s.close_options)
+        let Self {
+            handle: obj_handle,
+            close_options,
+            connection,
+            ..
+        } = &mut s;
+        let Connection { handle, mq, .. } = connection.as_connection();
+        mq.mqclose(*handle, obj_handle, *close_options)
     }
 }
 
-impl<C: Conn> Drop for Object<C> {
+impl<C: AsConnection> Drop for Object<C> {
     fn drop(&mut self) {
         // TODO: handle close failure
+        let Connection { handle, mq, .. } = self.connection.as_connection();
+
         if self.handle.is_closeable() {
-            let _ = self
-                .connection
-                .mq()
-                .mqclose(self.connection.handle(), &mut self.handle, self.close_options);
+            let _ = mq.mqclose(*handle, &mut self.handle, self.close_options);
         }
     }
 }

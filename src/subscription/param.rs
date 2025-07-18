@@ -2,7 +2,8 @@ use super::option::{
     SubscribeAttr, SubscribeOption, SubscribeParam, SubscribeRequestOption, SubscribeRequestParam, SubscribeState, SubscribeValue,
 };
 use crate::{
-    Conn, Object, Subscription,
+    Object, Subscription,
+    connection::AsConnection,
     macros::all_option_tuples,
     open::ObjectString,
     prelude::*,
@@ -21,7 +22,7 @@ unsafe impl<'so, T: EncodedString + ?Sized> SubscribeOption<'so> for ObjectStrin
     }
 }
 
-unsafe impl<C: Conn> SubscribeOption<'_> for &Object<C> {
+unsafe impl<C: AsConnection> SubscribeOption<'_> for &Object<C> {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam) {
         param.provided_object = unsafe { self.handle.raw_handle() };
@@ -58,7 +59,7 @@ impl SubscribeRequestOption for MQSRO {
     }
 }
 
-impl<C: Conn> SubscribeValue<C> for Subscription<C> {
+impl<C: AsConnection> SubscribeValue<C> for Subscription<C> {
     type Error = Error;
 
     #[inline]
@@ -71,7 +72,7 @@ impl<C: Conn> SubscribeValue<C> for Subscription<C> {
 }
 
 // Return the optional handle of a managed subscription
-impl<C: Conn> SubscribeAttr<C> for Option<Object<C>> {
+impl<C: AsConnection> SubscribeAttr<C> for Option<Object<C>> {
     #[inline]
     fn subscribe_extract<'so, F>(param: &mut SubscribeParam<'so>, subscribe: F) -> ResultComp<(Self, SubscribeState<C>)>
     where
@@ -85,7 +86,7 @@ impl<C: Conn> SubscribeAttr<C> for Option<Object<C>> {
 mod impl_subscribe {
     use super::{SubscribeAttr, SubscribeParam, SubscribeState, SubscribeValue};
     use crate::{
-        Conn,
+        connection::AsConnection,
         macros::all_multi_tuples,
         prelude::*,
         result::{ResultComp, ResultCompErr},
@@ -94,7 +95,7 @@ mod impl_subscribe {
     macro_rules! impl_subscribevalue_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            impl<C: Conn, $first, $($ty),*> SubscribeValue<C> for ($first, $($ty),*)
+            impl<C: AsConnection, $first, $($ty),*> SubscribeValue<C> for ($first, $($ty),*)
             where
                 $first: SubscribeValue<C>,
                 $($ty: SubscribeAttr<C>),*
@@ -126,7 +127,7 @@ mod impl_subscribe {
     macro_rules! impl_subscribeattr_tuple {
         ([$first:ident, $($ty:ident),*]) => {
             #[diagnostic::do_not_recommend]
-            impl<C: Conn, $first, $($ty),*> SubscribeAttr<C> for ($first, $($ty),*)
+            impl<C: AsConnection, $first, $($ty),*> SubscribeAttr<C> for ($first, $($ty),*)
             where
                 $first: SubscribeAttr<C>,
                 $($ty: SubscribeAttr<C>),*
@@ -153,7 +154,7 @@ mod impl_subscribe {
         }
     }
 
-    impl<C: Conn> SubscribeValue<C> for () {
+    impl<C: AsConnection> SubscribeValue<C> for () {
         type Error = crate::result::Error;
 
         #[inline]
@@ -165,7 +166,7 @@ mod impl_subscribe {
         }
     }
 
-    impl<C: Conn> SubscribeAttr<C> for () {
+    impl<C: AsConnection> SubscribeAttr<C> for () {
         #[inline]
         fn subscribe_extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
         where

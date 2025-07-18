@@ -1,10 +1,11 @@
 use crate::{
-    Conn, Object,
+    Object,
+    connection::AsConnection,
     result::{Error, ResultComp, ResultCompErr},
     structs, types,
 };
 
-pub struct SubscribeState<C: Conn> {
+pub struct SubscribeState<C: AsConnection> {
     pub subscription: super::function::Subscription<C>,
     pub object: Option<Object<C>>,
 }
@@ -22,7 +23,7 @@ pub struct SubscribeRequestParam {
     pub sr: types::MQSR,
 }
 
-pub trait SubscribeValue<C: Conn> {
+pub trait SubscribeValue<C: AsConnection> {
     type Error: From<Error> + std::fmt::Debug;
 
     fn subscribe_consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
@@ -31,7 +32,7 @@ pub trait SubscribeValue<C: Conn> {
         Self: std::marker::Sized;
 }
 
-pub trait SubscribeAttr<C: Conn> {
+pub trait SubscribeAttr<C: AsConnection> {
     fn subscribe_extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
     where
         F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,

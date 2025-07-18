@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use mqi::{prelude::*, ConnectionCallback, connection::ThreadNone, constants, test};
+use mqi::{ConnectionCallback, constants, prelude::*, test};
 
 #[test]
 fn qm() -> Result<(), Box<dyn std::error::Error>> {
@@ -16,37 +16,34 @@ fn qm() -> Result<(), Box<dyn std::error::Error>> {
     }
     #[cfg(not(feature = "mock"))]
     {
+        use mqi::connection;
         let creds = test::credentials();
-        let cred_options: mqi::connection::Credentials<_> = creds.as_ref().into();
-        connection = mqi::connect_lib::<ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
+        let cred_options: connection::Credentials<_> = creds.as_ref().into();
+        connection = mqi::connect_lib::<connection::ThreadNone, _>(test::mq_library(), &cred_options).warn_as_error()?;
     }
 
     let first_counter = AtomicUsize::new(0);
     let second_counter = AtomicUsize::new(0);
     let r = ConnectionCallback::new(connection.connection_ref());
 
-    r.event_handler(
-        constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL,
-        |_, _| { let _ = first_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed); },
-    )
+    r.event_handler(constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL, |_, _| {
+        let _ = first_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    })
     .warn_as_error()?;
 
     assert_eq!(first_counter.load(Ordering::Relaxed), 1);
 
-    r.event_handler(
-        constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL,
-        |_, _| { let _ = second_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed); },
-    )
+    r.event_handler(constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL, |_, _| {
+        let _ = second_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    })
     .warn_as_error()?;
 
     assert_eq!(first_counter.load(Ordering::Relaxed), 2);
     assert_eq!(second_counter.load(Ordering::Relaxed), 1);
 
-
     drop(r);
 
     assert_eq!(second_counter.load(Ordering::Relaxed), 2);
-
 
     Ok(())
 }
@@ -123,7 +120,7 @@ fn qm() -> Result<(), Box<dyn std::error::Error>> {
 
 //         gmo.WaitInterval = 1500;
 //         unsafe {
-//             qm.mq()
+//             qm.mq
 //                 .mqcb(
 //                     qm.handle(),
 //                     constants::MQOP_REGISTER,
@@ -138,7 +135,7 @@ fn qm() -> Result<(), Box<dyn std::error::Error>> {
 //         let ctlo = structs::MQCTLO::new(default::MQCTLO_DEFAULT);
 
 //         unsafe {
-//             qm.mq()
+//             qm.mq
 //                 .mqctl(qm.handle(), constants::MQOP_START_WAIT, &ctlo)
 //                 .warn_as_error()
 //                 .expect("mqctl should not fail");
@@ -154,8 +151,8 @@ fn qm() -> Result<(), Box<dyn std::error::Error>> {
 //     .join();
 //     // let ctlo = MqStruct::<sys::MQCTLO>::default();
 //     // connection
-//     //     .mq()
-//     //     .mqctl(connection.handle(), constants::MQOP_SUSPEND, &ctlo)
+//     //     .mq
+//     //     .mqctl(connection.handle, constants::MQOP_SUSPEND, &ctlo)
 //     //     .warn_as_error()?;
 
 //     // object.close().warn_as_error()?;

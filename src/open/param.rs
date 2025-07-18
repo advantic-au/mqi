@@ -2,7 +2,9 @@ use libmqm_sys as mq;
 
 use super::option;
 use crate::{
-    Conn, MqStr, Object, constants,
+    MqStr, Object,
+    connection::AsConnection,
+    constants,
     macros::{all_multi_tuples, impl_from_str, reverse_ident},
     prelude::*,
     result::{Error, ResultComp},
@@ -139,7 +141,7 @@ unsafe impl<S, O> option::OpenAttr<S, O> for MQOT {
     }
 }
 
-unsafe impl<C: Conn> option::OpenValue<Self> for Object<C> {
+unsafe impl<C: AsConnection> option::OpenValue<Self> for Object<C> {
     type Error = Error;
 
     #[inline]

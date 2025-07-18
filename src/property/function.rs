@@ -5,7 +5,9 @@ use libmqm_sys::{self as mq, Mqi};
 
 use super::option;
 use crate::{
-    Conn, Library, MqFunctions, constants,
+    Connection, Library, MqFunctions,
+    connection::AsConnection,
+    constants,
     handle::{ConnectionHandle, MessageHandle},
     prelude::*,
     result::{Completion, Error, ResultComp, ResultCompErr, ResultErr},
@@ -17,7 +19,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Properties<C: Conn> {
+pub struct Properties<C: AsConnection> {
     handle: MessageHandle,
     connection: C,
 }
@@ -100,15 +102,13 @@ impl<'a, T: Clone> Buffer<'a, T> for InqBuffer<'a, T> {
     }
 }
 
-impl<C: Conn> Drop for Properties<C> {
+impl<C: AsConnection> Drop for Properties<C> {
     fn drop(&mut self) {
         let mqdmho = default::MQDMHO_DEFAULT;
 
         if self.handle.is_deleteable() {
-            let _ = self
-                .connection
-                .mq()
-                .mqdltmh(Some(self.connection.handle()), &mut self.handle, &mqdmho);
+            let Connection { mq, handle, .. } = self.connection.as_connection();
+            let _ = mq.mqdltmh(Some(*handle), &mut self.handle, &mqdmho);
         }
     }
 }
@@ -208,14 +208,14 @@ unsafe fn inqmp<'a, 'b, A: Library<MQ: Mqi>>(
     }
 }
 
-pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: Conn> {
+pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: AsConnection> {
     name: &'name N,
     message: &'message Properties<C>,
     options: MQIMPO,
     _marker: PhantomData<P>,
 }
 
-impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for MsgPropIter<'_, '_, P, N, C> {
+impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: AsConnection> Iterator for MsgPropIter<'_, '_, P, N, C> {
     type Item = ResultCompErr<P, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -231,7 +231,7 @@ impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: Conn> Iterator for 
     }
 }
 
-impl<C: Conn> Properties<C> {
+impl<C: AsConnection> Properties<C> {
     pub const fn handle(&self) -> &MessageHandle {
         &self.handle
     }
@@ -242,9 +242,9 @@ impl<C: Conn> Properties<C> {
             Options: options.0,
             ..default::MQCMHO_DEFAULT
         };
-        connection
-            .mq()
-            .mqcrtmh(Some(connection.handle()), &mqcmho)
+        let conn = connection.as_connection();
+        conn.mq
+            .mqcrtmh(Some(conn.handle), &mqcmho)
             .map(|handle| Self { handle, connection })
     }
 
@@ -314,10 +314,11 @@ impl<C: Conn> Properties<C> {
                 ..default::MQCHARV_DEFAULT
             });
 
+            let conn = self.connection.as_connection();
             let mqi_inqmp = unsafe {
                 inqmp(
-                    self.connection.mq(),
-                    Some(self.connection.handle()),
+                    &conn.mq,
+                    Some(conn.handle),
                     &self.handle,
                     &mut param.impo,
                     &name,
@@ -356,9 +357,8 @@ impl<C: Conn> Properties<C> {
 
         let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
 
-        self.connection
-            .mq()
-            .mqdltmp(Some(self.connection.handle()), &self.handle, &mqdmpo, &name_mqcharv)
+        let conn = self.connection.as_connection();
+        conn.mq.mqdltmp(Some(conn.handle), &self.handle, &mqdmpo, &name_mqcharv)
     }
 
     /// This function uses the [`MQSETMP`](libmqm_sys::MQSETMP) MQ API function.
@@ -376,10 +376,11 @@ impl<C: Conn> Properties<C> {
         assert!(mqsmpo.Version <= mq::MQSMPO_CURRENT_VERSION);
 
         let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
+        let conn = self.connection.as_connection();
         // SAFETY: The name MQCHARV formed from reference
         unsafe {
-            self.connection.mq().mqsetmp(
-                Some(self.connection.handle()),
+            conn.mq.mqsetmp(
+                Some(conn.handle),
                 &self.handle,
                 &mqsmpo,
                 &name_mqcharv,
@@ -394,7 +395,8 @@ impl<C: Conn> Properties<C> {
     pub fn close(self) -> ResultErr<()> {
         let mut s = self;
         let mqdmho = default::MQDMHO_DEFAULT;
-        s.connection.mq().mqdltmh(Some(s.connection.handle()), &mut s.handle, &mqdmho)
+        let conn = s.connection.as_connection();
+        conn.mq.mqdltmh(Some(conn.handle), &mut s.handle, &mqdmho)
     }
 
     /// This function uses the [`MQMHBUF`](libmqm_sys::MQMHBUF) MQ API function.
@@ -411,12 +413,12 @@ impl<C: Conn> Properties<C> {
         let mut mqmd = structs::MQMD::new(default::MQMD_DEFAULT);
         let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
 
+        let conn = self.connection.as_connection();
         // SAFETY: The name MQCHARV formed from references
         unsafe {
-            self.connection
-                .mq()
+            conn.mq
                 .mqmhbuf(
-                    Some(self.connection.handle()),
+                    Some(conn.handle),
                     self.handle(),
                     &mhbo,
                     &name_mqcharv,
@@ -447,12 +449,12 @@ impl<C: Conn> Properties<C> {
         let mut mqmd = structs::MQMD::new(default::MQMD_DEFAULT);
         let name_mqcharv = structs::MQCHARV::from_encoded_str(name);
 
+        let conn = self.connection.as_connection();
         // SAFETY: The name MQCHARV is formed from references
         unsafe {
-            self.connection
-                .mq()
+            conn.mq
                 .mqmhbuf(
-                    Some(self.connection.handle()),
+                    Some(conn.handle),
                     self.handle(),
                     &mhbo,
                     &name_mqcharv,
@@ -478,9 +480,9 @@ impl<C: Conn> Properties<C> {
             ..default::MQBMHO_DEFAULT
         });
 
-        self.connection
-            .mq()
-            .mqbufmh(Some(self.connection.handle()), &self.handle, &bmho, &mut *mqmd, buffer)
+        let conn = self.connection.as_connection();
+        conn.mq
+            .mqbufmh(Some(conn.handle), &self.handle, &bmho, &mut *mqmd, buffer)
             .map_completion(|_| {})
     }
 
@@ -497,9 +499,9 @@ impl<C: Conn> Properties<C> {
             ..default::MQBMHO_DEFAULT
         });
 
-        self.connection
-            .mq()
-            .mqbufmh(Some(self.connection.handle()), &self.handle, &bmho, &mut *mqmd, buffer)
+        let conn = self.connection.as_connection();
+        conn.mq
+            .mqbufmh(Some(conn.handle), &self.handle, &bmho, &mut *mqmd, buffer)
             .map_completion(|len| {
                 (
                     MessageFormat::from_mqmd(&mqmd),

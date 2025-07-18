@@ -1,70 +1,85 @@
 use libmqm_default as default;
 
 use crate::{
-    Conn,
+    connection::AsConnection,
     result::{ResultComp, ResultCompErrExt},
     structs,
     types::MQBO,
 };
 
-#[derive(Debug, PartialEq)]
-enum SyncpointState {
-    Open,
-    Committed,
-    Backout,
-}
-
 #[must_use]
-pub struct Syncpoint<C: Conn> {
-    state: SyncpointState,
+#[derive(Debug)]
+pub struct Syncpoint<C: AsConnection> {
     connection: C,
 }
 
-impl<C: Conn> Syncpoint<C> {
+impl<C: AsConnection> Syncpoint<C> {
     pub const fn new(connection: C) -> Self {
-        Self {
-            state: SyncpointState::Open,
-            connection,
-        }
+        Self { connection }
     }
 
     /// Begins a unit of work that is coordinated by the queue manager, and that can involve external resource managers.
     ///
-    /// This function uses the [`MQBEGIN`](libmqm_sys::MQBEGIN) MQ API function.
+    /// This function uses the [`MQBEGIN`](libmqm_sys::MQBEGIN) verb.
     pub fn begin(connection: C, mqbo: MQBO) -> ResultComp<Self> {
         let mut bo = structs::MQBO::new(libmqm_sys::MQBO {
             Options: mqbo.0,
             ..default::MQBO_DEFAULT
         });
-        connection
-            .mq()
-            .mqbegin(connection.handle(), Some(&mut bo))
+        let conn = connection.as_connection();
+        conn.mq
+            .mqbegin(conn.handle, Some(&mut bo))
             .map_completion(|()| Self::new(connection))
     }
 
-    /// This function uses the [`MQCMIT`](libmqm_sys::MQCMIT) MQ API function.
+    /// This function uses the [`MQCMIT`](libmqm_sys::MQCMIT) verb.
     pub fn commit(self) -> ResultComp<()> {
-        let result = self.connection.mq().mqcmit(self.connection.handle());
-        let mut self_mut = self;
-        self_mut.state = SyncpointState::Committed;
+        let mut mut_self = self;
+        let conn = mut_self.connection.as_connection();
+        let result = conn.mq.mqcmit(conn.handle);
+
+        unsafe {
+            std::ptr::drop_in_place(&raw mut mut_self.connection);
+        }
+
+        let _ = std::mem::ManuallyDrop::new(mut_self);
         result
     }
 
-    /// This function uses the [`MQBACK`](libmqm_sys::MQBACK) MQ API function.
+    /// This function uses the [`MQBACK`](libmqm_sys::MQBACK) verb.
     pub fn backout(self) -> ResultComp<()> {
-        let result = self.connection.mq().mqback(self.connection.handle());
-        let mut self_mut = self;
-        self_mut.state = SyncpointState::Backout;
+        let mut mut_self = self;
+        let conn = mut_self.connection.as_connection();
+        let result = conn.mq.mqback(conn.handle);
+
+        unsafe {
+            std::ptr::drop_in_place(&raw mut mut_self.connection);
+        }
+
+        let _ = std::mem::ManuallyDrop::new(mut_self);
         result
     }
 }
 
-impl<C: Conn> Drop for Syncpoint<C> {
+impl<C: AsConnection> AsConnection for Syncpoint<C> {
+    type Lib = C::Lib;
+    type Thread = C::Thread;
+
+    fn as_connection(&self) -> &crate::Connection<C::Lib, C::Thread> {
+        self.connection.as_connection()
+    }
+}
+
+impl<C: AsConnection> AsRef<crate::Connection<C::Lib, C::Thread>> for Syncpoint<C> {
+    fn as_ref(&self) -> &crate::Connection<C::Lib, C::Thread> {
+        self.connection.as_connection()
+    }
+}
+
+impl<C: AsConnection> Drop for Syncpoint<C> {
     fn drop(&mut self) {
-        // TODO: handle close failure
-        if self.state == SyncpointState::Open {
-            let _ = self.connection.mq().mqback(self.connection.handle());
-        }
+        let conn = self.connection.as_connection();
+        let _ = conn.mq.mqback(conn.handle);
     }
 }
 

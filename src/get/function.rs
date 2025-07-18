@@ -3,7 +3,9 @@ use libmqm_sys as mq;
 
 use super::option;
 use crate::{
-    Conn, Object, constants,
+    Object,
+    connection::AsConnection,
+    constants,
     header::TextEnc,
     prelude::*,
     result::{Completion, Error, ResultComp, ResultCompErr},
@@ -21,13 +23,15 @@ mod mqai {
 
     use super::option;
     use crate::{
-        Conn, Library, Object, bag, constants,
+        Library, Object, bag,
+        connection::AsConnection,
+        constants,
         prelude::*,
         result::{Completion, Error, ResultComp},
         structs,
     };
 
-    impl<C: Conn> Object<C>
+    impl<C: AsConnection> Object<C>
     where
         C::Lib: crate::Library<MQ: libmqm_sys::Mqai>,
     {
@@ -47,14 +51,11 @@ mod mqai {
             assert!(param.md.Version <= mq::MQMD_CURRENT_VERSION);
 
             let result = R::get_bag_extract(&mut param, |param| {
-                let connection = self.connection();
-                let mqi_get_bag = connection.mq().mq_get_bag(
-                    connection.handle(),
-                    self.handle(),
-                    &mut *param.md,
-                    &mut param.gmo,
-                    Some(&*bag),
-                );
+                let connection = self.connection.as_connection();
+                let conn = connection.as_connection();
+                let mqi_get_bag = conn
+                    .mq
+                    .mq_get_bag(conn.handle, self.handle(), &mut *param.md, &mut param.gmo, Some(&*bag));
                 no_msg_available = mqi_get_bag
                     .as_ref()
                     .is_err_and(|err| matches!(err, &Error(constants::MQCC_FAILED, _, constants::MQRC_NO_MSG_AVAILABLE)));
@@ -78,7 +79,7 @@ mod mqai {
     }
 }
 
-impl<C: Conn> Object<C> {
+impl<C: AsConnection> Object<C> {
     /// Get a message from an object returning a slice of data.
     ///
     /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
@@ -188,11 +189,11 @@ impl<C: Conn> Object<C> {
                 None => buffer.as_mut(),
             };
 
-            let mqi_get = self
-                .connection()
-                .mq()
+            let connection = self.connection.as_connection();
+            let mqi_get = connection
+                .mq
                 .mqget(
-                    self.connection().handle(),
+                    connection.handle,
                     self.handle(),
                     Some(&mut *param.md),
                     &mut param.gmo,

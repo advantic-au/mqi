@@ -3,7 +3,9 @@ use libmqm_sys as mq;
 
 use super::option;
 use crate::{
-    Conn, Object, constants,
+    Object,
+    connection::AsConnection,
+    constants,
     handle::{ObjectHandle, SubscriptionHandle},
     prelude::*,
     result::{ResultComp, ResultCompErr},
@@ -12,21 +14,20 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Subscription<C: Conn> {
+pub struct Subscription<C: AsConnection> {
     handle: SubscriptionHandle,
     connection: C,
     close_options: MQCO,
 }
 
-impl<C: Conn> Subscription<C> {
+impl<C: AsConnection> Subscription<C> {
     /// Close the subscription.
     ///
     /// This function uses the [`MQCLOSE`](libmqm_sys::MQCLOSE) MQ API function.
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
-        s.connection
-            .mq()
-            .mqclose(s.connection.handle(), &mut s.handle, s.close_options)
+        let conn = s.connection.as_connection();
+        conn.mq.mqclose(conn.handle, &mut s.handle, s.close_options)
     }
 
     /// Request the retained publication(s) for the subscription.
@@ -40,27 +41,25 @@ impl<C: Conn> Subscription<C> {
         request_options.apply_param(&mut srp);
         assert!(srp.sro.Version <= mq::MQSRO_CURRENT_VERSION);
 
-        self.connection
-            .mq()
-            .mqsubrq(self.connection.handle(), &self.handle, srp.sr, Some(&mut srp.sro))
+        let conn = self.connection.as_connection();
+        conn.mq
+            .mqsubrq(conn.handle, &self.handle, srp.sr, Some(&mut srp.sro))
             .map_completion(|()| srp.sro.NumPubs)
     }
 }
 
-impl<C: Conn> Drop for Subscription<C> {
+impl<C: AsConnection> Drop for Subscription<C> {
     fn drop(&mut self) {
         // TODO: handle close failure
         if self.handle.is_closeable() {
-            let _ = self
-                .connection
-                .mq()
-                .mqclose(self.connection.handle(), &mut self.handle, self.close_options);
+            let conn = self.connection.as_connection();
+            let _ = conn.mq.mqclose(conn.handle, &mut self.handle, self.close_options);
         }
     }
 }
 
 // Blanket implementation for SubscribeValue<C>
-impl<C: Conn + Clone> Subscription<C> {
+impl<C: AsConnection + Clone> Subscription<C> {
     /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
     pub fn subscribe<'so>(connection: C, subscribe_option: &impl option::SubscribeOption<'so>) -> ResultComp<Self> {
         Self::subscribe_as(connection, subscribe_option)
@@ -122,8 +121,9 @@ impl<C: Conn + Clone> Subscription<C> {
         R::subscribe_consume(&mut so, |param| {
             let mut obj_handle = ObjectHandle::from(param.provided_object);
 
+            let conn = connection.as_connection();
             // SAFETY: Implementors of SubscribeOption must ensure the MQSD is populated correctly
-            let mqsub_result = unsafe { connection.mq().mqsub(connection.handle(), &mut param.sd, &mut obj_handle) };
+            let mqsub_result = unsafe { conn.mq.mqsub(conn.handle, &mut param.sd, &mut obj_handle) };
 
             mqsub_result.map_completion(|handle| {
                 // Create an Object if there is a unique one issued from the call
