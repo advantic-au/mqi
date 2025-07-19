@@ -9,9 +9,7 @@ fn qm() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "mock")]
     {
         connection = test::mock::connect_ok(|mock_library| {
-            let mut seq = mockall::Sequence::new();
-            test::mock::open_ok(mock_library, 0x0c0c, 1, &mut seq);
-            test::mock::get_error(mock_library, constants::MQRC_NO_MSG_AVAILABLE, 1, &mut seq);
+            test::mock::callback::event_cb(mock_library);
         });
     }
     #[cfg(not(feature = "mock"))]

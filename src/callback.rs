@@ -37,12 +37,12 @@ impl<'cb, C: AsConnection> ConnectionCallback<'cb, C> {
             mq: mq.clone(),
         }));
         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
+        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
         let _ = unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) };
 
         cbd.CallbackArea = cb_data.cast();
         *cbd.Options.as_mut() = options | constants::MQCBDO_DEREGISTER_CALL; // Always register for the deregister call
         cbd.CallbackFunction = event_callback::<C::Lib, C::Thread> as *mut _;
-        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
 
         // SAFETY: MQCBD registered with valid pointers
         unsafe { mq.mqcb(*handle, constants::MQOP_REGISTER, Some(&cbd), None, None::<&MQMD>, None) }
@@ -52,7 +52,8 @@ impl<'cb, C: AsConnection> ConnectionCallback<'cb, C> {
         let mut self_mut = self;
         let Connection { mq, handle, .. } = self_mut.connection.as_connection();
 
-        let cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
+        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
+        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
         let result = unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) };
         let wrapped = unsafe { ManuallyDrop::take(&mut self_mut.connection) };
         let _ = ManuallyDrop::new(self_mut); // Suppress drop of self
@@ -62,8 +63,9 @@ impl<'cb, C: AsConnection> ConnectionCallback<'cb, C> {
 
 impl<C: AsConnection> Drop for ConnectionCallback<'_, C> {
     fn drop(&mut self) {
-        let cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
+        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
         let Connection { mq, handle, .. } = self.connection.as_connection();
+        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
         let _ = unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) };
         unsafe { ManuallyDrop::drop(&mut self.connection) };
     }
