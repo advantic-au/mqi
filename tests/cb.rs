@@ -41,7 +41,7 @@ fn qm() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(first_counter.load(Ordering::Relaxed), 2);
     assert_eq!(second_counter.load(Ordering::Relaxed), 1);
 
-    drop(r);
+    r.unregister().warn_as_error()?;
 
     assert_eq!(second_counter.load(Ordering::Relaxed), 2);
 

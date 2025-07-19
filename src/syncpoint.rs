@@ -1,3 +1,5 @@
+use std::mem::ManuallyDrop;
+
 use libmqm_default as default;
 
 use crate::{
@@ -10,12 +12,14 @@ use crate::{
 #[must_use]
 #[derive(Debug)]
 pub struct Syncpoint<C: AsConnection> {
-    connection: C,
+    connection: ManuallyDrop<C>,
 }
 
 impl<C: AsConnection> Syncpoint<C> {
     pub const fn new(connection: C) -> Self {
-        Self { connection }
+        Self {
+            connection: ManuallyDrop::new(connection),
+        }
     }
 
     /// Begins a unit of work that is coordinated by the queue manager, and that can involve external resource managers.
@@ -33,31 +37,23 @@ impl<C: AsConnection> Syncpoint<C> {
     }
 
     /// This function uses the [`MQCMIT`](libmqm_sys::MQCMIT) verb.
-    pub fn commit(self) -> ResultComp<()> {
-        let mut mut_self = self;
-        let conn = mut_self.connection.as_connection();
+    pub fn commit(self) -> ResultComp<C> {
+        let mut self_mut = self;
+        let conn = self_mut.connection.as_connection();
         let result = conn.mq.mqcmit(conn.handle);
-
-        unsafe {
-            std::ptr::drop_in_place(&raw mut mut_self.connection);
-        }
-
-        let _ = std::mem::ManuallyDrop::new(mut_self);
-        result
+        let wrapped = unsafe { ManuallyDrop::take(&mut self_mut.connection) };
+        let _ = ManuallyDrop::new(self_mut); // Suppress default drop
+        result.map_completion(|()| wrapped)
     }
 
     /// This function uses the [`MQBACK`](libmqm_sys::MQBACK) verb.
-    pub fn backout(self) -> ResultComp<()> {
-        let mut mut_self = self;
-        let conn = mut_self.connection.as_connection();
+    pub fn backout(self) -> ResultComp<C> {
+        let mut self_mut = self;
+        let conn = self_mut.connection.as_connection();
         let result = conn.mq.mqback(conn.handle);
-
-        unsafe {
-            std::ptr::drop_in_place(&raw mut mut_self.connection);
-        }
-
-        let _ = std::mem::ManuallyDrop::new(mut_self);
-        result
+        let wrapped = unsafe { ManuallyDrop::take(&mut self_mut.connection) };
+        let _ = ManuallyDrop::new(self_mut); // Suppress default drop
+        result.map_completion(|()| wrapped)
     }
 }
 
@@ -80,6 +76,7 @@ impl<C: AsConnection> Drop for Syncpoint<C> {
     fn drop(&mut self) {
         let conn = self.connection.as_connection();
         let _ = conn.mq.mqback(conn.handle);
+        unsafe { ManuallyDrop::drop(&mut self.connection) };
     }
 }
 

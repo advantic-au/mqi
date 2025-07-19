@@ -1,21 +1,22 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, mem::ManuallyDrop};
 
 use libmqm_default as default;
 use libmqm_sys::{self as mq, MQMD, Mqi};
 
 use crate::{
-    Connection, ConnectionRef, Library, MqFunctions, connection::AsConnection, constants, result::ResultComp, structs, types,
+    Connection, ConnectionRef, Library, MqFunctions, connection::AsConnection, constants, prelude::*, result::ResultComp,
+    structs, types,
 };
 
 pub struct ConnectionCallback<'a, C: AsConnection> {
-    connection: C,
+    connection: ManuallyDrop<C>,
     _cb: PhantomData<&'a ()>,
 }
 
 impl<'cb, C: AsConnection> ConnectionCallback<'cb, C> {
     pub const fn new(connection: C) -> Self {
         Self {
-            connection,
+            connection: ManuallyDrop::new(connection),
             _cb: PhantomData,
         }
     }
@@ -47,17 +48,24 @@ impl<'cb, C: AsConnection> ConnectionCallback<'cb, C> {
         unsafe { mq.mqcb(*handle, constants::MQOP_REGISTER, Some(&cbd), None, None::<&MQMD>, None) }
     }
 
-    pub fn unregister(&mut self) -> ResultComp<()> {
-        let Connection { mq, handle, .. } = self.connection.as_connection();
+    pub fn unregister(self) -> ResultComp<C> {
+        let mut self_mut = self;
+        let Connection { mq, handle, .. } = self_mut.connection.as_connection();
 
         let cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
-        unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) }
+        let result = unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) };
+        let wrapped = unsafe { ManuallyDrop::take(&mut self_mut.connection) };
+        let _ = ManuallyDrop::new(self_mut); // Suppress drop of self
+        result.map_completion(|()| wrapped)
     }
 }
 
 impl<C: AsConnection> Drop for ConnectionCallback<'_, C> {
     fn drop(&mut self) {
-        let _ = self.unregister();
+        let cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
+        let Connection { mq, handle, .. } = self.connection.as_connection();
+        let _ = unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) };
+        unsafe { ManuallyDrop::drop(&mut self.connection) };
     }
 }
 

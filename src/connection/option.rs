@@ -7,10 +7,12 @@ use crate::{
     types::{self, QueueManagerName},
 };
 
+/// Has the ability to return a reference to a [Connection](crate::Connection)
 pub trait AsConnection {
     type Lib: Library<MQ: Mqi>;
     type Thread;
 
+    /// Returns a reference to the contained [Connection](crate::Connection)
     fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread>;
 }
 
