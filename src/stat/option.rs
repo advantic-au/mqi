@@ -101,6 +101,7 @@ impl ReconnectionErrorStat {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct AsyncPutStat {
     pub warning: Option<MQCC>,
     pub reason: MQRC,
@@ -115,6 +116,7 @@ pub struct AsyncPutStat {
     pub object_string: Option<StrCcsidOwned>,
 }
 
+#[derive(Debug, Clone)]
 pub struct ReconnectionStat {
     pub warning: Option<MQCC>,
     pub reason: MQRC,
@@ -123,6 +125,7 @@ pub struct ReconnectionStat {
     pub object_qmgr_name: ObjectName, // TODO: fix wrapper?
 }
 
+#[derive(Debug, Clone)]
 pub struct ReconnectionErrorStat {
     pub warning: Option<MQCC>,
     pub reason: MQRC,

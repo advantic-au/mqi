@@ -54,7 +54,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Connects an application program to a queue manager. It provides control on the method of connection.
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqconnx`](Self::mqconnx) must ensure the [`MQCNO`](mq::MQCNO) structure is populated with valid pointers and offsets
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqconnx(&self, qm_name: &MqStr<48>, mqcno: &mut mq::MQCNO) -> ResultComp<ConnectionHandle> {
@@ -90,7 +90,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Establishes access to an object
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqopen`](Self::mqopen) must ensure the [`MQOD`](mq::MQOD) structure is populated with valid pointers and offsets
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqopen(
@@ -118,7 +118,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Puts one message on a queue, or distribution list, or to a topic
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqput1`](Self::mqput1) must ensure the [`MQPMO`](mq::MQPMO) and [`MQOD`](mq::MQOD) structures are populated with valid pointers and offsets
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
     #[allow(clippy::allow_attributes, clippy::similar_names)]
@@ -191,7 +191,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Puts a message on a queue or distribution list, or to a topic. The queue, distribution list,
     /// or topic must already be open.
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqput`](Self::mqput) must ensure the [`MQPMO`](mq::MQPMO) structure is populated with valid pointers and offsets
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
     pub unsafe fn mqput(
@@ -294,7 +294,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     }
 
     /// Register the applications subscription to a particular topic
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqsub`](Self::mqsub) must ensure the [`MQSD`](mq::MQSD) structure is populated with valid pointers and offsets
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqsub(
@@ -418,7 +418,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Returns the value of a property of a message.
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqinqmp`](Self::mqinqmp) must ensure the name MQCHARV and MQIMPO structures are populated with valid pointers and offsets
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, value)))]
     #[expect(clippy::too_many_arguments)]
@@ -498,7 +498,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Retrieve status information. The type of status information returned is
     /// determined by the `stat_type` value parameter
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqstat`](Self::mqstat) must ensure the [`MQSTS` MQCHARV](libmqm_sys::MQSTS) pointers are populated correctly.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqstat(&self, connection_handle: ConnectionHandle, stat_type: MQSTAT, sts: &mut mq::MQSTS) -> ResultComp<()> {
@@ -519,7 +519,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Set or modify a property of a message handle
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqsetmp`](Self::mqsetmp) must ensure the name [`MQCHARV`](mq::MQCHARV) pointer/offset is populated correctly.
     #[expect(clippy::too_many_arguments)]
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, value)))]
@@ -596,7 +596,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Registers a callback for the specified object handle and controls activation and changes to the callback
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqcb`](Self::mqcb) must populate the [`MQCBD`](libmqm_sys::MQCBD) structure with valid pointers
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqcb(
@@ -614,7 +614,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
                 connection_handle.raw_handle(),
                 operations.0,
                 callback_desc,
-                object_handle.map_or(mq::MQHO_NONE, |h| h.raw_handle()),
+                object_handle.map_or(mq::MQHO_NONE, crate::handle::Handle::raw_handle),
                 mqmd.map_or_else(ptr::null_mut, |md| ptr::from_ref(md).cast_mut().cast()),
                 gmo,
                 &mut outcome.cc.0,
@@ -628,7 +628,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Performs controlling actions on callbacks and the object handles opened for a connection
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqctl`](Self::mqctl) must populate the [`MQCTLO`](libmqm_sys::MQCTLO) structure with valid pointers
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqctl(
@@ -654,7 +654,7 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Converts a message handle into a buffer and is the inverse of the mqbufmh call
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mqmhbuf`](Self::mqmhbuf) must populate the name MQCHARV structure with a valid pointer/offset
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(buffer, self)))]
     pub unsafe fn mqmhbuf(

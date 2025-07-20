@@ -9,8 +9,9 @@ use crate::{
     types::MQBO,
 };
 
-#[must_use]
+/// Manage the state of syncpoint of a connection
 #[derive(Debug)]
+#[must_use]
 pub struct Syncpoint<C: AsConnection> {
     connection: ManuallyDrop<C>,
 }

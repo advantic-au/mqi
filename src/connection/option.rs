@@ -54,7 +54,7 @@ pub trait ConnectAttr<S> {
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `ConnectOption` so it can't be used as an argument for MQI connect"
 )]
-/// # Safety
+/// ## Safety
 /// This trait can directly manipulate the [`MQCNO`](structs::MQCNO) structure which is used by [`MQCONNX`](libmqm_sys::MQCONNX).
 /// Incorrect values in the [`MQCNO`](structs::MQCNO) structure can lead to undefined behaviour.
 ///

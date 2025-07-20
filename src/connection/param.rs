@@ -291,7 +291,7 @@ impl From<SuiteB> for [types::MQ_SUITE; 4] {
 impl<'pw> Tls<'pw> {
     /// Create a TLS connection option for use with [`connect`](crate::connection) family of functions.
     ///
-    /// # Example
+    /// ## Example
     /// Create a TLS connection
     /// ```
     /// use mqi::types::{KeyRepo, CipherSpec};

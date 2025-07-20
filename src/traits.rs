@@ -18,7 +18,7 @@ impl MQMD for mq::MQMD1 {}
 
 /// A marker trait where it is safe to write arbitrary bytes
 ///
-/// # Safety
+/// ## Safety
 /// Implementations of [`WriteRaw`] must ensure that writing arbitrary data into the value will not cause undefined behaviour
 pub unsafe trait WriteRaw<T> {}
 

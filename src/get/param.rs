@@ -141,7 +141,7 @@ impl<C: AsConnection> option::GetOption for &mut Properties<C> {
         param.gmo.set_min_version(mq::MQGMO_VERSION_4);
         let gmo_options: &mut types::MQGMO = param.gmo.Options.as_mut();
         gmo_options.insert(constants::MQGMO_PROPERTIES_IN_HANDLE);
-        param.gmo.MsgHandle = unsafe { self.handle().raw_handle() }
+        param.gmo.MsgHandle = self.handle().raw_handle();
     }
 }
 

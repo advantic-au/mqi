@@ -30,7 +30,7 @@ where
 ///
 /// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) verb.
 ///
-/// # Examples
+/// ## Examples
 ///
 /// ```no_run
 /// use mqi::prelude::*;

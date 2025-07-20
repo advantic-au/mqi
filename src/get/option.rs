@@ -8,12 +8,13 @@ use crate::{
     types,
 };
 
+#[derive(Debug, Clone)]
 pub struct GetParam {
     pub md: structs::MQMD,
     pub gmo: structs::MQGMO,
 }
 
-/// # Examples
+/// ## Examples
 /// Implements [`GetValue`] for a fixed array of bytes
 ///
 /// ```
@@ -83,6 +84,7 @@ pub trait GetBagAttr {
         Self: Sized;
 }
 
+#[derive(Debug, Clone)]
 pub struct GetState<B> {
     /// The buffer holding the message data from the `MQGET` call.
     pub buffer: B,

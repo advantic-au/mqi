@@ -13,7 +13,7 @@ pub type PutParam<'a> = (structs::MQMD, structs::MQPMO<'a>);
 
 /// A trait that manipulates the parameters to the [`MQPUT`](`::libmqm_sys::MQPUT`) function
 ///
-/// # Safety
+/// ## Safety
 /// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
 /// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
 ///
@@ -23,7 +23,7 @@ pub unsafe trait PutOption<'po> {
     fn apply_param(&self, param: &mut PutParam<'po>);
 }
 
-/// # Safety
+/// ## Safety
 /// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)
 /// and [`MQPUT1`](libmqm_sys::MQPUT1). Incorrect values in the [`MQPMO`](structs::MQPMO) can lead to undefined behaviour.
 ///

@@ -8,12 +8,16 @@ use crate::{
     structs, types,
 };
 
-pub struct ConnectionCallback<'a, C: AsConnection> {
+/// Manage the event handler callback of a connection
+#[must_use]
+#[derive(Debug)]
+pub struct EventCallback<'a, C: AsConnection> {
     connection: ManuallyDrop<C>,
     _cb: PhantomData<&'a ()>,
 }
 
-impl<'cb, C: AsConnection> ConnectionCallback<'cb, C> {
+impl<'cb, C: AsConnection> EventCallback<'cb, C> {
+    /// Wrap a connection to manage the event handler callback
     pub const fn new(connection: C) -> Self {
         Self {
             connection: ManuallyDrop::new(connection),
@@ -21,7 +25,8 @@ impl<'cb, C: AsConnection> ConnectionCallback<'cb, C> {
         }
     }
 
-    pub fn event_handler<F: FnMut(ConnectionRef<C::Lib, C::Thread>, &structs::MQCBC) + Send + 'cb>(
+    /// Register an event handler of the connection
+    pub fn register_event_handler<F: FnMut(ConnectionRef<C::Lib, C::Thread>, &structs::MQCBC) + Send + 'cb>(
         &self,
         options: types::MQCBDO,
         closure: F,
@@ -48,7 +53,8 @@ impl<'cb, C: AsConnection> ConnectionCallback<'cb, C> {
         unsafe { mq.mqcb(*handle, constants::MQOP_REGISTER, Some(&cbd), None, None::<&MQMD>, None) }
     }
 
-    pub fn unregister(self) -> ResultComp<C> {
+    /// Unregister the event handler and return the original connection
+    pub fn unregister_event_handler(self) -> ResultComp<C> {
         let mut self_mut = self;
         let Connection { mq, handle, .. } = self_mut.connection.as_connection();
 
@@ -61,7 +67,7 @@ impl<'cb, C: AsConnection> ConnectionCallback<'cb, C> {
     }
 }
 
-impl<C: AsConnection> Drop for ConnectionCallback<'_, C> {
+impl<C: AsConnection> Drop for EventCallback<'_, C> {
     fn drop(&mut self) {
         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
         let Connection { mq, handle, .. } = self.connection.as_connection();
@@ -72,7 +78,7 @@ impl<C: AsConnection> Drop for ConnectionCallback<'_, C> {
 }
 
 impl<C: std::ops::Deref<Target = Connection<L, H>> + AsConnection, L: Library<MQ: Mqi>, H> std::ops::Deref
-    for ConnectionCallback<'_, C>
+    for EventCallback<'_, C>
 {
     type Target = Connection<L, H>;
 
@@ -81,7 +87,7 @@ impl<C: std::ops::Deref<Target = Connection<L, H>> + AsConnection, L: Library<MQ
     }
 }
 
-impl<C: AsConnection> AsConnection for ConnectionCallback<'_, C> {
+impl<C: AsConnection> AsConnection for EventCallback<'_, C> {
     type Lib = C::Lib;
     type Thread = C::Thread;
 

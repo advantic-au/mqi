@@ -14,7 +14,7 @@ pub type OpenParam<'a> = OpenParamOption<'a, types::MQOO>;
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `OpenOption` so it can't be used as an argument for MQI open"
 )]
-/// # Safety
+/// ## Safety
 /// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::MQOPEN).
 /// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
@@ -22,7 +22,7 @@ pub unsafe trait OpenOption<'oo, T> {
     fn apply_param(&self, param: &mut OpenParamOption<'oo, T>);
 }
 
-/// # Safety
+/// ## Safety
 /// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::MQOPEN).
 /// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
@@ -35,7 +35,7 @@ pub unsafe trait OpenValue<S> {
         Self: std::marker::Sized;
 }
 
-/// # Safety
+/// ## Safety
 /// This trait can directly manipulate the [`MQOD`](structs::MQOD) structure which is used by [`MQOPEN`](libmqm_sys::MQOPEN).
 /// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.

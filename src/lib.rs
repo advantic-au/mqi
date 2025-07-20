@@ -50,7 +50,7 @@ offering proven stability and performance.
 | [`MQBEGIN`](libmqm_sys::MQBEGIN)   | [`Syncpoint::begin`]         |
 | [`MQBACK`](libmqm_sys::MQBACK)    | [`Syncpoint::backout`]       |
 | [`MQCMIT`](libmqm_sys::MQCMIT)    | [`Syncpoint::commit`]        |
-| [`MQCB`](libmqm_sys::MQCB)      | [`ConnectionCallback::event_handler`] |
+| [`MQCB`](libmqm_sys::MQCB)      | [`EventCallback::register_event_handler`] |
 | [`MQCTL`](libmqm_sys::MQCTL)     | *Not implemented yet*        |
 
 | MQAI function               | Crate function(s)                                                      |
@@ -224,7 +224,7 @@ pub mod open {
     pub use param::*;
 }
 
-pub mod property {
+pub mod properties {
     pub(super) mod function;
     mod option;
     mod param;
@@ -233,7 +233,7 @@ pub mod property {
     pub use option::*;
     pub use param::*;
 }
-pub use property::function::Properties;
+pub use properties::function::Properties;
 
 pub mod put {
     mod function;
@@ -268,4 +268,4 @@ mod syncpoint;
 pub use syncpoint::Syncpoint;
 
 mod callback;
-pub use callback::ConnectionCallback;
+pub use callback::EventCallback;

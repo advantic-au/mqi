@@ -48,7 +48,7 @@ impl<C: AsConnection> Object<C> {
                 .map_completion(|handle| Self {
                     handle,
                     connection,
-                    close_options: constants::MQCO_NONE,
+                    drop_close_options: constants::MQCO_NONE,
                 })
         })
     }

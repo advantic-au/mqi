@@ -18,7 +18,11 @@ use crate::{
     verb::MqInqError,
 };
 
+/// Manage message properties
+///
+/// This is equivalent of a [`MQHMSG`](mq::MQHMSG), with an associated connection.
 #[derive(Debug)]
+#[must_use]
 pub struct Properties<C: AsConnection> {
     handle: MessageHandle,
     connection: C,
@@ -528,7 +532,7 @@ mod test {
             MQRC_PROPERTY_NOT_AVAILABLE, MQRC_PROPERTY_VALUE_TOO_BIG, MQTYPE_BYTE_STRING,
         },
         header::{TextEnc, fmt::MQFMT_NONE},
-        property::Name,
+        properties::Name,
         result::ResultErr,
         string::CCSID,
         test::mock,

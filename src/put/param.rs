@@ -43,7 +43,7 @@ pub enum PropertyAction<'handle, C: AsConnection, C2: AsConnection> {
 
 unsafe impl<'po, C: AsConnection> option::PutOption<'po> for Context<&Object<C>> {
     fn apply_param(&self, (.., pmo): &mut option::PutParam<'po>) {
-        pmo.Context = unsafe { self.0.handle.raw_handle() };
+        pmo.Context = self.0.handle.raw_handle();
     }
 }
 
@@ -51,7 +51,7 @@ unsafe impl<'po, C: AsConnection> option::PutOption<'po> for &mut Properties<C> 
     fn apply_param(&self, (.., pmo): &mut option::PutParam<'po>) {
         pmo.set_min_version(mq::MQPMO_VERSION_3);
         *pmo.Action.as_mut() = constants::MQACTP_NEW;
-        pmo.OriginalMsgHandle = unsafe { self.handle().raw_handle() };
+        pmo.OriginalMsgHandle = self.handle().raw_handle();
     }
 }
 
@@ -146,8 +146,8 @@ unsafe impl<'po, C: AsConnection, C2: AsConnection> option::PutOption<'po> for P
         };
         pmo.set_min_version(mq::MQPMO_VERSION_3);
         *pmo.Action.as_mut() = action;
-        pmo.OriginalMsgHandle = unsafe { original.handle().raw_handle() };
-        pmo.NewMsgHandle = unsafe { new.handle().raw_handle() };
+        pmo.OriginalMsgHandle = original.handle().raw_handle();
+        pmo.NewMsgHandle = new.handle().raw_handle();
     }
 }
 

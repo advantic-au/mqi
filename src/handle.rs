@@ -110,17 +110,17 @@ pub use mqai::*;
 pub struct Handle<R: RawHandle>(pub(super) R::HandleType);
 
 impl<R: RawHandle> Handle<R> {
-    /// # Safety
+    /// ## Safety
     /// Consumers of the function must use the handle directly on MQ API calls
     #[must_use]
-    pub const unsafe fn raw_handle(&self) -> R::HandleType {
+    pub const fn raw_handle(&self) -> R::HandleType {
         self.0
     }
 
-    /// # Safety
+    /// ## Safety
     /// Primarily used by MQ to write/invalidate MQ handle
     #[must_use]
-    pub const unsafe fn mut_raw_handle(&mut self) -> &mut R::HandleType {
+    pub const fn mut_raw_handle(&mut self) -> &mut R::HandleType {
         &mut self.0
     }
 }

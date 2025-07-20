@@ -13,7 +13,7 @@ use {dlopen2::wrapper::Container, libmqm_sys::dlopen2::MqWrapper};
 #[derive(Debug, Clone, Copy)]
 pub struct MqFunctions<L>(pub L);
 
-/// Holds a smart pointer to a [`MqFunctions`]
+/// Holds a reference to an implementation of an MQ library
 pub trait Library {
     type MQ;
 

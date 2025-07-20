@@ -1,11 +1,15 @@
 use crate::{Connection, connection::AsConnection, constants, handle::ObjectHandle, result::ResultComp, types::MQCO};
 
-#[must_use]
+/// An object refers to a managed entity within IBM MQ, such as a queue, topic, channel, or queue manager
 #[derive(Debug)]
+#[must_use]
 pub struct Object<C: AsConnection> {
+    /// Handle of the object
     pub(crate) handle: ObjectHandle,
+    /// Connection associated with object
     pub(crate) connection: C,
-    pub(crate) close_options: MQCO,
+    /// Close options applied on drop of the object
+    pub(crate) drop_close_options: MQCO,
 }
 
 impl<C: AsConnection> Object<C> {
@@ -19,26 +23,23 @@ impl<C: AsConnection> Object<C> {
         &self.connection
     }
 
-    /// # Safety
-    /// Consumers of the API must ensure that the `handle` is naturally associated with the `connection` and
-    /// the `handle` isn't used in any other `Object`
-    pub const unsafe fn from_parts(connection: C, handle: ObjectHandle) -> Self {
+    pub const fn from_parts(connection: C, handle: ObjectHandle) -> Self {
         Self {
             handle,
             connection,
-            close_options: constants::MQCO_NONE,
+            drop_close_options: constants::MQCO_NONE,
         }
     }
 
     pub const fn close_options(&mut self, options: MQCO) {
-        self.close_options = options;
+        self.drop_close_options = options;
     }
 
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
         let Self {
             handle: obj_handle,
-            close_options,
+            drop_close_options: close_options,
             connection,
             ..
         } = &mut s;
@@ -53,7 +54,7 @@ impl<C: AsConnection> Drop for Object<C> {
         let Connection { handle, mq, .. } = self.connection.as_connection();
 
         if self.handle.is_closeable() {
-            let _ = mq.mqclose(*handle, &mut self.handle, self.close_options);
+            let _ = mq.mqclose(*handle, &mut self.handle, self.drop_close_options);
         }
     }
 }

@@ -144,11 +144,11 @@ fn main() -> anyhow::Result<()> {
             .context("Unable to put a message")?;
     }
 
-    if args.dry_run {
-        syncpoint.backout().warn_as_error().context("Unable to backout")?; // Backout any changes
+    let _ = if args.dry_run {
+        syncpoint.backout().warn_as_error().context("Unable to backout") // Backout any changes
     } else {
-        syncpoint.commit().warn_as_error().context("Unabel to commit")?; // Commit both the MQ get and MQ put.
-    }
+        syncpoint.commit().warn_as_error().context("Unabel to commit") // Commit both the MQ get and MQ put.
+    }?;
 
     Ok(())
 }

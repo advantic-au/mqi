@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use mqi::{ConnectionCallback, constants, prelude::*, test};
+use mqi::{EventCallback, constants, prelude::*, test};
 
 #[test]
 fn qm() -> Result<(), Box<dyn std::error::Error>> {
@@ -22,16 +22,16 @@ fn qm() -> Result<(), Box<dyn std::error::Error>> {
 
     let first_counter = AtomicUsize::new(0);
     let second_counter = AtomicUsize::new(0);
-    let r = ConnectionCallback::new(connection.connection_ref());
+    let r = EventCallback::new(connection.connection_ref());
 
-    r.event_handler(constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL, |_, _| {
+    r.register_event_handler(constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL, |_, _| {
         let _ = first_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     })
     .warn_as_error()?;
 
     assert_eq!(first_counter.load(Ordering::Relaxed), 1);
 
-    r.event_handler(constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL, |_, _| {
+    r.register_event_handler(constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL, |_, _| {
         let _ = second_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     })
     .warn_as_error()?;
@@ -39,7 +39,7 @@ fn qm() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(first_counter.load(Ordering::Relaxed), 2);
     assert_eq!(second_counter.load(Ordering::Relaxed), 1);
 
-    r.unregister().warn_as_error()?;
+    let _ = r.unregister_event_handler().warn_as_error()?;
 
     assert_eq!(second_counter.load(Ordering::Relaxed), 2);
 

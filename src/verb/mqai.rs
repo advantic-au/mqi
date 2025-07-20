@@ -616,11 +616,11 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
             self.0.lib().mqExecute(
                 handle.raw_handle(),
                 command.0,
-                options.map_or(mqai::MQHB_NONE, |h| h.raw_handle()),
+                options.map_or(mqai::MQHB_NONE, crate::handle::Handle::raw_handle),
                 admin.raw_handle(),
                 response.raw_handle(),
-                admin_q.map_or(mq::MQHO_NONE, |h| h.raw_handle()),
-                response_q.map_or(mq::MQHO_NONE, |h| h.raw_handle()),
+                admin_q.map_or(mq::MQHO_NONE, crate::handle::Handle::raw_handle),
+                response_q.map_or(mq::MQHO_NONE, crate::handle::Handle::raw_handle),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -675,7 +675,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
                 object.raw_handle(),
                 ptr::from_mut(mqmd).cast(),
                 gmo,
-                bag.map_or(mqai::MQHB_NONE, |h| h.raw_handle()),
+                bag.map_or(mqai::MQHB_NONE, crate::handle::Handle::raw_handle),
                 &mut outcome.cc.0,
                 &mut outcome.rc.0,
             );
@@ -687,7 +687,7 @@ impl<L: Library<MQ: Mqai>> MqFunctions<L> {
 
     /// Converts the contents of the specified bag into a PCF message and sends the message to the specified queue.
     ///
-    /// # Safety
+    /// ## Safety
     /// Consumers of [`mq_put_bag`](MqFunctions::mq_put_bag) must ensure the [`MQPMO`](libmqm_sys::MQPMO) pointers are populated with valid pointers and offsets
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mq_put_bag(

@@ -13,7 +13,9 @@ use crate::{
     types::{MQCO, MQLONG},
 };
 
+/// Subscription to an IBM MQ topic
 #[derive(Debug)]
+#[must_use]
 pub struct Subscription<C: AsConnection> {
     handle: SubscriptionHandle,
     connection: C,
@@ -127,11 +129,11 @@ impl<C: AsConnection + Clone> Subscription<C> {
 
             mqsub_result.map_completion(|handle| {
                 // Create an Object if there is a unique one issued from the call
-                let new_raw_handle = unsafe { obj_handle.raw_handle() };
+                let new_raw_handle = obj_handle.raw_handle();
                 let object = match (param.provided_object, new_raw_handle) {
                     (_, MQHO_NONE) => None,
                     (original, new) if original == new => None,
-                    (_, new) => Some(unsafe { Object::from_parts(connection.clone(), ObjectHandle::from(new)) }),
+                    (_, new) => Some(Object::from_parts(connection.clone(), ObjectHandle::from(new))),
                 };
                 option::SubscribeState {
                     subscription: Self {

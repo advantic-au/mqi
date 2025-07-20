@@ -5,19 +5,20 @@ use crate::{
     structs, types,
 };
 
+#[derive(Debug)]
 pub struct SubscribeState<C: AsConnection> {
     pub subscription: super::function::Subscription<C>,
     pub object: Option<Object<C>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubscribeParam<'a> {
     pub sd: structs::MQSD<'a>,
     pub close_options: types::MQCO,
     pub provided_object: types::MQLONG,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubscribeRequestParam {
     pub sro: structs::MQSRO,
     pub sr: types::MQSR,
@@ -43,7 +44,7 @@ pub trait SubscribeAttr<C: AsConnection> {
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `SubscribeOption` so it can't be used as an argument for MQI subscribe"
 )]
-/// # Safety
+/// ## Safety
 /// This trait can directly manipulate the [`MQSD`](structs::MQSD) structure which is used by [`MQSUB`](libmqm_sys::MQSUB).
 /// Incorrect values in the [`MQSD`](structs::MQSD) can lead to undefined behaviour.
 ///

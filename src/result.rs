@@ -116,7 +116,7 @@ pub trait ResultCompErrExt<T, E> {
     ///
     /// This function can panic, so use it with caution.
     ///
-    /// # Panic
+    /// ## Panic
     /// Panics if the value is an `Err`, with a panic message provided by the `Err`'s value.
     fn unwrap_completion(self) -> T
     where

@@ -17,7 +17,7 @@ impl AttributeType {
         TextItem::new(self, value)
     }
 
-    /// # Safety
+    /// ## Safety
     /// Consumers must ensure the `text_len` is correct for the given `attribute`
     #[must_use]
     pub const unsafe fn new(attribute: types::MQXA, text_len: u32) -> Self {
@@ -68,7 +68,7 @@ impl IntItem {
         }
     }
 
-    /// # Safety
+    /// ## Safety
     /// Consumers must ensure the `selector` is within the MQIA constant range
     #[must_use]
     pub const unsafe fn new_unchecked(selector: types::MQXA, value: types::MQLONG) -> Self {
@@ -90,7 +90,7 @@ impl<'a> TextItem<&'a [types::MQCHAR]> {
         }
     }
 
-    /// # Safety
+    /// ## Safety
     /// Consumers must ensure the `selector` is within the MQCA constant range and the slice is the correct length
     #[must_use]
     pub const unsafe fn new_unchecked(selector: types::MQXA, value: &'a [types::MQCHAR]) -> Self {

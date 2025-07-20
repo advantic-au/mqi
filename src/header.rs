@@ -626,6 +626,7 @@ impl<'a> EncodedHeader<'a, mq::MQRFH> {
     }
 }
 
+#[derive(Debug, Clone)]
 #[must_use]
 pub struct HeaderIter<'a> {
     format: MessageFormat,

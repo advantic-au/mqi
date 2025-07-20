@@ -14,17 +14,29 @@ use super::option;
 use crate::{Library, MqFunctions, handle::ConnectionHandle, prelude::*, result::ResultComp, types};
 
 /// A connection to an IBM MQ queue manager
+///
+/// This is equivalent of a [`MQHCONN`](mq::MQHCONN) handle, with additional associated MQ library.
+
 #[derive(Debug)]
 pub struct Connection<L: Library<MQ: Mqi>, H> {
+    /// Core connection handle
     pub(crate) handle: ConnectionHandle,
+    /// MQ functions associatedc with the connection
     pub(crate) mq: MqFunctions<L>,
     _share: PhantomData<H>, // Send and Sync control
 }
 
+/// A logical reference to a [`Connection`]
+///
+/// This is equivalent of a [`MQHCONN`](mq::MQHCONN) handle. Lifetime of this reference is linked to a
+/// real [`Connection`].
 #[derive(Debug)]
+#[must_use]
 pub struct ConnectionRef<'conn, L: Library<MQ: Mqi>, H> {
+    /// Connection instance used for dereferencing
     conn: ManuallyDrop<Connection<L, H>>,
-    _ref: PhantomData<&'conn ()>, // Reference to original connection handle
+    /// Reference to original connectio
+    _ref: PhantomData<&'conn ()>,
 }
 
 impl<L: Library<MQ: Mqi> + Clone, H> Clone for ConnectionRef<'_, L, H> {
@@ -51,11 +63,15 @@ impl<L, H> Connection<L, H>
 where
     L: Library<MQ: Mqi> + Clone,
 {
-    #[inline]
+    /// Create a referenced connection
     pub fn connection_ref(&self) -> ConnectionRef<'_, L, H> {
         ConnectionRef::from_parts(self.handle, self.mq.clone())
     }
 
+    /// Leak the connection to a static reference
+    ///
+    /// This is typically used to have a Connection that is active for the entire lifetime of an
+    /// application, without closing the connection.
     pub fn leak<'a>(self) -> ConnectionRef<'a, L, H> {
         let handle = self.handle;
         let mq = self.mq.clone();
@@ -63,6 +79,7 @@ where
         ConnectionRef::from_parts(handle, mq)
     }
 
+    /// Clone the library associated with the connection
     #[inline]
     pub fn library(&self) -> L {
         self.mq.0.clone()

@@ -10,6 +10,7 @@ use crate::{
     types::{MQIND, MQLONG, Selector},
 };
 
+#[derive(Debug)]
 pub struct BagItem<'bag, T, B, L>
 where
     B: BagDrop,

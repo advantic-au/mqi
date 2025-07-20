@@ -29,7 +29,7 @@ pub enum NameUsage {
     AnyLength,
 }
 
-/// # Safety
+/// ## Safety
 /// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::MQINQMP) function.
 /// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
 ///
@@ -48,7 +48,7 @@ pub unsafe trait PropertyValue {
     }
 }
 
-/// # Safety
+/// ## Safety
 /// This trait can directly manipulate the [`MQIMPO`](structs::MQIMPO) structure which is used by [`MQINQMP`](libmqm_sys::MQINQMP).
 /// Incorrect values in the [`MQIMPO`](structs::MQIMPO) can lead to undefined behaviour.
 ///

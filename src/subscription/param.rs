@@ -25,7 +25,7 @@ unsafe impl<'so, T: EncodedString + ?Sized> SubscribeOption<'so> for ObjectStrin
 unsafe impl<C: AsConnection> SubscribeOption<'_> for &Object<C> {
     #[inline]
     fn apply_param(&self, param: &mut SubscribeParam) {
-        param.provided_object = unsafe { self.handle.raw_handle() };
+        param.provided_object = self.handle.raw_handle();
     }
 }
 
