@@ -12,15 +12,13 @@ trait Sealed {}
 pub trait MQMD: Sealed + std::fmt::Debug {}
 impl Sealed for mq::MQMD {}
 impl Sealed for mq::MQMD1 {}
-impl Sealed for mq::MQMD2 {}
 
 impl MQMD for mq::MQMD {}
 impl MQMD for mq::MQMD1 {}
-impl MQMD for mq::MQMD2 {}
 
 /// A marker trait where it is safe to write arbitrary bytes
 ///
-/// # Safety
+/// ## Safety
 /// Implementations of [`WriteRaw`] must ensure that writing arbitrary data into the value will not cause undefined behaviour
 pub unsafe trait WriteRaw<T> {}
 

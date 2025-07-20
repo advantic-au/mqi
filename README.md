@@ -58,11 +58,11 @@ Connect to the default queue manager using the `MQSERVER` environment variable w
 
 ```rust
 use std::error::Error;
+
 use mqi::{
-    connect_options::{ApplName, Credentials},
+    connection::{Credentials, ThreadNone},
     prelude::*,
-    types::QueueName,
-    ThreadNone,
+    types::{ApplName, QueueName},
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -113,7 +113,6 @@ Feature flags
 | mqai           |   | Expose functions and structures related to MQAI |
 | exits          |   | Expose functions and structures related to MQ exits |
 | mqc_*          | mqc_9_2_0_0 | Enable features of a specific MQI library version eg `mqc_9_4_1_0` |
-| mqm_generate   |   | Ensure the dependent MQM bindings are refreshed from the C library |
 
 Version Compatibility
 ---------------------

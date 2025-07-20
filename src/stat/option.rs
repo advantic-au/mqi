@@ -1,0 +1,139 @@
+use crate::{
+    MqStr,
+    string::{CCSID, StrCcsidOwned},
+    structs,
+    types::{MQCC, MQCHAR, MQLONG, MQOO, MQOT, MQRC, MQSO, ObjectName},
+};
+
+impl AsyncPutStat {
+    pub(crate) fn new(sts: &structs::MQSTS, buffer: Vec<MQCHAR>) -> Self {
+        let mut buffer = buffer;
+        unsafe {
+            buffer.set_len(
+                sts.ObjectString
+                    .VSLength
+                    .try_into()
+                    .expect("buffer length should convert to usize"),
+            );
+        }
+
+        Self {
+            warning: match sts.CompCode {
+                0 => None,
+                value => Some(MQCC::from(value)),
+            },
+            reason: MQRC::from(sts.Reason),
+            put_success_count: sts.PutSuccessCount,
+            put_warning_count: sts.PutWarningCount,
+            put_failure_count: sts.PutFailureCount,
+            object_type: MQOT(sts.ObjectType),
+            object_name: MqStr::from(sts.ObjectName),
+            object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
+            resolved_object_name: MqStr::from(sts.ResolvedObjectName),
+            resolved_object_qmgr_name: MqStr::from(sts.ResolvedQMgrName),
+            object_string: if buffer.is_empty() {
+                None
+            } else {
+                Some(StrCcsidOwned::from_vec(buffer, CCSID(sts.ObjectString.VSCCSID)))
+            },
+        }
+    }
+}
+
+impl ReconnectionStat {
+    pub(crate) fn new(sts: &structs::MQSTS) -> Self {
+        Self {
+            warning: match sts.CompCode {
+                0 => None,
+                value => Some(MQCC::from(value)),
+            },
+            reason: MQRC::from(sts.Reason),
+            object_type: MQOT(sts.ObjectType),
+            object_name: MqStr::from(sts.ObjectName),
+            object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
+        }
+    }
+}
+
+impl ReconnectionErrorStat {
+    pub(crate) fn new(sts: &structs::MQSTS, object_string_buffer: Vec<MQCHAR>, sub_name_buffer: Vec<MQCHAR>) -> Self {
+        let mut object_string_buffer = object_string_buffer;
+        unsafe {
+            object_string_buffer.set_len(
+                sts.ObjectString
+                    .VSLength
+                    .try_into()
+                    .expect("buffer length should convert to usize"),
+            );
+        }
+        let mut sub_name_buffer = sub_name_buffer;
+        unsafe {
+            sub_name_buffer.set_len(
+                sts.SubName
+                    .VSLength
+                    .try_into()
+                    .expect("buffer length should convert to usize"),
+            );
+        }
+
+        Self {
+            warning: match sts.CompCode {
+                0 => None,
+                value => Some(MQCC::from(value)),
+            },
+            reason: MQRC::from(sts.Reason),
+            object_type: MQOT(sts.ObjectType),
+            object_name: MqStr::from(sts.ObjectName),
+            object_qmgr_name: MqStr::from(sts.ObjectQMgrName),
+            object_string: if object_string_buffer.is_empty() {
+                None
+            } else {
+                Some(StrCcsidOwned::from_vec(object_string_buffer, CCSID(sts.ObjectString.VSCCSID)))
+            },
+            sub_name: if sub_name_buffer.is_empty() {
+                None
+            } else {
+                Some(StrCcsidOwned::from_vec(sub_name_buffer, CCSID(sts.SubName.VSCCSID)))
+            },
+            open_options: MQOO(sts.OpenOptions),
+            sub_options: MQSO(sts.SubOptions),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AsyncPutStat {
+    pub warning: Option<MQCC>,
+    pub reason: MQRC,
+    pub put_success_count: MQLONG,
+    pub put_warning_count: MQLONG,
+    pub put_failure_count: MQLONG,
+    pub object_type: MQOT,
+    pub object_name: ObjectName,               // TODO: fix wrapper?
+    pub object_qmgr_name: ObjectName,          // TODO: fix wrapper?
+    pub resolved_object_name: ObjectName,      // TODO: fix wrapper?
+    pub resolved_object_qmgr_name: ObjectName, // TODO: fix wrapper?
+    pub object_string: Option<StrCcsidOwned>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReconnectionStat {
+    pub warning: Option<MQCC>,
+    pub reason: MQRC,
+    pub object_type: MQOT,
+    pub object_name: ObjectName,      // TODO: fix wrapper?
+    pub object_qmgr_name: ObjectName, // TODO: fix wrapper?
+}
+
+#[derive(Debug, Clone)]
+pub struct ReconnectionErrorStat {
+    pub warning: Option<MQCC>,
+    pub reason: MQRC,
+    pub object_type: MQOT,
+    pub object_name: ObjectName,      // TODO: fix wrapper?
+    pub object_qmgr_name: ObjectName, // TODO: fix wrapper?
+    pub object_string: Option<StrCcsidOwned>,
+    pub sub_name: Option<StrCcsidOwned>,
+    pub open_options: MQOO,
+    pub sub_options: MQSO,
+}

@@ -1,0 +1,94 @@
+use crate::{Connection, connection::AsConnection, constants, handle::ObjectHandle, result::ResultComp, types::MQCO};
+
+/// An object refers to a managed entity within IBM MQ, such as a queue, topic, channel, or queue manager
+#[derive(Debug)]
+#[must_use]
+pub struct Object<C: AsConnection> {
+    /// Handle of the object
+    pub(crate) handle: ObjectHandle,
+    /// Connection associated with object
+    pub(crate) connection: C,
+    /// Close options applied on drop of the object
+    pub(crate) drop_close_options: MQCO,
+}
+
+impl<C: AsConnection> Object<C> {
+    #[must_use]
+    pub const fn handle(&self) -> &ObjectHandle {
+        &self.handle
+    }
+
+    #[must_use]
+    pub const fn connection(&self) -> &C {
+        &self.connection
+    }
+
+    pub const fn from_parts(connection: C, handle: ObjectHandle) -> Self {
+        Self {
+            handle,
+            connection,
+            drop_close_options: constants::MQCO_NONE,
+        }
+    }
+
+    pub const fn close_options(&mut self, options: MQCO) {
+        self.drop_close_options = options;
+    }
+
+    pub fn close(self) -> ResultComp<()> {
+        let mut s = self;
+        let Self {
+            handle: obj_handle,
+            drop_close_options: close_options,
+            connection,
+            ..
+        } = &mut s;
+        let Connection { handle, mq, .. } = connection.as_connection();
+        mq.mqclose(*handle, obj_handle, *close_options)
+    }
+}
+
+impl<C: AsConnection> Drop for Object<C> {
+    fn drop(&mut self) {
+        // TODO: handle close failure
+        let Connection { handle, mq, .. } = self.connection.as_connection();
+
+        if self.handle.is_closeable() {
+            let _ = mq.mqclose(*handle, &mut self.handle, self.drop_close_options);
+        }
+    }
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use libmqm_sys as mq;
+
+    use super::*;
+
+    #[test]
+    fn close_option() {
+        assert_eq!((constants::MQCO_DELETE | MQCO(0xFF00)).to_string(), "MQCO_DELETE|0xFF00");
+        assert_eq!(
+            (constants::MQCO_DELETE | constants::MQCO_QUIESCE).to_string(),
+            "MQCO_DELETE|MQCO_QUIESCE"
+        );
+        assert_eq!(constants::MQCO_DELETE.to_string(), "MQCO_DELETE");
+        assert_eq!(MQCO(0).to_string(), "MQCO_NONE");
+        assert_eq!(MQCO(0xFF00).to_string(), "0xFF00");
+
+        let (list_iter, _) = constants::MQCO_DELETE.bitflags_list();
+        let list = list_iter.collect::<Vec<_>>();
+        assert_eq!(list, &[(1, "MQCO_DELETE")]);
+
+        let (list_iter, _) = constants::MQCO_NONE.bitflags_list();
+        let list = list_iter.collect::<Vec<_>>();
+        assert_eq!(list, &[]);
+
+        let (list_iter, _) = (constants::MQCO_DELETE | constants::MQCO_QUIESCE).bitflags_list();
+        let list = list_iter.collect::<Vec<_>>();
+        assert_eq!(list, &[(mq::MQCO_DELETE, "MQCO_DELETE"), (mq::MQCO_QUIESCE, "MQCO_QUIESCE")]);
+
+        // assert_eq!(format!("{oo:?}"), "");
+    }
+}

@@ -5,7 +5,7 @@ use std::rc::Rc;
 use anyhow::Context;
 use dlopen2::wrapper::Container;
 use mqi::{
-    ThreadNone,
+    connection::ThreadNone,
     prelude::*,
     types::{ApplName, QueueName},
 };

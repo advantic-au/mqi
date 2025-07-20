@@ -5,11 +5,11 @@ mod args;
 use anyhow::Context as _;
 use clap::{Parser, ValueEnum};
 use mqi::{
-    Object, Properties, Syncpoint, ThreadNone,
-    connect_options::Tls,
+    Object, Properties, Syncpoint,
+    connection::{ThreadNone, Tls},
     constants,
     prelude::*,
-    put_options::{Context, PropertyAction},
+    put::{Context, PropertyAction},
     structs,
     types::{ApplName, CipherSpec, MQCMHO, MessageFormat, QueueManagerName, QueueName},
 };
@@ -85,7 +85,7 @@ fn main() -> anyhow::Result<()> {
         .context("Unable to connect to the queue manager")?;
     let qm_ref = qm.connection_ref();
     let obj = Object::open(
-        qm_ref,
+        qm_ref.clone(),
         &(
             source_queue,
             constants::MQOO_INPUT_AS_Q_DEF | constants::MQOO_SAVE_ALL_CONTEXT,
@@ -96,10 +96,10 @@ fn main() -> anyhow::Result<()> {
 
     let mut buffer = Vec::<u8>::with_capacity(20 * 1024); // 20kb
     let buf_write = buffer.spare_capacity_mut();
-    let syncpoint = Syncpoint::new(qm_ref);
+    let syncpoint = Syncpoint::new(qm_ref.clone());
 
     let mut properties = Properties::new(&qm, MQCMHO::default())?;
-    let message: Option<(_, structs::MQMD2)> = obj
+    let message: Option<(_, structs::MQMD)> = obj
         .get_data_with(
             &(
                 constants::MQGMO_SYNCPOINT, // Must use the syncpoint option
@@ -116,7 +116,7 @@ fn main() -> anyhow::Result<()> {
             buffer.set_len(len);
         }
         let mut target_properties = Properties::new(&qm, MQCMHO::default())?; // Create a placeholder for target properties
-        let fmt = MessageFormat::from_mqmd2(&md);
+        let fmt = MessageFormat::from_mqmd(&md);
         qm_ref
             .put_message(
                 // Equivalent to MQPUT1
@@ -134,7 +134,7 @@ fn main() -> anyhow::Result<()> {
                 ),
                 &(
                     // Options used when putting to the queue
-                    md,                                                           // Original MQMD2
+                    md,                                                           // Original MQMD
                     Context(&obj),                                                // Source object as context
                     PropertyAction::Forward(&properties, &mut target_properties), // Forward the properties
                 ),
@@ -144,11 +144,11 @@ fn main() -> anyhow::Result<()> {
             .context("Unable to put a message")?;
     }
 
-    if args.dry_run {
-        syncpoint.backout().warn_as_error().context("Unable to backout")?; // Backout any changes
+    let _ = if args.dry_run {
+        syncpoint.backout().warn_as_error().context("Unable to backout") // Backout any changes
     } else {
-        syncpoint.commit().warn_as_error().context("Unabel to commit")?; // Commit both the MQ get and MQ put.
-    }
+        syncpoint.commit().warn_as_error().context("Unabel to commit") // Commit both the MQ get and MQ put.
+    }?;
 
     Ok(())
 }

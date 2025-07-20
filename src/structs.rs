@@ -9,8 +9,6 @@ use libmqm_sys as mq;
 pub type MQMD = MqStruct<'static, mq::MQMD>;
 /// Message Descriptor version 1 - original version of the message descriptor
 pub type MQMD1 = MqStruct<'static, mq::MQMD1>;
-/// Message Descriptor version 2 - extended version with additional fields for grouping and segmentation
-pub type MQMD2 = MqStruct<'static, mq::MQMD2>;
 
 /// Get Message Options - used to control the behavior of MQGET operations
 pub type MQGMO = MqStruct<'static, mq::MQGMO>;
@@ -106,12 +104,14 @@ macro_rules! impl_min_version {
     ([$($lt:lifetime),*], $ty:ty) => {
         impl <$($lt, )*> $ty {
             #[inline]
-            #[doc = "Sets the `Version` field to the minimum required version"]
+            #[doc = "Sets the `Version` field to a minimum"]
             pub fn set_min_version(&mut self, version: $crate::types::MQLONG) {
                 self.Version = std::cmp::max(self.Version, version);
             }
         }
     };
 }
+
+impl_min_version!([], MQGMO);
 
 pub(crate) use impl_min_version;

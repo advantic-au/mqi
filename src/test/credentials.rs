@@ -1,6 +1,6 @@
 use std::env;
 
-use crate::connect_options::Credentials;
+use crate::connection::Credentials;
 
 #[must_use]
 pub fn credentials() -> Option<(String, String)> {

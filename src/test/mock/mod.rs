@@ -5,7 +5,7 @@ use std::{cmp, rc::Rc, slice};
 
 use libmqm_sys::{self as mq, mock::MockMq};
 
-use crate::{Connection, Library, ResultCompExt, ThreadNone, connect_lib, constants, put::PutMessage, types};
+use crate::{Connection, Library, connect_lib, connection::ThreadNone, constants, put, result::ResultCompExt, types};
 
 pub mod callback;
 
@@ -69,7 +69,7 @@ pub fn get_error(mock: &mut MockMq, mqrc: types::MQRC, count: impl Into<mockall:
 
 pub fn get_ok(
     mock: &mut MockMq,
-    message: &'static (impl PutMessage + ?Sized),
+    message: &'static (impl put::PutMessage + ?Sized),
     count: impl Into<mockall::TimesRange>,
     seq: &mut mockall::Sequence,
 ) {
@@ -147,10 +147,9 @@ pub fn subscribe_managed_ok(
 
 #[cfg(feature = "mqai")]
 pub mod mqai {
-    use libmqm_constants::constants;
     use libmqm_sys::{Mqai, mock::MockMq};
 
-    use crate::{Library, types};
+    use crate::{Library, constants, types};
 
     pub fn get_bag_error(
         mock: &mut MockMq,

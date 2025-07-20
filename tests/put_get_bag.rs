@@ -1,14 +1,16 @@
 #![cfg(feature = "mqai")]
 
+#[cfg(not(feature = "mock"))]
+use mqi::connection::{Credentials, ThreadNone};
 use mqi::{
-    Bag, Object, constants,
-    headers::{TextEnc, fmt},
-    open_options,
+    Object,
+    bag::Bag,
+    constants,
+    header::{TextEnc, fmt},
+    open,
     prelude::*,
     test, types,
 };
-#[cfg(not(feature = "mock"))]
-use mqi::{ThreadNone, connect_options::Credentials};
 
 #[test]
 fn put_get_bag() -> Result<(), Box<dyn std::error::Error>> {
@@ -130,7 +132,7 @@ fn bag_no_message() -> Result<(), Box<dyn std::error::Error>> {
         &(
             QUEUE,
             constants::MQOO_INPUT_AS_Q_DEF,
-            open_options::SelectionString("Root.MQMD.CorrelId = 0x0c0c0c0c"), // This should not exist
+            open::SelectionString("Root.MQMD.CorrelId = 0x0c0c0c0c"), // This should not exist
         ),
     )?;
 

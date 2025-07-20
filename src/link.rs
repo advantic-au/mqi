@@ -1,0 +1,88 @@
+use libmqm_sys::link::LinkedMq;
+#[cfg(feature = "mqai")]
+use {crate::bag, crate::types::MQCBO};
+
+use crate::{
+    Connection, connect_lib_as,
+    connection::{ConnectAttr, ConnectOption, ConnectValue, Threading},
+    result::ResultComp,
+};
+
+/// Create a connection to a queue manager using the compile time linked MQ library
+/// and type inferred [`ConnectValue`].
+///
+/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) MQ API function.
+#[inline]
+pub fn connect_as<'co, R, H>(options: &impl ConnectOption<'co>) -> ResultComp<R>
+where
+    R: ConnectValue<Connection<LinkedMq, H>>,
+    H: Threading,
+{
+    connect_lib_as(LinkedMq, options)
+}
+
+/// Create a connection to a queue manager using the compile time linked MQ library.
+///
+/// The connection parameters are controlled using a [`ConnectOption`]. Multiple [`ConnectOption`] can
+/// be supplied using tuples of varying length.
+///
+/// The [`Threading`] type parameter controls the threaded capability of the connection.
+///
+/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) verb.
+///
+/// ## Examples
+///
+/// ```no_run
+/// use mqi::prelude::*;
+/// use mqi::{connection::{ThreadNone, Credentials}, constants};
+///
+/// // Connect to the default queue manager with the provided credentials and MQCNO_RECONNECT_Q_MGR
+/// let connection = mqi::connect::<ThreadNone>(&(
+///     constants::MQCNO_RECONNECT_Q_MGR, Credentials::User("app", "app".into())
+/// ))?;
+///
+/// // connection is wrapped in a Completion. Discard the completion with a `discard_warning`
+/// let connection = connection.discard_warning();
+///
+/// # Ok::<(), mqi::result::Error>(())
+/// ```
+///
+/// See also [`connect_as`] and [`connect_with`] for creating connections with additional
+/// return attribute. For connections using dynamically loaded or custom implementation of the
+/// MQ library refer to [`connect_lib`](crate::connect_lib).
+///
+/// ## Panics
+/// This will panic when:
+/// * Any MQ structure Version numbers exceed the compiled in MQ client
+/// * Any MQ structure Offsets exceed the bounds of an [`MQLONG`](libmqm_sys::MQLONG)
+#[inline]
+pub fn connect<'co, H>(options: &impl ConnectOption<'co>) -> ResultComp<Connection<LinkedMq, H>>
+where
+    H: Threading,
+{
+    connect_lib_as(LinkedMq, options)
+}
+
+/// Create a connection to a queue manager and return an implementation of [`ConnectAttr`] in tuple
+/// using the compile time linked MQ library.
+///
+/// Refer to [`connect`] for parameter details.
+///
+/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) MQ API function.
+///
+/// Common [`ConnectAttr`] that can be returned include [`ConnTag`](crate::connection::ConnTag) and [`ConnectionId`](crate::connection::ConnectionId).
+#[inline]
+pub fn connect_with<'co, A, H>(options: &impl ConnectOption<'co>) -> ResultComp<(Connection<LinkedMq, H>, A)>
+where
+    A: ConnectAttr<Connection<LinkedMq, H>>,
+    H: Threading,
+{
+    connect_lib_as(LinkedMq, options)
+}
+
+#[cfg(feature = "mqai")]
+impl bag::Bag<bag::Owned, LinkedMq> {
+    pub fn new(options: MQCBO) -> ResultComp<Self> {
+        Self::new_lib(LinkedMq, options)
+    }
+}

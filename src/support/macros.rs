@@ -74,7 +74,7 @@ macro_rules! all_option_tuples {
         $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3] $(,$safety)?);
         $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4] $(,$safety)?);
         $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M6, M7] $(,$safety)?);
+        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5, M6] $(,$safety)?);
         $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5, M6, M7] $(,$safety)?);
         $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5, M6, M7, M8] $(,$safety)?);
     };

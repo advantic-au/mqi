@@ -2,18 +2,19 @@
 
 use std::{borrow::Cow, collections::HashMap, error::Error};
 
+#[cfg(not(feature = "mock"))]
+use mqi::connection::{Credentials, ThreadNone};
 use mqi::{
     Object, Properties, attribute,
     attribute::{AttributeType, AttributeValue, InqResItem},
-    constants, get,
-    headers::fmt,
-    open_options::SelectionString,
+    constants,
+    get::Headers,
+    header::fmt,
+    open::SelectionString,
     prelude::*,
     test,
     types::{MQCMHO, MQXA, MessageFormat, MessageId, QueueManagerName, QueueName},
 };
-#[cfg(not(feature = "mock"))]
-use mqi::{ThreadNone, connect_options::Credentials};
 
 #[test]
 fn no_message() -> Result<(), Box<dyn std::error::Error>> {
@@ -94,7 +95,7 @@ fn put_get_message() -> Result<(), Box<dyn std::error::Error>> {
         buffer,
     )?;
 
-    let (msg, _msgid, format, headers): (Cow<[u8]>, MessageId, MessageFormat, get::Headers) =
+    let (msg, _msgid, format, headers): (Cow<[u8]>, MessageId, MessageFormat, Headers) =
         msg.discard_warning().expect("Message to be present");
 
     assert!(headers.all_headers().next().is_none());
@@ -156,7 +157,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
 
     let object = Object::open(connection, &(QueueManagerName(mqstr!("")), constants::MQOO_INQUIRE)).warn_as_error()?;
 
-    let result = object.inq(INQ)?;
+    let result = object.inquire(INQ)?;
     if let Some((rc, verb)) = result.warning() {
         eprintln!("MQRC warning: {verb} {rc}");
     }
@@ -170,7 +171,7 @@ fn inq_qm() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let r = object.inq_item(attribute::MQCA_DEF_XMIT_Q_NAME).warn_as_error()?;
+    let r = object.inquire_item(attribute::MQCA_DEF_XMIT_Q_NAME).warn_as_error()?;
     println!("{r:?}");
 
     Ok(())

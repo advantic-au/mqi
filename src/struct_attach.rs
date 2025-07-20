@@ -2,7 +2,10 @@ use std::ptr;
 
 use libmqm_sys as mq;
 
-use crate::{CCSID, EncodedString, structs, types};
+use crate::{
+    string::{CCSID, EncodedString},
+    structs, types,
+};
 
 const C_EMPTY: *mut std::ffi::c_void = c"".as_ptr().cast_mut().cast();
 
@@ -117,7 +120,7 @@ impl<'ptr> structs::MQCSP<'ptr> {
 // Functions to attach references to MQSCO
 impl<'ptr> structs::MQSCO<'ptr> {
     #[cfg(feature = "mqc_9_3_0_0")]
-    pub fn attach_repo_password<S: crate::Secret<'ptr, str> + Copy>(&mut self, password: Option<S>) {
+    pub fn attach_repo_password<S: crate::traits::Secret<'ptr, str> + Copy>(&mut self, password: Option<S>) {
         self.set_min_version(mq::MQSCO_VERSION_6);
         if let Some(ps) = password {
             let exposed = ps.expose_secret();
