@@ -175,11 +175,13 @@ impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
 
 #[cfg(test)]
 mod test {
-    use crate::test::mock;
     use super::*;
 
+    #[cfg(feature = "mock")]
     #[test]
     fn leak_already_connected() {
+        use crate::test::mock;
+
         let connection = mock::connect_ok(|_| {});
         let subject_warn: ResultComp<_> = Ok(Completion(connection, Some((constants::MQRC_ALREADY_CONNECTED, "verb"))));
         let result = subject_warn.leak_already_connected();

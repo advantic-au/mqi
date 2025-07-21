@@ -361,17 +361,16 @@ impl<T: option::AsConnection<Lib = L, Thread = H>, L: Library<MQ: Mqi>, H> optio
 
 #[cfg(test)]
 pub mod test {
+
     use super::*;
 
+    #[cfg(feature = "mock")]
     #[test]
     pub fn connection_either() {
-        let lib = crate::test::mq_library();
-        let handle = ConnectionHandle::from(mq::MQHC_UNASSOCIATED_HCONN);
-        let connection = Connection {
-                handle,
-                mq: MqFunctions(lib),
-                _share: PhantomData::<ThreadNone>,
-            };
+        use crate::test::mock;
+
+        let connection = mock::connect_ok(|_| {});
+        let handle = connection.handle;
         let cr = connection.connection_ref();
         let ce_r = ConnectionEither::Ref(cr.clone());
 
@@ -380,15 +379,10 @@ pub mod test {
         assert_eq!(ce_r.as_connection().handle, handle);
 
         // Test ConnectionEither::Owned
-        let connection = Connection {
-            handle,
-            mq: MqFunctions(lib),
-            _share: PhantomData::<ThreadNone>,
-        };
+        let connection = mock::connect_ok(|_| {});
         let ce_o = ConnectionEither::Owned(connection);
         assert_eq!(ce_o.connection_ref().handle, handle);
         assert_eq!(ce_o.as_connection().handle, handle);
-
     }
 
 }
