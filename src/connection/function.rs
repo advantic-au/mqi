@@ -76,23 +76,29 @@ where
         ConnectionRef::from_parts(self.handle, self.mq.clone())
     }
 
-    /// Leak the connection to a static reference
-    ///
-    /// This is typically used to have a Connection that is active for the entire lifetime of an
-    /// application, without closing the connection.
-    pub fn leak<'a>(self) -> ConnectionRef<'a, L, H> {
-        let handle = self.handle;
-        let mq = self.mq.clone();
-        let _ = ManuallyDrop::new(self);
-        ConnectionRef::from_parts(handle, mq)
-    }
-
     /// Clone the library associated with the connection
     #[inline]
     pub fn library(&self) -> L {
         self.mq.0.clone()
     }
 }
+
+impl<L, H> Connection<L, H>
+where
+    L: Library<MQ: Mqi>,
+{
+    /// Leak the connection to a static reference
+    ///
+    /// This is typically used to have a Connection that is active for the entire lifetime of an
+    /// application, without closing the connection.
+    pub const fn leak<'a>(self) -> ConnectionRef<'a, L, H> {
+        let handle = self.handle;
+        let mq = unsafe { std::ptr::read(&raw const self.mq) };
+        let _ = ManuallyDrop::new(self);
+        ConnectionRef::from_parts(handle, mq)
+    }
+}
+
 
 impl<L: Library<MQ: Mqi>, H> Drop for ConnectionRef<'_, L, H> {
     fn drop(&mut self) {
@@ -351,4 +357,38 @@ impl<T: option::AsConnection<Lib = L, Thread = H>, L: Library<MQ: Mqi>, H> optio
     fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread> {
         (*self).as_connection()
     }
+}
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+
+    #[test]
+    pub fn connection_either() {
+        let lib = crate::test::mq_library();
+        let handle = ConnectionHandle::from(mq::MQHC_UNASSOCIATED_HCONN);
+        let connection = Connection {
+                handle,
+                mq: MqFunctions(lib),
+                _share: PhantomData::<ThreadNone>,
+            };
+        let cr = connection.connection_ref();
+        let ce_r = ConnectionEither::Ref(cr.clone());
+
+        // Test ConnectionEither::Ref
+        assert_eq!(ce_r.connection_ref().handle, handle);
+        assert_eq!(ce_r.as_connection().handle, handle);
+
+        // Test ConnectionEither::Owned
+        let connection = Connection {
+            handle,
+            mq: MqFunctions(lib),
+            _share: PhantomData::<ThreadNone>,
+        };
+        let ce_o = ConnectionEither::Owned(connection);
+        assert_eq!(ce_o.connection_ref().handle, handle);
+        assert_eq!(ce_o.as_connection().handle, handle);
+
+    }
+
 }
