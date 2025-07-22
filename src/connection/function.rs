@@ -93,12 +93,12 @@ where
     /// application, without closing the connection.
     pub const fn leak<'a>(self) -> ConnectionRef<'a, L, H> {
         let handle = self.handle;
+        // SAFETY: moving mq (Library) to ConnectionRef
         let mq = unsafe { std::ptr::read(&raw const self.mq) };
         let _ = ManuallyDrop::new(self);
         ConnectionRef::from_parts(handle, mq)
     }
 }
-
 
 impl<L: Library<MQ: Mqi>, H> Drop for ConnectionRef<'_, L, H> {
     fn drop(&mut self) {
@@ -361,12 +361,10 @@ impl<T: option::AsConnection<Lib = L, Thread = H>, L: Library<MQ: Mqi>, H> optio
 
 #[cfg(test)]
 pub mod test {
-
-    use super::*;
-
     #[cfg(feature = "mock")]
     #[test]
     pub fn connection_either() {
+        use super::*;
         use crate::test::mock;
 
         let connection = mock::connect_ok(|_| {});
@@ -384,5 +382,4 @@ pub mod test {
         assert_eq!(ce_o.connection_ref().handle, handle);
         assert_eq!(ce_o.as_connection().handle, handle);
     }
-
 }

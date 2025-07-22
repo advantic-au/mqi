@@ -175,11 +175,10 @@ impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
     #[cfg(feature = "mock")]
     #[test]
     fn leak_already_connected() {
+        use super::*;
         use crate::test::mock;
 
         let connection = mock::connect_ok(|_| {});
@@ -191,6 +190,5 @@ mod test {
         let subject: ResultComp<_> = Ok(Completion(connection, None));
         let result = subject.leak_already_connected();
         assert!(matches!(result, Ok(Completion(ConnectionEither::Owned(_), _))));
-
     }
 }
