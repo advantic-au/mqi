@@ -209,7 +209,7 @@ pub mod connection {
     pub(super) mod option;
     mod param;
 
-    pub use function::{ThreadBlock, ThreadNoBlock, ThreadNone};
+    pub use function::{ConnectionEither, ThreadBlock, ThreadNoBlock, ThreadNone};
     pub use option::*;
     pub use param::*;
 }

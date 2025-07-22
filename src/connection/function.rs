@@ -11,7 +11,7 @@ use std::{
 use libmqm_sys::{self as mq, Mqi};
 
 use super::option;
-use crate::{Library, MqFunctions, handle::ConnectionHandle, prelude::*, result::ResultComp, types};
+use crate::{Library, MqFunctions, connection::AsConnection, handle::ConnectionHandle, prelude::*, result::ResultComp, types};
 
 /// A connection to an IBM MQ queue manager
 ///
@@ -37,6 +37,14 @@ pub struct ConnectionRef<'conn, L: Library<MQ: Mqi>, H> {
     conn: ManuallyDrop<Connection<L, H>>,
     /// Reference to original connectio
     _ref: PhantomData<&'conn ()>,
+}
+
+/// Holds a [`Connection`] or a referenced connection [`ConnectionRef`]
+#[derive(Debug)]
+#[must_use]
+pub enum ConnectionEither<'conn, L: Library<MQ: Mqi>, H> {
+    Owned(Connection<L, H>),
+    Ref(ConnectionRef<'conn, L, H>),
 }
 
 impl<L: Library<MQ: Mqi> + Clone, H> Clone for ConnectionRef<'_, L, H> {
@@ -68,21 +76,27 @@ where
         ConnectionRef::from_parts(self.handle, self.mq.clone())
     }
 
-    /// Leak the connection to a static reference
-    ///
-    /// This is typically used to have a Connection that is active for the entire lifetime of an
-    /// application, without closing the connection.
-    pub fn leak<'a>(self) -> ConnectionRef<'a, L, H> {
-        let handle = self.handle;
-        let mq = self.mq.clone();
-        let _ = ManuallyDrop::new(self);
-        ConnectionRef::from_parts(handle, mq)
-    }
-
     /// Clone the library associated with the connection
     #[inline]
     pub fn library(&self) -> L {
         self.mq.0.clone()
+    }
+}
+
+impl<L, H> Connection<L, H>
+where
+    L: Library<MQ: Mqi>,
+{
+    /// Leak the connection to a static reference
+    ///
+    /// This is typically used to have a Connection that is active for the entire lifetime of an
+    /// application, without closing the connection.
+    pub const fn leak<'a>(self) -> ConnectionRef<'a, L, H> {
+        let handle = self.handle;
+        // SAFETY: moving mq (Library) to ConnectionRef
+        let mq = unsafe { std::ptr::read(&raw const self.mq) };
+        let _ = ManuallyDrop::new(self);
+        ConnectionRef::from_parts(handle, mq)
     }
 }
 
@@ -107,6 +121,30 @@ where
                 _share: PhantomData,
             }),
             _ref: PhantomData,
+        }
+    }
+}
+
+impl<L: Library<MQ: Mqi>, H> AsConnection for ConnectionEither<'_, L, H> {
+    type Lib = L;
+    type Thread = H;
+
+    fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread> {
+        match self {
+            ConnectionEither::Owned(connection) => connection.as_connection(),
+            ConnectionEither::Ref(connection_ref) => connection_ref.as_connection(),
+        }
+    }
+}
+
+impl<'a, L: Library<MQ: Mqi>, H> ConnectionEither<'a, L, H> {
+    pub fn connection_ref<'b: 'a>(&'b self) -> ConnectionRef<'a, L, H>
+    where
+        L: Clone,
+    {
+        match self {
+            ConnectionEither::Owned(connection) => connection.connection_ref(),
+            ConnectionEither::Ref(connection_ref) => connection_ref.clone(),
         }
     }
 }
@@ -318,5 +356,30 @@ impl<T: option::AsConnection<Lib = L, Thread = H>, L: Library<MQ: Mqi>, H> optio
 
     fn as_connection(&self) -> &crate::Connection<Self::Lib, Self::Thread> {
         (*self).as_connection()
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    #[cfg(feature = "mock")]
+    #[test]
+    pub fn connection_either() {
+        use super::*;
+        use crate::test::mock;
+
+        let connection = mock::connect_ok(|_| {});
+        let handle = connection.handle;
+        let cr = connection.connection_ref();
+        let ce_r = ConnectionEither::Ref(cr.clone());
+
+        // Test ConnectionEither::Ref
+        assert_eq!(ce_r.connection_ref().handle, handle);
+        assert_eq!(ce_r.as_connection().handle, handle);
+
+        // Test ConnectionEither::Owned
+        let connection = mock::connect_ok(|_| {});
+        let ce_o = ConnectionEither::Owned(connection);
+        assert_eq!(ce_o.connection_ref().handle, handle);
+        assert_eq!(ce_o.as_connection().handle, handle);
     }
 }

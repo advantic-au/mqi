@@ -81,7 +81,8 @@ fn main() -> anyhow::Result<()> {
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
     let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, qm_name, creds, cno, client_method))
-        .warn_as_error()
+        .leak_already_connected()
+        .discard_warning()
         .context("Unable to connect to the queue manager")?;
     let qm_ref = qm.connection_ref();
     let obj = Object::open(

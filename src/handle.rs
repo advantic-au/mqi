@@ -27,25 +27,25 @@ pub mod raw {
 
     use super::{RawHandle, mq};
 
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Connection;
     impl RawHandle for Connection {
         type HandleType = mq::MQHCONN;
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Message;
     impl RawHandle for Message {
         type HandleType = mq::MQHMSG;
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Object;
     impl RawHandle for Object {
         type HandleType = mq::MQHOBJ;
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     #[cfg(feature = "mqai")]
     pub struct Bag;
 

@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Display};
 
 use crate::{
+    Connection, Library,
+    connection::ConnectionEither,
     constants,
     types::{MQCC, MQRC},
 };
@@ -121,6 +123,13 @@ pub trait ResultCompErrExt<T, E> {
     fn unwrap_completion(self) -> T
     where
         E: std::fmt::Debug;
+
+    /// [Leak](Connection::leak) the connection if the [Completion] contains a [`MQRC_ALREADY_CONNECTED`](constants::MQRC_ALREADY_CONNECTED) warning
+    fn leak_already_connected<L: Library<MQ: libmqm_sys::Mqi> + Clone, H>(
+        self,
+    ) -> ResultCompErr<ConnectionEither<'static, L, H>, E>
+    where
+        T: Into<Connection<L, H>>;
 }
 
 impl<T, E> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
@@ -139,6 +148,20 @@ impl<T, E> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
     fn discard_warning(self) -> Result<T, E> {
         self.map(Completion::discard_warning)
     }
+
+    fn leak_already_connected<L: Library<MQ: libmqm_sys::Mqi> + Clone, H>(
+        self,
+    ) -> ResultCompErr<ConnectionEither<'static, L, H>, E>
+    where
+        T: Into<Connection<L, H>>,
+    {
+        self.map(|comp| match comp {
+            Completion(connection, warn @ Some((constants::MQRC_ALREADY_CONNECTED, _))) => {
+                Completion(ConnectionEither::Ref(connection.into().leak()), warn)
+            }
+            other => other.map(|c| ConnectionEither::Owned(c.into())),
+        })
+    }
 }
 
 impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
@@ -147,5 +170,25 @@ impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
             Ok(Completion(_, Some((warn_cc, verb)))) => Err(E::from(Error(constants::MQCC_WARNING, verb, warn_cc))),
             other => other.map(|Completion(value, ..)| value),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[cfg(feature = "mock")]
+    #[test]
+    fn leak_already_connected() {
+        use super::*;
+        use crate::test::mock;
+
+        let connection = mock::connect_ok(|_| {});
+        let subject_warn: ResultComp<_> = Ok(Completion(connection, Some((constants::MQRC_ALREADY_CONNECTED, "verb"))));
+        let result = subject_warn.leak_already_connected();
+        assert!(matches!(result, Ok(Completion(ConnectionEither::Ref(_), _))));
+
+        let connection = mock::connect_ok(|_| {});
+        let subject: ResultComp<_> = Ok(Completion(connection, None));
+        let result = subject.leak_already_connected();
+        assert!(matches!(result, Ok(Completion(ConnectionEither::Owned(_), _))));
     }
 }
