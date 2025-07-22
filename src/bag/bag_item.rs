@@ -1,10 +1,8 @@
 use std::{fmt::Debug, mem};
 
-use libmqm_sys::Mqai;
-
 use super::{Bag, BagDrop, Filter};
 use crate::{
-    Library, MqStr, constants,
+    MqStr, MqaiLibrary, constants,
     prelude::*,
     result::{Completion, Error, ResultComp, ResultCompErr, WithMqError},
     string::{CCSID, EncodedString, StrCcsidOwned, StringCcsid},
@@ -19,14 +17,14 @@ pub enum PutStringCcsidError {
     Mqi(Error),
 }
 
-pub trait BagItemPut<L: Library<MQ: Mqai>> {
+pub trait BagItemPut<L: MqaiLibrary> {
     type Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error>;
     fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error>;
 }
 
-pub trait BagItemGet<L: Library<MQ: Mqai>>: Sized {
+pub trait BagItemGet<L: MqaiLibrary>: Sized {
     type Error: WithMqError + Debug;
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error>;
 }
@@ -42,7 +40,7 @@ impl WithMqError for PutStringCcsidError {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for MQLONG {
+impl<L: MqaiLibrary> BagItemPut<L> for MQLONG {
     type Error = Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
@@ -54,7 +52,7 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for MQLONG {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQLONG {
+impl<L: MqaiLibrary> BagItemGet<L> for MQLONG {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_integer(bag, selector, index)
     }
@@ -62,7 +60,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQLONG {
     type Error = Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for Filter<MQLONG> {
+impl<L: MqaiLibrary> BagItemPut<L> for Filter<MQLONG> {
     type Error = Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
@@ -74,7 +72,7 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for Filter<MQLONG> {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<MQLONG> {
+impl<L: MqaiLibrary> BagItemGet<L> for Filter<MQLONG> {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_integer_filter(bag, selector, index)
     }
@@ -82,7 +80,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<MQLONG> {
     type Error = Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for MQINT64 {
+impl<L: MqaiLibrary> BagItemPut<L> for MQINT64 {
     type Error = Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
@@ -94,7 +92,7 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for MQINT64 {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQINT64 {
+impl<L: MqaiLibrary> BagItemGet<L> for MQINT64 {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         bag.mq.mq_inquire_integer64(bag, selector, index)
     }
@@ -102,7 +100,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQINT64 {
     type Error = Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for [MQBYTE] {
+impl<L: MqaiLibrary> BagItemPut<L> for [MQBYTE] {
     type Error = Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
@@ -114,7 +112,7 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for [MQBYTE] {
     }
 }
 
-impl<T: EncodedString + ?Sized, L: Library<MQ: Mqai>> BagItemPut<L> for T {
+impl<T: EncodedString + ?Sized, L: MqaiLibrary> BagItemPut<L> for T {
     type Error = PutStringCcsidError;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
@@ -142,7 +140,7 @@ impl<T: EncodedString + ?Sized, L: Library<MQ: Mqai>> BagItemPut<L> for T {
     }
 }
 
-impl<T: EncodedString, L: Library<MQ: Mqai>> BagItemPut<L> for Filter<T> {
+impl<T: EncodedString, L: MqaiLibrary> BagItemPut<L> for Filter<T> {
     type Error = PutStringCcsidError;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error> {
@@ -191,7 +189,7 @@ impl<T: EncodedString, L: Library<MQ: Mqai>> BagItemPut<L> for Filter<T> {
     }
 }
 
-impl<L: Library<MQ: Mqai>, const N: usize> BagItemGet<L> for MqStr<N> {
+impl<L: MqaiLibrary, const N: usize> BagItemGet<L> for MqStr<N> {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error> {
         let bag_ccsid = CCSID(
             bag.mq
@@ -212,7 +210,7 @@ impl<L: Library<MQ: Mqai>, const N: usize> BagItemGet<L> for MqStr<N> {
     type Error = PutStringCcsidError;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for StrCcsidOwned {
+impl<L: MqaiLibrary> BagItemGet<L> for StrCcsidOwned {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion((length, ccsid), mut warning) = bag.mq.mq_inquire_string(bag, selector, index, &mut data_s)?;
@@ -235,7 +233,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for StrCcsidOwned {
     type Error = Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<StrCcsidOwned> {
+impl<L: MqaiLibrary> BagItemGet<L> for Filter<StrCcsidOwned> {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion((length, ccsid, operator), mut warning) =
@@ -261,7 +259,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<StrCcsidOwned> {
     type Error = Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<MQBYTE> {
+impl<L: MqaiLibrary> BagItemGet<L> for Vec<MQBYTE> {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion(length, mut warning) = bag.mq.mq_inquire_byte_string(bag, selector, index, &mut data_s)?;
@@ -285,7 +283,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Vec<MQBYTE> {
     type Error = Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemPut<L> for Filter<&[MQBYTE]> {
+impl<L: MqaiLibrary> BagItemPut<L> for Filter<&[MQBYTE]> {
     type Error = Error;
 
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultComp<()> {
@@ -297,7 +295,7 @@ impl<L: Library<MQ: Mqai>> BagItemPut<L> for Filter<&[MQBYTE]> {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<Vec<MQBYTE>> {
+impl<L: MqaiLibrary> BagItemGet<L> for Filter<Vec<MQBYTE>> {
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultComp<Self> {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion((length, operator), mut warning) =
@@ -322,7 +320,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for Filter<Vec<MQBYTE>> {
     type Error = Error;
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for (Selector, MQITEM) {
+impl<L: MqaiLibrary> BagItemGet<L> for (Selector, MQITEM) {
     type Error = Error;
 
     #[inline]
@@ -331,7 +329,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for (Selector, MQITEM) {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQITEM {
+impl<L: MqaiLibrary> BagItemGet<L> for MQITEM {
     type Error = Error;
 
     #[inline]
@@ -340,7 +338,7 @@ impl<L: Library<MQ: Mqai>> BagItemGet<L> for MQITEM {
     }
 }
 
-impl<L: Library<MQ: Mqai>> BagItemGet<L> for Selector {
+impl<L: MqaiLibrary> BagItemGet<L> for Selector {
     type Error = Error;
 
     #[inline]
@@ -426,7 +424,7 @@ mod tests {
         I: super::BagItemPut<L> + Debug + ?Sized,
         T::Error: std::error::Error + 'static,
         I::Error: std::error::Error + 'static,
-        L: Library<MQ: Mqai>,
+        L: MqaiLibrary,
         F: Fn(T),
     {
         let bag = Bag::new_lib(lib, constants::MQCBO_NONE).discard_warning()?;

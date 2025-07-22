@@ -1,15 +1,15 @@
-use libmqm_sys::{Mqai, Mqi};
+use libmqm_sys::Mqi;
 
 use super::option::{ExecuteOption, ExecuteParam};
 use crate::{
-    Connection, Library,
+    Connection, Library, MqaiLibrary,
     bag::{Bag, BagDrop, Owned},
     constants,
     prelude::*,
     result::ResultComp,
 };
 
-impl<L: Library<MQ: Mqi + Mqai> + Clone, H> Connection<L, H> {
+impl<L: MqaiLibrary + Library<MQ: Mqi> + Clone, H> Connection<L, H> {
     pub fn execute<'a>(&self, admin: &Bag<impl BagDrop, L>, options: &impl ExecuteOption<'a>) -> ResultComp<Bag<Owned, L>> {
         let functions = &self.mq;
         let handle = self.handle;

@@ -124,10 +124,12 @@ pub trait ResultCompErrExt<T, E> {
     where
         E: std::fmt::Debug;
 
-    /// [Leak](Connection::leak) the connection if the [Completion] contains a [`MQRC_ALREADY_CONNECTED`](constants::MQRC_ALREADY_CONNECTED) warning
-    fn leak_already_connected<L: Library<MQ: libmqm_sys::Mqi> + Clone, H>(
-        self,
-    ) -> ResultCompErr<ConnectionEither<'static, L, H>, E>
+    /// Creates a [`ConnectionRef`](crate::ConnectionRef) of the connection if the [Completion] contains a
+    /// [`MQRC_ALREADY_CONNECTED`](constants::MQRC_ALREADY_CONNECTED) warning.
+    ///
+    /// This ensures the connection will not be closed if a handle is returned that
+    /// is manage elsewhere.
+    fn already_connected_ref<'a, L: Library<MQ: libmqm_sys::Mqi>, H>(self) -> ResultCompErr<ConnectionEither<'a, L, H>, E>
     where
         T: Into<Connection<L, H>>;
 }
@@ -149,9 +151,7 @@ impl<T, E> ResultCompErrExt<T, E> for ResultCompErr<T, E> {
         self.map(Completion::discard_warning)
     }
 
-    fn leak_already_connected<L: Library<MQ: libmqm_sys::Mqi> + Clone, H>(
-        self,
-    ) -> ResultCompErr<ConnectionEither<'static, L, H>, E>
+    fn already_connected_ref<'a, L: Library<MQ: libmqm_sys::Mqi>, H>(self) -> ResultCompErr<ConnectionEither<'a, L, H>, E>
     where
         T: Into<Connection<L, H>>,
     {
@@ -183,12 +183,12 @@ mod test {
 
         let connection = mock::connect_ok(|_| {});
         let subject_warn: ResultComp<_> = Ok(Completion(connection, Some((constants::MQRC_ALREADY_CONNECTED, "verb"))));
-        let result = subject_warn.leak_already_connected();
+        let result = subject_warn.already_connected_ref();
         assert!(matches!(result, Ok(Completion(ConnectionEither::Ref(_), _))));
 
         let connection = mock::connect_ok(|_| {});
         let subject: ResultComp<_> = Ok(Completion(connection, None));
-        let result = subject.leak_already_connected();
+        let result = subject.already_connected_ref();
         assert!(matches!(result, Ok(Completion(ConnectionEither::Owned(_), _))));
     }
 }
