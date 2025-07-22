@@ -35,7 +35,7 @@ jobs:
       - uses: taiki-e/install-action@e6d2212084e8121f2066d3e2108daeded348b9e0 # v2.56.4
         with:
           tool: nextest, cargo-llvm-cov
-      - uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
+      - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # v2.8.0
       - name: Generate code coverage
         run: |
           cargo llvm-cov --no-report nextest --profile ci --features mqai,dlopen2,mqc_latest,mock
