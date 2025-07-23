@@ -46,17 +46,17 @@ mod mqai {
     use libmqm_sys as mq;
 
     use super::option;
-    use crate::{Library, Object, bag, connection::AsConnection, header::TextEnc, result::ResultComp, structs, types};
+    use crate::{MqaiLibrary, Object, bag, connection::AsConnection, header::TextEnc, result::ResultComp, structs, types};
 
     impl<C: AsConnection> Object<C>
     where
-        C::Lib: Library<MQ: mq::Mqai>,
+        C::Lib: MqaiLibrary,
     {
         pub fn put_bag<'po>(
             &self,
             put_options: &impl option::PutOption<'po>,
             format: TextEnc<types::Fmt>,
-            bag: &bag::Bag<impl bag::BagDrop, impl Library<MQ: mq::Mqai>>,
+            bag: &bag::Bag<impl bag::BagDrop, impl MqaiLibrary>,
         ) -> ResultComp<()> {
             self.put_bag_with(put_options, format, bag)
         }
@@ -65,7 +65,7 @@ mod mqai {
             &self,
             put_options: &impl option::PutOption<'po>,
             format: TextEnc<types::Fmt>,
-            bag: &bag::Bag<impl bag::BagDrop, impl Library<MQ: mq::Mqai>>,
+            bag: &bag::Bag<impl bag::BagDrop, impl MqaiLibrary>,
         ) -> ResultComp<R>
         where
             R: option::PutAttr,

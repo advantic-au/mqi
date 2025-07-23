@@ -19,11 +19,10 @@ use crate::{
 mod mqai {
     use libmqm_default as default;
     use libmqm_sys as mq;
-    use libmqm_sys::Mqai;
 
     use super::option;
     use crate::{
-        Library, Object, bag,
+        MqaiLibrary, Object, bag,
         connection::AsConnection,
         constants,
         prelude::*,
@@ -33,12 +32,12 @@ mod mqai {
 
     impl<C: AsConnection> Object<C>
     where
-        C::Lib: crate::Library<MQ: libmqm_sys::Mqai>,
+        C::Lib: crate::MqaiLibrary,
     {
         pub fn get_bag_with<R: option::GetBagAttr>(
             &self,
             options: &impl option::GetOption,
-            bag: &mut bag::Bag<bag::Owned, impl Library<MQ: Mqai>>,
+            bag: &mut bag::Bag<bag::Owned, impl MqaiLibrary>,
         ) -> ResultComp<Option<R>> {
             let mut param = option::GetParam {
                 md: structs::MQMD::new(default::MQMD_DEFAULT),
@@ -72,7 +71,7 @@ mod mqai {
         pub fn get_bag(
             &self,
             options: &impl option::GetOption,
-            bag: &mut bag::Bag<bag::Owned, impl Library<MQ: Mqai>>,
+            bag: &mut bag::Bag<bag::Owned, impl MqaiLibrary>,
         ) -> ResultComp<bool> {
             self.get_bag_with::<()>(options, bag).map_completion(|o| o.is_some())
         }

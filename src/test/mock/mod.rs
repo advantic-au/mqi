@@ -7,6 +7,9 @@ use libmqm_sys::{self as mq, mock::MockMq};
 
 use crate::{Connection, Library, connect_lib, connection::ThreadNone, constants, put, result::ResultCompExt, types};
 
+#[cfg(feature = "mqai")]
+use crate::MqaiLibrary;
+
 pub mod callback;
 
 pub unsafe fn copy_to_mq_data(data: &[u8], buf_len: mq::MQLONG, buf_target: mq::PMQVOID, data_len: mq::PMQLONG) -> mq::MQLONG {
@@ -199,6 +202,15 @@ impl Library for MockMq {
     type MQ = Self;
 
     fn lib(&self) -> &Self::MQ {
+        self
+    }
+}
+
+#[cfg(feature = "mqai")]
+impl MqaiLibrary for MockMq {
+    type MQAI = Self;
+
+    fn lib(&self) -> &Self::MQAI {
         self
     }
 }

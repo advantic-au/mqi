@@ -5,7 +5,7 @@ use libmqm_sys::{self as mq, Mqai, mqai};
 use {crate::support::outcome::tracing_outcome, tracing::instrument};
 
 use crate::{
-    Library, MqFunctions,
+    MqFunctions, MqaiLibrary,
     bag::Filter,
     constants,
     handle::{BagHandle, ConnectionHandle, ObjectHandle},
@@ -17,7 +17,7 @@ use crate::{
     verb::MqInqError,
 };
 
-impl<L: Library<MQ: Mqai>> MqFunctions<L> {
+impl<L: MqaiLibrary> MqFunctions<L> {
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_create_bag(&self, options: MQCBO) -> ResultComp<BagHandle> {
         let mut outcome = MqiOutcome::<BagHandle>::with_verb("mqCreateBag");

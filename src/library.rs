@@ -20,6 +20,13 @@ pub trait Library {
     fn lib(&self) -> &Self::MQ;
 }
 
+#[cfg(feature = "mqai")]
+pub trait MqaiLibrary {
+    type MQAI: libmqm_sys::Mqai;
+
+    fn lib(&self) -> &Self::MQAI;
+}
+
 impl<L: Library> Library for &L {
     type MQ = L::MQ;
 
@@ -54,8 +61,44 @@ impl Library for link::LinkedMq {
     }
 }
 
+#[cfg(feature = "mqai")]
+impl<L: MqaiLibrary> MqaiLibrary for &L {
+    type MQAI = L::MQAI;
+
+    fn lib(&self) -> &Self::MQAI {
+        (*self).lib()
+    }
+}
+
+#[cfg(feature = "mqai")]
+impl<L: MqaiLibrary> MqaiLibrary for Rc<L> {
+    type MQAI = L::MQAI;
+
+    fn lib(&self) -> &Self::MQAI {
+        self.as_ref().lib()
+    }
+}
+
+#[cfg(feature = "mqai")]
+impl<L: MqaiLibrary> MqaiLibrary for Arc<L> {
+    type MQAI = L::MQAI;
+
+    fn lib(&self) -> &Self::MQAI {
+        self.as_ref().lib()
+    }
+}
+
+#[cfg(all(feature = "link", feature = "mqai"))]
+impl MqaiLibrary for link::LinkedMq {
+    type MQAI = Self;
+
+    fn lib(&self) -> &Self::MQAI {
+        self
+    }
+}
+
 #[cfg(feature = "link")]
-impl super::MqFunctions<link::LinkedMq> {
+impl MqFunctions<link::LinkedMq> {
     /// A compile-time linked [`MqFunctions`]
     #[must_use]
     #[inline]
@@ -69,6 +112,15 @@ impl Library for Container<MqWrapper> {
     type MQ = Self;
 
     fn lib(&self) -> &Self::MQ {
+        self
+    }
+}
+
+#[cfg(all(feature = "dlopen2", feature = "mqai"))]
+impl MqaiLibrary for Container<MqWrapper> {
+    type MQAI = Self;
+
+    fn lib(&self) -> &Self::MQAI {
         self
     }
 }

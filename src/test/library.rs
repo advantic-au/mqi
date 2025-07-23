@@ -23,7 +23,7 @@ pub fn mq_library() -> std::sync::Arc<dl::DebugContainer> {
 mod dl {
     use libmqm_sys::dlopen2::MqmContainer;
 
-    use crate::Library;
+    use crate::{Library, MqaiLibrary};
 
     // dlopen2 Container doesn't implement Debug so create a wrapper
     pub struct DebugContainer(pub MqmContainer);
@@ -32,7 +32,15 @@ mod dl {
         type MQ = <MqmContainer as Library>::MQ;
 
         fn lib(&self) -> &Self::MQ {
-            self.0.lib()
+            Library::lib(&self.0)
+        }
+    }
+
+    impl MqaiLibrary for DebugContainer {
+        type MQAI = <MqmContainer as MqaiLibrary>::MQAI;
+
+        fn lib(&self) -> &Self::MQAI {
+            MqaiLibrary::lib(&self.0)
         }
     }
 

@@ -1,8 +1,6 @@
-use libmqm_sys::Mqai;
-
 use super::option;
 use crate::{
-    Library, Object,
+    MqaiLibrary, Object,
     bag::{Bag, BagDrop},
     connection::AsConnection,
     types,
@@ -11,13 +9,13 @@ use crate::{
 // use super::{Bag, BagDrop};
 
 #[derive(Debug, Clone, Copy)]
-pub struct OptionsBag<'a, B: BagDrop, L: Library<MQ: Mqai>>(&'a Bag<B, L>);
+pub struct OptionsBag<'a, B: BagDrop, L: MqaiLibrary>(&'a Bag<B, L>);
 #[derive(Debug, Clone, Copy)]
 pub struct ReplyObject<'a, C: AsConnection>(&'a Object<C>);
 #[derive(Debug, Clone, Copy)]
 pub struct AdminObject<'a, C: AsConnection>(&'a Object<C>);
 
-impl<'a, B: BagDrop, L: Library<MQ: Mqai>> option::ExecuteOption<'a> for OptionsBag<'a, B, L> {
+impl<'a, B: BagDrop, L: MqaiLibrary> option::ExecuteOption<'a> for OptionsBag<'a, B, L> {
     fn apply_param(&self, param: &mut option::ExecuteParam<'a>) {
         param.options.replace(self.0.handle());
     }
