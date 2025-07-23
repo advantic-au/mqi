@@ -27,6 +27,13 @@ pub trait MqaiLibrary {
     fn lib(&self) -> &Self::MQAI;
 }
 
+#[cfg(feature = "exits")]
+pub trait ExitsLibrary {
+    type Exits: libmqm_sys::Exits;
+
+    fn lib(&self) -> &Self::Exits;
+}
+
 impl<L: Library> Library for &L {
     type MQ = L::MQ;
 

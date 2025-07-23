@@ -146,6 +146,8 @@ mod library;
 pub use library::*;
 
 pub mod verb {
+    #[cfg(feature = "exits")]
+    mod exits;
     #[cfg(feature = "mqai")]
     mod mqai;
     mod mqi;
