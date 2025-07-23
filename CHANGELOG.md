@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/advantic-au/mqi/compare/v0.2.0...v0.3.0) - 2025-07-23
+
+### Added
+
+- ConnectionEither to hold either ConnectionRef or Connection
+
+### Fixed
+
+- ci warnings
+- memory leak removed
+- release-plz permission
+- ConnectionRef leak of Library
+
+### Other
+
+- MQAI trait
+- latest dependencies
+- latest dependencies
+- *(fix)* feature gate mock on tests
+- Further tightening of the API definition
+- Event Handler mocking
+- Syncpoint and Callback simplify
+- Replaced Conn with AsConnection
+- Safe event handler callback implementation
+- Version assertions
+- Remove mqm_generate
+- doctest fixes
+- Rework ConnectionRef and simplify Conn
+- further refinement of api into modules
+- Moved all handles into a handle module.
+- handles rework
+- Replaced MQMD2 with MQMD
+- mqai src structure refactor
+- QueueManager remove and callback move
+- refactor stat file structure
+- move attribute and constants use locations
+- reorganise code - compile working
+- Major semver
+- docsrs cleanup
+
 ## [0.2.0](https://github.com/advantic-au/mqi/compare/v0.1.0...v0.2.0) - 2025-07-07
 
 ### Added
