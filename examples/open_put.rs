@@ -9,11 +9,10 @@ use mqi::{
     MqStr, Object,
     connection::{ThreadNone, Tls},
     constants,
-    header::TextEnc,
+    header::fmt::MQFMT_STRING,
     open::ObjectString,
     prelude::*,
-    string::CCSID,
-    types::{ApplName, CipherSpec, MQENC, MQOO, MQPMO, MessageFormat, QueueManagerName, QueueName},
+    types::{ApplName, CipherSpec, MQOO, MQPMO, MessageFormat, QueueManagerName, QueueName},
 };
 use tracing::Level;
 
@@ -26,7 +25,7 @@ struct Cli {
     connection: args::ConnectionArgs,
 
     #[arg(long)]
-    format: Option<String>,
+    format: Option<MessageFormat>,
 
     #[arg(long)]
     oo: Vec<MQOO>,
@@ -74,13 +73,7 @@ fn main() -> anyhow::Result<()> {
     // Additional MQPMO options from the command line
     let pmo: MQPMO = args.pmo.into_iter().collect();
 
-    /* TODO: conversion from str -> TextEnc::Ascii is clunky */
-    let fmt: MqStr<8> = (*args.format.unwrap_or_default()).try_into()?;
-    let msg_fmt = MessageFormat {
-        ccsid: CCSID(1208),
-        encoding: MQENC::default(),
-        fmt: TextEnc::Ascii(*fmt.as_mqchar()),
-    };
+    let msg_fmt = args.format.unwrap_or_else(|| MqStr::from(MQFMT_STRING).into());
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
     let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, connection_option))
