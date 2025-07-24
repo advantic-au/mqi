@@ -6,7 +6,7 @@ use std::sync::{
 use anyhow::Context as _;
 use clap::Parser;
 use mqi::{
-    MqStr, Object, Properties,
+    MqStr, Object, Properties, attribute,
     connection::{ThreadNone, Tls},
     constants,
     get::GetWait,
@@ -54,7 +54,11 @@ fn main() -> anyhow::Result<()> {
         .warn_as_error()
         .context("Unable to connect to the queue manager")?;
 
-    let queue = Object::open(&qm, &(args.queue, constants::MQOO_INPUT_AS_Q_DEF))
+    // Attempt to open with MQOO_INQUIRE. If that fails with MQRC_NOT_AUTHORIZED then open without MQOO_INQUIRE
+    let queue = Object::open(&qm, &(args.queue, constants::MQOO_INPUT_AS_Q_DEF | constants::MQOO_INQUIRE))
+        .map_reason_err(constants::MQRC_NOT_AUTHORIZED, |_| {
+            Object::open(&qm, &(args.queue, constants::MQOO_INPUT_AS_Q_DEF))
+        })
         .warn_as_error()
         .context("Open Queue")?;
 
@@ -63,7 +67,15 @@ fn main() -> anyhow::Result<()> {
     let running_check = running.clone();
     ctrlc::set_handler(move || running.store(false, Ordering::Relaxed))?;
 
-    let mut buffer = vec![0; DEFAULT_MAX_MSG];
+    let max_len: usize = queue
+        .inquire_integer(attribute::MQIA_MAX_MSG_LENGTH)
+        .discard_warning() // Discard warnings
+        .ok() // Ignore errors...
+        .flatten() // and treat not found response the same
+        .and_then(|v| v.try_into().ok()) // Convert from MQLONG -> usize
+        .unwrap_or(DEFAULT_MAX_MSG); // Default value if _anything_ was unsuccesful
+
+    let mut buffer = vec![0; max_len];
 
     let mut reply_properties = Properties::new(&qm, constants::MQCMHO_NO_VALIDATION)?;
     let mut properties = Properties::new(&qm, constants::MQCMHO_NO_VALIDATION)?;

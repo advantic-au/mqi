@@ -31,10 +31,10 @@ offering proven stability and performance.
 | [`MQCONNX`](libmqm_sys::MQCONNX)   | [`connect`], [`connect_as`], [`connect_with`], [`connect_lib`], [`connect_lib_with`] |
 | [`MQPUT1`](libmqm_sys::MQPUT1)    | [`Connection::put_message`], [`Connection::put_message_with`] |
 | [`MQDISC`](libmqm_sys::MQDISC)    | [`Connection::disconnect`], [`Connection::drop`]  |
-| [`MQOPEN`](libmqm_sys::MQOPEN)    | [`Object::open`], [`Object::open_with`] |
+| [`MQOPEN`](libmqm_sys::MQOPEN)    | [`Object::open`], [`Object::open_with`], [`Object::open_resolved`] |
 | [`MQGET`](libmqm_sys::MQGET)     | [`Object::get_data`], [`Object::get_data_with`], [`Object::get_string`], [`Object::get_string_with`], [`Object::get_as`] |
 | [`MQPUT`](libmqm_sys::MQPUT)     | [`Object::put_message`], [`Object::put_message_with`] |
-| [`MQINQ`](libmqm_sys::MQINQ)     | [`Object::inquire`]              |
+| [`MQINQ`](libmqm_sys::MQINQ)     | [`Object::inquire`], [`Object::inquire_item`], [`Object::inquire_integer`] |
 | [`MQSET`](libmqm_sys::MQSET)     | [`Object::set`]              |
 | [`MQCLOSE`](libmqm_sys::MQCLOSE)   | [`Object::close`], [`Object::drop`], [`Subscription::close`], [`Subscription::drop`] |
 | [`MQSUB`](libmqm_sys::MQSUB)     | [`Subscription::subscribe`], [`Subscription::subscribe_with`], [`Subscription::subscribe_managed`], [`Subscription::subscribe_managed_with`] |

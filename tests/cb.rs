@@ -46,6 +46,49 @@ fn qm() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[cfg(feature = "mock")]
+#[test]
+fn deregister_without_register() -> Result<(), Box<dyn std::error::Error>> {
+    let connection = test::mock::connect_ok(|mock_library| {
+        test::mock::callback::mock_cb(mock_library, constants::MQCBT_EVENT_HANDLER);
+    });
+    let r = EventCallback::new(connection.connection_ref());
+    let _ = r.unregister_event_handler().warn_as_error()?;
+    Ok(())
+}
+
+#[cfg(feature = "mock")]
+#[test]
+fn drop_triggers_deregister() -> Result<(), Box<dyn std::error::Error>> {
+    let connection = test::mock::connect_ok(|mock_library| {
+        test::mock::callback::mock_cb(mock_library, constants::MQCBT_EVENT_HANDLER);
+    });
+    let counter = AtomicUsize::new(0);
+    {
+        let r = EventCallback::new(connection.connection_ref());
+        r.register_event_handler(constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL, |_, _| {
+            let _ = counter.fetch_add(1, Ordering::Relaxed);
+        })
+        .warn_as_error()?;
+        assert_eq!(counter.load(Ordering::Relaxed), 1);
+    }
+    assert_eq!(counter.load(Ordering::Relaxed), 2);
+    Ok(())
+}
+
+#[cfg(feature = "mock")]
+#[test]
+fn unregister_returns_connection() -> Result<(), Box<dyn std::error::Error>> {
+    let connection = test::mock::connect_ok(|mock_library| {
+        test::mock::callback::mock_cb(mock_library, constants::MQCBT_EVENT_HANDLER);
+    });
+    let r = EventCallback::new(connection.connection_ref());
+    r.register_event_handler(constants::MQCBDO_REGISTER_CALL, |_, _| {})
+        .warn_as_error()?;
+    let _connection_ref = r.unregister_event_handler().warn_as_error()?;
+    Ok(())
+}
+
 // #[test]
 // #[ignore = "experimental, and mocks not set up correctly"]
 // fn callback() -> Result<(), Box<dyn Error>> {

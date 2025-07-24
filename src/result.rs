@@ -172,6 +172,19 @@ impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
         }
     }
 }
+pub trait ResultErrExt<T> {
+    /// Captures an [`MQRC`] error to a [`Result`]
+    fn map_reason_err<F: FnOnce(Error) -> ResultErr<T>>(self, reason: MQRC, map: F) -> ResultErr<T>;
+}
+
+impl<T> ResultErrExt<T> for ResultErr<T> {
+    fn map_reason_err<F: FnOnce(Error) -> Self>(self, reason: MQRC, map: F) -> Self {
+        match self {
+            Err(err @ Error(.., rc)) if rc == reason => map(err),
+            other => other,
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -190,5 +203,45 @@ mod test {
         let subject: ResultComp<_> = Ok(Completion(connection, None));
         let result = subject.already_connected_ref();
         assert!(matches!(result, Ok(Completion(ConnectionEither::Owned(_), _))));
+    }
+
+    #[test]
+    fn map_reason_err_maps_matching_reason() {
+        use super::*;
+        use crate::constants;
+
+        let original: ResultErr<i32> = Err(Error(constants::MQCC_FAILED, "MQOPEN", constants::MQRC_NOT_AUTHORIZED));
+        let mapped = original.map_reason_err(constants::MQRC_NOT_AUTHORIZED, |err| {
+            assert_eq!(err.2, constants::MQRC_NOT_AUTHORIZED);
+            Ok(42)
+        });
+        assert_eq!(mapped.expect("matching reason should map to Ok"), 42);
+    }
+
+    #[test]
+    fn map_reason_err_preserves_non_matching_error() {
+        use super::*;
+        use crate::constants;
+
+        let original: ResultErr<i32> = Err(Error(constants::MQCC_FAILED, "MQOPEN", constants::MQRC_NOT_AUTHORIZED));
+        let mapped = original.map_reason_err(constants::MQRC_NONE, |_| Ok(42));
+        match mapped {
+            Ok(_) => panic!("non-matching reason must remain an error"),
+            Err(Error(cc, verb, rc)) => {
+                assert_eq!(cc, constants::MQCC_FAILED);
+                assert_eq!(verb, "MQOPEN");
+                assert_eq!(rc, constants::MQRC_NOT_AUTHORIZED);
+            }
+        }
+    }
+
+    #[test]
+    fn map_reason_err_preserves_ok() {
+        use super::*;
+        use crate::constants;
+
+        let original: ResultErr<i32> = Ok(7);
+        let mapped = original.map_reason_err(constants::MQRC_NOT_AUTHORIZED, |_| Ok(42));
+        assert_eq!(mapped.expect("Ok should be preserved"), 7);
     }
 }

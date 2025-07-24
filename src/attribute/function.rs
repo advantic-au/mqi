@@ -55,6 +55,20 @@ impl<C: AsConnection> Object<C> {
             .map_completion(option::MultiItem::into_first)
     }
 
+    /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
+    pub fn inquire_integer(&self, selector: option::AttributeType) -> ResultComp<Option<types::MQLONG>> {
+        assert!(selector.attribute >= libmqm_sys::MQIA_FIRST && selector.attribute <= libmqm_sys::MQIA_LAST);
+        self.inquire_item(selector)
+            .map_completion(|item| item.map(|item| item.long_value().expect("MQLONG value returned from MQINQ")))
+    }
+
+    /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
+    pub fn inquire_text(&self, selector: option::AttributeType) -> ResultComp<Option<Vec<types::MQCHAR>>> {
+        assert!(selector.attribute >= libmqm_sys::MQCA_FIRST && selector.attribute <= libmqm_sys::MQCA_LAST);
+        self.inquire_item(selector)
+            .map_completion(|item| item.map(|item| item.text_value().expect("MQCHAR value returned from MQINQ")))
+    }
+
     /// This function uses the [`MQSET`](libmqm_sys::MQSET) MQ API function.
     pub fn set(&self, items: &impl option::SetItems) -> ResultComp<()> {
         let Connection { mq, handle, .. } = self.connection.as_connection();

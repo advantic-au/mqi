@@ -206,3 +206,128 @@ fn put_message() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[cfg(feature = "mock")]
+#[test]
+fn open_resolved() -> Result<(), Box<dyn Error>> {
+    const QUEUE: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let connection = test::mock::connect_ok(|mock_library| {
+        mock_library
+            .expect_MQOPEN()
+            .returning(|_, mqod, _, hobj, cc, rc| {
+                let resolved_queue: QueueName = QueueName(mqstr!("RESOLVED.QUEUE"));
+                let resolved_qmgr: QueueManagerName = QueueManagerName(mqstr!("QM1"));
+                mqod.ResolvedQName = *resolved_queue.0.as_mqchar();
+                mqod.ResolvedQMgrName = *resolved_qmgr.0.as_mqchar();
+                *hobj = 0x0c0c;
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+        mock_library
+            .expect_MQCLOSE()
+            .returning(|_, obj, _, cc, rc| {
+                *obj = -1;
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+    });
+
+    let (object, resolved_queue, resolved_qmgr) =
+        Object::open_resolved(connection, &(QUEUE, constants::MQOO_INPUT_AS_Q_DEF)).warn_as_error()?;
+    assert_eq!(resolved_queue, Some(QueueName(mqstr!("RESOLVED.QUEUE"))));
+    assert_eq!(resolved_qmgr, Some(QueueManagerName(mqstr!("QM1"))));
+    drop(object);
+    Ok(())
+}
+
+#[cfg(feature = "mock")]
+#[test]
+fn inquire_integer() -> Result<(), Box<dyn Error>> {
+    let connection = test::mock::connect_ok(|mock_library| {
+        mock_library
+            .expect_MQOPEN()
+            .returning(|_, _, _, hobj, cc, rc| {
+                *hobj = 0x0c0c;
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+        mock_library
+            .expect_MQINQ()
+            .returning(|_, _, _, _, int_len, ints, char_len, chars, cc, rc| {
+                use std::slice;
+
+                if int_len > 0 {
+                    let int_slice =
+                        unsafe { slice::from_raw_parts_mut(ints, int_len.try_into().expect("int_len should be positive")) };
+                    int_slice.fill(1024);
+                }
+                if char_len > 0 {
+                    let char_slice =
+                        unsafe { slice::from_raw_parts_mut(chars, char_len.try_into().expect("char_len should be positive")) };
+                    char_slice.fill(0x20);
+                }
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+        mock_library
+            .expect_MQCLOSE()
+            .returning(|_, obj, _, cc, rc| {
+                *obj = -1;
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+    });
+
+    let object = Object::open(connection, &(QueueManagerName(mqstr!("")), constants::MQOO_INQUIRE)).warn_as_error()?;
+    let value = object.inquire_integer(attribute::MQIA_MAX_MSG_LENGTH).warn_as_error()?;
+    assert_eq!(value, Some(1024));
+    drop(object);
+    Ok(())
+}
+
+#[cfg(feature = "mock")]
+#[test]
+fn inquire_text() -> Result<(), Box<dyn Error>> {
+    let connection = test::mock::connect_ok(|mock_library| {
+        mock_library
+            .expect_MQOPEN()
+            .returning(|_, _, _, hobj, cc, rc| {
+                *hobj = 0x0c0c;
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+        mock_library
+            .expect_MQINQ()
+            .returning(|_, _, _, _, int_len, ints, char_len, chars, cc, rc| {
+                use std::slice;
+
+                if int_len > 0 {
+                    let int_slice =
+                        unsafe { slice::from_raw_parts_mut(ints, int_len.try_into().expect("int_len should be positive")) };
+                    int_slice.fill(0);
+                }
+                if char_len > 0 {
+                    let char_slice =
+                        unsafe { slice::from_raw_parts_mut(chars, char_len.try_into().expect("char_len should be positive")) };
+                    char_slice.fill(0x20);
+                }
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+        mock_library
+            .expect_MQCLOSE()
+            .returning(|_, obj, _, cc, rc| {
+                *obj = -1;
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+    });
+
+    let object = Object::open(connection, &(QueueManagerName(mqstr!("")), constants::MQOO_INQUIRE)).warn_as_error()?;
+    let value = object.inquire_text(attribute::MQCA_DEF_XMIT_Q_NAME).warn_as_error()?;
+    let value = value.expect("text attribute should be present");
+    assert_eq!(value.len(), 48);
+    assert!(value.iter().all(|c| *c == 0x20));
+    drop(object);
+    Ok(())
+}
