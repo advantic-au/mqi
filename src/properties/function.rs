@@ -478,7 +478,7 @@ impl<C: AsConnection> Properties<C> {
     pub fn from_buffer(&mut self, options: MQBMHO, format: &MessageFormat, buffer: &[MQBYTE]) -> ResultComp<()> {
         // Drop the delete properties option as this fn does not modify the buffer
         let options_read_only = options - constants::MQBMHO_DELETE_PROPERTIES;
-        let mut mqmd = format.into_mqmd2();
+        let mut mqmd = format.into_mqmd();
         let bmho = structs::MQBMHO::new(mq::MQBMHO {
             Options: options_read_only.0,
             ..default::MQBMHO_DEFAULT
@@ -497,7 +497,7 @@ impl<C: AsConnection> Properties<C> {
         format: &MessageFormat,
         buffer: &'a mut [MQBYTE],
     ) -> ResultComp<(MessageFormat, &'a [MQBYTE])> {
-        let mut mqmd = format.into_mqmd2();
+        let mut mqmd = format.into_mqmd();
         let bmho = structs::MQBMHO::new(mq::MQBMHO {
             Options: options.0,
             ..default::MQBMHO_DEFAULT
