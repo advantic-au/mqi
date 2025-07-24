@@ -9,7 +9,7 @@ impl<L: ExitsLibrary> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqxep`](Self::mqxep) must ensure
-    /// * [`MQIEP::Version`](exits::MQIEP::Version) <= [`MQIEP_CURRENT_VERSION`]
+    /// * [`MQIEP::Version`](exits::MQIEP::Version) <= [`MQIEP_CURRENT_VERSION`](exits::MQIEP_CURRENT_VERSION)
     /// * `entry_point` points to a valid function
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqxep(
