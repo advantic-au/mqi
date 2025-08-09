@@ -269,5 +269,5 @@ pub use object::Object;
 mod syncpoint;
 pub use syncpoint::Syncpoint;
 
-mod callback;
-pub use callback::EventCallback;
+mod event_callback;
+pub use event_callback::EventCallback;
