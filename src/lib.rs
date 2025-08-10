@@ -271,3 +271,6 @@ pub use syncpoint::Syncpoint;
 
 mod event_callback;
 pub use event_callback::EventCallback;
+
+mod message_callback;
+pub use message_callback::MessageCallback;
