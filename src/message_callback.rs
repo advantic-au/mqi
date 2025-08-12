@@ -1,51 +1,52 @@
 use std::{marker::PhantomData, mem::ManuallyDrop};
 
 use libmqm_default as default;
-use libmqm_sys::{self as mq, MQMD, Mqi};
+use libmqm_sys::{self as mq, MQMD};
 
 use crate::{
-    Connection, ConnectionRef, Library, MqFunctions, Object,
+    Object,
     connection::AsConnection,
     constants,
     get::{GetOption, GetParam},
+    object::AsObject,
     prelude::*,
-    result::{Completion, ResultComp},
-    structs, types,
+    result::ResultComp,
+    structs::{self, MQGMO},
+    types,
 };
 
 #[derive(Debug)]
-struct CallbackData<L: Library<MQ: Mqi>, F> {
+struct CallbackData<O, F> {
     options: types::MQCBDO,
+    object: O,
     closure: F,
-    mq: MqFunctions<L>,
 }
 
 /// Manage the message handler callback of an object
 #[must_use]
 #[derive(Debug)]
-pub struct MessageCallback<'a, C: AsConnection> {
-    object: ManuallyDrop<Object<C>>,
+pub struct MessageCallback<'a, O: AsObject> {
+    object: O,
     _cb: PhantomData<&'a ()>,
 }
 
-impl<C: AsConnection> Object<C> {
-    fn register_message_handler<'cb, F>(
-        &self,
+impl<'cb, O: AsObject> MessageCallback<'cb, O> {
+    pub fn register_message_consumer<F>(
+        object: O,
         options: types::MQCBDO,
-        get_options: impl GetOption,
+        get_options: &impl GetOption,
         closure: F,
-    ) -> ResultComp<MessageCallback<'cb, C>>
+    ) -> ResultComp<Self>
     where
-        C: Clone,
-        F: FnMut(ConnectionRef<C::Lib, C::Thread>, &structs::MQCBC, &MQMD, &[u8]) + Send + 'cb,
-        C::Lib: Clone,
+        O: Clone + Send,
+        F: FnMut(&Object<O::AsConnection>, &structs::MQCBC, Option<&MQMD>, Option<&MQGMO>, Option<&[u8]>) + Send + 'cb,
     {
-        let connection = self.connection.as_connection();
-        let cb_data: *mut CallbackData<C::Lib, F> = Box::into_raw(Box::from(CallbackData {
+        let cb_data: *mut CallbackData<O, F> = Box::into_raw(Box::from(CallbackData {
             options,
+            object: object.clone(),
             closure,
-            mq: connection.mq.clone(),
         }));
+
         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
         *cbd.CallbackType.as_mut() = constants::MQCBT_MESSAGE_CONSUMER;
 
@@ -60,188 +61,167 @@ impl<C: AsConnection> Object<C> {
 
         cbd.CallbackArea = cb_data.cast();
         *cbd.Options.as_mut() = options | constants::MQCBDO_DEREGISTER_CALL; // Always register for the deregister call
-        cbd.CallbackFunction = message_callback::<C::Lib, C::Thread, F> as *mut _;
+        cbd.CallbackFunction = message_callback::<O, F> as *mut _;
 
+        let obj = object.as_object();
+        let conn = obj.connection.as_connection();
         let mqcb_result = unsafe {
-            connection.mq.mqcb(
-                connection.handle,
-                constants::MQOP_DEREGISTER,
+            conn.mq.mqcb(
+                conn.handle,
+                constants::MQOP_REGISTER,
                 Some(&cbd),
-                Some(&self.handle),
+                Some(&obj.handle),
                 Some(&*param.md),
                 Some(&*param.gmo),
             )
         };
 
-        mqcb_result.map_completion(|()| MessageCallback {
-            object: ManuallyDrop::new(Self {
-                handle: self.handle,
-                connection: self.connection.clone(),
-                drop_close_options: self.drop_close_options,
-            }),
+        mqcb_result.map_completion(|()| Self {
+            object,
             _cb: PhantomData,
         })
     }
+
+    pub fn unregister_message_consumer(self) -> ResultComp<O> {
+        let result: Result<crate::result::Completion<()>, crate::result::Error> = self.unregister_message_consumer_internal();
+        let object = unsafe { std::ptr::read(&raw const self.object) };
+        let _ = ManuallyDrop::new(self); // Suppress drop
+        result.map_completion(|()| object)
+    }
+
+    fn unregister_message_consumer_internal(&self) -> ResultComp<()> {
+        let obj = self.object.as_object();
+        let conn = obj.connection.as_connection();
+        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
+        *cbd.CallbackType.as_mut() = constants::MQCBT_MESSAGE_CONSUMER;
+        unsafe {
+            conn.mq.mqcb(
+                conn.handle,
+                constants::MQOP_DEREGISTER,
+                Some(&cbd),
+                Some(&obj.handle),
+                None::<&mq::MQMD>,
+                None,
+            )
+        }
+    }
 }
 
-unsafe extern "C" fn message_callback<L, H, F>(
-    hconn: mq::MQHCONN,
+unsafe extern "C" fn message_callback<O, F>(
+    _hconn: mq::MQHCONN,
     mqmd: mq::PMQVOID,
-    _mqgmo: mq::PMQVOID,  // Not used for MQCBT_EVENT_HANDLER
-    _buffer: mq::PMQVOID, // Not used for MQCBT_EVENT_HANDLER
+    mqgmo: mq::PMQVOID,
+    buffer: mq::PMQVOID,
     cbc: *const mq::MQCBC,
 ) where
-     L: Library<MQ: Mqi> + Clone,
+    O: AsObject,
+    F: FnMut(&Object<O::AsConnection>, &structs::MQCBC, Option<&MQMD>, Option<&MQGMO>, Option<&[u8]>),
 {
     // SAFETY: MQCBC will always be non-null
     if let Some(context) = unsafe { cbc.cast::<structs::MQCBC>().as_ref() } {
         // SAFETY: CallbackArea is always set by `register_message_handler`
-        if let Some(CallbackData { options, closure, mq }) = unsafe { context.CallbackArea.cast::<CallbackData<L, F>>().as_mut() }
+        if let Some(CallbackData {
+            options,
+            object,
+            closure,
+        }) = unsafe { context.CallbackArea.cast::<CallbackData<O, F>>().as_mut() }
         {
             let is_deregister = types::MQCBCT(context.CallType) == constants::MQCBCT_DEREGISTER_CALL;
 
-            if is_deregister && options.contains(constants::MQCBDO_DEREGISTER_CALL) {
-                closure()
-            }
-
             if !is_deregister || options.contains(constants::MQCBDO_DEREGISTER_CALL) {
-
-
                 // SAFETY: mqmd and buffer are provided by MQ for message callbacks
-                if let (Some(md), Some(buf_ptr)) = (unsafe { mqmd.cast::<MQMD>().as_ref() }, unsafe { buffer.as_ref() }) {
-                    // For message callbacks, we need to determine the buffer length
-                    // This would typically come from the message descriptor or be passed separately
-                    // For now, we'll use an empty slice as a placeholder
-                    let buffer_slice = unsafe { std::slice::from_raw_parts(buf_ptr.cast::<u8>(), context.DataLength as usize) };
-                    closure(ConnectionRef::from_parts(hconn.into(), mq.clone()), context, md, buffer_slice);
-                }
+                let md = unsafe { mqmd.cast::<MQMD>().as_ref() };
+                let gmo = unsafe { mqgmo.cast::<MQGMO>().as_ref() };
+                let buffer_slice = unsafe { buffer.cast::<u8>().as_ref() }.map(|buf_ptr| {
+                    #[expect(clippy::cast_sign_loss, reason = "buffer length is always within bounds of usize")]
+                    unsafe {
+                        std::slice::from_raw_parts(buf_ptr, context.DataLength as usize)
+                    }
+                });
+                closure(object.as_object(), context, md, gmo, buffer_slice);
             }
             if is_deregister {
                 // Recreate the box so it deallocates / drops
                 // SAFETY: The only place the Callback handler is reconstructed
-                let _ = unsafe { Box::<CallbackData<L, F>>::from_raw(context.CallbackArea.cast()) };
+                let _ = unsafe { Box::<CallbackData<O, F>>::from_raw(context.CallbackArea.cast()) };
             }
         }
     }
 }
 
-// impl<'cb, O> MessageCallback<'cb, O> {
-//     /// Wrap an object to manage the message handler callback
-//     pub const fn new(object: O) -> Self {
-//         Self {
-//             object: ManuallyDrop::new(object),
-//             _cb: PhantomData,
-//         }
-//     }
+impl<O: AsObject> Drop for MessageCallback<'_, O> {
+    fn drop(&mut self) {
+        let _ = self.unregister_message_consumer_internal();
+    }
+}
 
-//     /// Register a message handler for the object
-//     pub fn register_message_handler<F, L, H>(
-//         &self,
-//         options: types::MQCBDO,
-//         closure: F,
-//     ) -> ResultComp<()>
-//     where
-//         O: std::ops::Deref<Target = Object<L, H>>,
-//         F: FnMut(ConnectionRef<L, H>, &structs::MQCBC, &MQMD, &[u8]) + Send + 'cb,
-//         L: Library<MQ: Mqi> + Clone,
-//     {
-//         let Object { connection, handle, .. } = &**self.object;
-//         let Connection { mq, handle: conn_handle, .. } = connection.as_connection();
+#[cfg(all(test, feature = "mock"))]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use std::{
+        collections::HashMap,
+        sync::{
+            Arc, Mutex,
+            atomic::{AtomicUsize, Ordering},
+        },
+    };
 
-//         let cb_data: *mut CallbackData<L, F> = Box::into_raw(Box::from(CallbackData {
-//             options,
-//             closure,
-//             mq: mq.clone(),
-//         }));
-//         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
-//         *cbd.CallbackType.as_mut() = constants::MQCBT_MESSAGE_CONSUMER;
-//         let _ = unsafe { mq.mqcb(*conn_handle, constants::MQOP_DEREGISTER, Some(&cbd), Some(*handle), None::<&MQMD>, None) };
+    use super::*;
+    use crate::{
+        MqStr,
+        test::mock,
+        types::QueueManagerName,
+    };
 
-//         cbd.CallbackArea = cb_data.cast();
-//         *cbd.Options.as_mut() = options | constants::MQCBDO_DEREGISTER_CALL; // Always register for the deregister call
-//         cbd.CallbackFunction = message_callback::<L, H, F> as *mut _;
+    #[test]
+    fn register_message_consumer() -> Result<(), Box<dyn std::error::Error>> {
+        let connection = mock::connect_ok(|mock| {
+            let mut seq = mockall::Sequence::new();
+            mock::open_ok(mock, 0x0c0c, 1, &mut seq);
+            mock::callback::mock_cb(mock, constants::MQCBT_MESSAGE_CONSUMER);
+        });
+        let object = Object::open(connection, &QueueManagerName(MqStr::empty())).warn_as_error()?;
 
-//         // SAFETY: MQCBD registered with valid pointers
-//         unsafe { mq.mqcb(*conn_handle, constants::MQOP_REGISTER, Some(&cbd), Some(*handle), None::<&MQMD>, None) }
-//     }
+        let counters = Arc::new(Mutex::new(HashMap::new()));
+        let counters_cb = counters.clone();
 
-//     /// Unregister the message handler and return the original object
-//     pub fn unregister_message_handler<L, H>(self) -> ResultComp<O>
-//     where
-//         O: std::ops::Deref<Target = Object<L, H>>,
-//         L: Library<MQ: Mqi>,
-//     {
-//         let mut self_mut = self;
-//         let Object { connection, handle, .. } = &**self_mut.object;
-//         let Connection { mq, handle: conn_handle, .. } = connection.as_connection();
+        let callback = MessageCallback::register_message_consumer(
+            &object,
+            constants::MQCBDO_DEREGISTER_CALL,
+            &(),
+            move |_obj, cbc, _md, _gmo, _buffer| {
+                let mut guard = counters_cb.lock().expect("Arc lock should be available");
+                let counter: &mut AtomicUsize = guard.entry(types::MQCBCT(cbc.CallType)).or_default();
+                counter.fetch_add(1, Ordering::Relaxed);
+            },
+        );
 
-//         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
-//         *cbd.CallbackType.as_mut() = constants::MQCBT_MESSAGE_CONSUMER;
-//         let result = unsafe { mq.mqcb(*conn_handle, constants::MQOP_DEREGISTER, Some(&cbd), Some(*handle), None::<&MQMD>, None) };
-//         let wrapped = unsafe { ManuallyDrop::take(&mut self_mut.object) };
-//         let _ = ManuallyDrop::new(self_mut); // Suppress drop of self
-//         result.map_completion(|()| wrapped)
-//     }
-// }
+        assert!(
+            counters
+                .lock()
+                .expect("Arc lock should be available")
+                .get(&constants::MQCBCT_REGISTER_CALL)
+                .is_some_and(|c| c.load(Ordering::Relaxed) == 1)
+        );
 
-// impl<O> Drop for MessageCallback<'_, O> {
-//     fn drop(&mut self) {
-//         // We need to constrain O to have access to the Object fields for cleanup
-//         // This is a best-effort cleanup in the drop implementation
-//         // The actual cleanup logic would need to be implemented based on the Object structure
-//     }
-// }
+        assert!(callback.is_ok());
+        Ok(())
+    }
 
-// impl<O, L, H> std::ops::Deref for MessageCallback<'_, O>
-// where
-//     O: std::ops::Deref<Target = Object<L, H>>,
-//     L: Library<MQ: Mqi>,
-// {
-//     type Target = Object<L, H>;
+    #[test]
+    fn unregister_message_consumer() -> Result<(), Box<dyn std::error::Error>> {
+        let connection = mock::connect_ok(|mock| {
+            let mut seq = mockall::Sequence::new();
+            mock::open_ok(mock, 0x0c0c, 1, &mut seq);
+            mock::callback::mock_cb(mock, constants::MQCBT_MESSAGE_CONSUMER);
+        });
+        let object = Object::open(connection, &QueueManagerName(MqStr::empty())).warn_as_error()?;
+        let callback =
+            MessageCallback::register_message_consumer(&object, constants::MQCBDO_NONE, &(), |_obj, _cbc, _md, _gmo, _buffer| {})
+                .warn_as_error()?;
 
-//     fn deref(&self) -> &Self::Target {
-//         &self.object
-//     }
-// }
-
-// #[derive(Debug)]
-// struct CallbackData<L: Library<MQ: Mqi>, F> {
-//     options: types::MQCBDO,
-//     closure: F,
-//     mq: MqFunctions<L>,
-// }
-
-// unsafe extern "C" fn message_callback<L, H, F>(
-//     hconn: mq::MQHCONN,
-//     mqmd: mq::PMQVOID,
-//     _mqgmo: mq::PMQVOID,  // Could be used for get message options if needed
-//     buffer: mq::PMQVOID,
-//     cbc: *const mq::MQCBC,
-// ) where
-//     L: Library<MQ: Mqi> + Clone,
-//     F: FnMut(ConnectionRef<L, H>, &structs::MQCBC, &MQMD, &[u8]) + Send,
-// {
-//     // SAFETY: MQCBC will always be non-null
-//     if let Some(context) = unsafe { cbc.cast::<structs::MQCBC>().as_ref() } {
-//         // SAFETY: CallbackArea is always set by `register_message_handler`
-//         if let Some(CallbackData { options, closure, mq }) = unsafe { context.CallbackArea.cast::<CallbackData<L, F>>().as_mut() }
-//         {
-//             let is_deregister = types::MQCBCT(context.CallType) == constants::MQCBCT_DEREGISTER_CALL;
-//             if !is_deregister || options.contains(constants::MQCBDO_DEREGISTER_CALL) {
-//                 // SAFETY: mqmd and buffer are provided by MQ for message callbacks
-//                 if let (Some(md), Some(buf_ptr)) = (unsafe { mqmd.cast::<MQMD>().as_ref() }, unsafe { buffer.as_ref() }) {
-//                     // For message callbacks, we need to determine the buffer length
-//                     // This would typically come from the message descriptor or be passed separately
-//                     // For now, we'll use an empty slice as a placeholder
-//                     let buffer_slice = unsafe { std::slice::from_raw_parts(buf_ptr.cast::<u8>(), context.DataLength as usize) };
-//                     closure(ConnectionRef::from_parts(hconn.into(), mq.clone()), context, md, buffer_slice);
-//                 }
-//             }
-//             if is_deregister {
-//                 // Recreate the box so it deallocates / drops
-//                 // SAFETY: The only place the Callback handler is reconstructed
-//                 let _ = unsafe { Box::<CallbackData<L, F>>::from_raw(context.CallbackArea.cast()) };
-//             }
-//         }
-//     }
-// }
+        let result = callback.unregister_message_consumer();
+        assert!(result.is_ok());
+        Ok(())
+    }
+}

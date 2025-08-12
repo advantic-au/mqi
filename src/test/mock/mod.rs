@@ -1,13 +1,13 @@
 #![expect(clippy::allow_attributes)]
 #![expect(non_snake_case)]
 
-use std::{cmp, rc::Rc, slice};
+use std::{cmp, slice, sync::Arc};
 
 use libmqm_sys::{self as mq, mock::MockMq};
 
 #[cfg(feature = "mqai")]
 use crate::MqaiLibrary;
-use crate::{Connection, Library, connect_lib, connection::ThreadNone, constants, put, result::ResultCompExt, types};
+use crate::{Connection, Library, connect_lib, connection::ThreadBlock, constants, put, result::ResultCompExt, types};
 
 pub mod callback;
 
@@ -214,7 +214,7 @@ impl MqaiLibrary for MockMq {
     }
 }
 
-pub fn connect_ok<F>(f: F) -> Connection<Rc<MockMq>, ThreadNone>
+pub fn connect_ok<F>(f: F) -> Connection<Arc<MockMq>, ThreadBlock>
 where
     F: FnOnce(&mut MockMq),
 {
@@ -223,7 +223,7 @@ where
     disc_outcome(&mut mock, constants::MQCC_OK, constants::MQRC_NONE);
     f(&mut mock);
 
-    connect_lib(Rc::from(mock), &())
+    connect_lib(Arc::from(mock), &())
         .warn_as_error()
         .expect("should not fail or produce a warning")
 }

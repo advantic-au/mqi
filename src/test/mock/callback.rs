@@ -32,6 +32,7 @@ pub fn mock_cb(mock_library: &mut MockMq, cb_type: types::MQCBT) {
 
     let cb: Arc<Mutex<Option<MqCallback>>> = Arc::default();
     let cb_init = cb.clone();
+
     mock_library
         .expect_MQCB()
         .withf(move |_, op, cbd, _, _, _, _, _| {
