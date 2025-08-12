@@ -56,23 +56,24 @@ impl<'cb, C: AsConnection> EventCallback<'cb, C> {
     /// Unregister the event handler and return the original connection
     pub fn unregister_event_handler(self) -> ResultComp<C> {
         let mut self_mut = self;
-        let Connection { mq, handle, .. } = self_mut.connection.as_connection();
-
-        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
-        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
-        let result = unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) };
+        let result = self_mut.unregister_event_handler_internal();
         let wrapped = unsafe { ManuallyDrop::take(&mut self_mut.connection) };
         let _ = ManuallyDrop::new(self_mut); // Suppress drop of self
         result.map_completion(|()| wrapped)
+    }
+
+    fn unregister_event_handler_internal(&self) -> ResultComp<()> {
+        let Connection { mq, handle, .. } = self.connection.as_connection();
+
+        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
+        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
+        unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) }
     }
 }
 
 impl<C: AsConnection> Drop for EventCallback<'_, C> {
     fn drop(&mut self) {
-        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
-        let Connection { mq, handle, .. } = self.connection.as_connection();
-        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
-        let _ = unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) };
+        let _ = self.unregister_event_handler_internal();
         unsafe { ManuallyDrop::drop(&mut self.connection) };
     }
 }

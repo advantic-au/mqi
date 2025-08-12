@@ -519,14 +519,14 @@ impl<C: AsConnection> Properties<C> {
 #[cfg(feature = "mock")]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use std::{error::Error, rc::Rc};
+    use std::{error::Error, sync::Arc};
 
     use libmqm_sys::mock::MockMq;
 
     use super::*;
     use crate::{
         Connection,
-        connection::ThreadNone,
+        connection::ThreadBlock,
         constants::{
             self, MQCC_FAILED, MQCC_OK, MQRC_CALL_IN_PROGRESS, MQRC_NONE, MQRC_PROPERTY_NAME_TOO_BIG,
             MQRC_PROPERTY_NOT_AVAILABLE, MQRC_PROPERTY_VALUE_TOO_BIG, MQTYPE_BYTE_STRING,
@@ -616,7 +616,7 @@ mod test {
             .in_sequence(&mut seq);
     }
 
-    fn properties_mocked(m: impl Fn(&mut MockMq)) -> ResultErr<Properties<Connection<Rc<MockMq>, ThreadNone>>> {
+    fn properties_mocked(m: impl Fn(&mut MockMq)) -> ResultErr<Properties<Connection<Arc<MockMq>, ThreadBlock>>> {
         Properties::new(mock::connect_ok(m), constants::MQCMHO_NONE)
     }
 
