@@ -1,3 +1,5 @@
+#![allow(clippy::significant_drop_tightening)]
+
 use std::{marker::PhantomData, mem::ManuallyDrop};
 
 use libmqm_default as default;
@@ -59,6 +61,8 @@ impl<'cb, O: AsObject> MessageCallback<'cb, O> {
         assert!(param.gmo.Version <= mq::MQGMO_CURRENT_VERSION);
         assert!(param.md.Version <= mq::MQMD_CURRENT_VERSION);
 
+        let _ = Self::deregister_message_consumer_internal(object.as_object());
+
         cbd.CallbackArea = cb_data.cast();
         *cbd.Options.as_mut() = options | constants::MQCBDO_DEREGISTER_CALL; // Always register for the deregister call
         cbd.CallbackFunction = message_callback::<O, F> as *mut _;
@@ -82,15 +86,14 @@ impl<'cb, O: AsObject> MessageCallback<'cb, O> {
         })
     }
 
-    pub fn unregister_message_consumer(self) -> ResultComp<O> {
-        let result: Result<crate::result::Completion<()>, crate::result::Error> = self.unregister_message_consumer_internal();
+    pub fn deregister_message_consumer(self) -> ResultComp<O> {
+        let result = Self::deregister_message_consumer_internal(self.object.as_object());
         let object = unsafe { std::ptr::read(&raw const self.object) };
         let _ = ManuallyDrop::new(self); // Suppress drop
         result.map_completion(|()| object)
     }
 
-    fn unregister_message_consumer_internal(&self) -> ResultComp<()> {
-        let obj = self.object.as_object();
+    fn deregister_message_consumer_internal(obj: &Object<O::AsConnection>) -> ResultComp<()> {
         let conn = obj.connection.as_connection();
         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
         *cbd.CallbackType.as_mut() = constants::MQCBT_MESSAGE_CONSUMER;
@@ -151,27 +154,31 @@ unsafe extern "C" fn message_callback<O, F>(
 
 impl<O: AsObject> Drop for MessageCallback<'_, O> {
     fn drop(&mut self) {
-        let _ = self.unregister_message_consumer_internal();
+        let _ = Self::deregister_message_consumer_internal(self.object.as_object());
     }
 }
 
 #[cfg(all(test, feature = "mock"))]
 #[cfg_attr(coverage_nightly, coverage(off))]
+#[expect(clippy::ref_option_ref)]
 mod tests {
-    use std::{
-        collections::HashMap,
-        sync::{
-            Arc, Mutex,
-            atomic::{AtomicUsize, Ordering},
-        },
-    };
+    use mockall::{Sequence, automock};
 
     use super::*;
-    use crate::{
-        MqStr,
-        test::mock,
-        types::QueueManagerName,
-    };
+    use crate::{MqStr, test::mock, types::QueueManagerName};
+
+    #[automock]
+    trait Callback {
+        #[expect(clippy::elidable_lifetime_names)]
+        fn callback<'a, 'b, 'c, 'd>(
+            &self,
+            object: &Object<mock::MockConnection>,
+            cbc: &structs::MQCBC<'a>,
+            mqmd: Option<&'b MQMD>,
+            gmo: Option<&'c structs::MQGMO>,
+            buffer: Option<&'d [u8]>,
+        );
+    }
 
     #[test]
     fn register_message_consumer() -> Result<(), Box<dyn std::error::Error>> {
@@ -180,36 +187,35 @@ mod tests {
             mock::open_ok(mock, 0x0c0c, 1, &mut seq);
             mock::callback::mock_cb(mock, constants::MQCBT_MESSAGE_CONSUMER);
         });
-        let object = Object::open(connection, &QueueManagerName(MqStr::empty())).warn_as_error()?;
 
-        let counters = Arc::new(Mutex::new(HashMap::new()));
-        let counters_cb = counters.clone();
+        let mut cb = MockCallback::new();
+        let mut seq = Sequence::new();
+        for call_type in [constants::MQCBCT_REGISTER_CALL, constants::MQCBCT_DEREGISTER_CALL] {
+            cb.expect_callback()
+                .withf(move |_obj, cbc, _md, _gmo, _buffer| types::MQCBCT(cbc.CallType) == call_type)
+                .once()
+                .return_const(())
+                .in_sequence(&mut seq);
+        }
+
+        let object = Object::open(connection, &QueueManagerName(MqStr::empty())).warn_as_error()?;
 
         let callback = MessageCallback::register_message_consumer(
             &object,
-            constants::MQCBDO_DEREGISTER_CALL,
+            constants::MQCBDO_DEREGISTER_CALL | constants::MQCBDO_REGISTER_CALL,
             &(),
-            move |_obj, cbc, _md, _gmo, _buffer| {
-                let mut guard = counters_cb.lock().expect("Arc lock should be available");
-                let counter: &mut AtomicUsize = guard.entry(types::MQCBCT(cbc.CallType)).or_default();
-                counter.fetch_add(1, Ordering::Relaxed);
-            },
-        );
+            |obj, cbc, md, gmo, buffer| cb.callback(obj, cbc, md, gmo, buffer),
+        )
+        .warn_as_error();
 
-        assert!(
-            counters
-                .lock()
-                .expect("Arc lock should be available")
-                .get(&constants::MQCBCT_REGISTER_CALL)
-                .is_some_and(|c| c.load(Ordering::Relaxed) == 1)
-        );
+        let result = callback?.deregister_message_consumer();
 
-        assert!(callback.is_ok());
+        assert!(result.is_ok());
         Ok(())
     }
 
     #[test]
-    fn unregister_message_consumer() -> Result<(), Box<dyn std::error::Error>> {
+    fn deregister_message_consumer() -> Result<(), Box<dyn std::error::Error>> {
         let connection = mock::connect_ok(|mock| {
             let mut seq = mockall::Sequence::new();
             mock::open_ok(mock, 0x0c0c, 1, &mut seq);
@@ -217,10 +223,12 @@ mod tests {
         });
         let object = Object::open(connection, &QueueManagerName(MqStr::empty())).warn_as_error()?;
         let callback =
-            MessageCallback::register_message_consumer(&object, constants::MQCBDO_NONE, &(), |_obj, _cbc, _md, _gmo, _buffer| {})
-                .warn_as_error()?;
+            MessageCallback::register_message_consumer(&object, constants::MQCBDO_NONE, &(), |_obj, _cbc, _md, _gmo, _buffer| {
+                panic!("Should not be called");
+            })
+            .warn_as_error()?;
 
-        let result = callback.unregister_message_consumer();
+        let result = callback.deregister_message_consumer();
         assert!(result.is_ok());
         Ok(())
     }
