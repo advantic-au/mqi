@@ -11,6 +11,8 @@ use crate::{Connection, Library, connect_lib, connection::ThreadBlock, constants
 
 pub mod callback;
 
+pub type MockConnection = Connection<Arc<MockMq>, ThreadBlock>;
+
 pub unsafe fn copy_to_mq_data(data: &[u8], buf_len: mq::MQLONG, buf_target: mq::PMQVOID, data_len: mq::PMQLONG) -> mq::MQLONG {
     let write_len = cmp::min(size_of_val(data), buf_len.try_into().expect("convertable buffer length"));
     let target = unsafe { slice::from_raw_parts_mut(buf_target.cast(), write_len) };
@@ -214,7 +216,7 @@ impl MqaiLibrary for MockMq {
     }
 }
 
-pub fn connect_ok<F>(f: F) -> Connection<Arc<MockMq>, ThreadBlock>
+pub fn connect_ok<F>(f: F) -> MockConnection
 where
     F: FnOnce(&mut MockMq),
 {

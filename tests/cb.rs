@@ -24,22 +24,28 @@ fn qm() -> Result<(), Box<dyn std::error::Error>> {
     let second_counter = AtomicUsize::new(0);
     let r = EventCallback::new(connection.connection_ref());
 
-    r.register_event_handler(constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL, |_, _| {
-        let _ = first_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    })
+    r.register_event_handler(
+        constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL,
+        |_, _cbc| {
+            let _ = first_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        },
+    )
     .warn_as_error()?;
 
     assert_eq!(first_counter.load(Ordering::Relaxed), 1);
 
-    r.register_event_handler(constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL, |_, _| {
-        let _ = second_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    })
+    r.register_event_handler(
+        constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL,
+        |_, _cbc| {
+            let _ = second_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        },
+    )
     .warn_as_error()?;
 
     assert_eq!(first_counter.load(Ordering::Relaxed), 2);
     assert_eq!(second_counter.load(Ordering::Relaxed), 1);
 
-    let _ = r.unregister_event_handler().warn_as_error()?;
+    let _ = r.deregister_event_handler().warn_as_error()?;
 
     assert_eq!(second_counter.load(Ordering::Relaxed), 2);
 
