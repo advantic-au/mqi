@@ -56,7 +56,7 @@ jobs:
         body-includes: "## Semver Compatibility Check"
 
     - name: Comment PR
-      uses: peter-evans/create-or-update-comment@978effe9a5f7321b0c77cf174ee7bce90f03ac61
+      uses: peter-evans/create-or-update-comment@f7c845d742ddcc26436b9547b75f949bdcd3012a
       with:
         issue-number: ${{ github.event.pull_request.number }}
         comment-id: ${{ steps.fc.outputs.comment-id }}
