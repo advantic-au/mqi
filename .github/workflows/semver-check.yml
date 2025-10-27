@@ -24,7 +24,7 @@ jobs:
       with:
         toolchain: stable
 
-    - uses: taiki-e/install-action@c07504cae06f832dc8de08911c9a9c5cddb0d2d3 # v2.56.13
+    - uses: taiki-e/install-action@c5b1b6f479c32f356cc6f4ba672a47f63853b13b # v2.62.38
       with:
         tool: cargo-semver-checks
 
