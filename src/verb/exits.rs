@@ -41,7 +41,7 @@ impl<L: ExitsLibrary> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqzep`](Self::mqzep) must ensure
-    /// * [`MQIEP::Version`](exits::MQIEP::Version) <= [`MQIEP_CURRENT_VERSION`]
+    /// * [`MQIEP::Version`](exits::MQIEP::Version) <= [`MQIEP_CURRENT_VERSION`](exits::MQIEP_CURRENT_VERSION)
     /// * `entry_point` points to a valid function
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqzep(&self, config: &exits::MQIEP, function: mq::MQLONG, entry_point: mq::PMQFUNC) -> ResultComp<()> {
