@@ -33,7 +33,7 @@ jobs:
             feature: mqc_9_4_3_0
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
@@ -41,10 +41,10 @@ jobs:
         with:
           client-version: ${{ matrix.version.client-version }}
       - name: Install stable
-        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+        uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # v2.8.0
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
         with:
           shared-key: "build"
       - name: Check
@@ -66,12 +66,12 @@ jobs:
         ports:
           - 1414:1414
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
-      - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+      - uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: stable
       - uses: taiki-e/install-action@c5b1b6f479c32f356cc6f4ba672a47f63853b13b # v2.62.38
@@ -99,12 +99,12 @@ jobs:
             os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
-      - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+      - uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: ${{matrix.toolchain}}
       - name: Enable type layout randomization
@@ -142,14 +142,14 @@ jobs:
     runs-on: ubuntu-24.04
     needs: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+      - uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: nightly
           components: miri, rust-src
-      - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # v2.8.0
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
         with:
           shared-key: "build"
       - uses: taiki-e/install-action@c5b1b6f479c32f356cc6f4ba672a47f63853b13b # v2.62.38
@@ -167,13 +167,13 @@ jobs:
     needs: test
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
           fetch-depth: 0
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
-      - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+      - uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: stable
       - name: Relative diff
@@ -182,7 +182,7 @@ jobs:
           git diff origin/"${GITHUB_BASE_REF}".. > git.diff
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
-      - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # v2.8.0
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
       - uses: taiki-e/install-action@c5b1b6f479c32f356cc6f4ba672a47f63853b13b # v2.62.38
         with:
           tool: cargo-mutants
@@ -193,7 +193,7 @@ jobs:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
         continue-on-error: true
       - name: Artefact mutants-incremental.out
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: mutants-incremental.out
@@ -202,11 +202,11 @@ jobs:
   rustfmt:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Install stable
-        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+        uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: stable
           components: rustfmt
@@ -222,16 +222,16 @@ jobs:
           - beta
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
-      - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+      - uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
-      - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # v2.8.0
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
         with:
           shared-key: "build"
       - name: Run clippy
@@ -250,18 +250,18 @@ jobs:
   minimum:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
       # Re-resolve Cargo.lock with minimal versions
-      - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+      - uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: nightly # -Z option only available on nightly
       - run: cargo generate-lockfile -Z minimal-versions
       # Now verify that `cargo check` works with respect to the oldest possible
-      - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+      - uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: 1.87
       - run: cargo check --locked --all-features
@@ -281,10 +281,10 @@ jobs:
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+      - uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: nightly
       - uses: taiki-e/install-action@c5b1b6f479c32f356cc6f4ba672a47f63853b13b # v2.62.38
