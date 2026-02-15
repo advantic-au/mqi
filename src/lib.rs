@@ -104,7 +104,7 @@ offering proven stability and performance.
 
 */
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg, doc_cfg_hide))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[expect(unused_imports, reason = "Used in docsrs only")]
 #[cfg(feature = "mqai")]

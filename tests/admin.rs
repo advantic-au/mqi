@@ -47,8 +47,14 @@ fn list_local_queues() -> Result<(), Box<dyn std::error::Error>> {
         let q_pageset = *bag.inquire::<MQLONG>(constants::MQIA_PAGESET_ID)?;
         let q_desc = *bag.inquire::<MqStr<64>>(constants::MQCA_Q_DESC)?;
         println!("Queue Name: {}", q.unwrap_or_default());
-        println!("Depth: {}", depth.map_or(Cow::Borrowed("{n/a}"), |t| Cow::Owned(t.to_string())));
-        println!("Type: {}", q_type.map_or(Cow::Borrowed("{n/a}"), |t| Cow::Owned(t.to_string())));
+        println!(
+            "Depth: {}",
+            depth.map_or(Cow::Borrowed("{n/a}"), |t| Cow::Owned(t.to_string()))
+        );
+        println!(
+            "Type: {}",
+            q_type.map_or(Cow::Borrowed("{n/a}"), |t| Cow::Owned(t.to_string()))
+        );
         println!("Alteration Date: '{}'", alt_date.unwrap_or_default());
         println!("Alteration Time: '{}'", alt_time.unwrap_or_default());
         println!("CCSID: {ccsid:?}");

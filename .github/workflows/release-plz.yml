@@ -17,18 +17,18 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: true
           fetch-depth: 0
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+        uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: stable
       - name: Run release-plz
-        uses: MarcoIeni/release-plz-action@8724d33cd97b8295051102e2e19ca592962238f5 # v0.5
+        uses: release-plz/action@52440b50d383aa252927de395c8b2c1e0a9cf8e9 # v0.5.126
         with:
           command: release
         env:
@@ -48,7 +48,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: true
           fetch-depth: 0
@@ -56,11 +56,11 @@ jobs:
       - uses: advantic-au/action-mq-client@stable
         id: mq-client
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b
+        uses: dtolnay/rust-toolchain@6d653acede28d24f02e3cd41383119e8b1b35921
         with:
           toolchain: stable
       - name: Run release-plz
-        uses: MarcoIeni/release-plz-action@8724d33cd97b8295051102e2e19ca592962238f5 # v0.5
+        uses: release-plz/action@52440b50d383aa252927de395c8b2c1e0a9cf8e9 # v0.5.126
         with:
           command: release-pr
         env:

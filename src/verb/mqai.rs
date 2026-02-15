@@ -895,7 +895,7 @@ mod tests {
         let mq_lib = MqFunctions(mq_library());
         let mut bag = mq_lib.mq_create_bag(constants::MQCBO_GROUP_BAG)?;
         let bag_attached = mq_lib.mq_create_bag(constants::MQCBO_GROUP_BAG)?;
-        let mut wally: MqChar<3> = [1, 2, 3];
+        let wally: MqChar<3> = [1, 2, 3];
         mq_lib
             .mq_add_bag(&bag, Selector(0), &bag_attached)
             .warn_as_error()
@@ -903,8 +903,6 @@ mod tests {
         dbg!(mq_lib.mq_inquire_bag(&bag, Selector(0), MQIND(0))).warn_as_error()?;
         dbg!(mq_lib.mq_add_integer(&bag_attached, Selector(0), 999)).warn_as_error()?;
         dbg!(mq_lib.mq_add_string(&bag_attached, Selector(1), &wally)).warn_as_error()?;
-
-        wally[0] = 9;
 
         let mut data: Vec<mq::MQCHAR> = vec![0; 4096];
         let (length, ..) = dbg!(mq_lib.mq_inquire_string(&bag_attached, Selector(1), MQIND(0), data.as_mut_slice()))
