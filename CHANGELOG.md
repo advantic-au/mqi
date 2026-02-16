@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/advantic-au/mqi/compare/v0.3.0...v0.3.1) - 2026-02-16
+
+### Other
+
+- *(deps)* bump actions/upload-artifact from 5 to 6 ([#149](https://github.com/advantic-au/mqi/pull/149))
+- dependabot updates and cooldown
+- *(deps)* bump peter-evans/create-or-update-comment
+- IBM MQ 9.4.5
+- Updated to latest versions
+- *(deps)* update mockall requirement from 0.13.1 to 0.14.0
+- Add .aider.* gitignore
+- MQ exits API
+- semver adjustments
+
 ## [0.3.0](https://github.com/advantic-au/mqi/compare/v0.2.0...v0.3.0) - 2025-07-23
 
 ### Added
