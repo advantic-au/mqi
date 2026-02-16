@@ -36,16 +36,7 @@ fn main() -> anyhow::Result<()> {
 
     let args = Args::parse();
 
-    let topic_str = args.topic.or_else(|| env::var("TOPIC").ok());
-    let topic = topic_str.as_deref().map(ObjectString);
-
-    let client_method = args.connection.method.connect_option()?;
-    let qm_name = args
-        .connection
-        .queue_manager_name()
-        .context("Connection queue manager name is invalid")?;
-    let creds = args.connection.credentials();
-    let cno = args.connection.cno().context("MQCNO options are invalid")?;
+    let connection_options = args.connection.connection_option()?;
 
     // Set up the tls connection parameters from the arguments
     let tls = args.connection.tls(&DEFAULT_CIPHER).context("TLS options are not valid")?;
@@ -53,8 +44,11 @@ fn main() -> anyhow::Result<()> {
         .as_ref()
         .map(|(repo, cipher, label)| Tls::new(repo, label.as_ref(), cipher));
 
+    let topic_str = args.topic.or_else(|| env::var("TOPIC").ok());
+    let topic = topic_str.as_deref().map(ObjectString);
+
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, qm_name, creds, cno, client_method))
+    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, connection_options))
         .warn_as_error()
         .context("Unable to connect to the queue manager")?;
 

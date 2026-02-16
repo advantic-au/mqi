@@ -24,7 +24,7 @@ const MQCBC_DEFAULT: libmqm_sys::MQCBC = mq::MQCBC {
     ReconnectDelay: mq::MQRD_NO_DELAY,
 };
 
-pub fn event_cb(mock_library: &mut MockMq) {
+pub fn mock_cb(mock_library: &mut MockMq, cb_type: types::MQCBT) {
     type MqCbFn = unsafe extern "C" fn(_: mq::MQHCONN, _: mq::PMQVOID, _: mq::PMQVOID, _: mq::PMQVOID, _: *const mq::MQCBC);
     #[derive(Clone)]
     struct MqCallback(*mut c_void, *mut c_void);
@@ -34,11 +34,11 @@ pub fn event_cb(mock_library: &mut MockMq) {
     let cb_init = cb.clone();
     mock_library
         .expect_MQCB()
-        .withf(|_, op, cbd, _, _, _, _, _| {
+        .withf(move |_, op, cbd, _, _, _, _, _| {
             let cbd = cbd.expect("MQCBD should be non-null");
             let op = types::MQOP(*op);
             let callback_type = types::MQCBT(cbd.CallbackType);
-            callback_type == constants::MQCBT_EVENT_HANDLER
+            callback_type == cb_type
                 && (op.contains(constants::MQOP_REGISTER) || op.contains(constants::MQOP_DEREGISTER))
         })
         .returning(move |hconn, op, cbd, _, _, _, cc, rc| {
