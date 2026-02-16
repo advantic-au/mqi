@@ -36,43 +36,45 @@ impl<'cb, C: AsConnection> EventCallback<'cb, C> {
     {
         let Connection { mq, handle, .. } = self.connection.as_connection();
 
-        let cb_data: *mut CallbackData<'cb, C::Lib, C::Thread> = Box::into_raw(Box::from(CallbackData {
+        let cb_data: *mut CallbackData<C::Lib, F> = Box::into_raw(Box::from(CallbackData {
             options,
-            closure: Box::new(closure),
+            closure,
             mq: mq.clone(),
         }));
         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
         *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
+
         let _ = unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) };
 
         cbd.CallbackArea = cb_data.cast();
         *cbd.Options.as_mut() = options | constants::MQCBDO_DEREGISTER_CALL; // Always register for the deregister call
-        cbd.CallbackFunction = event_callback::<C::Lib, C::Thread> as *mut _;
+        cbd.CallbackFunction = event_callback::<C::Lib, C::Thread, F> as *mut _;
 
         // SAFETY: MQCBD registered with valid pointers
         unsafe { mq.mqcb(*handle, constants::MQOP_REGISTER, Some(&cbd), None, None::<&MQMD>, None) }
     }
 
     /// Unregister the event handler and return the original connection
-    pub fn unregister_event_handler(self) -> ResultComp<C> {
+    pub fn deregister_event_handler(self) -> ResultComp<C> {
         let mut self_mut = self;
-        let Connection { mq, handle, .. } = self_mut.connection.as_connection();
-
-        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
-        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
-        let result = unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) };
+        let result = self_mut.deregister_event_handler_internal();
         let wrapped = unsafe { ManuallyDrop::take(&mut self_mut.connection) };
         let _ = ManuallyDrop::new(self_mut); // Suppress drop of self
         result.map_completion(|()| wrapped)
+    }
+
+    fn deregister_event_handler_internal(&self) -> ResultComp<()> {
+        let Connection { mq, handle, .. } = self.connection.as_connection();
+
+        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
+        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
+        unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) }
     }
 }
 
 impl<C: AsConnection> Drop for EventCallback<'_, C> {
     fn drop(&mut self) {
-        let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
-        let Connection { mq, handle, .. } = self.connection.as_connection();
-        *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
-        let _ = unsafe { mq.mqcb(*handle, constants::MQOP_DEREGISTER, Some(&cbd), None, None::<&MQMD>, None) };
+        let _ = self.deregister_event_handler_internal();
         unsafe { ManuallyDrop::drop(&mut self.connection) };
     }
 }
@@ -96,15 +98,14 @@ impl<C: AsConnection> AsConnection for EventCallback<'_, C> {
     }
 }
 
-type BoxedEventCallback<'a, L, H> = Box<dyn FnMut(ConnectionRef<L, H>, &structs::MQCBC) + Send + 'a>;
-
-struct CallbackData<'a, L: Library<MQ: Mqi>, H> {
+#[derive(Debug)]
+struct CallbackData<L: Library<MQ: Mqi>, F> {
     options: types::MQCBDO,
-    closure: BoxedEventCallback<'a, L, H>,
+    closure: F,
     mq: MqFunctions<L>,
 }
 
-unsafe extern "C" fn event_callback<L, H>(
+unsafe extern "C" fn event_callback<L, H, F>(
     hconn: mq::MQHCONN,
     _mqmd: mq::PMQVOID,   // Not used for MQCBT_EVENT_HANDLER
     _mqgmo: mq::PMQVOID,  // Not used for MQCBT_EVENT_HANDLER
@@ -112,11 +113,12 @@ unsafe extern "C" fn event_callback<L, H>(
     cbc: *const mq::MQCBC,
 ) where
     L: Library<MQ: Mqi> + Clone,
+    F: FnMut(ConnectionRef<L, H>, &structs::MQCBC) + Send,
 {
     // SAFETY: MQCBC will always be non-null
     if let Some(context) = unsafe { cbc.cast::<structs::MQCBC>().as_ref() } {
         // SAFETY: CallbackArea is always set by `event_handler`
-        if let Some(CallbackData { options, closure, mq }) = unsafe { context.CallbackArea.cast::<CallbackData<L, H>>().as_mut() }
+        if let Some(CallbackData { options, closure, mq }) = unsafe { context.CallbackArea.cast::<CallbackData<L, F>>().as_mut() }
         {
             let is_deregister = types::MQCBCT(context.CallType) == constants::MQCBCT_DEREGISTER_CALL;
             if !is_deregister || options.contains(constants::MQCBDO_DEREGISTER_CALL) {

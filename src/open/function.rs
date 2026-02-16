@@ -16,6 +16,14 @@ impl<C: AsConnection> Object<C> {
         Self::open_as(connection, open_option)
     }
 
+    /// Establish access and return an MQ object and the name of the resolved object
+    pub fn open_resolved<'oo>(
+        connection: C,
+        open_option: &impl option::OpenOption<'oo, types::MQOO>,
+    ) -> ResultComp<(Self, Option<types::QueueName>, Option<types::QueueManagerName>)> {
+        Self::open_as(connection, open_option).map_completion(|(obj, (qmgr, q))| (obj, qmgr, q))
+    }
+
     /// Establish access and return an MQ object ([`Object`]) and type inferred [`OpenAttr`](option::OpenAttr) in a tuple
     pub fn open_with<'oo, A>(connection: C, open_option: &impl option::OpenOption<'oo, types::MQOO>) -> ResultComp<(Self, A)>
     where

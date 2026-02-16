@@ -1,16 +1,17 @@
 #![expect(clippy::allow_attributes)]
 #![expect(non_snake_case)]
 
-use std::{cmp, rc::Rc, slice};
+use std::{cmp, slice, sync::Arc};
 
 use libmqm_sys::{self as mq, mock::MockMq};
 
-use crate::{Connection, Library, connect_lib, connection::ThreadNone, constants, put, result::ResultCompExt, types};
-
 #[cfg(feature = "mqai")]
 use crate::MqaiLibrary;
+use crate::{Connection, Library, connect_lib, connection::ThreadBlock, constants, put, result::ResultCompExt, types};
 
 pub mod callback;
+
+pub type MockConnection = Connection<Arc<MockMq>, ThreadBlock>;
 
 pub unsafe fn copy_to_mq_data(data: &[u8], buf_len: mq::MQLONG, buf_target: mq::PMQVOID, data_len: mq::PMQLONG) -> mq::MQLONG {
     let write_len = cmp::min(size_of_val(data), buf_len.try_into().expect("convertable buffer length"));
@@ -215,7 +216,7 @@ impl MqaiLibrary for MockMq {
     }
 }
 
-pub fn connect_ok<F>(f: F) -> Connection<Rc<MockMq>, ThreadNone>
+pub fn connect_ok<F>(f: F) -> MockConnection
 where
     F: FnOnce(&mut MockMq),
 {
@@ -224,7 +225,7 @@ where
     disc_outcome(&mut mock, constants::MQCC_OK, constants::MQRC_NONE);
     f(&mut mock);
 
-    connect_lib(Rc::from(mock), &())
+    connect_lib(Arc::from(mock), &())
         .warn_as_error()
         .expect("should not fail or produce a warning")
 }
