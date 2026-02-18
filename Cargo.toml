@@ -193,3 +193,11 @@ required-features = ["link"]
 [[example]]
 name = "dlopen"
 required-features = ["dlopen2"]
+
+[[example]]
+name = "ping_server"
+required-features = ["link"]
+
+[[example]]
+name = "request_reply"
+required-features = ["link"]
