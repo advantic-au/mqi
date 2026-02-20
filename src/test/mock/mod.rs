@@ -5,10 +5,9 @@ use std::{cmp, rc::Rc, slice};
 
 use libmqm_sys::{self as mq, mock::MockMq};
 
-use crate::{Connection, Library, connect_lib, connection::ThreadNone, constants, put, result::ResultCompExt, types};
-
 #[cfg(feature = "mqai")]
 use crate::MqaiLibrary;
+use crate::{Connection, Library, connect_lib, connection::ThreadNone, constants, put, result::ResultCompExt, types};
 
 pub mod callback;
 

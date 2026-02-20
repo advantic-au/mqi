@@ -10,7 +10,7 @@ use crate::{
     MqChar, MqStr, constants,
     header::TextEnc,
     macros::impl_from_str,
-    string::CCSID,
+    string::{CCSID, MqStrError},
     structs,
     traits::Secret,
     types::{MQBYTE, MQCHAR, MQENC, MQRC},
@@ -145,12 +145,35 @@ impl MessageFormat {
     }
 
     #[must_use]
-    pub fn into_mqmd2(&self) -> structs::MQMD {
+    pub fn into_mqmd(&self) -> structs::MQMD {
         structs::MQMD::new(mq::MQMD {
             CodedCharSetId: self.ccsid.0,
             Encoding: self.encoding.0,
             Format: *self.fmt.into_ascii().as_ref(),
             ..default::MQMD_DEFAULT
+        })
+    }
+}
+
+impl From<MqStr<8>> for MessageFormat {
+    fn from(value: MqStr<8>) -> Self {
+        Self {
+            ccsid: CCSID::default(),
+            encoding: MQENC::default(),
+            fmt: TextEnc::Ascii(value.into()),
+        }
+    }
+}
+
+impl str::FromStr for MessageFormat {
+    type Err = MqStrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let fmt: MqStr<8> = (*s).try_into()?;
+        Ok(Self {
+            ccsid: CCSID::default(),
+            encoding: MQENC::default(),
+            fmt: TextEnc::Ascii(fmt.into()),
         })
     }
 }
