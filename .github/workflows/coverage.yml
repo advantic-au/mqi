@@ -45,7 +45,7 @@ jobs:
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: coverage/codecov.json
           token: ${{ secrets.CODECOV_TOKEN }}
