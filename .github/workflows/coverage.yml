@@ -32,7 +32,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
         with:
           toolchain: nightly
-      - uses: taiki-e/install-action@288875dd3d64326724fa6d9593062d9f8ba0b131 # v2.67.30
+      - uses: taiki-e/install-action@0c7a94999971db56e9df89df226240aab222e776 # v2.75.14
         with:
           tool: nextest, cargo-llvm-cov
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
