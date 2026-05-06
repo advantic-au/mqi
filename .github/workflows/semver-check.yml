@@ -48,7 +48,7 @@ jobs:
         MERGE_BASE_SHA: ${{ steps.merge-base.outputs.sha }}
 
     - name: Find Comment
-      uses: peter-evans/find-comment@a4ef349b8c29f841860ce94ed82b20f0a39b6961
+      uses: peter-evans/find-comment@f89db304fcb33eb60a4041a697bca19e8286cefe
       id: fc
       with:
         issue-number: ${{ github.event.pull_request.number }}
