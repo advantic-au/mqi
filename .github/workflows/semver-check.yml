@@ -20,11 +20,11 @@ jobs:
         persist-credentials: false
 
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9
+      uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
       with:
         toolchain: stable
 
-    - uses: taiki-e/install-action@288875dd3d64326724fa6d9593062d9f8ba0b131 # v2.67.30
+    - uses: taiki-e/install-action@b651345a718c8f44efa2460560b3dbf29cbd7ee1 # v2.75.26
       with:
         tool: cargo-semver-checks
 
@@ -48,7 +48,7 @@ jobs:
         MERGE_BASE_SHA: ${{ steps.merge-base.outputs.sha }}
 
     - name: Find Comment
-      uses: peter-evans/find-comment@a4ef349b8c29f841860ce94ed82b20f0a39b6961
+      uses: peter-evans/find-comment@f89db304fcb33eb60a4041a697bca19e8286cefe
       id: fc
       with:
         issue-number: ${{ github.event.pull_request.number }}
@@ -56,7 +56,7 @@ jobs:
         body-includes: "## Semver Compatibility Check"
 
     - name: Comment PR
-      uses: peter-evans/create-or-update-comment@f5b41f6a455733f2c5f73ca67a62631e75861578
+      uses: peter-evans/create-or-update-comment@a2bac990c93d2725dfd76387058e2b622cd19127
       with:
         issue-number: ${{ github.event.pull_request.number }}
         comment-id: ${{ steps.fc.outputs.comment-id }}
