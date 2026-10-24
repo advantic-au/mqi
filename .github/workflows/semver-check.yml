@@ -14,13 +14,13 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         fetch-depth: 0
         persist-credentials: false
 
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
+      uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
       with:
         toolchain: stable
 
@@ -48,7 +48,7 @@ jobs:
         MERGE_BASE_SHA: ${{ steps.merge-base.outputs.sha }}
 
     - name: Find Comment
-      uses: peter-evans/find-comment@f89db304fcb33eb60a4041a697bca19e8286cefe
+      uses: peter-evans/find-comment@808d9dc0a684752648d47fbaae7a80f046774200
       id: fc
       with:
         issue-number: ${{ github.event.pull_request.number }}
@@ -56,7 +56,7 @@ jobs:
         body-includes: "## Semver Compatibility Check"
 
     - name: Comment PR
-      uses: peter-evans/create-or-update-comment@a2bac990c93d2725dfd76387058e2b622cd19127
+      uses: peter-evans/create-or-update-comment@77730d20d2e302b7337fe12d2a669c6b21d578a9
       with:
         issue-number: ${{ github.event.pull_request.number }}
         comment-id: ${{ steps.fc.outputs.comment-id }}
