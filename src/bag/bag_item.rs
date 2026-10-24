@@ -367,21 +367,21 @@ mod tests {
         let lib = mq_library();
 
         // StrCcsidOwned
-        test_put_inq_bag_item(STR, &lib, |s: StrCcsidOwned| assert!(s == STR))?;
-        test_put_inq_bag_item(&*long_s, &lib, |s: StrCcsidOwned| assert!(s == &*long_s))?;
+        test_put_inq_bag_item(STR, &lib, |s: StrCcsidOwned| assert_eq!(s, STR))?;
+        test_put_inq_bag_item(&*long_s, &lib, |s: StrCcsidOwned| assert_eq!(s, &*long_s))?;
 
         // Vec<MQBYTE>
-        test_put_inq_bag_item(BYTES.as_slice(), &lib, |subject: Vec<MQBYTE>| assert!(subject == BYTES))?;
+        test_put_inq_bag_item(BYTES.as_slice(), &lib, |subject: Vec<MQBYTE>| assert_eq!(subject, BYTES))?;
         test_put_inq_bag_item(large_bytes.as_slice(), &lib, |subject: Vec<MQBYTE>| {
-            assert!(subject == large_bytes);
+            assert_eq!(subject, large_bytes);
         })?;
 
         // Filter<StrCcsidOwned>
         test_put_inq_bag_item(&Filter::greater(STR), &lib, |subject: Filter<StrCcsidOwned>| {
-            assert!(subject == Filter::greater(STR));
+            assert_eq!(subject, Filter::greater(STR));
         })?;
         test_put_inq_bag_item(&Filter::greater(&*long_s), &lib, |subject: Filter<StrCcsidOwned>| {
-            assert!(subject == Filter::greater(&*long_s));
+            assert_eq!(subject, Filter::greater(&*long_s));
         })?;
 
         // (Selector, MQITEM)

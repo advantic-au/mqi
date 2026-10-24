@@ -8,7 +8,7 @@ license = "Apache-2.0"
 keywords = ["message-queue", "messaging"]
 categories = ["asynchronous"]
 
-rust-version = "1.87"
+rust-version = "1.95"
 edition = "2024"
 
 [lib]
@@ -35,7 +35,7 @@ mqai = ["libmqm-sys/mqai", "libmqm-constants/mqai"]
 exits = ["libmqm-sys/exits", "libmqm-constants/exits"]
 ## Link the MQI library at compile time
 link = ["libmqm-sys/link"]
-## Enable runtime loading of the MQI library using [`dlopen2`](dlopen2)
+## Enable runtime loading of the MQI library using (dlopen2)
 dlopen2 = ["libmqm-sys/dlopen2", "dep:dlopen2"]
 ## MQI and MQAI function mocking for unit and integration tests
 mock = ["libmqm-sys/mock", "dep:mockall"]
@@ -126,12 +126,14 @@ mqc_9_4_5_0 = [
 mqc_latest = [ "mqc_9_4_5_0" ]
 
 [dependencies]
-libmqm-sys = { version = "0.10.2", default-features = false }
-libmqm-default = { version = "0.10.2", default-features = false }
-libmqm-constants = { version = "0.8.4", default-features = false }
+libmqm-sys = { version = "0.11.0", default-features = false }
+libmqm-default = { version = "0.11.0", default-features = false }
+libmqm-constants = { version = "0.9.0", default-features = false }
 tracing = { version = "0.1.40", optional = true }
-dlopen2 = { version = "0.8.0", optional = true }
-derive_more = { version = "2.0.1", features = [
+# Transitive dependency for tracing (fix a break when minimal versions is compiled)
+lazy_static = { version = "1.5.0", optional = true }
+dlopen2 = { version = "0.9.0", optional = true }
+derive_more = { version = "2.1.1", features = [
     "deref",
     "deref_mut",
     "as_ref",
@@ -141,7 +143,7 @@ derive_more = { version = "2.0.1", features = [
     "constructor",
 ] }
 maybe-owned = "0.3.4"
-mockall = { version = "0.14.0", optional = true }
+mockall = { version = "0.15.0", optional = true }
 document-features = { version = "0.2.10", optional = true }
 
 [lints.rust]
@@ -166,13 +168,15 @@ features = ["docsrs"]
 no-default-features = true
 
 [dev-dependencies]
-proptest = "1.6.0"
+proptest = "1.12.0"
 # development dependencies for examples
-clap = { version = "4.5", features = ["derive"] }
+clap = { version = "4.6", features = ["derive"] }
 anyhow = "1.0.87"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.19"
-ctrlc = "3.4"
+ctrlc = "3.5"
+# Force a higher minimum version for this transitive dependency by tracing-subscriber
+sharded-slab = "0.1.7"
 
 [[example]]
 name = "subscribe_managed"
