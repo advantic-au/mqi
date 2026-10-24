@@ -57,6 +57,20 @@ impl<T> InqResItem<T> {
             Self::Long(IntItem { selector, value }) => (selector, AttributeValue::Long(value)),
         }
     }
+
+    pub const fn long_value(&self) -> Option<types::MQLONG> {
+        match self {
+            Self::Long(IntItem { value, .. }) => Some(*value),
+            Self::Text(_) => None,
+        }
+    }
+
+    pub fn text_value(self) -> Option<T> {
+        match self {
+            Self::Text(TextItem { value, .. }) => Some(value),
+            Self::Long(_) => None,
+        }
+    }
 }
 
 impl IntItem {

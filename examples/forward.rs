@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 mod args;
 
 use anyhow::Context as _;
@@ -29,13 +27,13 @@ struct Cli {
     dry_run: bool,
 
     #[arg(short, long)]
-    source_queue: String,
+    source_queue: QueueName,
 
     #[arg(short, long)]
-    queue: String,
+    queue: QueueName,
 
     #[arg(short = 'm', long, requires("queue"))]
-    queue_manager: Option<String>,
+    queue_manager: Option<QueueManagerName>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -56,13 +54,7 @@ fn main() -> anyhow::Result<()> {
 
     let args = Cli::parse();
 
-    let client_method = args.connection.method.connect_option()?;
-    let qm_name = args
-        .connection
-        .queue_manager_name()
-        .context("Connection queue manager name is invalid")?;
-    let creds = args.connection.credentials();
-    let cno = args.connection.cno().context("MQCNO option is not valid")?;
+    let connection_options = args.connection.connection_option()?;
 
     // Set up the tls connection parameters from the arguments
     let tls = args.connection.tls(&DEFAULT_CIPHER).context("TLS options are not valid")?;
@@ -70,17 +62,8 @@ fn main() -> anyhow::Result<()> {
         .as_ref()
         .map(|(repo, cipher, label)| Tls::new(repo, label.as_ref(), cipher));
 
-    let source_queue = QueueName::from_str(&args.source_queue)?;
-    let target_queue = QueueName::from_str(&args.queue)?;
-    let target_qm = args
-        .queue_manager
-        .as_deref()
-        .map(QueueManagerName::from_str)
-        .transpose()
-        .context("Target queue manager name is invalid")?;
-
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, qm_name, creds, cno, client_method))
+    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, connection_options))
         .already_connected_ref()
         .discard_warning()
         .context("Unable to connect to the queue manager")?;
@@ -88,7 +71,7 @@ fn main() -> anyhow::Result<()> {
     let obj = Object::open(
         qm_ref.clone(),
         &(
-            source_queue,
+            args.source_queue,
             constants::MQOO_INPUT_AS_Q_DEF | constants::MQOO_SAVE_ALL_CONTEXT,
         ),
     )
@@ -130,8 +113,8 @@ fn main() -> anyhow::Result<()> {
                         ContextArg::Identity => constants::MQPMO_PASS_IDENTITY_CONTEXT,
                         ContextArg::All => constants::MQPMO_PASS_ALL_CONTEXT,
                     },
-                    target_qm,    // Target queue manager
-                    target_queue, // Target queue
+                    args.queue_manager, // Target queue manager
+                    args.queue,         // Target queue
                 ),
                 &(
                     // Options used when putting to the queue

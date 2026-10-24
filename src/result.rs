@@ -172,6 +172,19 @@ impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
         }
     }
 }
+pub trait ResultErrExt<T> {
+    /// Captures an [`MQRC`] error to a [`Result`]
+    fn map_reason_err<F: FnOnce(Error) -> ResultErr<T>>(self, reason: MQRC, map: F) -> ResultErr<T>;
+}
+
+impl<T> ResultErrExt<T> for ResultErr<T> {
+    fn map_reason_err<F: FnOnce(Error) -> Self>(self, reason: MQRC, map: F) -> Self {
+        match self {
+            Err(err @ Error(.., rc)) if rc == reason => map(err),
+            other => other,
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
