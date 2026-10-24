@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/advantic-au/mqi/compare/v0.3.0...v0.3.1) - 2026-10-24
+
+### Other
+
+- *(deps)* Dependency version bumps from dependabot
+- *(deps)* bump taiki-e/install-action from 2.75.26 to 2.87.29
+- *(deps)* bump actions/checkout from 6 to 7
+- *(deps)* bump peter-evans/create-or-update-comment
+- *(deps)* bump github/codeql-action from 4.35.2 to 4.39.0
+- *(deps)* bump release-plz/action from 0.5.128 to 0.5.142
+- *(deps)* bump dtolnay/rust-toolchain
+- *(deps)* bump peter-evans/find-comment
+- *(deps)* bump Swatinem/rust-cache from 2.9.1 to 2.9.2
+- *(deps)* set rustc to 1.95 for minimum ci
+- *(deps)* resolve workflow conflicts from the Dependabot merges
+- upgrade to libmqm 0.11 and clear the lints it surfaces
+- add AGENTS.md with guidance for agents working here
+- bump dlopen2, mockall and other dev dependencies
+- *(deps)* merge Dependabot workflow bumps and resolve conflicts
+- raise the minimum supported Rust version to 1.95
+- *(deps)* bump codecov/codecov-action from 5 to 7
+- *(deps)* bump taiki-e/install-action from 2.67.30 to 2.75.26 ([#176](https://github.com/advantic-au/mqi/pull/176))
+- *(deps)* bump peter-evans/find-comment
+- *(deps)* bump taiki-e/install-action from 2.67.30 to 2.75.26
+- *(deps)* bump peter-evans/create-or-update-comment
+- *(deps)* bump github/codeql-action from 4 to 4.35.2
+- *(deps)* bump astral-sh/setup-uv from 7.3.0 to 8.1.0
+- *(deps)* bump actions/upload-artifact from 6 to 7.0.0
+- *(deps)* bump codecov/codecov-action from 5 to 6
+- *(deps)* bump dtolnay/rust-toolchain
+- *(deps)* bump Swatinem/rust-cache from 2.8.2 to 2.9.1
+- *(deps)* bump release-plz/action from 0.5.126 to 0.5.128
+- *(deps)* bump actions/upload-artifact from 5 to 6 ([#149](https://github.com/advantic-au/mqi/pull/149))
+- dependabot updates and cooldown
+- *(deps)* bump peter-evans/create-or-update-comment
+- *(deps)* bump Swatinem/rust-cache from 2.8.1 to 2.8.2
+- *(deps)* bump dtolnay/rust-toolchain
+- *(deps)* bump actions/checkout from 5 to 6
+- *(deps)* bump taiki-e/install-action from 2.62.38 to 2.67.30
+- *(deps)* bump peter-evans/find-comment
+- IBM MQ 9.4.5
+- Updated to latest versions
+- *(deps)* update mockall requirement from 0.13.1 to 0.14.0
+- *(deps)* bump astral-sh/setup-uv from 6.3.1 to 7.1.2
+- *(deps)* bump taiki-e/install-action from 2.56.13 to 2.62.38
+- *(deps)* bump actions/upload-artifact from 4 to 5
+- *(deps)* bump github/codeql-action from 3 to 4
+- *(deps)* bump MarcoIeni/release-plz-action from 0.5.108 to 0.5.118
+- *(deps)* bump peter-evans/create-or-update-comment
+- *(deps)* bump peter-evans/find-comment
+- *(deps)* bump Swatinem/rust-cache from 2.8.0 to 2.8.1
+- *(deps)* bump dtolnay/rust-toolchain
+- *(deps)* bump actions/checkout from 4 to 5
+- Add .aider.* gitignore
+- MQ exits API
+- semver adjustments
+
 ## [0.3.0](https://github.com/advantic-au/mqi/compare/v0.2.0...v0.3.0) - 2025-07-23
 
 ### Added

@@ -2,7 +2,7 @@
 name = "mqi"
 description = "Idiomatic IBM® MQ Interface (MQI) and MQ Administration Interface (MQAI) APIs"
 repository = "https://github.com/advantic-au/mqi"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Warren Spits <warren@advantic.au>"]
 license = "Apache-2.0"
 keywords = ["message-queue", "messaging"]
