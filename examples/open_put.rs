@@ -1,7 +1,4 @@
-use std::{
-    io::{self, Read},
-    str::FromStr,
-};
+use std::io::{self, Read};
 
 use anyhow::Context as _;
 use clap::{Args, Parser};
@@ -32,10 +29,10 @@ struct Cli {
     format: Option<String>,
 
     #[arg(long)]
-    oo: Vec<String>,
+    oo: Vec<MQOO>,
 
     #[arg(long)]
-    pmo: Vec<String>,
+    pmo: Vec<MQPMO>,
 
     #[command(flatten)]
     target: Target,
@@ -48,10 +45,10 @@ struct Target {
     topic: Option<String>,
 
     #[arg(short, long)]
-    queue: Option<String>,
+    queue: Option<QueueName>,
 
     #[arg(short = 'm', long, requires("queue"))]
-    queue_manager: Option<String>,
+    queue_manager: Option<QueueManagerName>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -60,13 +57,7 @@ fn main() -> anyhow::Result<()> {
 
     let args = Cli::parse();
 
-    let client_method = args.connection.method.connect_option()?;
-    let qm_name = args
-        .connection
-        .queue_manager_name()
-        .context("Connection queue manager name is invalid")?;
-    let creds = args.connection.credentials();
-    let cno = args.connection.cno().context("MQCNO options are invalid")?;
+    let connection_option = args.connection.connection_option()?;
 
     // Set up the tls connection parameters from the arguments
     let tls = args.connection.tls(&DEFAULT_CIPHER).context("TLS options are not valid")?;
@@ -76,32 +67,12 @@ fn main() -> anyhow::Result<()> {
 
     // It will be either queue or topic but not both
     let target_topic = args.target.topic.as_deref().map(ObjectString);
-    let target_queue = args
-        .target
-        .queue
-        .as_deref()
-        .map(QueueName::from_str)
-        .transpose()
-        .context("Target queue name is invalid")?;
-    let target_qm = args
-        .target
-        .queue_manager
-        .as_deref()
-        .map(QueueManagerName::from_str)
-        .transpose()
-        .context("Target queue manager name is invalid")?;
 
     // Additional MQOO options from the command line
-    let mut oo = constants::MQOO_OUTPUT;
-    for o in &args.oo {
-        oo.insert(MQOO::from_str(o).context("MQOO options are invalid")?);
-    }
+    let oo = constants::MQOO_OUTPUT | args.oo.into_iter().collect();
 
     // Additional MQPMO options from the command line
-    let mut pmo = constants::MQPMO_NONE;
-    for p in &args.pmo {
-        pmo.insert(MQPMO::from_str(p).context("MQPMO options are invalid")?);
-    }
+    let pmo: MQPMO = args.pmo.into_iter().collect();
 
     /* TODO: conversion from str -> TextEnc::Ascii is clunky */
     let fmt: MqStr<8> = (*args.format.unwrap_or_default()).try_into()?;
@@ -112,12 +83,12 @@ fn main() -> anyhow::Result<()> {
     };
 
     // Connect to the queue manager using the supplied optional arguments. Fail on any warning.
-    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, qm_name, creds, cno, client_method))
+    let qm = mqi::connect::<ThreadNone>(&(APP_NAME, tls_connect, connection_option))
         .warn_as_error()
         .context("Unable to connect to the queue manager")?;
 
     // Open the queue or topic with MQOO_OUTPUT option
-    let object = Object::open(qm, &(target_queue, target_qm, target_topic, oo))
+    let object = Object::open(qm, &(args.target.queue, args.target.queue_manager, target_topic, oo))
         .warn_as_error()
         .context("Unable to open the object")?;
 
