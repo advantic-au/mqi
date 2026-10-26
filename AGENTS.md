@@ -36,12 +36,12 @@ An IBM MQ client (or server) install is **required** to build or test anything, 
   `cargo-semver-checks` are used by specific workflows.
 
 A quick local queue manager for experiments. CI's `test_server` job runs
-`icr.io/ibm-messaging/mq:9.4.5.0-r1` with `LICENSE=accept` and `MQ_APP_PASSWORD=app`; use the same
+`icr.io/ibm-messaging/mq:10.0.1.0-r1` with `LICENSE=accept` and `MQ_APP_PASSWORD=app`; use the same
 environment locally:
 
 ```sh
 docker run -d --publish 1414:1414 -e LICENSE=accept -e MQ_APP_PASSWORD=app \
-  icr.io/ibm-messaging/mq:9.4.5.0-r1
+  icr.io/ibm-messaging/mq:10.0.1.0-r1
 ```
 
 ## Commands
@@ -50,10 +50,11 @@ There is no Makefile; everything is cargo. `.github/workflows/ci.yml` is the aut
 for the exact invocations that must pass.
 
 ```sh
-# check - CI runs a matrix over client versions 9.3 and 9.4
+# check - CI runs a matrix over client versions 9.3, 9.4 and 10.0
 cargo check --features mqc_9_3_5_0,exits,mqai,dlopen2
 cargo check --features mqc_9_4_3_0,exits,mqai,dlopen2
-# locally mqc_latest (9.4.5.0) is fine when the installed client is new enough:
+cargo check --features mqc_10_0_1_0,exits,mqai,dlopen2
+# locally mqc_latest (10.0.1.0) is fine when the installed client is new enough:
 cargo check --features exits,mqai,dlopen2,mqc_latest
 
 # test - feature combinations are NOT optional, each of these is a separate CI job
@@ -79,12 +80,15 @@ cargo docs-rs
 cargo miri nextest run --profile ci --no-default-features --features mock,mqai,exits,mqc_latest \
   --target x86_64-unknown-linux-gnu
 
-# coverage / mutation testing
+# coverage (CI runs nextest AND doctests under llvm-cov; both reports use --doctests)
 cargo llvm-cov --no-report nextest --profile ci --features mqai,dlopen2,mqc_latest,mock
 cargo llvm-cov --no-report test --doc --features mqai,dlopen2,mqc_latest,mock
 cargo llvm-cov report --doctests --ignore-filename-regex "build/.+" --codecov --output-path coverage/codecov.json
 cargo llvm-cov report --doctests --ignore-filename-regex "build/.+"
+
+# mutation testing (PR incremental diff in ci.yml; full manual run in mutants.yml)
 cargo mutants --no-shuffle -vV --in-diff git.diff --all-features
+cargo mutants -vV --in-place --all-features
 ```
 
 The `ci` nextest profile is in `.config/nextest.toml` (note: `.config/`, not `.cargo/`) and only
@@ -102,7 +106,8 @@ cargo test --locked --all-features --doc
 Examples require specific features, declared in `Cargo.toml` - e.g.
 `cargo run --example readme --features link`, `cargo run --example dlopen --features dlopen2`. Most
 examples use the shared clap parser in `examples/args/mod.rs` (via `mod args;`); `readme.rs` and
-`dlopen.rs` are standalone.
+`dlopen.rs` are standalone. The shared parser type is `ConnectionArgs`; extend it rather than
+duplicating connection CLI flags.
 
 ## Architecture and data flow
 
@@ -113,13 +118,14 @@ Four layers, each in its own place:
 2. **`src/verb/`** - `mqi.rs`, `mqai.rs`, `exits.rs`. Defines `impl<L: Library<MQ: Mqi>> MqFunctions<L>`
    and the MQAI equivalent. Each method calls one raw MQ verb, records the result in an
    `MqiOutcome<T>` (`verb` name + `cc` + `rc` + value), optionally traces it, and converts it with
-   `.into()` into a `ResultComp<T>`. Most verbs have safe wrappers; verbs that take raw MQ structures
-   whose pointers/offsets must be valid are `pub unsafe fn` (`mqconnx`, `mqopen`, `mqput`, `mqput1`,
-   `mqsub`, `mqcb`, `mqstat`, ...). Wrappers are named after the C verb, lowercased (`mqconn`,
-   `mqconnx`, `mqopen`, `mqget`, `mqsetmp`, ...); MQAI wrappers use snake_case `mq_*` names. Raw FFI
-   is centralized here, but `unsafe` also appears where pointer/layout handling cannot be avoided
-   (`header.rs`, `bag/bag_item.rs`, `put/function.rs`, `handle.rs`, `struct_attach.rs`, the callback
-   containers and the mock callbacks) and in the `unsafe impl` option traits.
+   `.into()` into a `ResultComp<T>`. There is exactly one wrapper method per MQ verb. Most have safe
+   wrappers; verbs that take raw MQ structures whose pointers/offsets must be valid are `pub unsafe fn`
+   (`mqconnx`, `mqopen`, `mqput`, `mqput1`, `mqsub`, `mqcb`, `mqstat`, ...). Wrappers are named after
+   the C verb, lowercased (`mqconn`, `mqconnx`, `mqopen`, `mqget`, `mqsetmp`, ...); MQAI wrappers use
+   snake_case `mq_*` names. Raw FFI is centralized here, but `unsafe` also appears where pointer/layout
+   handling cannot be avoided (`header.rs`, `bag/bag_item.rs`, `put/function.rs`, `properties/param.rs`,
+   `string/mqstr.rs`, the callback containers and the mock callbacks) and in the `unsafe impl` option
+   traits.
 3. **Public API modules**. One module per MQ concept: `connection`, `open`, `get`, `put`,
    `properties`, `subscription`, `attribute`, `stat`, `bag`, `execute`, plus the container types
    `Connection`, `Object`, `Subscription`, `Properties`, `Bag`, `Syncpoint`, `EventCallback` and
@@ -128,6 +134,9 @@ Four layers, each in its own place:
 4. **`src/support/`** - `conversion`, `encoding`, `macros`, `outcome`: shared internals
    (`MqiOutcome`, conversion traits, encoding/CCSID machinery, tuple-impl macros). Not public API
    except `outcome` re-exported pieces.
+
+`PROGRESS.md` tracks which IBM MQ verbs and MQAI functions are wrapped and at what API status;
+update its table when you add or change a verb wrapper (it is linked from the README).
 
 Data flow for one call, e.g. `Object::put_message`:
 
@@ -188,11 +197,12 @@ This is the most important non-obvious API rule:
   The marker selects `MQCNO_HANDLE_SHARE_*`. `ConnectionRef` is a non-owning borrowed handle;
   `ConnectionEither` holds either an owned or borrowed connection (used by the
   `MQRC_ALREADY_CONNECTED` path); `Connection::leak` promotes to a `'static` ref.
-- `src/structs.rs` wraps the `libmqm_default` `*_DEFAULT` constants in types with a `'ptr` lifetime
-  so pointers into user data can be attached. `src/struct_attach.rs` holds the `attach_*` methods.
-  Structures carry a `Version`; code asserts the version does not exceed
+- `src/structs.rs` defines type aliases over the `libmqm_sys` C structures with a `'ptr` lifetime so
+  pointers into user data can be attached; `src/struct_attach.rs` holds the `attach_*` methods. The
+  `libmqm_default` crate supplies the `*_DEFAULT` initialisers (referenced as `default::*` in the
+  option/param modules). Structures carry a `Version`; code asserts the version does not exceed
   `libmqm_sys::<X>_CURRENT_VERSION` before the call. When you add an option that needs a newer
-  structure version, call `set_min_version(...)` in `struct_attach.rs`.
+  structure version, call `set_min_version(...)` (`src/struct_attach.rs` and the option modules).
 
 ### Strings and CCSID
 
@@ -214,7 +224,7 @@ repo). `mqstr!` expands to `const { MqStr::def_from_str($val) }`, so `mqstr!("..
   runtime; use `connect_lib` / `connect_lib_as` / `connect_lib_with` with a loaded container.
 - **`mqc_*`** version features form a **chain**: each implies all the lower ones
   (`mqc_9_4_2_0` -> `mqc_9_4_1_0` -> ... -> `mqc_9_2_0_0`). `mqc_latest` currently resolves to
-  `mqc_9_4_5_0`. Enabling a feature above the installed client version makes the upstream
+  `mqc_10_0_1_0`. Enabling a feature above the installed client version makes the upstream
   `libmqm-sys` build script fail with *"MQC version ... does not meet the minimum requirement for
   feature ..."*.
 - **`mqai`**, **`exits`**, **`tracing`**, **`mock`** gate whole modules and are all off by default
@@ -230,17 +240,18 @@ there - do not add a hand-written table to the README.
 
 - Two families of integration tests live in `tests/`:
   - **Mock-based** - whole file gated `#![cfg(feature = "mock")]` (`connection.rs`, `properties.rs`,
-    `subscribe.rs`, `cb.rs` partly), a combined gate such as
+    `subscribe.rs`), a combined gate such as
     `#![cfg(all(feature = "mqai", feature = "mock", any(feature = "link", feature = "dlopen2")))]`
-    (`admin.rs`), or a per-test `#[cfg(feature = "mock")] #[cfg(not(feature = "mock"))]` pair inside
-    one test (`object.rs`, `put_get_bag.rs`). These need no queue manager.
+    (`admin.rs`), or per-test `#[cfg(feature = "mock")]` / `#[cfg(not(feature = "mock"))]` arms in
+    one file (`cb.rs`, `object.rs`, `put_get_bag.rs`). `object.rs` is additionally gated on
+    `link`/`dlopen2` and `put_get_bag.rs` on `mqai`. Mock arms need no queue manager.
   - **Server-based** - the `#[cfg(not(feature = "mock"))]` arms connect to a real queue manager
     using `MQSERVER` / `MQ_USER` / `MQ_PASSWORD` (see `src/test/credentials.rs`). CI runs these in
-    the `test_server` job against `icr.io/ibm-messaging/mq:9.4.5.0-r1` with `MQ_USER=app` /
+    the `test_server` job against `icr.io/ibm-messaging/mq:10.0.1.0-r1` with `MQ_USER=app` /
     `MQ_PASSWORD=app`.
-- `tests/dlopen2.rs` and `tests/exits.rs` are gated on their respective features. `put_get_bag.rs`
-  is additionally gated on `mqai`; `admin.rs` needs `mqai`, `mock` and a library (`link` or
-  `dlopen2`).
+- `tests/dlopen2.rs` is gated on the `dlopen2` feature; `tests/exits.rs` requires both `mock` and
+  `exits` (`#![cfg(all(feature = "mock", feature = "exits"))]`). `put_get_bag.rs` is additionally
+  gated on `mqai`; `admin.rs` needs `mqai`, `mock` and a library (`link` or `dlopen2`).
 - Unit tests are inline `#[cfg(test)] mod test(s)` blocks in `src/`, normally tagged
   `#[cfg_attr(coverage_nightly, coverage(off))]`. Keep that attribute on any new test module.
 - The **`mqi::test`** module (`src/test/`) is the mock toolkit. It is `#[doc(hidden)]` but compiled
@@ -275,13 +286,15 @@ there - do not add a hand-written table to the README.
 - Lints are strict: `clippy::all` is **deny**, `nursery` + `pedantic` are warn,
   `rust::unsafe_op_in_unsafe_fn` is warn, and CI compiles clippy with `RUSTFLAGS=-Dwarnings`.
   So every clippy variant (six different feature combinations in the `clippy` job) must be warning-free.
-- Silence a lint with **`#[expect(lint, reason = "...")]`**, not `#[allow]`. This is the consistent
-  convention across the crate (there are ~20 uses, all with `reason`). `clippy::allow_attributes` is
-  itself a warning, so a bare `#[allow]` fails CI. Where an `#[allow]` is unavoidable the file
-  instead carries a `#![expect(clippy::allow_attributes, reason = "Macro include 'allow' for
-  generation purposes")]` prologue - see `src/connection/param.rs`, `src/get/param.rs`,
-  `src/properties/param.rs` and `src/test/mock/mod.rs`, and the `derive_more::Constructor` gotcha
-  below.
+- Lint suppression: prefer **`#[expect(lint, reason = "...")]`** for targeted cases. Existing code is
+  mixed - many `#[expect(...)]` sites omit `reason` (e.g. `src/open/param.rs`, `src/string/ccsid.rs`).
+  A bare `#[allow]` trips the `clippy::allow_attributes` warning (which `clippy::all = deny` makes an
+  error), so when `#[allow]` is genuinely required (generated code, `non_snake_case`, false
+  positives) it is used inline with the warning allowed, e.g.
+  `#[allow(clippy::allow_attributes, clippy::missing_const_for_fn)]` in `src/mq_type.rs:138`, or
+  under a file-level `#![expect(clippy::allow_attributes, ...)]` prologue in `src/connection/param.rs`,
+  `src/get/param.rs`, `src/properties/param.rs` and `src/test/mock/mod.rs`. Add a `reason` to new
+  suppressions.
 - `missing_errors_doc` and `missing_panics_doc` are explicitly allowed in `Cargo.toml` with a TODO -
   do not "fix" that without removing the TODO.
 - Doc comments are heavy and load-bearing: many doctests demonstrate how to implement the
@@ -335,11 +348,11 @@ there - do not add a hand-written table to the README.
   `semver-check.yml` (posts a `cargo-semver-checks` comment on PRs),
   `static-analysis.yml` (zizmor on workflow files - third-party actions must stay pinned to SHAs,
   policy in `.github/zizmor.yml`).
-- `check` runs on client versions 9.3 and 9.4 with `exits,mqai,dlopen2`.
+- `check` runs on client versions 9.3, 9.4 and 10.0 with `exits,mqai,dlopen2`.
 - `test` runs stable and nightly on `ubuntu-24.04` and stable on `ubuntu-24.04-arm`; the nightly leg
   sets `RUSTFLAGS=-Zrandomize-layout`.
 - `test_server` needs the `test` job and runs the server integration command against the
-  `icr.io/ibm-messaging/mq:9.4.5.0-r1` service with `MQ_USER=app` / `MQ_PASSWORD=app`.
+  `icr.io/ibm-messaging/mq:10.0.1.0-r1` service with `MQ_USER=app` / `MQ_PASSWORD=app`.
 - `miri` runs with `-Zmiri-strict-provenance`, `PROPTEST_CASES=64` and failure persistence disabled,
   on `x86_64-unknown-linux-gnu` and `s390x-unknown-linux-gnu`. Big-endian matters: do not assume
   little-endian or native `usize` width in encoding/conversion code.
@@ -357,8 +370,9 @@ there - do not add a hand-written table to the README.
   `build(deps)` itself.)
 - Dependabot runs weekly for cargo and GitHub Actions with a cooldown.
 
-## Local environment notes
+## Local environment overrides
 
-Checkout-specific details (MQ client install path, sibling `libmqm-sys` checkout, colocated jj/git
-state) live in `AGENTS.local.md`, which is gitignored: create it locally if absent. The shared
-guidance in this file stays portable.
+Machine-specific setup (MQ client install paths, the sibling `libmqm-sys` checkout, and local
+Jujutsu/Git workflow notes) lives in `AGENTS.local.md`. That file is gitignored and must not be
+committed. If it exists in the working tree, read it before building or testing; its local paths
+take precedence over the generic defaults above.
