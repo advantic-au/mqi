@@ -1,4 +1,14 @@
+use std::{rc::Rc, sync::Arc};
+
 use crate::{Connection, connection::AsConnection, constants, handle::ObjectHandle, result::ResultComp, types::MQCO};
+
+/// Has the ability to return a reference to a [Object](crate::Object)
+pub trait AsObject {
+    type AsConnection: AsConnection;
+
+    /// Returns a reference to the contained [Object](crate::Object)
+    fn as_object(&self) -> &crate::Object<Self::AsConnection>;
+}
 
 /// An object refers to a managed entity within IBM MQ, such as a queue, topic, channel, or queue manager
 #[derive(Debug)]
@@ -56,6 +66,38 @@ impl<C: AsConnection> Drop for Object<C> {
         if self.handle.is_closeable() {
             let _ = mq.mqclose(*handle, &mut self.handle, self.drop_close_options);
         }
+    }
+}
+
+impl<C: AsConnection> AsObject for Object<C> {
+    type AsConnection = C;
+
+    fn as_object(&self) -> &crate::Object<Self::AsConnection> {
+        self
+    }
+}
+
+impl<C: AsConnection> AsObject for &Object<C> {
+    type AsConnection = C;
+
+    fn as_object(&self) -> &crate::Object<Self::AsConnection> {
+        self
+    }
+}
+
+impl<C: AsConnection> AsObject for Rc<Object<C>> {
+    type AsConnection = C;
+
+    fn as_object(&self) -> &crate::Object<Self::AsConnection> {
+        self
+    }
+}
+
+impl<C: AsConnection> AsObject for Arc<Object<C>> {
+    type AsConnection = C;
+
+    fn as_object(&self) -> &crate::Object<Self::AsConnection> {
+        self
     }
 }
 

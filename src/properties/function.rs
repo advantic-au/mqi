@@ -478,7 +478,7 @@ impl<C: AsConnection> Properties<C> {
     pub fn from_buffer(&mut self, options: MQBMHO, format: &MessageFormat, buffer: &[MQBYTE]) -> ResultComp<()> {
         // Drop the delete properties option as this fn does not modify the buffer
         let options_read_only = options - constants::MQBMHO_DELETE_PROPERTIES;
-        let mut mqmd = format.into_mqmd2();
+        let mut mqmd = format.into_mqmd();
         let bmho = structs::MQBMHO::new(mq::MQBMHO {
             Options: options_read_only.0,
             ..default::MQBMHO_DEFAULT
@@ -497,7 +497,7 @@ impl<C: AsConnection> Properties<C> {
         format: &MessageFormat,
         buffer: &'a mut [MQBYTE],
     ) -> ResultComp<(MessageFormat, &'a [MQBYTE])> {
-        let mut mqmd = format.into_mqmd2();
+        let mut mqmd = format.into_mqmd();
         let bmho = structs::MQBMHO::new(mq::MQBMHO {
             Options: options.0,
             ..default::MQBMHO_DEFAULT
@@ -519,14 +519,14 @@ impl<C: AsConnection> Properties<C> {
 #[cfg(feature = "mock")]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
-    use std::{error::Error, rc::Rc};
+    use std::{error::Error, sync::Arc};
 
     use libmqm_sys::mock::MockMq;
 
     use super::*;
     use crate::{
         Connection,
-        connection::ThreadNone,
+        connection::ThreadBlock,
         constants::{
             self, MQCC_FAILED, MQCC_OK, MQRC_CALL_IN_PROGRESS, MQRC_NONE, MQRC_PROPERTY_NAME_TOO_BIG,
             MQRC_PROPERTY_NOT_AVAILABLE, MQRC_PROPERTY_VALUE_TOO_BIG, MQTYPE_BYTE_STRING,
@@ -616,7 +616,7 @@ mod test {
             .in_sequence(&mut seq);
     }
 
-    fn properties_mocked(m: impl Fn(&mut MockMq)) -> ResultErr<Properties<Connection<Rc<MockMq>, ThreadNone>>> {
+    fn properties_mocked(m: impl Fn(&mut MockMq)) -> ResultErr<Properties<Connection<Arc<MockMq>, ThreadBlock>>> {
         Properties::new(mock::connect_ok(m), constants::MQCMHO_NONE)
     }
 

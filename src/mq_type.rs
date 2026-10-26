@@ -10,7 +10,7 @@ use crate::{
     MqChar, MqStr, constants,
     header::TextEnc,
     macros::impl_from_str,
-    string::CCSID,
+    string::{CCSID, MqStrError},
     structs,
     traits::Secret,
     types::{MQBYTE, MQCHAR, MQENC, MQRC},
@@ -145,12 +145,35 @@ impl MessageFormat {
     }
 
     #[must_use]
-    pub fn into_mqmd2(&self) -> structs::MQMD {
+    pub fn into_mqmd(&self) -> structs::MQMD {
         structs::MQMD::new(mq::MQMD {
             CodedCharSetId: self.ccsid.0,
             Encoding: self.encoding.0,
             Format: *self.fmt.into_ascii().as_ref(),
             ..default::MQMD_DEFAULT
+        })
+    }
+}
+
+impl From<MqStr<8>> for MessageFormat {
+    fn from(value: MqStr<8>) -> Self {
+        Self {
+            ccsid: CCSID::default(),
+            encoding: MQENC::default(),
+            fmt: TextEnc::Ascii(value.into()),
+        }
+    }
+}
+
+impl str::FromStr for MessageFormat {
+    type Err = MqStrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let fmt: MqStr<8> = (*s).try_into()?;
+        Ok(Self {
+            ccsid: CCSID::default(),
+            encoding: MQENC::default(),
+            fmt: TextEnc::Ascii(fmt.into()),
         })
     }
 }
@@ -321,7 +344,13 @@ impl_from_str!(CertificateLabel, MqStr<64>);
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use crate::types::CorrelationId;
+    use crate::{
+        header::{TextEnc, fmt},
+        string::CCSID,
+        types::CorrelationId,
+    };
+
+    use super::MessageFormat;
 
     #[test]
     fn correlation_id() {
@@ -331,5 +360,31 @@ mod tests {
             format!("{cid:?}"),
             "CorrelationId(ID:000000000000000000000000000000000000000000000000)"
         );
+    }
+
+    #[test]
+    fn message_format_from_mqstr() {
+        let format = MessageFormat::from(crate::mqstr!("MQSTR"));
+        assert_eq!(format.ccsid, CCSID::default());
+        assert_eq!(format.encoding, crate::types::MQENC::default());
+        assert_eq!(format.fmt, TextEnc::Ascii(fmt::MQFMT_STRING));
+    }
+
+    #[test]
+    fn message_format_from_str() {
+        let parsed: MessageFormat = "MQADMIN".parse().expect("valid format name");
+        assert_eq!(parsed, MessageFormat::from(crate::mqstr!("MQADMIN")));
+
+        let too_long = "TOO_LONG_9".parse::<MessageFormat>();
+        assert!(too_long.is_err());
+    }
+
+    #[test]
+    fn message_format_into_mqmd_roundtrip() {
+        let format = MessageFormat::from(crate::mqstr!("MQSTR"));
+        let mqmd = format.into_mqmd();
+        assert_eq!(mqmd.CodedCharSetId, format.ccsid.0);
+        assert_eq!(mqmd.Encoding, format.encoding.0);
+        assert_eq!(MessageFormat::from_mqmd(&mqmd), format);
     }
 }

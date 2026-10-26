@@ -57,6 +57,20 @@ impl<T> InqResItem<T> {
             Self::Long(IntItem { selector, value }) => (selector, AttributeValue::Long(value)),
         }
     }
+
+    pub const fn long_value(&self) -> Option<types::MQLONG> {
+        match self {
+            Self::Long(IntItem { value, .. }) => Some(*value),
+            Self::Text(_) => None,
+        }
+    }
+
+    pub fn text_value(self) -> Option<T> {
+        match self {
+            Self::Text(TextItem { value, .. }) => Some(value),
+            Self::Long(_) => None,
+        }
+    }
 }
 
 impl IntItem {
@@ -269,5 +283,33 @@ impl<T: AsRef<[types::MQCHAR]>> SetItems for TextItem<T> {
 
     fn text_attr(&self) -> &[types::MQCHAR] {
         self.value.as_ref()
+    }
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use crate::attribute;
+
+    use super::*;
+
+    #[test]
+    fn long_value_is_some_only_for_long_items() {
+        let long: InqResItem<&[types::MQCHAR]> = InqResItem::Long(
+            attribute::MQIA_MAX_MSG_LENGTH
+                .int_item(1024)
+                .expect("MQIA_MAX_MSG_LENGTH is an integer attribute"),
+        );
+        assert_eq!(long.long_value(), Some(1024));
+        assert_eq!(long.text_value(), None);
+
+        let value = [0x20; 48];
+        let text = InqResItem::Text(
+            attribute::MQCA_DEF_XMIT_Q_NAME
+                .text_item(&value)
+                .expect("MQCA_DEF_XMIT_Q_NAME is a text attribute"),
+        );
+        assert_eq!(text.long_value(), None);
+        assert_eq!(text.text_value(), Some(value.as_slice()));
     }
 }

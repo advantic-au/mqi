@@ -61,11 +61,10 @@ fn main() -> anyhow::Result<()> {
     // let reply_queue = QueueName(MqStr::from_str(&args.reply_to_queue).context("Parse reply queue name")?);
 
     // Open the reply to queue. If this is a model queue, then a temporary queue is created.
-    let (reply_object, resolved_queue_name) =
-        Object::open_with::<Option<QueueName>>(&qm, &(args.reply_to_queue, constants::MQOO_INPUT_AS_Q_DEF))
-            .warn_as_error()
-            .context("Opening the reply to queue")?;
-    let reply_queue_name = ReplyToQueueName(*resolved_queue_name.context("Resolved queue name")?);
+    let (reply_object, resolved_q, _) = Object::open_resolved(&qm, &(args.reply_to_queue, constants::MQOO_INPUT_AS_Q_DEF))
+        .warn_as_error()
+        .context("Opening the reply to queue")?;
+    let reply_queue_name = ReplyToQueueName(*resolved_q.context("Resolved queue name")?);
 
     // Read the message from stdin
     let mut stdin = io::stdin();
