@@ -19,6 +19,9 @@ pub trait AsConnection {
 /// [`MQCNO`](libmqm_sys::MQCNO) parameter used to define the connection
 pub type ConnectParam<'a> = structs::MQCNO<'a>;
 
+/// An explicit value for connecting without additional connection options.
+pub const NO_CONNECT_OPTIONS: &() = &();
+
 /// [`Connection`](crate::Connection) threading behaviour.
 ///
 /// This must be one of [`ThreadNone`](crate::connection::ThreadNone), [`ThreadNoBlock`](crate::connection::ThreadBlock)

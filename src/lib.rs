@@ -28,7 +28,7 @@ offering proven stability and performance.
 | MQI function     | Crate function(s)            |
 |-------------|------------------------------|
 | [`MQCONN`](libmqm_sys::MQCONN)    | *Not used*                   |
-| [`MQCONNX`](libmqm_sys::MQCONNX)   | [`connect`], [`connect_as`], [`connect_with`], [`connect_lib`], [`connect_lib_with`] |
+| [`MQCONNX`](libmqm_sys::MQCONNX)   | [`connect`], [`connect_default`], [`connect_as`], [`connect_with`], [`connect_lib`], [`connect_lib_with`] |
 | [`MQPUT1`](libmqm_sys::MQPUT1)    | [`Connection::put_message`], [`Connection::put_message_with`] |
 | [`MQDISC`](libmqm_sys::MQDISC)    | [`Connection::disconnect`], [`Connection::drop`]  |
 | [`MQOPEN`](libmqm_sys::MQOPEN)    | [`Object::open`], [`Object::open_with`], [`Object::open_resolved`] |

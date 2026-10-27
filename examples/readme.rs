@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use mqi::{
-    connection::{Credentials, ThreadNone},
+    connection::Credentials,
     prelude::*,
     types::{ApplName, QueueName},
 };
@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // Connect to the queue manager. Make all MQ warnings as a rust Result::Err
-    let queue_manager = mqi::connect::<ThreadNone>(&connect_options).warn_as_error()?;
+    let queue_manager = mqi::connect_default(&connect_options).warn_as_error()?;
 
     // Put a single string message on the target queue. Discard any warnings.
     queue_manager.put_message(&TARGET, &(), "Hello").discard_warning()?;

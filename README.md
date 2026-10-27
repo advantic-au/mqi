@@ -22,45 +22,54 @@ Key Features
 - **Cross Platform**: Supports Windows, MacOS, and Linux.
 - **Stability**: Built on the [libmqm-sys](https://crates.io/crates/libmqm-sys) crate, ensuring reliable connectivity to MQ queue managers using the IBM-supplied libraries.
 
-Usage
------
+Quick start
+-----------
 
-1. Download and install the client from IBM:
-   - Windows/Linux x86-64 redistributable - <https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/>
-   - MacOS (x86-64/ARM64) toolkit - <https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/mactoolkit/>
-   - Linux (x86-64/ARM64/PowerPC64le/S390X) MQ Advanced Developer - <https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqadv/>
+To build and run an `mqi` application, you need an IBM MQ client installation and
+access to a queue manager. The client can be downloaded from IBM:
 
-2. Extract and install the MQ client in any location.
+- Windows/Linux x86-64 redistributable:
+  <https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/>
+- macOS (x86-64/ARM64) toolkit:
+  <https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/mactoolkit/>
+- Linux (x86-64/ARM64/PowerPC64le/S390X) MQ Advanced Developer:
+  <https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqadv/>
 
-3. Set the MQ_HOME environment variable to the installed location.
+Install the client, set `MQ_HOME` to its installation directory, and make sure
+the MQ client libraries can be found when your application runs. On Linux, for
+example, add `$MQ_HOME/lib64` to `LD_LIBRARY_PATH`.
 
-4. Add the `mqi` crate to your project:
-
-    ```sh
-    cargo add mqi
-    ```
-
-5. Ensure the MQ libraries are in the library search path. On Linux, this can
-   be achieved by setting the `LD_LIBRARY_PATH` environment variable.
-
-An easy way of running an MQ server for development and testing is to run the IBM supplied docker container:
+For local development, the IBM MQ container can provide a queue manager:
 
 ```sh
-docker run -d --publish 1414:1414 icr.io/ibm-messaging/mq:latest
+docker run --env LICENSE=accept --detach --publish 1414:1414 icr.io/ibm-messaging/mq:latest
 ```
 
-Refer to <https://github.com/ibm-messaging/mq-container/blob/master/docs/usage.md>
+Accept the IBM MQ license before running the container. See the
+[container usage guide](https://github.com/ibm-messaging/mq-container/blob/master/docs/usage.md)
+for configuration details.
 
-Example
--------
+Add `mqi` to your Rust project:
 
-Connect to the default queue manager using the `MQSERVER` environment variable with username and password authentication.
+```sh
+cargo add mqi
+```
+
+The following example connects using MQI's `MQSERVER` configuration, puts a
+string on `DEV.QUEUE.1`, and disconnects. Set `MQSERVER` to your channel and
+listener, and replace the sample credentials with credentials configured for
+your queue manager.
+For example, when the listener is available on localhost:
+
+```sh
+export MQSERVER='DEV.APP.SVRCONN/TCP/localhost(1414)'
+```
 
 ```rust
 use std::error::Error;
 
 use mqi::{
-    connection::{Credentials, ThreadNone},
+    connection::Credentials,
     prelude::*,
     types::{ApplName, QueueName},
 };
@@ -68,15 +77,14 @@ use mqi::{
 fn main() -> Result<(), Box<dyn Error>> {
     const TARGET: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
 
-    // User credentials and application name.
-    // MQI will use the C API defaults, referring to MQSERVER environment variable if set.
+    // MQI reads the client connection details from MQSERVER.
     let connect_options = (
         ApplName(mqstr!("readme_example")),
         Credentials::User("user", "password".into()),
     );
 
     // Connect to the queue manager. Make all MQ warnings as a rust Result::Err
-    let queue_manager = mqi::connect::<ThreadNone>(&connect_options).warn_as_error()?;
+    let queue_manager = mqi::connect_default(&connect_options).warn_as_error()?;
 
     // Put a single string message on the target queue. Discard any warnings.
     queue_manager.put_message(&TARGET, &(), "Hello").discard_warning()?;
@@ -88,7 +96,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
-Refer to the [examples](/examples/) folder for comprehensive examples that cover reading and putting messages to a queue, using transactions and working with topics.
+The example treats connection warnings as errors, but discards warnings from
+put and disconnect. See [handling results and warnings](./docs/recipes.md#handling-mq-warnings)
+for what those choices mean. For more tasks, see the [MQI recipes](./docs/recipes.md)
+and [runnable examples](./examples/README.md).
 
 Goals
 -----

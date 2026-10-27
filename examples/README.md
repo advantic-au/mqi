@@ -1,6 +1,9 @@
 Examples
 ========
 
+For task-focused code snippets, see the [MQI recipes](../docs/recipes.md). These
+programs are complete examples that can be run and adapted.
+
 | Name                                      | Description                              | Demonstrates     |
 |-------------------------------------------|------------------------------------------|------------------|
 | [subscribe_managed](subscribe_managed.rs) | Subscribe and get messages from a topic  | Managed subscription and get_message loop |
@@ -9,4 +12,4 @@ Examples
 | [forward](forward.rs)                     | Forwards a single message between queues | Syncpoint, get_data_with, put_message, context, message properties |
 | [dlopen2](dlopen2.rs)                     | Load the MQ library at runtime           | Decoupling compile with the MQ libraries, runtime loading |
 | [ping_server](ping_server.rs)             | Simple server that echos message to reply queue | Server Request/Reply pattern, MQMD get and set |
-| [request_reply](request_reply.rs)         | Send a request to a queue and wait for ar reply | Client Request/Reply pattern, dynamic queues |
+| [request_reply](request_reply.rs)         | Send a request to a queue and wait for a reply | Client Request/Reply pattern, dynamic queues |

@@ -4,9 +4,28 @@ use {crate::bag, crate::types::MQCBO};
 
 use crate::{
     Connection, connect_lib_as,
-    connection::{ConnectAttr, ConnectOption, ConnectValue, Threading},
+    connection::{ConnectAttr, ConnectOption, ConnectValue, ThreadNone, Threading},
     result::ResultComp,
 };
+
+/// Connect using the compile-time linked MQ library and the default
+/// [`ThreadNone`](crate::connection::ThreadNone) threading mode.
+///
+/// Use [`connect`](crate::connect) when a different threading mode is required.
+///
+/// # Example
+///
+/// ```no_run
+/// use mqi::{connection::NO_CONNECT_OPTIONS, prelude::*};
+///
+/// let connection = mqi::connect_default(NO_CONNECT_OPTIONS).warn_as_error()?;
+/// connection.disconnect().warn_as_error()?;
+/// # Ok::<(), mqi::result::Error>(())
+/// ```
+#[inline]
+pub fn connect_default<'co>(options: &impl ConnectOption<'co>) -> ResultComp<Connection<LinkedMq, ThreadNone>> {
+    connect::<ThreadNone>(options)
+}
 
 /// Create a connection to a queue manager using the compile time linked MQ library
 /// and type inferred [`ConnectValue`].
