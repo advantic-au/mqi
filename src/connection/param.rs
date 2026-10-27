@@ -240,14 +240,20 @@ pub type Credentials<'cred, S> = CredentialsSecret<'cred, ProtectedSecret<S>>;
 
 /// Holds TLS parameters for use with [`connect`](crate::connection).
 ///
-/// It is a wrapper around the [`MQSCO`](libmqm_sys::MQSCO) structure.
+/// It wraps the [`MQSCO`](libmqm_sys::MQSCO) structure and can set quantum-safe options on the
+/// [`MQCD`](libmqm_sys::MQCD) connection definition.
 #[derive(Debug, Clone)]
 #[must_use]
-pub struct Tls<'pw>(structs::MQSCO<'pw>, CipherSpec);
+pub struct Tls<'pw>(structs::MQSCO<'pw>, CipherSpec, types::MQQS, types::MQQSR);
 
 impl Default for Tls<'_> {
     fn default() -> Self {
-        Self(structs::MQSCO::new(default::MQSCO_DEFAULT), CipherSpec::default())
+        Self(
+            structs::MQSCO::new(default::MQSCO_DEFAULT),
+            CipherSpec::default(),
+            constants::MQQS_UNPROTECTED,
+            constants::MQQSR_OPTIONAL,
+        )
     }
 }
 
@@ -318,6 +324,18 @@ impl<'pw> Tls<'pw> {
         tls.certificate_label(label);
         cipher.clone_into(&mut tls.1);
         tls
+    }
+
+    /// Set the quantum-safe algorithm used for the connection.
+    pub fn quantum_safe_algorithm(&mut self, algorithm: types::MQQS) -> &mut Self {
+        self.2 = algorithm;
+        self
+    }
+
+    /// Set whether the connection requires quantum-safe cryptography.
+    pub fn quantum_safe_required(&mut self, requirement: types::MQQSR) -> &mut Self {
+        self.3 = requirement;
+        self
     }
 
     pub fn crypto_hardware(&mut self, hardware: Option<&CryptoHardware>) -> &mut Self {
@@ -392,6 +410,11 @@ unsafe impl<'a, T: Secret<'a, str> + Copy> option::ConnectOption<'a> for types::
 unsafe impl<'tls> option::ConnectOption<'tls> for Tls<'tls> {
     fn apply_param(&self, structs: &mut option::ConnectStructs<'tls>) -> option::ConnectStructFlags {
         self.0.clone_into(&mut structs.sco);
+        if self.2 != constants::MQQS_UNPROTECTED || self.3 != constants::MQQSR_OPTIONAL {
+            structs.cd.set_min_version(mq::MQCD_VERSION_13);
+            structs.cd.QuantumSafeAlgorithm = self.2.0;
+            structs.cd.QuantumSafeRequired = self.3.0;
+        }
         option::CONNECT_HAS_SCO | self.1.apply_param(structs)
     }
 }
@@ -660,6 +683,30 @@ mod tests {
             assert!(cs.cd.Version >= mq::MQCD_VERSION_7);
             assert_eq!(&cs.cd.SSLCipherSpec, CIPHER.as_mqchar());
             assert_eq!(bf & option::CONNECT_HAS_CD, option::CONNECT_HAS_CD);
+        });
+    }
+
+    #[test]
+    fn tls_quantum_safe_options() {
+        let tls = Tls::default();
+        test_co(&tls, |_, _, cs| {
+            assert_eq!(cs.cd.Version, mq::MQCD_VERSION_7);
+        });
+
+        let mut tls = Tls::default();
+        tls.quantum_safe_algorithm(constants::MQQS_HYBMLKEM);
+        test_co(&tls, |_, _, cs| {
+            assert_eq!(cs.cd.Version, mq::MQCD_VERSION_13);
+            assert_eq!(cs.cd.QuantumSafeAlgorithm, constants::MQQS_HYBMLKEM.0);
+            assert_eq!(cs.cd.QuantumSafeRequired, constants::MQQSR_OPTIONAL.0);
+        });
+
+        let mut tls = Tls::default();
+        tls.quantum_safe_required(constants::MQQSR_REQUIRED);
+        test_co(&tls, |_, _, cs| {
+            assert_eq!(cs.cd.Version, mq::MQCD_VERSION_13);
+            assert_eq!(cs.cd.QuantumSafeAlgorithm, constants::MQQS_UNPROTECTED.0);
+            assert_eq!(cs.cd.QuantumSafeRequired, constants::MQQSR_REQUIRED.0);
         });
     }
 
