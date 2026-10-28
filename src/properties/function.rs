@@ -21,6 +21,9 @@ use crate::{
 /// Manage message properties
 ///
 /// This is equivalent of a [`MQHMSG`](mq::MQHMSG), with an associated connection.
+/// Dropping the handle attempts to delete it, but cannot return an MQ warning
+/// or error. Call [`close`](Self::close) when the deletion outcome needs to be
+/// observed.
 #[derive(Debug)]
 #[must_use]
 pub struct Properties<C: AsConnection> {
@@ -395,6 +398,11 @@ impl<C: AsConnection> Properties<C> {
         }
     }
 
+    /// Delete the message handle and return the MQ completion status.
+    ///
+    /// Use this instead of relying on `Drop` when deletion warnings or errors
+    /// need to be handled by the application.
+    ///
     /// This function uses the [`MQDLTMH`](libmqm_sys::MQDLTMH) MQ API function.
     pub fn close(self) -> ResultErr<()> {
         let mut s = self;

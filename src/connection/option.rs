@@ -24,7 +24,7 @@ pub const NO_CONNECT_OPTIONS: &() = &();
 
 /// [`Connection`](crate::Connection) threading behaviour.
 ///
-/// This must be one of [`ThreadNone`](crate::connection::ThreadNone), [`ThreadNoBlock`](crate::connection::ThreadBlock)
+/// This must be one of [`ThreadNone`](crate::connection::ThreadNone), [`ThreadNoBlock`](crate::connection::ThreadNoBlock)
 /// or [`ThreadBlock`](crate::connection::ThreadBlock). This value will influence the [`Send`] and [`Sync`] traits
 /// on the [`Connection`](crate::Connection).
 ///
@@ -52,7 +52,74 @@ pub trait ConnectAttr<S> {
         Self: std::marker::Sized;
 }
 
-/// A trait that manipulates the parameters to the [`MQCONNX`](`::libmqm_sys::MQCONNX`) function
+/// A connection setting accepted by the [`connect`](crate::connect) functions.
+///
+/// Implementations are provided for common connection settings, and tuples let
+/// you combine them. Users normally pass these values rather than implementing
+/// this trait themselves.
+///
+/// Common options include:
+///
+/// - [`ApplName`](crate::types::ApplName) to identify the application.
+/// - [`Credentials`](crate::connection::Credentials) to provide user credentials.
+/// - [`MqServer`](crate::connection::MqServer) to select a client channel and server.
+/// - [`Tls`](crate::connection::Tls) or [`CipherSpec`](crate::types::CipherSpec) to configure TLS.
+/// - [`QueueManagerName`](crate::types::QueueManagerName) to select a queue manager.
+/// - [`Binding`](crate::connection::Binding) to select local or client binding.
+/// - [`Ccdt`](crate::connection::Ccdt) to select a client channel definition table URL.
+/// - [`MQCNO`](libmqm_sys::MQCNO) flags and other low-level MQ structures for
+///   settings not covered by the higher-level options.
+///
+/// Use [`NO_CONNECT_OPTIONS`] when no additional settings are needed.
+///
+/// Wrap an option in `Option<T>` to decide at runtime whether to apply it:
+/// `Some(value)` applies the option and `None` leaves it unapplied. This is
+/// useful when assembling a tuple of options from runtime configuration. The
+/// `Option` wrapper does not clear or override a setting applied by another
+/// option in the tuple; avoid conflicting settings unless their precedence is
+/// intentional. The same pattern is supported by [`OpenOption`](crate::open::OpenOption).
+///
+/// # Example
+///
+/// ```no_run
+/// use mqi::{
+///     connection::{Credentials, MqServer, NO_CONNECT_OPTIONS, Tls},
+///     prelude::*,
+///     types::{ApplName, CipherSpec, KeyRepo, QueueName},
+/// };
+///
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let username = std::env::var("MQ_USER")?;
+///     let password = std::env::var("MQ_PASSWORD")?;
+///     let use_tls = std::env::var("MQ_USE_TLS").is_ok();
+///     let key_repo = KeyRepo(mqstr!("tls.kdb"));
+///     let cipher = CipherSpec(mqstr!("TLS_AES_128_GCM_SHA256"));
+///     let tls = use_tls.then(|| Tls::new(&key_repo, None, &cipher));
+///     let options = (
+///         ApplName(mqstr!("my_application")),
+///         Credentials::User(&username, password.as_str().into()),
+///         MqServer::try_from("DEV.APP.SVRCONN/TCP/localhost(1414)")?,
+///         tls,
+///     );
+///     let connection = mqi::connect_default(&options).warn_as_error()?;
+///     connection.put_message(&QueueName(mqstr!("DEV.QUEUE.1")), &(), "Hello")
+///         .warn_as_error()?;
+///     connection.disconnect().warn_as_error()?;
+///
+///     let connection = mqi::connect_default(NO_CONNECT_OPTIONS).warn_as_error()?;
+///     connection.disconnect().warn_as_error()?;
+///     Ok(())
+/// }
+/// ```
+///
+/// Tuple options are applied from right to left. If multiple options set the
+/// same MQ field, the leftmost option is applied last and takes precedence for
+/// that field. Prefer a single option for each setting unless you intentionally
+/// need to override it; options that modify several related fields can still
+/// interact.
+///
+/// This trait manipulates the parameters to the
+/// [`MQCONNX`](libmqm_sys::MQCONNX) function.
 #[expect(unused_variables)]
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `ConnectOption` so it can't be used as an argument for MQI connect"

@@ -11,7 +11,27 @@ pub trait PutMessage {
 
 pub type PutParam<'a> = (structs::MQMD, structs::MQPMO<'a>);
 
-/// A trait that manipulates the parameters to the [`MQPUT`](`::libmqm_sys::MQPUT`) function
+/// Options accepted by the message put functions.
+///
+/// Options can be combined in tuples. Wrap an individual option in
+/// `Option<T>` to apply it conditionally at runtime: `Some(value)` applies the
+/// option and `None` skips it. Skipping an option does not undo a setting
+/// supplied by another option in the tuple. Tuple options are applied from
+/// right to left, so the leftmost option takes precedence when options set the
+/// same field.
+///
+/// This trait manipulates the parameters to [`MQPUT`](libmqm_sys::MQPUT).
+/// It is also used by [`MQPUT1`](libmqm_sys::MQPUT1).
+///
+/// ```
+/// use mqi::{constants, put::PutOption};
+///
+/// fn accepts_put_option<'a>(_: &impl PutOption<'a>) {}
+///
+/// let use_syncpoint = true;
+/// let syncpoint = use_syncpoint.then_some(constants::MQPMO_SYNCPOINT);
+/// accepts_put_option(&syncpoint);
+/// ```
 ///
 /// ## Safety
 /// This trait can directly manipulate the [`MQPMO`](structs::MQPMO) structure which is used by [`MQPUT`](libmqm_sys::MQPUT)

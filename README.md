@@ -14,6 +14,8 @@ The `mqi` crate provides idiomatic Rust APIs for the IBM® MQ Interface (MQI) an
 
 This crate enables Rust developers to interact with IBM MQ servers, leveraging the powerful and stable IBM MQ libraries.
 
+New to IBM MQ? Start with IBM's [overview of IBM MQ](https://www.ibm.com/products/mq).
+
 Key Features
 ------------
 
@@ -39,15 +41,29 @@ Install the client, set `MQ_HOME` to its installation directory, and make sure
 the MQ client libraries can be found when your application runs. On Linux, for
 example, add `$MQ_HOME/lib64` to `LD_LIBRARY_PATH`.
 
-For local development, the IBM MQ container can provide a queue manager:
+For local development, start the IBM MQ container with its default developer
+configuration. This creates queue manager `QM1`, the `DEV.QUEUE.1` sample queue,
+and the `DEV.APP.SVRCONN` client channel used below:
 
 ```sh
-docker run --env LICENSE=accept --detach --publish 1414:1414 icr.io/ibm-messaging/mq:latest
+docker run \
+  --env LICENSE=accept \
+  --env MQ_QMGR_NAME=QM1 \
+  --publish 1414:1414 \
+  --detach \
+  --rm \
+  --name QM1 \
+  icr.io/ibm-messaging/mq:latest
+
+export MQSERVER='DEV.APP.SVRCONN/TCP/localhost(1414)'
 ```
 
 Accept the IBM MQ license before running the container. See the
 [container usage guide](https://github.com/ibm-messaging/mq-container/blob/master/docs/usage.md)
-for configuration details.
+and its [default developer configuration](https://github.com/ibm-messaging/mq-container/blob/master/docs/developer-config.md)
+for details. This example uses the container's local development configuration;
+configure appropriate authentication and transport security before connecting
+to a queue manager outside local development.
 
 Add `mqi` to your Rust project:
 
@@ -55,51 +71,55 @@ Add `mqi` to your Rust project:
 cargo add mqi
 ```
 
-The following example connects using MQI's `MQSERVER` configuration, puts a
-string on `DEV.QUEUE.1`, and disconnects. Set `MQSERVER` to your channel and
-listener, and replace the sample credentials with credentials configured for
-your queue manager.
-For example, when the listener is available on localhost:
-
-```sh
-export MQSERVER='DEV.APP.SVRCONN/TCP/localhost(1414)'
-```
+The following example connects using the `MQSERVER` setting above, puts a string
+on `DEV.QUEUE.1`, then reads a message from that queue. For a secured channel,
+configure connection credentials with `connection::Credentials`; provide real
+credentials through a secret manager or environment, not source code.
 
 ```rust
 use std::error::Error;
 
 use mqi::{
-    connection::Credentials,
+    Object, constants,
+    connection::NO_CONNECT_OPTIONS,
+    get::GetWait,
     prelude::*,
-    types::{ApplName, QueueName},
+    types::QueueName,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-    const TARGET: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let queue_manager = mqi::connect_default(NO_CONNECT_OPTIONS).warn_as_error()?;
+    {
+        let queue = Object::open(
+            &queue_manager,
+            &(QueueName(mqstr!("DEV.QUEUE.1")), constants::MQOO_INPUT_AS_Q_DEF | constants::MQOO_OUTPUT),
+        )
+        .warn_as_error()?;
 
-    // MQI reads the client connection details from MQSERVER.
-    let connect_options = (
-        ApplName(mqstr!("readme_example")),
-        Credentials::User("user", "password".into()),
-    );
+        queue.put_message(&(), "Hello from Rust").warn_as_error()?;
 
-    // Connect to the queue manager. Make all MQ warnings as a rust Result::Err
-    let queue_manager = mqi::connect_default(&connect_options).warn_as_error()?;
-
-    // Put a single string message on the target queue. Discard any warnings.
-    queue_manager.put_message(&TARGET, &(), "Hello").discard_warning()?;
-
-    // Queue manager disconnect - this also happens automatically on Drop.
-    queue_manager.disconnect().discard_warning()?;
+        let mut buffer = vec![0u8; 1024];
+        if let Some(message) = queue
+            .get_string(&GetWait::Wait(5_000), &mut *buffer)
+            .warn_as_error()?
+        {
+            let message: std::borrow::Cow<str> = message.try_into()?;
+            println!("received: {message}");
+        } else {
+            println!("No message arrived before the wait expired.");
+        }
+    }
+    queue_manager.disconnect().warn_as_error()?;
 
     Ok(())
 }
 ```
 
-The example treats connection warnings as errors, but discards warnings from
-put and disconnect. See [handling results and warnings](./docs/recipes.md#handling-mq-warnings)
-for what those choices mean. For more tasks, see the [MQI recipes](./docs/recipes.md)
-and [runnable examples](./examples/README.md).
+The example treats MQ warnings as errors. See
+[handling results and warnings](./docs/recipes.md#handling-mq-warnings) for
+other choices. To learn which option to use for a common MQ task, see the
+[MQ task-to-option guide](./docs/recipes.md#choose-options-by-mq-task), then
+browse the [MQI recipes](./docs/recipes.md) and [runnable examples](./examples/README.md).
 
 Goals
 -----
@@ -123,13 +143,17 @@ Feature flags
 | tracing        |   | Add tracing to the MQI and MQAI calls using the tracing crate |
 | mqai           |   | Expose functions and structures related to MQAI |
 | exits          |   | Expose functions and structures related to MQ exits |
-| mqc_*          | mqc_9_2_0_0 | Enable features of a specific MQI library version eg `mqc_9_4_1_0` |
+| mqc_*          | mqc_9_3_0_0 | Enable features of a specific MQI library version eg `mqc_9_4_1_0` |
 
 Version Compatibility
 ---------------------
 
 - The current MSRV is 1.95. No MSRV policy has been established.
-- IBM MQ client support is in line with IBM's support for MQ client. This crate supports IBM MQ client 9.2 to 9.4. Version specific features can be enabled using the `mqc_*` feature flags.
+- MQ client API features are available from 9.2.0.0 through 10.0.1.0. The default
+  `mqc_9_3_0_0` feature selects the minimum MQ client API version; enable a higher
+  `mqc_*` feature to use newer APIs. The installed MQ client must support the
+  selected feature version. IBM's support lifecycle for MQ clients is separate
+  from this crate's feature range.
 
 Status
 ------

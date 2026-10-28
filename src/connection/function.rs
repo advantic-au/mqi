@@ -16,6 +16,9 @@ use crate::{Library, MqFunctions, connection::AsConnection, handle::ConnectionHa
 /// A connection to an IBM MQ queue manager
 ///
 /// This is equivalent of a [`MQHCONN`](mq::MQHCONN) handle, with additional associated MQ library.
+/// Dropping the connection attempts to disconnect, but cannot return an MQ
+/// warning or error. Call [`disconnect`](Self::disconnect) when the outcome
+/// needs to be observed.
 
 #[derive(Debug)]
 pub struct Connection<L: Library<MQ: Mqi>, H> {
@@ -28,8 +31,10 @@ pub struct Connection<L: Library<MQ: Mqi>, H> {
 
 /// A logical reference to a [`Connection`]
 ///
-/// This is equivalent of a [`MQHCONN`](mq::MQHCONN) handle. Lifetime of this reference is linked to a
-/// real [`Connection`].
+/// This is equivalent of a [`MQHCONN`](mq::MQHCONN) handle. A reference borrows
+/// the underlying connection and dropping it does not disconnect. Use
+/// [`Connection::connection_ref`] to create a reference whose lifetime is
+/// bounded by an owned connection.
 #[derive(Debug)]
 #[must_use]
 pub struct ConnectionRef<'conn, L: Library<MQ: Mqi>, H> {
@@ -39,7 +44,10 @@ pub struct ConnectionRef<'conn, L: Library<MQ: Mqi>, H> {
     _ref: PhantomData<&'conn ()>,
 }
 
-/// Holds a [`Connection`] or a referenced connection [`ConnectionRef`]
+/// Holds either an owned [`Connection`] or a referenced [`ConnectionRef`].
+///
+/// The `Owned` variant disconnects when dropped. The `Ref` variant does not
+/// own the MQ connection and dropping it does not disconnect.
 #[derive(Debug)]
 #[must_use]
 pub enum ConnectionEither<'conn, L: Library<MQ: Mqi>, H> {
@@ -87,10 +95,12 @@ impl<L, H> Connection<L, H>
 where
     L: Library<MQ: Mqi>,
 {
-    /// Leak the connection to a static reference
+    /// Convert the connection into a reference with a caller-selected lifetime.
     ///
-    /// This is typically used to have a Connection that is active for the entire lifetime of an
-    /// application, without closing the connection.
+    /// This deliberately prevents the connection from disconnecting when the
+    /// returned reference is dropped. Use it only when the MQ connection is
+    /// intended to remain active for the rest of the process; prefer
+    /// [`connection_ref`](Self::connection_ref) for ordinary borrowing.
     pub const fn leak<'a>(self) -> ConnectionRef<'a, L, H> {
         let handle = self.handle;
         // SAFETY: moving mq (Library) to ConnectionRef
@@ -138,6 +148,7 @@ impl<L: Library<MQ: Mqi>, H> AsConnection for ConnectionEither<'_, L, H> {
 }
 
 impl<'a, L: Library<MQ: Mqi>, H> ConnectionEither<'a, L, H> {
+    /// Create a non-owning reference to the contained connection.
     pub fn connection_ref<'b: 'a>(&'b self) -> ConnectionRef<'a, L, H>
     where
         L: Clone,
@@ -194,12 +205,24 @@ impl<L: Library<MQ: Mqi>, H: option::Threading> option::ConnectValue<Self> for C
     }
 }
 
-/// Create a connection to a queue manager using a [`Library`] returning a [`Connection`].
+/// Create a connection using the supplied MQ [`Library`] and threading mode.
 ///
-/// The connection parameters are provided using a [`ConnectOption`](option::ConnectOption). Multiple [`ConnectOption`](option::ConnectOption) can
-/// be supplied using tuples of varying length.
+/// Use this instead of the linked [`connect`](crate::connect) when loading the
+/// MQ library at runtime or supplying a custom library implementation. For a
+/// compile-time linked connection with the common
+/// [`ThreadNone`](crate::connection::ThreadNone) mode, use
+/// [`connect_default`](crate::connect_default).
 ///
-/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) verb.
+/// `options` may be a single
+/// [`ConnectOption`](crate::connection::ConnectOption) or a tuple
+/// combining connection settings such as the application name, credentials,
+/// TLS, and channel definition. Pass
+/// [`NO_CONNECT_OPTIONS`](crate::connection::NO_CONNECT_OPTIONS) for MQI defaults.
+///
+/// The `H` type controls the connection's thread-safety guarantees; see
+/// [`Threading`](crate::connection::Threading). The function invokes
+/// [`MQCONNX`](libmqm_sys::MQCONNX) and returns a
+/// [`ResultComp`](crate::result::ResultComp) that preserves successful MQ warnings.
 ///
 /// ## Panics
 /// This will panic when:
@@ -213,12 +236,16 @@ where
     connect_lib_as(lib, options)
 }
 
-/// Create a connection to a queue manager using a [`Library`] returning a ([`Connection`], [impl `ConnectAttr`](option::ConnectAttr)) tuple.
+/// Connect using the supplied MQ [`Library`] and return a connection plus an
+/// additional [`ConnectAttr`](crate::connection::ConnectAttr).
 ///
-/// The connection parameters are provided using a [`ConnectOption`](option::ConnectOption). Multiple [`ConnectOption`](option::ConnectOption) can
-/// be supplied using tuples of varying length.
+/// This is the library-parameterized counterpart to
+/// [`connect_with`](crate::connect_with). The result is
+/// `(connection, attribute)`. Use it when you need an MQ attribute, such as a
+/// connection identifier, as well as a connection. See [`connect_lib`] for
+/// library selection, options, threading, and warning behavior.
 ///
-/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) verb.
+/// The function invokes [`MQCONNX`](libmqm_sys::MQCONNX).
 ///
 /// ## Panics
 /// This will panic when:
@@ -233,12 +260,15 @@ where
     connect_lib_as(lib, options)
 }
 
-/// Create a connection to a queue manager using a [`Library`] returning a usually inferred [`ConnectValue`](option::ConnectValue).
+/// Connect using the supplied MQ [`Library`] and infer the returned value from
+/// its expected type.
 ///
-/// The connection parameters are provided using a [`ConnectOption`](option::ConnectOption). Multiple [`ConnectOption`](option::ConnectOption) can
-/// be supplied using tuples of varying length.
+/// This is the general form behind [`connect_lib`] and
+/// [`connect_lib_with`](crate::connect_lib_with). Use it when a custom
+/// [`ConnectValue`](crate::connection::ConnectValue) determines the returned value; for
+/// the usual connection result, prefer [`connect_lib`].
 ///
-/// This function uses the [`MQCONNX`](libmqm_sys::MQCONNX) verb.
+/// The function invokes [`MQCONNX`](libmqm_sys::MQCONNX).
 ///
 /// ## Panics
 /// This will panic when:
@@ -308,6 +338,10 @@ where
 }
 
 impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
+    /// Disconnect from the queue manager and return the MQ completion status.
+    ///
+    /// Prefer this over relying on `Drop` when disconnect warnings or errors
+    /// need to be handled by the application.
     pub fn disconnect(self) -> ResultComp<()> {
         let mut s = self;
         s.mq.mqdisc(&mut s.handle)

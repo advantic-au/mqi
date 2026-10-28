@@ -62,7 +62,26 @@ pub trait GetValue<'b, R, B>: std::marker::Sized {
     }
 }
 
-/// A trait that manipulates the parameters to the [`MQGET`](`::libmqm_sys::MQGET`) function
+/// Options accepted by the message get functions.
+///
+/// Options can be combined in tuples. Wrap an individual option in
+/// `Option<T>` to apply it conditionally at runtime: `Some(value)` applies the
+/// option and `None` skips it. Skipping an option does not undo a setting
+/// supplied by another option in the tuple. Tuple options are applied from
+/// right to left, so the leftmost option takes precedence when options set the
+/// same field.
+///
+/// This trait manipulates the parameters to [`MQGET`](libmqm_sys::MQGET).
+///
+/// ```
+/// use mqi::get::{GetOption, GetWait};
+///
+/// fn accepts_get_option(_: &impl GetOption) {}
+///
+/// let wait_for_message = true;
+/// let wait = wait_for_message.then_some(GetWait::Wait(5_000));
+/// accepts_get_option(&wait);
+/// ```
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get")]
 pub trait GetOption {
     fn apply_param(&self, param: &mut GetParam);

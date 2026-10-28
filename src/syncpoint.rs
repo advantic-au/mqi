@@ -9,7 +9,14 @@ use crate::{
     types::MQBO,
 };
 
-/// Manage the state of syncpoint of a connection
+/// Manage an MQ unit of work on a connection.
+///
+/// Use [`new`](Self::new) to coordinate MQI operations marked with
+/// `MQGMO_SYNCPOINT` or `MQPMO_SYNCPOINT`; it does not call `MQBEGIN`.
+/// [`begin`](Self::begin) explicitly calls `MQBEGIN` for a unit of work that
+/// involves an external resource manager. Commit or back out explicitly to
+/// observe the MQ completion status. Dropping an unfinished value attempts a
+/// backout, but ignores any warning or error from that attempt.
 #[derive(Debug)]
 #[must_use]
 pub struct Syncpoint<C: AsConnection> {
@@ -17,6 +24,11 @@ pub struct Syncpoint<C: AsConnection> {
 }
 
 impl<C: AsConnection> Syncpoint<C> {
+    /// Manage the current MQ unit of work without calling `MQBEGIN`.
+    ///
+    /// MQ operations join the unit of work when called with the appropriate
+    /// syncpoint options, such as `MQGMO_SYNCPOINT` for a get and
+    /// `MQPMO_SYNCPOINT` for a put.
     pub const fn new(connection: C) -> Self {
         Self {
             connection: ManuallyDrop::new(connection),

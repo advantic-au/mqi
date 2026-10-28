@@ -10,7 +10,14 @@ pub struct OpenParamOption<'a, T> {
 
 pub type OpenParam<'a> = OpenParamOption<'a, types::MQOO>;
 
-/// A trait that manipulates the parameters to the [`MQOPEN`](`::libmqm_sys::MQOPEN`) function
+/// Options accepted by [`Object::open`](crate::Object::open).
+///
+/// Common options and tuples of options can be passed directly. Wrap an
+/// individual option in `Option<T>` to apply it conditionally at runtime:
+/// `Some(value)` applies it and `None` skips it. Omitting an option does not
+/// undo a conflicting setting applied by another option in the tuple.
+///
+/// This trait manipulates the parameters to the [`MQOPEN`](libmqm_sys::MQOPEN) function.
 #[diagnostic::on_unimplemented(
     message = "{Self} does not implement `OpenOption` so it can't be used as an argument for MQI open"
 )]

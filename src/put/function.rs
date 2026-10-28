@@ -95,6 +95,40 @@ mod mqai {
 }
 
 impl<C: AsConnection> Object<C> {
+    /// Put a message to an already-open queue or topic.
+    ///
+    /// Prefer this method when you will use the open object for multiple
+    /// operations. Open it with [`Object::open`](crate::Object::open), passing
+    /// the appropriate [`MQOO_OUTPUT`](crate::constants::MQOO_OUTPUT) option.
+    /// For a one-off put without keeping an object open, use
+    /// [`Connection::put_message`](crate::Connection::put_message), which uses
+    /// MQPUT1.
+    ///
+    /// The message may be a string (`&str`, sent as UTF-8 with
+    /// `MQFMT_STRING`) or a byte buffer paired with a
+    /// [`MessageFormat`](crate::types::MessageFormat). `put_options` controls
+    /// MQPMO behavior, independently of the options used to open the object.
+    /// Wrap an individual put option in `Some` or `None` to apply or skip it
+    /// based on runtime configuration. Skipping an option does not clear a
+    /// setting supplied by another option in the tuple. Successful MQ warnings
+    /// are preserved in the returned
+    /// [`Completion`](crate::result::Completion).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use mqi::{Object, constants, prelude::*, types::QueueName};
+    ///
+    /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
+    /// let queue = Object::open(
+    ///     &connection,
+    ///     &(QueueName(mqstr!("DEV.QUEUE.1")), constants::MQOO_OUTPUT),
+    /// )
+    /// .warn_as_error()?;
+    ///
+    /// queue.put_message(&(), "Hello, MQ").warn_as_error()?;
+    /// # Ok::<(), mqi::result::Error>(())
+    /// ```
     pub fn put_message<'po>(
         &self,
         put_options: &impl option::PutOption<'po>,
@@ -103,6 +137,13 @@ impl<C: AsConnection> Object<C> {
         self.put_message_with(put_options, message)
     }
 
+    /// Put a message to an open object and extract additional attributes.
+    ///
+    /// This is [`put_message`](Self::put_message) with a result value extracted
+    /// through [`PutAttr`](crate::put::PutAttr). Use it when the MQPUT result
+    /// includes an attribute you need, such as a generated message identifier.
+    /// The put options, message formats, and warning behavior are the same as
+    /// for [`put_message`](Self::put_message).
     pub fn put_message_with<'po, R>(
         &self,
         put_options: &impl option::PutOption<'po>,
@@ -151,7 +192,50 @@ where
 }
 
 impl<L: Library<MQ: mq::Mqi>, H> Connection<L, H> {
-    /// Put a message to a queue or topic
+    /// Put one message to a queue or topic without opening an object first.
+    ///
+    /// This method uses MQPUT1: it opens the destination, puts the message, and
+    /// closes the destination as part of one MQ call. It is convenient for a
+    /// one-off put. If you will perform multiple operations on the same queue or
+    /// topic, open it once with [`Object::open`](crate::Object::open) and use
+    /// [`Object::put_message`](crate::Object::put_message) instead.
+    ///
+    /// The first argument selects the destination and MQOO-style open options;
+    /// the second provides MQPMO options. These are separate option groups and
+    /// each can be a single value or a tuple. The message may be a string
+    /// (`&str`, sent as UTF-8 with `MQFMT_STRING`) or a byte buffer paired with
+    /// a [`MessageFormat`](crate::types::MessageFormat). Successful MQ warnings
+    /// are preserved in the returned [`Completion`](crate::result::Completion).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use mqi::{prelude::*, types::QueueName};
+    ///
+    /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
+    /// connection
+    ///     .put_message(&QueueName(mqstr!("DEV.QUEUE.1")), &(), "Hello, MQ")
+    ///     .warn_as_error()?;
+    /// # Ok::<(), mqi::result::Error>(())
+    /// ```
+    ///
+    /// To supply a byte buffer and message format explicitly:
+    ///
+    /// ```no_run
+    /// use mqi::{prelude::*, types::{MessageFormat, QueueName}};
+    ///
+    /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
+    /// let format = MessageFormat::from(mqstr!("MQSTR"));
+    /// let bytes = b"Hello, MQ";
+    /// connection
+    ///     .put_message(
+    ///         &QueueName(mqstr!("DEV.QUEUE.1")),
+    ///         &(),
+    ///         &(bytes.as_slice(), format),
+    ///     )
+    ///     .warn_as_error()?;
+    /// # Ok::<(), mqi::result::Error>(())
+    /// ```
     #[inline]
     pub fn put_message<'po, 'oo>(
         &self,
@@ -162,10 +246,14 @@ impl<L: Library<MQ: mq::Mqi>, H> Connection<L, H> {
         self.put_message_with(open_options, put_options, message)
     }
 
-    /// Put a message to a queue or topic with a specified return type that implements [`PutAttr`](option::PutAttr).
+    /// Put one message with MQPUT1 and extract additional attributes.
     ///
-    /// Type inference of the return value may not always work so you may have to explicitly state the return type using the
-    /// `put_message_with::<Type>` syntax.
+    /// This is [`put_message`](Self::put_message) with a result value extracted
+    /// through [`PutAttr`](crate::put::PutAttr), such as a generated message
+    /// identifier. The destination options, put options, message formats, and
+    /// warning behavior are the same as for [`put_message`](Self::put_message).
+    /// The attribute type is inferred from the expected result type; specify
+    /// `put_message_with::<AttributeType>` if inference needs help.
     pub fn put_message_with<'po, 'oo, R>(
         &self,
         open_options: &impl OpenOption<'oo, MQPMO>,

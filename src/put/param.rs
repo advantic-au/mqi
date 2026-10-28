@@ -32,6 +32,14 @@ unsafe impl option::PutOption<'_> for () {
     fn apply_param(&self, _: &mut option::PutParam<'_>) {}
 }
 
+unsafe impl<'po, T: option::PutOption<'po>> option::PutOption<'po> for Option<T> {
+    fn apply_param(&self, param: &mut option::PutParam<'po>) {
+        if let Some(value) = self {
+            value.apply_param(param);
+        }
+    }
+}
+
 all_multi_tuples!(impl_putoption_tuple);
 
 #[derive(Debug)]
