@@ -149,6 +149,8 @@ pub trait ResultCompErrExt<T, E> {
     ///     result::Completion,
     /// };
     ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let result = mqi::connect_default(NO_CONNECT_OPTIONS)
     ///     .already_connected_ref()?;
     ///
@@ -168,6 +170,9 @@ pub trait ResultCompErrExt<T, E> {
     ///     }
     /// }
     /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
     /// ```
     fn already_connected_ref<'a, L: Library<MQ: libmqm_sys::Mqi>, H>(self) -> ResultCompErr<ConnectionEither<'a, L, H>, E>
     where

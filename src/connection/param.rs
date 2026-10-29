@@ -327,13 +327,13 @@ impl<'pw> Tls<'pw> {
     }
 
     /// Set the quantum-safe algorithm used for the connection.
-    pub fn quantum_safe_algorithm(&mut self, algorithm: types::MQQS) -> &mut Self {
+    pub const fn quantum_safe_algorithm(&mut self, algorithm: types::MQQS) -> &mut Self {
         self.2 = algorithm;
         self
     }
 
     /// Set whether the connection requires quantum-safe cryptography.
-    pub fn quantum_safe_required(&mut self, requirement: types::MQQSR) -> &mut Self {
+    pub const fn quantum_safe_required(&mut self, requirement: types::MQQSR) -> &mut Self {
         self.3 = requirement;
         self
     }

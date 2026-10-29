@@ -109,6 +109,8 @@ impl<C: AsConnection> Object<C> {
     ///     types::QueueName,
     /// };
     ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
     /// let queue = Object::open(
     ///     &connection,
@@ -123,7 +125,10 @@ impl<C: AsConnection> Object<C> {
     /// {
     ///     println!("received {} bytes", message.len());
     /// }
-    /// # Ok::<(), mqi::result::Error>(())
+    /// # Ok(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
     /// ```
     ///
     /// ## Panics
@@ -186,6 +191,8 @@ impl<C: AsConnection> Object<C> {
     ///     types::QueueName,
     /// };
     ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
     /// let queue = Object::open(
     ///     &connection,
@@ -200,7 +207,10 @@ impl<C: AsConnection> Object<C> {
     /// {
     ///     println!("{message:?}");
     /// }
-    /// # Ok::<(), mqi::get::GetStringCcsidError>(())
+    /// # Ok(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
     /// ```
     ///
     /// For messages with another format, use [`get_data`](Self::get_data).
@@ -256,6 +266,8 @@ impl<C: AsConnection> Object<C> {
     /// use std::borrow::Cow;
     /// use mqi::{Object, constants, get::GetWait, prelude::*, types::QueueName};
     ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
     /// let queue = Object::open(
     ///     &connection,
@@ -267,7 +279,10 @@ impl<C: AsConnection> Object<C> {
     /// let message: Option<Cow<'_, str>> = queue
     ///     .get_as(&GetWait::Wait(5_000), buffer.as_mut_slice())
     ///     .warn_as_error()?;
-    /// # Ok::<(), mqi::get::GetStringError>(())
+    /// # Ok(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
     /// ```
     ///
     /// ## Panics

@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest an improvement to the mqi API or project
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the MQI/MQAI use case and what is difficult today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the API or behavior you would like to see.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any workarounds or alternative designs.
+  - type: input
+    id: mq-version
+    attributes:
+      label: IBM MQ client version
+      description: Include this if the request depends on a particular client release.
+      placeholder: "10.0.1.0"

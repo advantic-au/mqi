@@ -119,6 +119,8 @@ impl<C: AsConnection> Object<C> {
     /// ```no_run
     /// use mqi::{Object, constants, prelude::*, types::QueueName};
     ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
     /// let queue = Object::open(
     ///     &connection,
@@ -127,7 +129,10 @@ impl<C: AsConnection> Object<C> {
     /// .warn_as_error()?;
     ///
     /// queue.put_message(&(), "Hello, MQ").warn_as_error()?;
-    /// # Ok::<(), mqi::result::Error>(())
+    /// # Ok(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
     /// ```
     pub fn put_message<'po>(
         &self,
@@ -212,11 +217,16 @@ impl<L: Library<MQ: mq::Mqi>, H> Connection<L, H> {
     /// ```no_run
     /// use mqi::{prelude::*, types::QueueName};
     ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
     /// connection
     ///     .put_message(&QueueName(mqstr!("DEV.QUEUE.1")), &(), "Hello, MQ")
     ///     .warn_as_error()?;
-    /// # Ok::<(), mqi::result::Error>(())
+    /// # Ok(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
     /// ```
     ///
     /// To supply a byte buffer and message format explicitly:
@@ -224,6 +234,8 @@ impl<L: Library<MQ: mq::Mqi>, H> Connection<L, H> {
     /// ```no_run
     /// use mqi::{prelude::*, types::{MessageFormat, QueueName}};
     ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
     /// let format = MessageFormat::from(mqstr!("MQSTR"));
     /// let bytes = b"Hello, MQ";
@@ -234,7 +246,10 @@ impl<L: Library<MQ: mq::Mqi>, H> Connection<L, H> {
     ///         &(bytes.as_slice(), format),
     ///     )
     ///     .warn_as_error()?;
-    /// # Ok::<(), mqi::result::Error>(())
+    /// # Ok(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
     /// ```
     #[inline]
     pub fn put_message<'po, 'oo>(

@@ -148,7 +148,8 @@ Feature flags
 Version Compatibility
 ---------------------
 
-- The current MSRV is 1.95. No MSRV policy has been established.
+- The current MSRV is 1.95. We will not raise the MSRV to a stable Rust release until it has
+  been available for at least six months. MSRV changes will be documented in release notes.
 - MQ client API features are available from 9.2.0.0 through 10.0.1.0. The default
   `mqc_9_3_0_0` feature selects the minimum MQ client API version; enable a higher
   `mqc_*` feature to use newer APIs. The installed MQ client must support the
@@ -164,10 +165,13 @@ Support
 -------
 
 There are no guarantees of compatibility with any future versions of the crate; the API
-is subject to change based on feedback and enhancements. Relentless refactoring may occur
-before a stable crate is released.
+is subject to change based on feedback and enhancements while the crate is under heavy
+development.
 
-This crate is provided as-is with no guarantees of support or updates.
+The project is maintained on a best-effort basis, with no guaranteed response time or release
+schedule. For usage questions, bug reports and feature requests, use the
+[GitHub issue forms](https://github.com/advantic-au/mqi/issues/new/choose). Security issues
+should be reported privately as described in [SECURITY.md](SECURITY.md).
 
 **This crate is not approved, endorsed, acknowledged, or supported by IBM. You cannot use
 IBM formal support channels (Cases/PMRs) for assistance on the use of this crate.**
@@ -175,7 +179,8 @@ IBM formal support channels (Cases/PMRs) for assistance on the use of this crate
 Contributions
 -------------
 
-All feedback, suggestions, contributions and enhancements are welcome.
+All feedback, suggestions, contributions and enhancements are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) and follow the project's [Code of Conduct](CODE_OF_CONDUCT.md).
 
 License
 -------

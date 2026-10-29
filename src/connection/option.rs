@@ -88,6 +88,7 @@ pub trait ConnectAttr<S> {
 ///     types::{ApplName, CipherSpec, KeyRepo, QueueName},
 /// };
 ///
+/// #[cfg(feature = "link")]
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let username = std::env::var("MQ_USER")?;
 ///     let password = std::env::var("MQ_PASSWORD")?;
@@ -110,6 +111,8 @@ pub trait ConnectAttr<S> {
 ///     connection.disconnect().warn_as_error()?;
 ///     Ok(())
 /// }
+/// #[cfg(not(feature = "link"))]
+/// fn main() {}
 /// ```
 ///
 /// Tuple options are applied from right to left. If multiple options set the
