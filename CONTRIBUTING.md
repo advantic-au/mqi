@@ -62,6 +62,9 @@ that cover it. These common checks require the MQ client install above, but not 
 cargo check --all-features
 cargo nextest run --profile ci --features mock
 cargo test --doc
+cargo nextest run --profile ci --all-features
+cargo test --all-features --doc
+cargo test -p mqi-pool
 cargo fmt -- --check
 bash scripts/clippy.sh
 cargo +nightly docs-rs
