@@ -11,6 +11,9 @@ categories = ["asynchronous"]
 rust-version = "1.95"
 edition = "2024"
 
+[workspace]
+members = ["mqi-pool"]
+
 [lib]
 path = "src/lib.rs"
 crate-type = ["lib"]

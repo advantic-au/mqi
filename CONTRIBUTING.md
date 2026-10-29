@@ -44,6 +44,7 @@ Common local checks include:
 cargo check --all-features
 cargo nextest run --profile ci --all-features
 cargo test --all-features --doc
+cargo test -p mqi-pool
 cargo fmt -- --check
 cargo clippy --tests --examples --all-features --
 cargo docs-rs

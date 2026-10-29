@@ -161,6 +161,15 @@ Status
 
 This library is under heavy development. The velocity of change to the API is high and is likely to evolve. See the [progress page](PROGRESS.md) for the progress on the list of MQI functions exposed.
 
+Connection pooling
+------------------
+
+An experimental, separate [`mqi-pool`](mqi-pool/README.md) crate prototypes
+synchronous connection pooling with `r2d2`. It is not yet a published or stable
+API. It requires exclusive `ThreadNoBlock` connections; transaction guards are
+best-effort and unfinished transactions cause the connection to be discarded
+when cleanup fails.
+
 Support
 -------
 
