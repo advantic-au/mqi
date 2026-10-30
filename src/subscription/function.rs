@@ -13,7 +13,12 @@ use crate::{
     types::{MQCO, MQLONG},
 };
 
-/// Subscription to an IBM MQ topic
+/// An MQ publish/subscribe subscription to an IBM MQ topic.
+///
+/// Use [`Object`](crate::Object) to read messages from a regular queue.
+/// Dropping a subscription attempts to close it, but cannot return an MQ
+/// warning or error; call [`close`](Self::close) when that outcome needs to be
+/// observed.
 #[derive(Debug)]
 #[must_use]
 pub struct Subscription<C: AsConnection> {
@@ -26,6 +31,8 @@ impl<C: AsConnection> Subscription<C> {
     /// Close the subscription.
     ///
     /// This function uses the [`MQCLOSE`](libmqm_sys::MQCLOSE) MQ API function.
+    /// Use this instead of relying on `Drop` when close warnings or errors
+    /// need to be handled by the application.
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
         let conn = s.connection.as_connection();

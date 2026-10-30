@@ -11,6 +11,10 @@ pub trait AsObject {
 }
 
 /// An object refers to a managed entity within IBM MQ, such as a queue, topic, channel, or queue manager
+///
+/// Dropping an open object attempts to close it, but cannot return an MQ
+/// warning or error. Call [`close`](Self::close) when the close outcome needs
+/// to be observed.
 #[derive(Debug)]
 #[must_use]
 pub struct Object<C: AsConnection> {
@@ -45,6 +49,10 @@ impl<C: AsConnection> Object<C> {
         self.drop_close_options = options;
     }
 
+    /// Close the object and return the MQ completion status.
+    ///
+    /// Use this instead of relying on `Drop` when close warnings or errors need
+    /// to be handled by the application.
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
         let Self {

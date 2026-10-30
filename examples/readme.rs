@@ -1,29 +1,30 @@
 use std::error::Error;
 
-use mqi::{
-    connection::{Credentials, ThreadNone},
-    prelude::*,
-    types::{ApplName, QueueName},
-};
+use mqi::{Object, connection::NO_CONNECT_OPTIONS, constants, get::GetWait, prelude::*, types::QueueName};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    const TARGET: QueueName = QueueName(mqstr!("DEV.QUEUE.1"));
+    let queue_manager = mqi::connect_default(NO_CONNECT_OPTIONS).warn_as_error()?;
+    {
+        let queue = Object::open(
+            &queue_manager,
+            &(
+                QueueName(mqstr!("DEV.QUEUE.1")),
+                constants::MQOO_INPUT_AS_Q_DEF | constants::MQOO_OUTPUT,
+            ),
+        )
+        .warn_as_error()?;
 
-    // User credentials and application name.
-    // MQI will use the C API defaults, referring to MQSERVER environment variable if set.
-    let connect_options = (
-        ApplName(mqstr!("readme_example")),
-        Credentials::User("user", "password".into()),
-    );
+        queue.put_message(&(), "Hello from Rust").warn_as_error()?;
 
-    // Connect to the queue manager. Make all MQ warnings as a rust Result::Err
-    let queue_manager = mqi::connect::<ThreadNone>(&connect_options).warn_as_error()?;
-
-    // Put a single string message on the target queue. Discard any warnings.
-    queue_manager.put_message(&TARGET, &(), "Hello").discard_warning()?;
-
-    // Queue manager disconnect - this also happens automatically on Drop.
-    queue_manager.disconnect().discard_warning()?;
+        let mut buffer = vec![0u8; 1024];
+        if let Some(message) = queue.get_string(&GetWait::Wait(5_000), &mut *buffer).warn_as_error()? {
+            let message: std::borrow::Cow<str> = message.try_into()?;
+            println!("received: {message}");
+        } else {
+            println!("No message arrived before the wait expired.");
+        }
+    }
+    queue_manager.disconnect().warn_as_error()?;
 
     Ok(())
 }

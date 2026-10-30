@@ -79,10 +79,57 @@ mod mqai {
 }
 
 impl<C: AsConnection> Object<C> {
-    /// Get a message from an object returning a slice of data.
+    /// Get a message body as bytes into a caller-provided buffer.
     ///
-    /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
-    /// is translated to a return value of [`None`].
+    /// The buffer capacity limits how many bytes can be returned. Size it for
+    /// the largest message your application accepts. If you need to inspect the
+    /// full message length and implement a retry with a larger buffer, use
+    /// [`get_as`](Self::get_as) with a custom
+    /// [`GetValue`](crate::get::GetValue); its `GetState` argument exposes both
+    /// the data length and full message length. MQ may report truncation as a
+    /// warning or error depending on the get options.
+    ///
+    /// The [`GetOption`](crate::get::GetOption) controls matching, waiting, and other
+    /// MQGET behavior. [`GetWait::Wait`](super::GetWait::Wait) takes a duration
+    /// in milliseconds; [`GetWait::NoWait`](super::GetWait::NoWait) checks
+    /// immediately. Wrap an option in `Some` or `None` to enable or skip it
+    /// based on runtime configuration. A skipped option does not clear a
+    /// setting supplied by another option in the tuple. A return code of
+    /// [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE) becomes `Ok(None)`;
+    /// a retrieved message becomes `Ok(Some(bytes))`. MQ warnings are preserved
+    /// in the [`Completion`](crate::result::Completion).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use mqi::{
+    ///     Object, constants,
+    ///     get::GetWait,
+    ///     prelude::*,
+    ///     types::QueueName,
+    /// };
+    ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
+    /// let queue = Object::open(
+    ///     &connection,
+    ///     &(QueueName(mqstr!("DEV.QUEUE.1")), constants::MQOO_INPUT_AS_Q_DEF),
+    /// )
+    /// .warn_as_error()?;
+    ///
+    /// let mut buffer = vec![0; 64 * 1024];
+    /// if let Some(message) = queue
+    ///     .get_data(&GetWait::Wait(5_000), &mut buffer)
+    ///     .warn_as_error()?
+    /// {
+    ///     println!("received {} bytes", message.len());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
+    /// ```
     ///
     /// ## Panics
     /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
@@ -95,10 +142,12 @@ impl<C: AsConnection> Object<C> {
             .map_completion(|o| o.map(|buffer: &mut [R]| &*buffer))
     }
 
-    /// Get a message from an object returning a slice of data in a tuple with a [`GetAttr`](option::GetAttr).
+    /// Get a message body as bytes and extract additional attributes.
     ///
-    /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
-    /// is translated to a return value of [`None`].
+    /// This is [`get_data`](Self::get_data) plus a value extracted through
+    /// [`GetAttr`](crate::get::GetAttr), for example the message descriptor or
+    /// message format. It returns `Ok(None)` when no message is available and
+    /// `Ok(Some((bytes, attributes)))` when a message is received.
     ///
     /// ## Panics
     /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
@@ -116,12 +165,55 @@ impl<C: AsConnection> Object<C> {
             .map_completion(|o| o.map(|(buffer, attr): (&mut [R], A)| (&*buffer, attr)))
     }
 
-    /// Get a string message from an object returning a [`StrCcsidCow`].
+    /// Get an MQ string message into a caller-provided buffer.
     ///
-    /// No conversion of the message is performed by default.
+    /// The message must use the `MQFMT_STRING` format; otherwise the call
+    /// returns [`GetStringCcsidError::UnexpectedFormat`](super::GetStringCcsidError::UnexpectedFormat).
+    /// This method does not
+    /// convert the message to UTF-8; the returned
+    /// [`StrCcsidCow`](crate::string::StrCcsidCow) retains the message CCSID and
+    /// encoding information. Use [`get_as`](Self::get_as) with `Cow<str>` when
+    /// you specifically require UTF-8 text.
     ///
-    /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
-    /// is translated to a return value of [`None`].
+    /// The buffer capacity limits how much message data is returned. A
+    /// [`GetWait`](super::GetWait) controls whether to wait; `Wait` uses
+    /// milliseconds and `NoWait` checks immediately. `Ok(None)` means no
+    /// message was available before the wait ended.
+    /// MQ warnings are preserved in the [`Completion`](crate::result::Completion).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use mqi::{
+    ///     Object, constants,
+    ///     get::GetWait,
+    ///     prelude::*,
+    ///     types::QueueName,
+    /// };
+    ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
+    /// let queue = Object::open(
+    ///     &connection,
+    ///     &(QueueName(mqstr!("DEV.QUEUE.1")), constants::MQOO_INPUT_AS_Q_DEF),
+    /// )
+    /// .warn_as_error()?;
+    ///
+    /// let mut buffer = vec![0; 64 * 1024];
+    /// if let Some(message) = queue
+    ///     .get_string(&GetWait::Wait(5_000), buffer.as_mut_slice())
+    ///     .warn_as_error()?
+    /// {
+    ///     println!("{message:?}");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
+    /// ```
+    ///
+    /// For messages with another format, use [`get_data`](Self::get_data).
     ///
     /// ## Panics
     /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
@@ -134,12 +226,11 @@ impl<C: AsConnection> Object<C> {
         self.get_as(options, buffer)
     }
 
-    /// Get a string message from an object returning a ([`StrCcsidCow`], [impl `GetAttr`](option::GetAttr)) tuple.
+    /// Get an MQ string message and extract additional attributes.
     ///
-    /// No conversion of the message is performed by default.
-    ///
-    /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
-    /// is translated to a return value of [`None`].
+    /// This is [`get_string`](Self::get_string) plus values extracted through
+    /// [`GetAttr`](crate::get::GetAttr), such as the MQ message format. The body
+    /// must use `MQFMT_STRING`; its CCSID is retained rather than converted.
     ///
     /// ## Panics
     /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
@@ -155,10 +246,44 @@ impl<C: AsConnection> Object<C> {
         self.get_as(options, buffer)
     }
 
-    /// Get a message from an object returning a usually inferred [`GetValue`](option::GetValue).
+    /// Get a message and construct the return value selected by its expected type.
     ///
-    /// This function uses the [MQGET](libmqm_sys::MQGET) verb. A retun code of [`MQRC_NO_MSG_AVAILABLE`](mq::MQRC_NO_MSG_AVAILABLE)
-    /// is translated to a return value of [`None`].
+    /// This is the general form behind [`get_data`](Self::get_data) and
+    /// [`get_string`](Self::get_string). The expected return type selects a
+    /// [`GetValue`](crate::get::GetValue) implementation; built-in choices include
+    /// byte slices, byte vectors, `Cow<str>`, and
+    /// [`StrCcsidCow`](crate::string::StrCcsidCow). Use it to request UTF-8
+    /// parsing or a custom result type. `Cow<str>` requires `MQFMT_STRING` and
+    /// UTF-8 CCSID 1208; use `StrCcsidCow` when the message may use another CCSID.
+    /// A no-message result is `Ok(None)`.
+    ///
+    /// The supplied buffer still limits the data available to the selected
+    /// value. MQ warnings remain in the returned [`Completion`](crate::result::Completion).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use std::borrow::Cow;
+    /// use mqi::{Object, constants, get::GetWait, prelude::*, types::QueueName};
+    ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let connection = mqi::connect_default(mqi::connection::NO_CONNECT_OPTIONS).warn_as_error()?;
+    /// let queue = Object::open(
+    ///     &connection,
+    ///     &(QueueName(mqstr!("DEV.QUEUE.1")), constants::MQOO_INPUT_AS_Q_DEF),
+    /// )
+    /// .warn_as_error()?;
+    ///
+    /// let mut buffer = vec![0; 64 * 1024];
+    /// let message: Option<Cow<'_, str>> = queue
+    ///     .get_as(&GetWait::Wait(5_000), buffer.as_mut_slice())
+    ///     .warn_as_error()?;
+    /// # Ok(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
+    /// ```
     ///
     /// ## Panics
     /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client

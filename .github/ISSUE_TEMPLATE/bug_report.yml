@@ -1,0 +1,77 @@
+name: Bug report
+description: Report a problem with the safe MQI or MQAI API
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Do not include credentials, private keys, or production
+        message contents. For security issues, use the private reporting instructions in
+        [SECURITY.md](https://github.com/advantic-au/mqi/blob/develop/SECURITY.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: crate-version
+    attributes:
+      label: mqi version or git revision
+      placeholder: "mqi 0.3.0"
+    validations:
+      required: true
+  - type: input
+    id: mq-client
+    attributes:
+      label: IBM MQ client version
+      description: The version installed under MQ_HOME
+      placeholder: "10.0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: rust-version
+    attributes:
+      label: Rust version
+      placeholder: "rustc 1.95.0"
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Target triple
+      placeholder: x86_64-unknown-linux-gnu
+    validations:
+      required: true
+  - type: textarea
+    id: features
+    attributes:
+      label: Cargo features
+      description: Include defaults and any explicitly enabled features.
+      placeholder: "default features plus mqai, dlopen2"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include the smallest code or command that reproduces the problem.
+      render: rust
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Remove secrets and sensitive data before posting.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

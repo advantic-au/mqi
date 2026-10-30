@@ -124,11 +124,56 @@ pub trait ResultCompErrExt<T, E> {
     where
         E: std::fmt::Debug;
 
-    /// Creates a [`ConnectionRef`](crate::ConnectionRef) of the connection if the [Completion] contains a
-    /// [`MQRC_ALREADY_CONNECTED`](constants::MQRC_ALREADY_CONNECTED) warning.
+    /// Treats [`MQRC_ALREADY_CONNECTED`](constants::MQRC_ALREADY_CONNECTED) as
+    /// a reference to the existing connection rather than an owned connection.
     ///
-    /// This ensures the connection will not be closed if a handle is returned that
-    /// is manage elsewhere.
+    /// On that warning the result contains
+    /// [`ConnectionEither::Ref`](crate::connection::ConnectionEither), so dropping it will
+    /// not disconnect a connection managed elsewhere. On success without that
+    /// warning it contains [`ConnectionEither::Owned`](crate::connection::ConnectionEither),
+    /// which disconnects when dropped. Other warnings are preserved unchanged;
+    /// inspect them or handle them explicitly rather than assuming this method
+    /// discards them.
+    ///
+    /// Call this before `.warn_as_error()` or `.discard_warning()`, because
+    /// those methods consume the warning that identifies the already-connected
+    /// case.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use mqi::{
+    ///     connection::{ConnectionEither, NO_CONNECT_OPTIONS},
+    ///     constants,
+    ///     prelude::*,
+    ///     result::Completion,
+    /// };
+    ///
+    /// # #[cfg(feature = "link")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let result = mqi::connect_default(NO_CONNECT_OPTIONS)
+    ///     .already_connected_ref()?;
+    ///
+    /// match result {
+    ///     Completion(ConnectionEither::Owned(connection), warning) => {
+    ///         if let Some((reason, verb)) = warning {
+    ///             return Err(mqi::result::Error(constants::MQCC_WARNING, verb, reason).into());
+    ///         }
+    ///         connection.disconnect().warn_as_error()?;
+    ///     }
+    ///     Completion(ConnectionEither::Ref(_connection), warning) => {
+    ///         if let Some((reason, verb)) = warning {
+    ///             if reason != constants::MQRC_ALREADY_CONNECTED {
+    ///                 return Err(mqi::result::Error(constants::MQCC_WARNING, verb, reason).into());
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// # #[cfg(not(feature = "link"))]
+    /// # fn main() {}
+    /// ```
     fn already_connected_ref<'a, L: Library<MQ: libmqm_sys::Mqi>, H>(self) -> ResultCompErr<ConnectionEither<'a, L, H>, E>
     where
         T: Into<Connection<L, H>>;

@@ -1,0 +1,48 @@
+name: Question
+description: Ask a usage question about the mqi API
+title: "[Question]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please include a minimal example and remove credentials or sensitive message contents.
+        For suspected security vulnerabilities, use the private reporting instructions in
+        [SECURITY.md](https://github.com/advantic-au/mqi/blob/develop/SECURITY.md).
+  - type: textarea
+    id: question
+    attributes:
+      label: What are you trying to do?
+      description: Explain what you expected and where you are stuck.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Minimal example
+      description: Include relevant code and error output, with secrets removed.
+      render: rust
+  - type: input
+    id: crate-version
+    attributes:
+      label: mqi version
+      placeholder: "0.3.0"
+  - type: input
+    id: mq-client
+    attributes:
+      label: IBM MQ client version
+      placeholder: "10.0.1.0"
+  - type: input
+    id: rust-version
+    attributes:
+      label: Rust version
+      placeholder: "rustc 1.95.0"
+  - type: input
+    id: target
+    attributes:
+      label: Target triple
+      placeholder: x86_64-unknown-linux-gnu
+  - type: input
+    id: features
+    attributes:
+      label: Cargo features
+      description: Include default features and any explicitly enabled features.

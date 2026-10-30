@@ -13,6 +13,21 @@ You can use `mqi` to:
 This crate depends on the [libmqm-sys](https://crates.io/crates/libmqm-sys) crate for
 connectivity to MQ queue managers. The underlying connection uses the IBM supplied MQ libraries,
 offering proven stability and performance.
+
+## Start here
+
+- For a first connection and one-off put, start with [`connect_default`] and
+  [`Connection::put_message`].
+- For opening a queue, receiving messages, and repeated puts, see
+  [`Object::open`] and the [MQI recipes](https://github.com/advantic-au/mqi/blob/develop/docs/recipes.md).
+- For message properties, see [`Properties`] and the
+  [set/read properties recipe](https://github.com/advantic-au/mqi/blob/develop/docs/recipes.md#set-and-read-message-properties).
+- For transactional processing, see [`Syncpoint`] and the
+  [transaction recipe](https://github.com/advantic-au/mqi/blob/develop/docs/recipes.md#process-messages-transactionally).
+- For runnable programs, browse the [examples](https://github.com/advantic-au/mqi/tree/develop/examples).
+
+The [README quick start](https://github.com/advantic-au/mqi/blob/develop/README.md#quick-start)
+covers the IBM MQ client installation and connection setup required to build and run an application.
 */
 
 #![cfg_attr(
@@ -28,7 +43,7 @@ offering proven stability and performance.
 | MQI function     | Crate function(s)            |
 |-------------|------------------------------|
 | [`MQCONN`](libmqm_sys::MQCONN)    | *Not used*                   |
-| [`MQCONNX`](libmqm_sys::MQCONNX)   | [`connect`], [`connect_as`], [`connect_with`], [`connect_lib`], [`connect_lib_with`] |
+| [`MQCONNX`](libmqm_sys::MQCONNX)   | [`connect`], [`connect_default`], [`connect_as`], [`connect_with`], [`connect_lib`], [`connect_lib_with`] |
 | [`MQPUT1`](libmqm_sys::MQPUT1)    | [`Connection::put_message`], [`Connection::put_message_with`] |
 | [`MQDISC`](libmqm_sys::MQDISC)    | [`Connection::disconnect`], [`Connection::drop`]  |
 | [`MQOPEN`](libmqm_sys::MQOPEN)    | [`Object::open`], [`Object::open_with`], [`Object::open_resolved`] |
