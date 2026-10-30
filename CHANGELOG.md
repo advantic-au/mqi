@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/advantic-au/mqi/compare/v0.3.0...v0.4.0) - 2026-10-30
+
+### Added
+
+- Quantum Safe connection parameters
+
+### Other
+
+- add community project guidance and templates
+- improve MQI API reference
+- improve mqi getting-started guide
+- Numerous dependency bumps
+- [**breaking**] rename callback unregistration to deregistration
+- message consumer register and unregister
+- Message callbacks
+- Remove the use of Box<dyn F> for callback
+- raise the minimum supported Rust version to 1.95
+- uplift examples
+- MQ exits API
+
 ## [0.3.0](https://github.com/advantic-au/mqi/compare/v0.2.0...v0.3.0) - 2025-07-23
 
 ### Added
