@@ -71,7 +71,7 @@ MQSERVER=DEV.APP.SVRCONN/TCP/localhost(1414) MQ_USER=app MQ_PASSWORD=app \
 
 # format / lint
 cargo fmt -- --check
-cargo clippy --tests --examples --all-features --
+bash scripts/clippy.sh
 
 # docs (must be warning-free; CI sets RUSTDOCFLAGS=-Dwarnings on nightly)
 cargo docs-rs
@@ -278,14 +278,16 @@ there - do not add a hand-written table to the README.
 
 ## Code style and conventions
 
-- Run `cargo clippy --tests --examples --all-features --` after **every** change to Rust source, not
+- Run `bash scripts/clippy.sh` after **every** change to Rust source, not
   just once at the end of a task. Warnings are errors (`clippy::all` is deny and CI compiles with
-  `RUSTFLAGS=-Dwarnings`), so a warning left behind breaks the build.
+  `RUSTFLAGS=-Dwarnings`), except missing `# Errors` and `# Panics` sections, which the script
+  reports as warnings during their gradual cleanup.
 - `rustfmt.toml` sets `max_width = 130`, Unix newlines, edition 2024, `reorder_imports`,
   `use_field_init_shorthand`. Run `cargo fmt`.
 - Lints are strict: `clippy::all` is **deny**, `nursery` + `pedantic` are warn,
   `rust::unsafe_op_in_unsafe_fn` is warn, and CI compiles clippy with `RUSTFLAGS=-Dwarnings`.
-  So every clippy variant (six different feature combinations in the `clippy` job) must be warning-free.
+  The six feature combinations must pass all other lints; the two public-documentation lints are
+  reported separately once on stable.
 - Lint suppression: prefer **`#[expect(lint, reason = "...")]`** for targeted cases. Existing code is
   mixed - many `#[expect(...)]` sites omit `reason` (e.g. `src/open/param.rs`, `src/string/ccsid.rs`).
   A bare `#[allow]` trips the `clippy::allow_attributes` warning (which `clippy::all = deny` makes an
@@ -295,8 +297,10 @@ there - do not add a hand-written table to the README.
   under a file-level `#![expect(clippy::allow_attributes, ...)]` prologue in `src/connection/param.rs`,
   `src/get/param.rs`, `src/properties/param.rs` and `src/test/mock/mod.rs`. Add a `reason` to new
   suppressions.
-- `missing_errors_doc` and `missing_panics_doc` are explicitly allowed in `Cargo.toml` with a TODO -
-  do not "fix" that without removing the TODO.
+- `missing_errors_doc` and `missing_panics_doc` are warnings in `Cargo.toml`. The strict matrix
+  temporarily allows only these two lints, then reports them in a separate non-failing pass. Add
+  accurate `# Errors` and `# Panics` sections as public APIs are touched; remove the corresponding
+  allow/reporting exception once no warnings remain.
 - Doc comments are heavy and load-bearing: many doctests demonstrate how to implement the
   `*Value` / `*Option` traits yourself (`src/get/option.rs` is a good example). Doctests are run
   (`cargo test --doc`) and must compile under `--no-default-features` too.

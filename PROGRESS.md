@@ -6,18 +6,22 @@ MQ verbs
 
 Refer to <https://www.ibm.com/docs/en/SSFKSJ_latest/refdev/q101650_.html>
 
+`Wrapped` indicates that the low-level MQ verb wrapper exists. `API` indicates the status of the
+crate's user-facing API: `✔` means implemented, `Low-level only` means callers must use the
+low-level wrapper, and `Not used` means the verb is intentionally not exposed by the API.
+
 | Verb    | Description                         | Wrapped  | API | Comments |
 |---------|-------------------------------------|----------|----------|-|
 | MQBACK  | Back out changes                    | ✔ | ✔ |  |
 | MQBEGIN | Begin unit of work                  | ✔ | ✔ | |
 | MQBUFMH | Convert buffer into message handle  | ✔ | ✔ |  |
-| MQCB    | Manage callback                     | ✔ | Experiment | |
+| MQCB    | Manage callback                     | ✔ | ✔ | Event handlers and message consumers |
 | MQCLOSE | Close object                        | ✔ | ✔ |  |
 | MQCMIT  | Commit changes                      | ✔ | ✔ | |
 | MQCONN  | Connect queue manager               | ✔ | Not Used | Equivalent features in MCONNX |
 | MQCONNX | Connect queue manager (extended)    | ✔ | ✔ |  |
 | MQCRTMH | Create message handle               | ✔ | ✔ |  |
-| MQCTL   | Control callbacks                   | ✔ | Experiment | |
+| MQCTL   | Control callbacks                   | ✔ | Low-level only | No managed API |
 | MQDISC  | Disconnect queue manager            | ✔ | ✔ |  |
 | MQDLTMH | Delete message handle               | ✔ | ✔ |  |
 | MQDLTMP | Delete message property             | ✔ | ✔ |  |
@@ -32,7 +36,7 @@ Refer to <https://www.ibm.com/docs/en/SSFKSJ_latest/refdev/q101650_.html>
 | MQSETMP | Set message property                | ✔ | ✔ |  |
 | MQSTAT  | Retrieve status information         | ✔ | ✔ |  |
 | MQSUB   | Register subscription               | ✔ | ✔ |  |
-| MQSUBRQ | Subscription request                | ✔ | ✔ |  |
+| MQSUBRQ | Subscription request                | ✔ | ✔ | |
 | MQXCNVC | Convert characters                  | ✔ | ✔ |  |
 
 MQAI functions
@@ -79,16 +83,12 @@ Refer to <https://www.ibm.com/docs/en/SSFKSJ_latest/refadmin/q089140_.html>
 | mqBufferToBag             | Convert the supplied buffer into bag form                              | ✔ | ✔ |   |
 | mqInquireItemInfo         | Return information about a specified item in a bag                     | ✔ | ✔ |   |
 | mqTrim                    | Trim the blanks from a blank-padded string, then terminates it with a null | ✘ |   | Can be trivially implemented in safe rust |
-| mqPad                     | Pad a null-terminated string with blanks                               | ✘  |   | Can be trivially implemented in safe rust |
+| mqPad                     | Pad a null-terminated string with blanks                               | ✘ |   | Can be trivially implemented in safe rust |
 
-Further work required
----------------------
+Known gaps
+----------
 
-- More examples demonstrating functionality
-- MQ callbacks to receive messages
-- MQ asynchronous API calls
-- PCF structure handling
-- MQ exit registration, structures
-- rustdoc annotations to many functions
-- doctests
-- Increase unit test coverage
+- MQ asynchronous API calls.
+- PCF structure handling beyond the MQAI bag API.
+- Higher-level MQ exits support. The low-level `MQXEP` and `MQZEP` wrappers exist, but
+  `MQXCLWLN` and `MQXDX` are not wrapped.

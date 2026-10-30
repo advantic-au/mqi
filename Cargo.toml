@@ -173,9 +173,9 @@ pedantic = { level = "warn", priority = -1 }
 unwrap_used = "warn"
 allow_attributes = "warn"
 
-# TODO - These should be removed and the underlying problem fixed
-missing_errors_doc = "allow"
-missing_panics_doc = "allow"
+# Keep public error and panic behavior visible in rustdoc.
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
 
 [package.metadata.docs.rs]
 features = ["docsrs"]

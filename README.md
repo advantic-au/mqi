@@ -153,8 +153,10 @@ Version Compatibility
 - MQ client API features are available from 9.2.0.0 through 10.0.1.0. The default
   `mqc_9_3_0_0` feature selects the minimum MQ client API version; enable a higher
   `mqc_*` feature to use newer APIs. The installed MQ client must support the
-  selected feature version. IBM's support lifecycle for MQ clients is separate
-  from this crate's feature range.
+  selected feature version. When adding a supported version, keep the Cargo feature chain, CI
+  client-version matrix, and this compatibility range in sync; see
+  [contributing guidance](CONTRIBUTING.md#adding-an-mq-client-api-version). IBM's support
+  lifecycle for MQ clients is separate from this crate's feature range.
 
 Status
 ------
