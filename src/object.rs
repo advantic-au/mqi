@@ -52,26 +52,26 @@ impl<C: AsConnection> Object<C> {
     /// Close the object and return the MQ completion status.
     ///
     /// Use this instead of relying on `Drop` when close warnings or errors need
-    /// to be handled by the application.
+    /// to be handled by the application. This performs one close attempt;
+    /// `Drop` will not retry if the attempt fails.
+    ///
+    /// # Errors
+    /// Returns an error when MQCLOSE fails to close the object.
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
-        let Self {
-            handle: obj_handle,
-            drop_close_options: close_options,
-            connection,
-            ..
-        } = &mut s;
-        let Connection { handle, mq, .. } = connection.as_connection();
-        mq.mqclose(*handle, obj_handle, *close_options)
+        let close_options = s.drop_close_options;
+        let mut obj_handle = std::mem::take(&mut s.handle);
+        let Connection { handle, mq, .. } = s.connection.as_connection();
+        mq.mqclose(*handle, &mut obj_handle, close_options)
     }
 }
 
 impl<C: AsConnection> Drop for Object<C> {
     fn drop(&mut self) {
-        // TODO: handle close failure
         let Connection { handle, mq, .. } = self.connection.as_connection();
 
         if self.handle.is_closeable() {
+            // Drop cannot report MQ warnings or errors; use close() to observe them.
             let _ = mq.mqclose(*handle, &mut self.handle, self.drop_close_options);
         }
     }
@@ -140,5 +140,45 @@ mod tests {
         assert_eq!(list, &[(mq::MQCO_DELETE, "MQCO_DELETE"), (mq::MQCO_QUIESCE, "MQCO_QUIESCE")]);
 
         // assert_eq!(format!("{oo:?}"), "");
+    }
+
+    #[cfg(feature = "mock")]
+    #[test]
+    fn close_returns_mq_warning_without_retrying() {
+        let connection = crate::test::mock::connect_ok(|mock_library| {
+            mock_library
+                .expect_MQCLOSE()
+                .withf(|_, &hobj, _, _, _| hobj == 7)
+                .returning(|_, _, _, cc, rc| {
+                    crate::test::mock::mqi_outcome(cc, rc, constants::MQCC_WARNING, constants::MQRC_TRUNCATED_MSG_ACCEPTED);
+                })
+                .once();
+        });
+
+        let object = Object::from_parts(&connection, 7.into());
+        let result = object.close().expect("MQCLOSE warning should be returned as a completion");
+
+        assert_eq!(result.warning(), Some((constants::MQRC_TRUNCATED_MSG_ACCEPTED, "MQCLOSE")));
+    }
+
+    #[cfg(feature = "mock")]
+    #[test]
+    fn close_returns_mq_error_without_retrying() {
+        let connection = crate::test::mock::connect_ok(|mock_library| {
+            mock_library
+                .expect_MQCLOSE()
+                .withf(|_, &hobj, _, _, _| hobj == 7)
+                .returning(|_, _, _, cc, rc| {
+                    crate::test::mock::mqi_outcome(cc, rc, constants::MQCC_FAILED, constants::MQRC_NONE);
+                })
+                .once();
+        });
+
+        let object = Object::from_parts(&connection, 7.into());
+        let error = object.close().expect_err("MQCLOSE failure should be returned");
+
+        assert_eq!(error.0, constants::MQCC_FAILED);
+        assert_eq!(error.1, "MQCLOSE");
+        assert_eq!(error.2, constants::MQRC_NONE);
     }
 }

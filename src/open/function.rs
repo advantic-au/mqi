@@ -12,11 +12,17 @@ use crate::{
 
 impl<C: AsConnection> Object<C> {
     /// Establish access and return an MQ object ([`Object`])
+    ///
+    /// # Errors
+    /// Returns an error when MQOPEN cannot open the requested object.
     pub fn open<'oo>(connection: C, open_option: &impl option::OpenOption<'oo, types::MQOO>) -> ResultComp<Self> {
         Self::open_as(connection, open_option)
     }
 
     /// Establish access and return an MQ object and the name of the resolved object
+    ///
+    /// # Errors
+    /// Returns an error when MQOPEN cannot open the requested object.
     pub fn open_resolved<'oo>(
         connection: C,
         open_option: &impl option::OpenOption<'oo, types::MQOO>,
@@ -25,6 +31,10 @@ impl<C: AsConnection> Object<C> {
     }
 
     /// Establish access and return an MQ object ([`Object`]) and type inferred [`OpenAttr`](option::OpenAttr) in a tuple
+    ///
+    /// # Errors
+    /// Returns an error when MQOPEN cannot open the requested object or the selected
+    /// [`OpenAttr`](option::OpenAttr) cannot extract its result.
     pub fn open_with<'oo, A>(connection: C, open_option: &impl option::OpenOption<'oo, types::MQOO>) -> ResultComp<(Self, A)>
     where
         A: option::OpenAttr<Self, types::MQOO>,

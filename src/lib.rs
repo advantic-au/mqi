@@ -65,8 +65,8 @@ covers the IBM MQ client installation and connection setup required to build and
 | [`MQBEGIN`](libmqm_sys::MQBEGIN)   | [`Syncpoint::begin`]         |
 | [`MQBACK`](libmqm_sys::MQBACK)    | [`Syncpoint::backout`]       |
 | [`MQCMIT`](libmqm_sys::MQCMIT)    | [`Syncpoint::commit`]        |
-| [`MQCB`](libmqm_sys::MQCB)      | [`EventCallback::register_event_handler`] |
-| [`MQCTL`](libmqm_sys::MQCTL)     | *Not implemented yet*        |
+| [`MQCB`](libmqm_sys::MQCB)      | [`EventCallback::register_event_handler`], [`MessageCallback::register_message_consumer`] |
+| [`MQCTL`](libmqm_sys::MQCTL)     | [`MqFunctions::mqctl`] (unsafe low-level wrapper; no managed API) |
 
 | MQAI function               | Crate function(s)                                                      |
 |-----------------------------|------------------------------------------------------------------------|
@@ -112,10 +112,10 @@ covers the IBM MQ client installation and connection setup required to build and
 | Exits API     | Crate function(s)               |
 |---------------|---------------------------------|
 | [`MQXCNVC`](libmqm_sys::MQXCNVC) | [`StringCcsid::try_mq_convert`](string::StringCcsid::try_mq_convert) |
-| [`MQXEP`](libmqm_sys::exits::MQXEP) | *Not implemented yet* |
+| [`MQXEP`](libmqm_sys::exits::MQXEP) | [`MqFunctions::mqxep`] (unsafe low-level wrapper) |
 | [`MQXCLWLN`](libmqm_sys::exits::MQXCLWLN) | *Not implemented yet* |
 | [`MQXDX`](libmqm_sys::exits::MQXDX) | *Not implemented yet* |
-| [`MQZEP`](libmqm_sys::exits::MQZEP) | *Not implemented yet* |
+| [`MQZEP`](libmqm_sys::exits::MQZEP) | [`MqFunctions::mqzep`] (unsafe low-level wrapper) |
 
 */
 

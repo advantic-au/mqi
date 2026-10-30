@@ -32,11 +32,16 @@ impl<C: AsConnection> Subscription<C> {
     ///
     /// This function uses the [`MQCLOSE`](libmqm_sys::MQCLOSE) MQ API function.
     /// Use this instead of relying on `Drop` when close warnings or errors
-    /// need to be handled by the application.
+    /// need to be handled by the application. This performs one close attempt;
+    /// `Drop` will not retry if the attempt fails.
+    ///
+    /// # Errors
+    /// Returns an error when MQCLOSE fails to close the subscription.
     pub fn close(self) -> ResultComp<()> {
         let mut s = self;
+        let mut handle = std::mem::take(&mut s.handle);
         let conn = s.connection.as_connection();
-        conn.mq.mqclose(conn.handle, &mut s.handle, s.close_options)
+        conn.mq.mqclose(conn.handle, &mut handle, s.close_options)
     }
 
     /// Request the retained publication(s) for the subscription.
@@ -59,9 +64,9 @@ impl<C: AsConnection> Subscription<C> {
 
 impl<C: AsConnection> Drop for Subscription<C> {
     fn drop(&mut self) {
-        // TODO: handle close failure
         if self.handle.is_closeable() {
             let conn = self.connection.as_connection();
+            // Drop cannot report MQ warnings or errors; use close() to observe them.
             let _ = conn.mq.mqclose(conn.handle, &mut self.handle, self.close_options);
         }
     }
@@ -190,5 +195,53 @@ mod test {
         assert_eq!(sub.request_retained(&()).warn_as_error()?, 5);
 
         Ok(())
+    }
+
+    #[test]
+    fn close_returns_mq_warning_without_retrying() {
+        let connection = mock::connect_ok(|mock_library| {
+            mock_library
+                .expect_MQCLOSE()
+                .withf(|_, &hobj, _, _, _| hobj == 7)
+                .returning(|_, _, _, cc, rc| {
+                    mock::mqi_outcome(cc, rc, constants::MQCC_WARNING, constants::MQRC_TRUNCATED_MSG_ACCEPTED);
+                })
+                .once();
+        });
+
+        let subscription = Subscription {
+            handle: 7.into(),
+            connection,
+            close_options: MQCO::default(),
+        };
+        let result = subscription
+            .close()
+            .expect("MQCLOSE warning should be returned as a completion");
+
+        assert_eq!(result.warning(), Some((constants::MQRC_TRUNCATED_MSG_ACCEPTED, "MQCLOSE")));
+    }
+
+    #[test]
+    fn close_returns_mq_error_without_retrying() {
+        let connection = mock::connect_ok(|mock_library| {
+            mock_library
+                .expect_MQCLOSE()
+                .withf(|_, &hobj, _, _, _| hobj == 7)
+                .returning(|_, _, _, cc, rc| {
+                    mock::mqi_outcome(cc, rc, constants::MQCC_FAILED, constants::MQRC_NONE);
+                })
+                .once();
+        });
+
+        let subscription = Subscription {
+            handle: 7.into(),
+            connection,
+            close_options: MQCO::default(),
+        };
+        let error = subscription.close().expect_err("MQCLOSE failure should be returned");
+
+        assert_eq!(error.0, constants::MQCC_FAILED);
+        assert_eq!(error.1, "MQCLOSE");
+        assert_eq!(error.2, constants::MQRC_NONE);
     }
 }

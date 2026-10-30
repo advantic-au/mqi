@@ -235,17 +235,10 @@ jobs:
         with:
           shared-key: "build"
       - name: Run clippy
-        run: |
-          set -x
-          cargo clippy --tests --examples --all-features --
-          cargo clippy --tests --examples --
-          cargo clippy --tests --examples --no-default-features --features mock,exits,link --
-          cargo clippy --tests --examples --no-default-features --features mock,mqai,link --
-          cargo clippy --tests --examples --no-default-features --features mock,mqai,exits,dlopen2 --
-          cargo clippy --tests --examples --no-default-features --features mock,link --
+        run: bash scripts/clippy.sh
         env:
-          RUSTFLAGS: -Dwarnings
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
+          REPORT_DOC_LINTS: ${{ matrix.toolchain == 'stable' }}
 
   minimum:
     runs-on: ubuntu-24.04

@@ -228,6 +228,9 @@ impl<L: Library<MQ: Mqi>, H: option::Threading> option::ConnectValue<Self> for C
 /// This will panic when:
 /// * Any MQ structure Version exceeds the compiled MQ client
 /// * Any MQ structure Offset exceedd the bounds of an [`MQLONG`](types::MQLONG)
+///
+/// # Errors
+/// Returns an error when MQCONNX fails to establish the connection.
 pub fn connect_lib<'co, H, L>(lib: L, options: &impl option::ConnectOption<'co>) -> ResultComp<Connection<L, H>>
 where
     H: option::Threading,
@@ -251,6 +254,9 @@ where
 /// This will panic when:
 /// * Any MQ structure Version exceeds the compiled MQ client
 /// * Any MQ structure Offset exceedd the bounds of an [`MQLONG`](types::MQLONG)
+///
+/// # Errors
+/// Returns an error when MQCONNX fails to establish the connection.
 pub fn connect_lib_with<'co, A, H, L>(lib: L, options: &impl option::ConnectOption<'co>) -> ResultComp<(Connection<L, H>, A)>
 where
     A: option::ConnectAttr<Connection<L, H>>,
@@ -274,6 +280,10 @@ where
 /// This will panic when:
 /// * Any MQ structure Version exceeds the compiled MQ client
 /// * Any MQ structure Offset exceedd the bounds of an [`MQLONG`](types::MQLONG)
+///
+/// # Errors
+/// Returns an error when MQCONNX fails to establish the connection or when the selected
+/// [`ConnectValue`](crate::connection::ConnectValue) cannot extract its result.
 pub fn connect_lib_as<'co, R, H, L>(lib: L, options: &impl option::ConnectOption<'co>) -> ResultComp<R>
 where
     R: option::ConnectValue<Connection<L, H>>,
@@ -342,6 +352,9 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
     ///
     /// Prefer this over relying on `Drop` when disconnect warnings or errors
     /// need to be handled by the application.
+    ///
+    /// # Errors
+    /// Returns an error when MQDISC fails to disconnect from the queue manager.
     pub fn disconnect(self) -> ResultComp<()> {
         let mut s = self;
         s.mq.mqdisc(&mut s.handle)
