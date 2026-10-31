@@ -3,6 +3,8 @@
   "extends": [
     "config:best-practices"
   ],
+  "minimumReleaseAge": "7 days",
+  "platformAutomerge": true,
   "customManagers": [
     {
       "customType": "regex",
@@ -33,6 +35,11 @@
       "matchManagers": ["cargo"],
       "matchUpdateTypes": ["pin"],
       "enabled": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
     }
   ]
 }
