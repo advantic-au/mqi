@@ -1,6 +1,33 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:best-practices"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "(^|/)Cargo\\.toml$",
+        "(^|/)\\.github/workflows/.*\\.yml$",
+        "(^|/)AGENTS\\.md$",
+        "(^|/)CONTRIBUTING\\.md$"
+      ],
+      "matchStrings": [
+        "rust-version\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+)\"",
+        "toolchain:\\s*\"?(?<currentValue>\\d+\\.\\d+)\"?",
+        "Rust\\s+(?<currentValue>\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "rust-version",
+      "depNameTemplate": "rust",
+      "versioningTemplate": "rust-release-channel"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": [
+        "rust-version"
+      ],
+      "minimumReleaseAge": "6 months"
+    }
   ]
 }
