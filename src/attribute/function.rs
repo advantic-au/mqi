@@ -63,7 +63,7 @@ impl<C: AsConnection> Object<C> {
     /// # Errors
     /// Returns an error if MQ cannot retrieve the selected attribute.
     pub fn inquire_integer(&self, selector: option::AttributeType) -> ResultComp<Option<types::MQLONG>> {
-        assert!(selector.attribute >= libmqm_sys::MQIA_FIRST && selector.attribute <= libmqm_sys::MQIA_LAST);
+        assert!(selector.attribute.is_int());
         self.inquire_item(selector)
             .map_completion(|item| item.map(|item| item.long_value().expect("MQLONG value returned from MQINQ")))
     }
@@ -76,7 +76,7 @@ impl<C: AsConnection> Object<C> {
     /// # Errors
     /// Returns an error if MQ cannot retrieve the selected attribute.
     pub fn inquire_text(&self, selector: option::AttributeType) -> ResultComp<Option<Vec<types::MQCHAR>>> {
-        assert!(selector.attribute >= libmqm_sys::MQCA_FIRST && selector.attribute <= libmqm_sys::MQCA_LAST);
+        assert!(selector.attribute.is_text());
         self.inquire_item(selector)
             .map_completion(|item| item.map(|item| item.text_value().expect("MQCHAR value returned from MQINQ")))
     }
