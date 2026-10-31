@@ -28,6 +28,134 @@ offering proven stability and performance.
 
 The [README quick start](https://github.com/advantic-au/mqi/blob/develop/README.md#quick-start)
 covers the IBM MQ client installation and connection setup required to build and run an application.
+
+## A typical MQI workflow
+
+The API is synchronous: each method calls the corresponding MQI operation and
+returns its outcome. Connect, open an [`Object`] for the required access, perform
+operations, then close the object and disconnect. This example uses the default
+connection settings (including `MQSERVER`, when configured) and treats MQ
+warnings as errors:
+
+```no_run
+use std::{borrow::Cow, error::Error};
+
+use mqi::{
+    Object, constants,
+    connection::NO_CONNECT_OPTIONS,
+    get::GetWait,
+    prelude::*,
+    types::QueueName,
+};
+
+#[cfg(feature = "link")]
+fn main() -> Result<(), Box<dyn Error>> {
+    let connection = mqi::connect_default(NO_CONNECT_OPTIONS).warn_as_error()?;
+    let queue = Object::open(
+        &connection,
+        &(
+            QueueName(mqstr!("DEV.QUEUE.1")),
+            constants::MQOO_INPUT_AS_Q_DEF | constants::MQOO_OUTPUT,
+        ),
+    )
+    .warn_as_error()?;
+
+    queue.put_message(&(), "Hello from Rust").warn_as_error()?;
+
+    let mut buffer = vec![0u8; 1024];
+    if let Some(message) = queue
+        .get_string(&GetWait::Wait(5_000), &mut *buffer)
+        .warn_as_error()?
+    {
+        let text: Cow<str> = message.try_into()?;
+        println!("received: {text}");
+    }
+
+    queue.close().warn_as_error()?;
+    connection.disconnect().warn_as_error()?;
+    Ok(())
+}
+
+#[cfg(not(feature = "link"))]
+fn main() {}
+```
+
+### Options and MQ values
+
+Options are passed to operations as references to values implementing that
+operation's option trait. Common options are already implemented for tuples, so
+you can combine (for example) a queue name and open flags as above. `Option<T>`
+lets you include an option conditionally at runtime: `Some(value)` applies it,
+while `None` skips it. When options set the same field, tuples are applied from
+right to left, so the leftmost option takes precedence.
+
+MQ constants are grouped into distinct newtypes such as [`MQOO`](types::MQOO),
+[`MQGMO`](types::MQGMO), and [`MQPMO`](types::MQPMO). Combine flag constants
+with `|` only within the option group expected by that operation; queue-open
+flags belong to [`Object::open`], get flags to a get operation, and put flags
+to a put operation. See the relevant module's `*Option` types for available
+settings. The [MQI and MQAI function map](#mqi-and-mqai-function-map) connects
+MQ verbs to their high-level methods.
+
+### Message data and attributes
+
+[`Object::get_data`] is suitable for arbitrary bytes. [`Object::get_string`]
+is for text and returns data that you can convert to a Rust string using the
+message's encoding information. Both methods take a caller-provided buffer;
+size it for the largest message you intend to receive, and check the returned
+`Option` because a no-wait or timed get can find no message. The get result also
+provides the message format and lengths when you need to inspect or forward a
+message; see [`get::GetState`] and [`get::GetValue`].
+
+Use the `*_with` methods when you need both the operation's value and extracted
+MQ attributes, or the `*_as` methods when you want to choose the returned Rust
+type. The [`get`] and [`put`] modules document the supported conversions and
+customization traits.
+
+### Errors and MQ warnings
+
+Most MQ operations return [`result::ResultComp<T>`]: an error is an MQ failure,
+while a successful result is a [`result::Completion<T>`] that may carry an MQ warning. A warning
+can matter even when the operation produced a value. Choose how to handle it:
+
+- Call `.warn_as_error()?` to propagate warnings as errors.
+- Call `.warning()` to inspect a warning while keeping the result.
+- Call `.discard_warning()` only when the warning is intentionally irrelevant.
+
+The [`result`] module documents the result helpers and retains the MQ verb and
+reason code on [`result::Error`]. Methods ending in `close` or `disconnect` also return
+completion status, so use them explicitly if cleanup warnings or errors need
+to be observed; cleanup performed by `Drop` cannot return an outcome.
+
+### Transactions and threading
+
+For transactional message processing, pass `MQGMO_SYNCPOINT` to the get and
+`MQPMO_SYNCPOINT` to the put, then commit with [`Syncpoint::commit`] or undo the
+work with [`Syncpoint::backout`]. [`Syncpoint::new`] manages the current unit
+of work; use [`Syncpoint::begin`] when the unit of work must be coordinated with
+an external resource manager. See the
+[transaction recipe](https://github.com/advantic-au/mqi/blob/develop/docs/recipes.md#process-messages-transactionally)
+for an example that handles processing and backout outcomes.
+
+The connection's threading marker controls its `Send` and `Sync` behavior and
+the corresponding MQ connection-sharing option. Choose
+[`connection::ThreadNone`], [`connection::ThreadNoBlock`], or
+[`connection::ThreadBlock`] based on how the connection will be used;
+do not share a connection across threads just by wrapping it in a synchronization
+primitive.
+
+### Optional APIs and more examples
+
+Enable the `mqai` feature to use `bag::Bag` and `Connection::execute` for
+administrative commands. MQAI commands run through the queue manager's command
+server and require the appropriate MQ authorization. Enable `dlopen2` to load
+the MQ client library at runtime instead of linking it at build time; see the
+generated feature documentation below and the
+[runtime-loading recipe](https://github.com/advantic-au/mqi/blob/develop/docs/recipes.md#load-the-mq-client-at-runtime).
+
+For complete programs, browse the
+[runnable examples](https://github.com/advantic-au/mqi/tree/develop/examples)
+or the [MQI recipes](https://github.com/advantic-au/mqi/blob/develop/docs/recipes.md).
 */
 
 #![cfg_attr(
@@ -39,6 +167,8 @@ covers the IBM MQ client installation and connection setup required to build and
 #![cfg_attr(feature = "docsrs", doc = document_features::document_features!())]
 
 /*!
+
+## MQI and MQAI function map
 
 | MQI function     | Crate function(s)            |
 |-------------|------------------------------|
@@ -128,6 +258,7 @@ use bag::{Bag, Filter};
 mod mq_type;
 
 #[cfg(feature = "mqai")]
+/// High-level MQAI command execution options and result types.
 pub mod execute {
     pub(crate) mod function;
     mod option;
@@ -138,8 +269,15 @@ pub mod execute {
 }
 
 #[cfg(feature = "mqai")]
+/// MQAI bags for building administrative commands and reading their results.
+///
+/// Enable the `mqai` feature to use this module. Bags own MQAI resources and
+/// are released when dropped; explicitly delete them when the cleanup outcome
+/// needs to be observed.
 pub mod bag;
 
+/// MQ scalar types and strongly typed values such as queue names, identifiers,
+/// and MQ option flags.
 pub mod types {
     pub use libmqm_constants::types::*;
     pub use libmqm_sys::{MQBYTE, MQCHAR, MQFLOAT32, MQFLOAT64, MQINT8, MQINT16, MQINT64, MQLONG};
@@ -148,9 +286,20 @@ pub mod types {
 }
 
 mod struct_attach;
+/// Lifetime-aware wrappers around IBM MQ C structures.
+///
+/// Use these types when an option requires direct access to an MQ structure or
+/// a structure pointer. Prefer the higher-level option types where available.
 pub mod structs;
 
+/// IBM MQ constants exposed as typed values.
 pub use libmqm_constants::constants;
+
+/// Traits commonly needed to call the high-level API.
+///
+/// This deliberately small prelude includes helpers such as [`mqstr!`],
+/// warning-handling extension methods, and connection access traits. Import
+/// module-specific options from their respective modules.
 pub mod prelude;
 
 #[doc(hidden)]
@@ -160,6 +309,11 @@ pub mod test;
 mod library;
 pub use library::*;
 
+/// Low-level wrappers around MQI, MQAI, and exits verbs.
+///
+/// Most applications should use the higher-level methods on [`Connection`],
+/// [`Object`], [`Subscription`], and [`Bag`]. This module exposes the
+/// underlying verb wrappers for APIs that do not yet have a managed interface.
 pub mod verb {
     #[cfg(feature = "exits")]
     mod exits;
@@ -170,6 +324,10 @@ pub mod verb {
     pub use mqi::MqInqError;
 }
 
+/// MQ character strings, CCSID-aware strings, and MQ string conversion helpers.
+///
+/// Use [`MqStr`] for fixed-width MQ names and [`string::EncodedString`] when an
+/// API accepts text with an explicit character set.
 pub mod string {
     mod ccsid;
     pub(super) mod mqstr;
@@ -182,10 +340,14 @@ pub mod string {
 
 pub use string::mqstr::{MqChar, MqStr};
 
+/// Completion values, MQ errors, and helpers for handling MQ warnings.
 pub mod result;
 
+/// Typed wrappers around MQ connection, object, message, and (with `mqai`)
+/// bag handles.
 pub mod handle;
 
+/// Traits for buffers, MQ structure access, and protected secret values.
 pub mod traits;
 
 mod support {
@@ -196,13 +358,20 @@ mod support {
 }
 pub(crate) use support::{conversion, encoding, macros};
 
+/// MQ message-header formats and helpers for inspecting or iterating headers.
 pub mod header;
 
 #[cfg(feature = "link")]
 mod link;
 #[cfg(feature = "link")]
+/// Functions that connect through the compile-time linked MQ client library.
 pub use link::*;
 
+/// Receive messages from an open queue or topic.
+///
+/// This module provides get options, result conversions, and attribute
+/// extraction. Use [`Object::get_data`] for bytes or [`Object::get_string`]
+/// for MQ string messages; both use a caller-provided buffer.
 pub mod get {
     mod function;
     mod option;
@@ -212,6 +381,11 @@ pub mod get {
     pub use param::*;
 }
 
+/// Inquire about and change attributes on an open MQ object.
+///
+/// Selectors and item types distinguish integer attributes from fixed-width
+/// text attributes. Use [`Object::inquire`] to read one or more attributes and
+/// [`Object::set`] to apply supported changes.
 pub mod attribute {
     mod function;
     mod option;
@@ -221,6 +395,13 @@ pub mod attribute {
     pub use param::*;
 }
 
+/// Connection options, threading modes, and connection-related result types.
+///
+/// The linked-client entry points are re-exported at the crate root; use
+/// [`connect_default`] for the usual thread-confined connection or [`connect`]
+/// to select a threading mode. Options such as [`connection::Credentials`],
+/// [`connection::MqServer`], and [`connection::Tls`] can be combined in a
+/// tuple.
 pub mod connection {
     pub(super) mod function;
     pub(super) mod option;
@@ -232,6 +413,7 @@ pub mod connection {
 }
 pub use connection::function::{Connection, ConnectionRef, connect_lib, connect_lib_as, connect_lib_with};
 
+/// Options for opening an MQ queue, topic, or other object.
 pub mod open {
     mod function;
     mod option;
@@ -241,6 +423,11 @@ pub mod open {
     pub use param::*;
 }
 
+/// Create, inspect, modify, and serialize MQ message properties.
+///
+/// A [`Properties`] value owns a message handle. Pass it as a get or put option
+/// to transfer properties with a message, or use the buffer methods to encode
+/// properties into message data.
 pub mod properties {
     pub(super) mod function;
     mod option;
@@ -252,6 +439,11 @@ pub mod properties {
 }
 pub use properties::function::Properties;
 
+/// Put messages to an open object.
+///
+/// Use [`Object::put_message`] for repeated puts to an open queue or topic;
+/// use [`Connection::put_message`] for a one-off put that does not keep an
+/// object open.
 pub mod put {
     mod function;
     mod option;
@@ -261,6 +453,11 @@ pub mod put {
     pub use param::*;
 }
 
+/// Create and manage MQ publish/subscribe subscriptions.
+///
+/// Use [`Subscription::subscribe`] for a subscription to a topic and
+/// [`Subscription::subscribe_managed`] when MQ should also create its
+/// destination queue.
 pub mod subscription {
     pub(super) mod function;
     mod option;
@@ -271,6 +468,7 @@ pub mod subscription {
 }
 pub use subscription::function::Subscription;
 
+/// Options and result types for MQ connection and asynchronous put statistics.
 pub mod stat {
     pub(crate) mod function;
     mod option;
@@ -279,13 +477,21 @@ pub mod stat {
 }
 
 mod object;
+/// An opened MQ object such as a queue, topic, or channel.
+///
+/// Objects are opened with [`Object::open`], then used for get, put, and
+/// attribute operations. Dropping an object attempts to close it; call
+/// [`Object::close`] when you need to handle the close completion status.
 pub use object::Object;
 
 mod syncpoint;
+/// Commit or back out message operations in an MQ unit of work.
 pub use syncpoint::Syncpoint;
 
 mod event_callback;
+/// Register and manage an MQ connection event callback.
 pub use event_callback::EventCallback;
 
 mod message_callback;
+/// Register and manage an MQ message consumer callback on an open object.
 pub use message_callback::MessageCallback;

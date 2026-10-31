@@ -4,7 +4,14 @@ use super::option;
 use crate::{Connection, Object, connection::AsConnection, prelude::*, result::ResultComp, types};
 
 impl<C: AsConnection> Object<C> {
-    /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
+    /// Inquire about multiple integer and text attributes on this object.
+    ///
+    /// Pass selectors from [`attribute`](crate::attribute), then inspect the
+    /// returned values in the same order with [`option::MultiItem::iter`]. Use
+    /// [`inquire_integer`](Self::inquire_integer) or [`inquire_text`](Self::inquire_text)
+    /// when reading a single attribute of a known type.
+    ///
+    /// This function uses [`MQINQ`](libmqm_sys::MQINQ).
     ///
     /// # Errors
     /// Returns an error if MQ cannot retrieve the requested attributes.
@@ -46,7 +53,13 @@ impl<C: AsConnection> Object<C> {
         .map_completion(|()| output)
     }
 
-    /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
+    /// Inquire about one attribute and return its value with its type.
+    ///
+    /// The returned item is `None` if the selector is not a supported integer
+    /// or text attribute. Use [`option::InqResItem::into_tuple`] to obtain the selector
+    /// and an [`AttributeValue`](option::AttributeValue) together.
+    ///
+    /// This function uses [`MQINQ`](libmqm_sys::MQINQ).
     ///
     /// # Errors
     /// Returns an error if MQ cannot retrieve the selected attribute.
@@ -55,7 +68,12 @@ impl<C: AsConnection> Object<C> {
             .map_completion(option::MultiItem::into_first)
     }
 
-    /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
+    /// Inquire about one integer attribute.
+    ///
+    /// Use an integer selector such as `attribute::MQIA_CURRENT_Q_DEPTH`.
+    /// Returns `None` if MQ does not return the requested value.
+    ///
+    /// This function uses [`MQINQ`](libmqm_sys::MQINQ).
     ///
     /// # Panics
     /// Panics if `selector` is not an integer attribute, or if MQ returns a value with a non-integer type.
@@ -68,7 +86,13 @@ impl<C: AsConnection> Object<C> {
             .map_completion(|item| item.map(|item| item.long_value().expect("MQLONG value returned from MQINQ")))
     }
 
-    /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
+    /// Inquire about one fixed-width text attribute.
+    ///
+    /// The returned `MQCHAR` vector contains the full fixed-width attribute
+    /// value; convert or trim it as appropriate for the selected MQ attribute.
+    /// Returns `None` if MQ does not return the requested value.
+    ///
+    /// This function uses [`MQINQ`](libmqm_sys::MQINQ).
     ///
     /// # Panics
     /// Panics if `selector` is not a text attribute, or if MQ returns a value with a non-text type.
@@ -81,7 +105,13 @@ impl<C: AsConnection> Object<C> {
             .map_completion(|item| item.map(|item| item.text_value().expect("MQCHAR value returned from MQINQ")))
     }
 
-    /// This function uses the [`MQSET`](libmqm_sys::MQSET) MQ API function.
+    /// Set one or more integer or text attributes on this object.
+    ///
+    /// Build the values with the selector's `int_item` or `text_item` method,
+    /// then add them to an [`option::MultiItem`]. Only attributes supported by
+    /// MQSET for this object type can be changed.
+    ///
+    /// This function uses [`MQSET`](libmqm_sys::MQSET).
     ///
     /// # Errors
     /// Returns an error if MQ cannot change the requested attributes.
