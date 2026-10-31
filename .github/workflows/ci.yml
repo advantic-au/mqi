@@ -31,7 +31,7 @@ jobs:
             feature: mqc_9_4_3_0
           - client-version: '10.0'
             feature: mqc_10_0_1_0
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -55,7 +55,7 @@ jobs:
   test_server:
     name: "MQ server integration test"
     needs: test
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     services:
       mq:
         image: icr.io/ibm-messaging/mq:10.0.1.0-r1@sha256:129d1d736e94bae071039136585734b7ccc6cfd6e1cc7dacb9af59e60d0a57c2
@@ -139,7 +139,7 @@ jobs:
         target:
           - s390x-unknown-linux-gnu
           - x86_64-unknown-linux-gnu
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -163,7 +163,7 @@ jobs:
         run: cargo miri nextest run --profile ci --no-default-features --features mock,mqai,exits,mqc_latest --target ${{ matrix.target }}
 
   incremental_mutants:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: test
     if: github.event_name == 'pull_request'
     steps:
@@ -200,7 +200,7 @@ jobs:
           path: mutants.out
 
   rustfmt:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -220,7 +220,7 @@ jobs:
         toolchain:
           - stable
           - beta
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -240,7 +240,7 @@ jobs:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
 
   minimum:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -269,7 +269,7 @@ jobs:
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
   docs:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:
@@ -286,7 +286,7 @@ jobs:
 
   clippy_outcome:
     if: ${{ always() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     name: Clippy outcome
     needs: [clippy]
     steps:
@@ -302,7 +302,7 @@ jobs:
 
   miri_outcome:
     if: ${{ always() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     name: Miri outcome
     needs: [miri]
     steps:
@@ -318,7 +318,7 @@ jobs:
 
   test_outcome:
     if: ${{ always() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     name: Test outcome
     needs: [test]
     steps:
