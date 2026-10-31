@@ -331,3 +331,84 @@ fn inquire_text() -> Result<(), Box<dyn Error>> {
     drop(object);
     Ok(())
 }
+
+#[cfg(feature = "mock")]
+#[test]
+fn inquire_mixed_attributes() -> Result<(), Box<dyn Error>> {
+    let connection = test::mock::connect_ok(|mock_library| {
+        mock_library
+            .expect_MQOPEN()
+            .returning(|_, _, _, hobj, cc, rc| {
+                *hobj = 0x0c0c;
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+        mock_library
+            .expect_MQINQ()
+            .returning(|_, _, _, _, int_len, ints, char_len, chars, cc, rc| {
+                use std::slice;
+
+                assert_eq!(int_len, 1);
+                assert_eq!(
+                    char_len,
+                    (libmqm_sys::MQ_DATE_LENGTH + libmqm_sys::MQ_Q_MGR_NAME_LENGTH)
+                        .try_into()
+                        .expect("text buffer length should fit MQLONG")
+                );
+                let int_slice =
+                    unsafe { slice::from_raw_parts_mut(ints, int_len.try_into().expect("int_len should be positive")) };
+                int_slice[0] = 1024;
+                let char_slice =
+                    unsafe { slice::from_raw_parts_mut(chars, char_len.try_into().expect("char_len should be positive")) };
+                let (date, qmgr_name) = char_slice.split_at_mut(libmqm_sys::MQ_DATE_LENGTH);
+                date.fill(0x31);
+                qmgr_name.fill(0x32);
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+        mock_library
+            .expect_MQCLOSE()
+            .returning(|_, obj, _, cc, rc| {
+                *obj = -1;
+                test::mock::mqi_outcome_ok(cc, rc);
+            })
+            .times(1);
+    });
+
+    let object = Object::open(connection, &(QueueManagerName(mqstr!("")), constants::MQOO_INQUIRE)).warn_as_error()?;
+    let result = object
+        .inquire(&[
+            attribute::MQCA_ALTERATION_DATE,
+            attribute::MQIA_MAX_MSG_LENGTH,
+            attribute::MQCA_Q_MGR_NAME,
+        ])
+        .warn_as_error()?;
+    let mut items = result.iter();
+
+    let (selector, value) = items.next().expect("date attribute should be present").into_tuple();
+    assert_eq!(selector, MQXA(constants::MQCA_ALTERATION_DATE.0));
+    match value {
+        AttributeValue::Text(date) => {
+            assert_eq!(date.len(), libmqm_sys::MQ_DATE_LENGTH);
+            assert!(date.iter().all(|c| *c == 0x31));
+        }
+        AttributeValue::Long(_) => panic!("date attribute should be text"),
+    }
+
+    let (selector, value) = items.next().expect("integer attribute should be present").into_tuple();
+    assert_eq!(selector, MQXA(constants::MQIA_MAX_MSG_LENGTH.0));
+    assert!(matches!(value, AttributeValue::Long(1024)));
+
+    let (selector, value) = items.next().expect("queue manager name should be present").into_tuple();
+    assert_eq!(selector, MQXA(constants::MQCA_Q_MGR_NAME.0));
+    match value {
+        AttributeValue::Text(qmgr_name) => {
+            assert_eq!(qmgr_name.len(), libmqm_sys::MQ_Q_MGR_NAME_LENGTH);
+            assert!(qmgr_name.iter().all(|c| *c == 0x32));
+        }
+        AttributeValue::Long(_) => panic!("queue manager name should be text"),
+    }
+    assert!(items.next().is_none());
+    drop(object);
+    Ok(())
+}
