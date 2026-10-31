@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, iter};
+use std::iter;
 
 use super::option;
 use crate::{Connection, Object, connection::AsConnection, prelude::*, result::ResultComp, types};
@@ -13,12 +13,12 @@ impl<C: AsConnection> Object<C> {
         let mut int_count = 0;
         let mut text_len = Vec::new();
 
-        let select: VecDeque<_> = selectors.into_iter().collect();
-        let mut selectors = Vec::with_capacity(select.len());
+        let selectors_iter = selectors.into_iter();
+        let mut selectors = Vec::with_capacity(selectors_iter.size_hint().0);
         for &option::AttributeType {
             attribute,
             text_len: len,
-        } in select
+        } in selectors_iter
         {
             if attribute.is_text() {
                 text_total += len;
@@ -30,8 +30,8 @@ impl<C: AsConnection> Object<C> {
         }
         let mut output = option::MultiItem {
             selectors,
-            int_attr: Vec::with_capacity(int_count),
-            text_attr: Vec::with_capacity(text_total as usize),
+            int_attr: vec![0; int_count],
+            text_attr: vec![0; text_total as usize],
             text_len,
         };
 
@@ -40,16 +40,10 @@ impl<C: AsConnection> Object<C> {
             *handle,
             self.handle(),
             &output.selectors,
-            &mut output.int_attr.spare_capacity_mut()[..int_count],
-            &mut output.text_attr.spare_capacity_mut()[..text_total as usize],
+            &mut output.int_attr,
+            &mut output.text_attr,
         )
-        .map_completion(|()| {
-            unsafe {
-                output.text_attr.set_len(text_total as usize);
-                output.int_attr.set_len(int_count);
-            };
-            output
-        })
+        .map_completion(|()| output)
     }
 
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
