@@ -3,6 +3,10 @@
   "extends": [
     "config:best-practices"
   ],
+  "cargo": {
+    "commitMessageTopic": "Rust dependency {{depName}}",
+    "rangeStrategy": "bump"
+  },
   "customManagers": [
     {
       "customType": "regex",
