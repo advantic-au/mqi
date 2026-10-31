@@ -51,8 +51,16 @@ pub struct ConnectionRef<'conn, L: Library<MQ: Mqi>, H> {
 #[derive(Debug)]
 #[must_use]
 pub enum ConnectionEither<'conn, L: Library<MQ: Mqi>, H> {
-    Owned(Connection<L, H>),
-    Ref(ConnectionRef<'conn, L, H>),
+    /// An owned connection that disconnects when dropped.
+    Owned(
+        /// The connection value.
+        Connection<L, H>,
+    ),
+    /// A borrowed connection view that does not disconnect when dropped.
+    Ref(
+        /// The connection reference.
+        ConnectionRef<'conn, L, H>,
+    ),
 }
 
 impl<L: Library<MQ: Mqi> + Clone, H> Clone for ConnectionRef<'_, L, H> {
@@ -123,6 +131,7 @@ impl<L, H> ConnectionRef<'_, L, H>
 where
     L: Library<MQ: Mqi>,
 {
+    /// Construct a non-owning connection reference from an existing handle and MQ library.
     pub const fn from_parts(handle: ConnectionHandle, mq: MqFunctions<L>) -> Self {
         Self {
             conn: ManuallyDrop::new(Connection {

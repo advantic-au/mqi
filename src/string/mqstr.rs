@@ -6,10 +6,10 @@ use crate::{
     types,
 };
 
+/// Fixed-width array of MQ character bytes.
 pub type MqChar<const N: usize> = [types::MQCHAR; N];
 
-/// Fixed width string with trailing white space/nulls commonly
-/// used with IBM MQ API's
+/// Fixed-width string used by MQ APIs, with trailing spaces and NUL bytes trimmed when read.
 #[derive(Debug, Eq, Clone, Copy, derive_more::AsMut)]
 #[repr(transparent)]
 pub struct MqStr<const N: usize> {
@@ -62,8 +62,12 @@ impl<const N: usize, const Y: usize> PartialOrd<MqStr<Y>> for MqStr<N> {
 }
 
 impl<const N: usize> MqStr<N> {
+    /// Borrow the first `N` MQ characters as an `MqStr`.
+    ///
+    /// Additional characters in `value` are ignored.
+    ///
     /// # Errors
-    /// Returns [`MqStrError::Length`] if `value` contains fewer than `N` bytes.
+    /// Returns [`MqStrError::Length`] when fewer than `N` characters are provided.
     pub const fn from_mqchar_slice(value: &[types::MQCHAR]) -> Result<&Self, MqStrError> {
         match value.split_first_chunk::<N>() {
             Some((val, _)) => {
@@ -78,12 +82,14 @@ impl<const N: usize> MqStr<N> {
         }
     }
 
+    /// Return the fixed-width storage as bytes.
     #[must_use]
     pub const fn as_bytes(&self) -> &[u8; N] {
         // SAFETY: MqStr is repr(transparent) over an array of N one-byte MQCHARs.
         unsafe { &*ptr::from_ref(self).cast() }
     }
 
+    /// Return the fixed-width storage as MQ character units.
     #[must_use]
     pub const fn as_mqchar(&self) -> &MqChar<N> {
         &self.data
@@ -132,16 +138,21 @@ impl<const N: usize> MqStr<N> {
         &self.data[..last]
     }
 
+    /// Return whether all characters are spaces or NUL bytes.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.data.iter().all(|c| *c == 0x20 || *c == 0)
     }
 
+    /// Return whether any character is neither a space nor a NUL byte.
     #[must_use]
     pub fn has_value(&self) -> bool {
         self.data.iter().any(|c| *c != 0x20 && *c != 0)
     }
 
+    /// Copy `value` into this field and space-pad the remainder.
+    ///
+    /// Returns `false` without modifying the field if `value` is too long.
     pub fn assign(&mut self, value: &[types::MQCHAR]) -> bool {
         match self.data.split_at_mut_checked(value.len()) {
             Some((target, space)) => {
@@ -198,9 +209,16 @@ impl<const N: usize> AsMut<MqStr<N>> for MqChar<N> {
 }
 
 #[derive(derive_more::Error, derive_more::Display, Debug)]
+/// Error converting a Rust string into a fixed-width MQ string.
 pub enum MqStrError {
     #[display("String of length {length} exceeds maximum length {max}")]
-    Length { length: usize, max: usize },
+    /// Input string exceeds the capacity of the target MQ field.
+    Length {
+        /// Length of the input string in bytes.
+        length: usize,
+        /// Maximum byte length supported by the fixed-width field.
+        max: usize,
+    },
 }
 
 impl<const N: usize> TryFrom<&str> for MqStr<N> {

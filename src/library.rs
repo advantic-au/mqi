@@ -15,22 +15,30 @@ pub struct MqFunctions<L>(pub L);
 
 /// Holds a reference to an implementation of an MQ library
 pub trait Library {
+    /// Native MQI implementation type.
     type MQ;
 
+    /// Borrow the native MQI implementation.
     fn lib(&self) -> &Self::MQ;
 }
 
 #[cfg(feature = "mqai")]
+/// Provides access to the native MQ Administration Interface implementation.
 pub trait MqaiLibrary {
+    /// Native MQAI implementation type.
     type MQAI: libmqm_sys::Mqai;
 
+    /// Borrow the native MQAI implementation.
     fn lib(&self) -> &Self::MQAI;
 }
 
 #[cfg(feature = "exits")]
+/// Provides access to the native MQ exits implementation.
 pub trait ExitsLibrary {
+    /// Native exits implementation type.
     type Exits: libmqm_sys::Exits;
 
+    /// Borrow the native exits implementation.
     fn lib(&self) -> &Self::Exits;
 }
 

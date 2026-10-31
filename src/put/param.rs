@@ -9,7 +9,11 @@ use crate::{
 structs::impl_min_version!(['a], structs::MQPMO<'a>);
 
 #[derive(Debug, Clone, Copy)]
-pub struct Context<T>(pub T);
+/// Selects the object whose context MQ uses for a put operation.
+pub struct Context<T>(
+    /// Object providing the context handle.
+    pub T,
+);
 
 macro_rules! impl_putoption_tuple {
     ([$($rest:ident),*]) => {
@@ -43,10 +47,29 @@ unsafe impl<'po, T: option::PutOption<'po>> option::PutOption<'po> for Option<T>
 all_multi_tuples!(impl_putoption_tuple);
 
 #[derive(Debug)]
+/// Property-copy action applied when putting a message with message handles.
 pub enum PropertyAction<'handle, C: AsConnection, C2: AsConnection> {
-    Reply(&'handle Properties<C>, &'handle mut Properties<C2>),
-    Forward(&'handle Properties<C>, &'handle mut Properties<C2>),
-    Report(&'handle Properties<C>, &'handle mut Properties<C2>),
+    /// Copy properties from the request handle to the reply handle.
+    Reply(
+        /// Properties on the original request message.
+        &'handle Properties<C>,
+        /// Destination handle that receives the reply properties.
+        &'handle mut Properties<C2>,
+    ),
+    /// Copy properties from the input handle to the forwarded message handle.
+    Forward(
+        /// Properties on the message being forwarded.
+        &'handle Properties<C>,
+        /// Destination handle that receives the forwarded properties.
+        &'handle mut Properties<C2>,
+    ),
+    /// Copy properties from the input handle to the report message handle.
+    Report(
+        /// Properties on the message that caused the report.
+        &'handle Properties<C>,
+        /// Destination handle that receives the report properties.
+        &'handle mut Properties<C2>,
+    ),
 }
 
 unsafe impl<'po, C: AsConnection> option::PutOption<'po> for Context<&Object<C>> {

@@ -27,16 +27,21 @@ pub struct Object<C: AsConnection> {
 }
 
 impl<C: AsConnection> Object<C> {
+    /// Return the MQ handle for this open object.
     #[must_use]
     pub const fn handle(&self) -> &ObjectHandle {
         &self.handle
     }
 
+    /// Return the connection associated with this object.
     #[must_use]
     pub const fn connection(&self) -> &C {
         &self.connection
     }
 
+    /// Construct an object from an existing connection and MQ object handle.
+    ///
+    /// The object closes the handle when dropped, using `MQCO_NONE`.
     pub const fn from_parts(connection: C, handle: ObjectHandle) -> Self {
         Self {
             handle,
@@ -45,6 +50,7 @@ impl<C: AsConnection> Object<C> {
         }
     }
 
+    /// Set the close options used when this object is dropped or explicitly closed.
     pub const fn close_options(&mut self, options: MQCO) {
         self.drop_close_options = options;
     }

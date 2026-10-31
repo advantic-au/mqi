@@ -30,6 +30,7 @@ const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
 
 const INTEGER_NATIVE_MASK: types::MQENC = constants::MQENC_NATIVE.intersection(constants::MQENC_INTEGER_MASK);
 
+/// MQ format identifiers used to identify message bodies and chained headers.
 pub mod fmt {
     use libmqm_sys as mq;
 
@@ -62,21 +63,36 @@ pub mod fmt {
     pub const MQFMT_XMIT_Q_HEADER: Fmt = cstr_array(mq::MQFMT_XMIT_Q_HEADER);
 }
 
+/// An error encountered while parsing an MQ header chain.
 #[derive(derive_more::Error, derive_more::Display, Debug, Clone)]
 pub enum HeaderError {
     #[display("Unexpected STRUC_ID: {:?} or version", _0)]
     #[error(ignore)]
-    UnexpectedStruc(StrucId),
+    /// The bytes did not contain the structure identifier expected for the format.
+    UnexpectedStruc(
+        /// The structure identifier found in the message data.
+        StrucId,
+    ),
     #[display(
         "Length of remaining data was insufficient for expected header: {} exceeds data remaining ({})",
         _0,
         _1
     )]
     #[error(ignore)]
-    DataTruncated(usize, usize),
+    /// The remaining data ended before the fixed header structure was complete.
+    DataTruncated(
+        /// The minimum number of bytes required for the structure.
+        usize,
+        /// The number of bytes available in the remaining message data.
+        usize,
+    ),
     #[display("Length provided by header is malformed: {}", _0)]
     #[error(ignore)]
-    MalformedLength(types::MQLONG),
+    /// The encoded structure length was invalid.
+    MalformedLength(
+        /// The invalid structure length reported by the header.
+        types::MQLONG,
+    ),
     #[display(
         "Length provided by header is not within the data offset: {} not within offset {}..{}",
         _0,
@@ -84,30 +100,72 @@ pub enum HeaderError {
         _2
     )]
     #[error(ignore)]
-    StrucLengthOffsetMismatch(usize, usize, usize),
+    /// The declared total length was inconsistent with the structure or remaining bytes.
+    StrucLengthOffsetMismatch(
+        /// The total length reported by the header.
+        usize,
+        /// The size of the fixed header structure.
+        usize,
+        /// The number of message bytes available from the header offset.
+        usize,
+    ),
 }
 
+/// One supported MQ header decoded from message data.
 #[derive(Debug, Clone)]
 pub enum Header<'a> {
-    Dlh(EncodedHeader<'a, mq::MQDLH>),
-    Dh(EncodedHeader<'a, mq::MQDH>),
-    Iih(EncodedHeader<'a, mq::MQIIH>),
-    Rfh2(EncodedHeader<'a, mq::MQRFH2>),
-    Rfh(EncodedHeader<'a, mq::MQRFH>),
-    Cih(EncodedHeader<'a, mq::MQCIH>),
+    /// A dead-letter header.
+    Dlh(
+        /// The decoded dead-letter header and its encoded message bytes.
+        EncodedHeader<'a, mq::MQDLH>,
+    ),
+    /// A distribution-list header.
+    Dh(
+        /// The decoded distribution-list header and its encoded message bytes.
+        EncodedHeader<'a, mq::MQDH>,
+    ),
+    /// An IMS information header.
+    Iih(
+        /// The decoded IMS information header and its encoded message bytes.
+        EncodedHeader<'a, mq::MQIIH>,
+    ),
+    /// A rules and formatting header, version 2.
+    Rfh2(
+        /// The decoded version 2 rules and formatting header and its encoded bytes.
+        EncodedHeader<'a, mq::MQRFH2>,
+    ),
+    /// A rules and formatting header, version 1.
+    Rfh(
+        /// The decoded version 1 rules and formatting header and its encoded bytes.
+        EncodedHeader<'a, mq::MQRFH>,
+    ),
+    /// A CICS information header.
+    Cih(
+        /// The decoded CICS information header and its encoded message bytes.
+        EncodedHeader<'a, mq::MQCIH>,
+    ),
 }
 
+/// Result of decoding one header: the header, remaining data, consumed length, and next message format.
 pub type NextHeader<'a> = (Header<'a>, &'a [u8], usize, MessageFormat);
 
+/// A parsed MQ header together with its encoding and any trailing header data.
 #[derive(Debug, Clone)]
 pub struct EncodedHeader<'a, T: ChainedHeader> {
+    /// Character-set identifier used to decode this header.
     pub ccsid: CCSID,
+    /// Numeric encoding used by fields in this header.
     pub encoding: types::MQENC,
+    /// Parsed header structure, borrowed when aligned or owned when unaligned.
     pub raw_header: MaybeOwned<'a, T>,
+    /// Bytes between the fixed structure and the total length declared by the header.
     pub tail: &'a [u8],
 }
 
 impl Header<'_> {
+    /// Iterate over the supported headers chained at the start of message data.
+    ///
+    /// The iterator stops after the first parse error and yields that error once.
     pub const fn iter(data: &[u8], format: MessageFormat) -> HeaderIter<'_> {
         HeaderIter {
             format,
@@ -118,18 +176,21 @@ impl Header<'_> {
 }
 
 impl<T: ChainedHeader> EncodedHeader<'_, T> {
+    /// Return the CCSID declared for the data following this header.
     #[must_use]
     pub fn next_ccsid(&self) -> CCSID {
         let next_ccsid = self.native_mqlong(T::next_raw_ccsid(&self.raw_header));
         if next_ccsid == 0 { self.ccsid } else { CCSID(next_ccsid) }
     }
 
+    /// Return the numeric encoding declared for the data following this header.
     #[must_use]
     pub fn next_encoding(&self) -> types::MQENC {
         let next_encoding = self.native_mqlong(T::next_raw_encoding(&self.raw_header)).into();
         if next_encoding == 0 { self.encoding } else { next_encoding }
     }
 
+    /// Return the format declared for the data following this header.
     #[must_use]
     pub fn next_format(&self) -> TextEnc<Fmt> {
         if self.ccsid.is_ebcdic().unwrap_or(false) {
@@ -173,22 +234,35 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     }
 }
 
+/// Interface used to parse MQ structures that chain another header or data format.
+///
+/// Implementations for the supported MQ header structures are provided by this crate.
 pub trait ChainedHeader: Sized {
+    /// Format identifier for this structure in ASCII-compatible data.
     const FMT_ASCII: Fmt;
+    /// Format identifier for this structure in EBCDIC data.
     const FMT_EBCDIC: Fmt;
+    /// Structure identifier for this structure in ASCII-compatible data.
     const STRUC_ID_ASCII: StrucId;
+    /// Structure identifier for this structure in EBCDIC data.
     const STRUC_ID_EBCDIC: StrucId;
+    /// MQ structure version expected by this parser.
     const VERSION: types::MQLONG;
 
     #[must_use]
+    /// Read the raw CCSID field describing the following data.
     fn next_raw_ccsid(&self) -> types::MQLONG;
     #[must_use]
+    /// Read the raw numeric-encoding field describing the following data.
     fn next_raw_encoding(&self) -> types::MQLONG;
     #[must_use]
+    /// Read the raw format field describing the following data.
     fn next_raw_format(&self) -> Fmt;
     #[must_use]
+    /// Read the raw structure identifier.
     fn raw_struc_id(&self) -> StrucId;
     #[must_use]
+    /// Read the raw structure version.
     fn raw_version(&self) -> types::MQLONG;
 
     /// # Errors
@@ -204,18 +278,30 @@ pub trait ChainedHeader: Sized {
     }
 
     #[inline]
+    /// Read the declared structure length when the MQ structure has one.
     fn raw_struc_length(&self) -> Option<types::MQLONG> {
         None
     }
 
+    /// Wrap a decoded structure as the corresponding [`Header`] variant.
     fn header(encoded: EncodedHeader<Self>) -> Header;
+    /// Extract this concrete header from the generic [`Header`] enum.
     fn from_header(header: Header) -> Option<EncodedHeader<Self>>;
 }
 
+/// A fixed-width MQ character value tagged with the encoding of its bytes.
 #[derive(Clone, Copy)]
 pub enum TextEnc<T> {
-    Ascii(T),
-    Ebcdic(T),
+    /// The value is encoded as ASCII-compatible characters.
+    Ascii(
+        /// The fixed-width value.
+        T,
+    ),
+    /// The value is encoded as EBCDIC characters.
+    Ebcdic(
+        /// The fixed-width value.
+        T,
+    ),
 }
 
 impl<const N: usize> Debug for TextEnc<MqChar<N>> {
@@ -279,6 +365,7 @@ impl<const N: usize> PartialEq<MqChar<N>> for TextEnc<MqChar<N>> {
 }
 
 impl<const N: usize> TextEnc<MqChar<N>> {
+    /// Return this fixed-width value tagged as ASCII-compatible.
     #[must_use]
     pub const fn into_ascii(self) -> Self {
         match self {
@@ -287,6 +374,7 @@ impl<const N: usize> TextEnc<MqChar<N>> {
         }
     }
 
+    /// Return this fixed-width value tagged as EBCDIC.
     #[must_use]
     pub const fn into_ebcdic(self) -> Self {
         match self {
@@ -566,6 +654,7 @@ impl ChainedHeader for mq::MQRFH2 {
 }
 
 impl<'a> EncodedHeader<'a, mq::MQRFH2> {
+    /// Return the rules-and-formatting name/value data, excluding its length prefix.
     #[must_use]
     pub fn name_value_data(&self) -> StrCcsid<'a> {
         StringCcsid::new(
@@ -620,6 +709,7 @@ impl ChainedHeader for mq::MQRFH {
 }
 
 impl<'a> EncodedHeader<'a, mq::MQRFH> {
+    /// Return the version 1 rules-and-formatting name/value data.
     #[must_use]
     pub const fn name_value_data(&self) -> StrCcsid<'a> {
         StringCcsid::new(
@@ -630,6 +720,10 @@ impl<'a> EncodedHeader<'a, mq::MQRFH> {
     }
 }
 
+/// Iterator over recognized headers at the start of a message body.
+///
+/// Each successful item contains the decoded header, its byte length, and the
+/// format that applies to the data following it.
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct HeaderIter<'a> {

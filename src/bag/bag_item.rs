@@ -9,29 +9,45 @@ use crate::{
     types::{MQBYTE, MQIND, MQINT64, MQITEM, MQLONG, Selector},
 };
 
+/// Error while storing a text value in a bag using a different CCSID.
 #[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
 pub enum PutStringCcsidError {
+    /// String CCSID differs from the CCSID configured for the bag.
     #[display("Provided CCSID = {}, bag CCSID = {}", _0, _1)]
-    CcsidMismatch(CCSID, CCSID),
+    CcsidMismatch(
+        /// CCSID used by the provided string.
+        CCSID,
+        /// CCSID configured for the bag.
+        CCSID,
+    ),
+    /// MQ error returned while adding or updating the item.
     #[from]
     Mqi(Error),
 }
 
+/// Values that can be added to or updated in an MQAI bag.
 pub trait BagItemPut<L: MqaiLibrary> {
+    /// Error returned when the value cannot be written to a bag.
     type Error;
 
     /// # Errors
     /// Returns an error if MQ cannot add the item or its value cannot be represented by this type.
+    /// Add this value to the bag under `selector`.
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error>;
     /// # Errors
     /// Returns an error if MQ cannot update the item or its value cannot be represented by this type.
+    /// Replace the selected item at `index` with this value.
     fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error>;
 }
 
+/// Values that can be retrieved from an MQAI bag.
 pub trait BagItemGet<L: MqaiLibrary>: Sized {
+    /// Error returned when the item cannot be represented by this type.
     type Error: WithMqError + Debug;
+
     /// # Errors
     /// Returns an error if MQ cannot retrieve the item or its value cannot be represented by this type.
+    /// Retrieve the item at `index` identified by `selector`.
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error>;
 }
 

@@ -5,6 +5,10 @@ use libmqm_sys::MQCHARV;
 
 use crate::{constants, conversion, string::CCSID, structs, types};
 
+/// Character data stored with its CCSID and integer byte-order metadata.
+///
+/// The generic storage can be borrowed, owned, or copy-on-write; use the
+/// aliases below for those common ownership modes.
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
     pub(crate) ccsid: CCSID,
@@ -13,30 +17,45 @@ pub struct StringCcsid<T> {
 }
 
 impl<T> StringCcsid<T> {
+    /// Associate character data with a CCSID and integer byte order.
     pub const fn new(data: T, ccsid: CCSID, le: bool) -> Self {
         Self { ccsid, le, data }
     }
 }
 
+/// Borrowed MQ character data with its CCSID and byte-order metadata.
 pub type StrCcsid<'a> = StringCcsid<&'a [types::MQCHAR]>;
+/// Owned MQ character data with its CCSID and byte-order metadata.
 pub type StrCcsidOwned = StringCcsid<Vec<types::MQCHAR>>;
+/// MQ character data that can be borrowed or owned, with encoding metadata.
 pub type StrCcsidCow<'a> = StringCcsid<Cow<'a, [types::MQCHAR]>>;
 
 const NATIVE_IS_LE: bool = constants::MQENC_NATIVE.contains(constants::MQENC_INTEGER_REVERSED);
 
 #[derive(derive_more::Error, derive_more::Display, derive_more::From, Debug)]
+/// Error converting CCSID-tagged text to a Rust UTF-8 `String`.
 pub enum FromStringCcsidError {
-    NonUtf8Ccsid(CcsidError),
-    Utf8Convert(std::str::Utf8Error),
+    /// The input CCSID is not UTF-8.
+    NonUtf8Ccsid(
+        /// CCSID information for the input text.
+        CcsidError,
+    ),
+    /// The UTF-8 bytes contain an invalid sequence.
+    Utf8Convert(
+        /// Standard-library UTF-8 conversion error.
+        std::str::Utf8Error,
+    ),
 }
 
 #[derive(derive_more::Error, derive_more::Display, Debug)]
+/// The CCSID-tagged string cannot be interpreted as UTF-8.
 #[display("{} is not a UTF-8 CCSID", str.ccsid)]
 pub struct CcsidError {
     str: StrCcsidOwned,
 }
 
 impl StrCcsidOwned {
+    /// Build an owned CCSID-tagged string from MQ character data.
     #[must_use]
     pub const fn from_vec(data: Vec<types::MQCHAR>, ccsid: CCSID) -> Self {
         Self {
@@ -179,8 +198,14 @@ impl<T: AsRef<[types::MQCHAR]>> StringCcsid<T> {
     }
 }
 
+/// Provides MQ character data together with the CCSID needed to interpret it.
+///
+/// Implementations are used when attaching variable-length strings to MQ
+/// structures and when supplying names or values to MQ operations.
 pub trait EncodedString {
+    /// Return the character-set identifier used to encode this string.
     fn ccsid(&self) -> CCSID;
+    /// Return the encoded MQ character data.
     fn data(&self) -> &[types::MQCHAR];
 }
 

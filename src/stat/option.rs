@@ -95,40 +95,68 @@ impl ReconnectionErrorStat {
     }
 }
 
+/// Counts and object details returned after an asynchronous put operation.
 #[derive(Debug, Clone)]
 pub struct AsyncPutStat {
+    /// Completion code when the operation completed with an MQ warning.
     pub warning: Option<MQCC>,
+    /// MQ reason code returned for the operation.
     pub reason: MQRC,
+    /// Number of messages put successfully.
     pub put_success_count: MQLONG,
+    /// Number of messages put with warnings.
     pub put_warning_count: MQLONG,
+    /// Number of messages that could not be put.
     pub put_failure_count: MQLONG,
+    /// MQ object type reported by the status structure.
     pub object_type: MQOT,
-    pub object_name: ObjectName,               // TODO: fix wrapper?
-    pub object_qmgr_name: ObjectName,          // TODO: fix wrapper?
-    pub resolved_object_name: ObjectName,      // TODO: fix wrapper?
-    pub resolved_object_qmgr_name: ObjectName, // TODO: fix wrapper?
+    /// Name of the object associated with the operation.
+    pub object_name: ObjectName,
+    /// Queue-manager name associated with the object.
+    pub object_qmgr_name: ObjectName,
+    /// Resolved name of the object used by MQ.
+    pub resolved_object_name: ObjectName,
+    /// Queue-manager name associated with the resolved object.
+    pub resolved_object_qmgr_name: ObjectName,
+    /// Optional object string returned by MQ, with its CCSID preserved.
     pub object_string: Option<StrCcsidOwned>,
 }
 
+/// Object status and result code reported during connection recovery.
 #[derive(Debug, Clone)]
 pub struct ReconnectionStat {
+    /// Completion code when the operation completed with an MQ warning.
     pub warning: Option<MQCC>,
+    /// MQ reason code describing the reconnection status.
     pub reason: MQRC,
+    /// MQ object type reported for the object being reconnected.
     pub object_type: MQOT,
-    pub object_name: ObjectName,      // TODO: fix wrapper?
-    pub object_qmgr_name: ObjectName, // TODO: fix wrapper?
+    /// Name of the object being reconnected.
+    pub object_name: ObjectName,
+    /// Queue-manager name associated with the object.
+    pub object_qmgr_name: ObjectName,
 }
 
+/// Detailed status for an object that could not be restored during reconnection.
 #[derive(Debug, Clone)]
 pub struct ReconnectionErrorStat {
+    /// Completion code when the operation completed with an MQ warning.
     pub warning: Option<MQCC>,
+    /// MQ reason code describing the reconnection failure.
     pub reason: MQRC,
+    /// MQ object type reported for the object.
     pub object_type: MQOT,
-    pub object_name: ObjectName,      // TODO: fix wrapper?
-    pub object_qmgr_name: ObjectName, // TODO: fix wrapper?
+    /// Name of the object that could not be restored.
+    pub object_name: ObjectName,
+    /// Queue-manager name associated with the object.
+    pub object_qmgr_name: ObjectName,
+    /// Optional object string returned by MQ, with its CCSID preserved.
     pub object_string: Option<StrCcsidOwned>,
+    /// Optional subscription name associated with the failed object.
     pub sub_name: Option<StrCcsidOwned>,
+    /// Open options reported for the object.
     pub open_options: MQOO,
+    /// Subscription options reported for the object.
     pub sub_options: MQSO,
 }
 

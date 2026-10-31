@@ -3,11 +3,15 @@ use crate::{
     structs, types,
 };
 
+/// Object descriptor and open flags assembled from [`OpenOption`] values.
 pub struct OpenParamOption<'a, T> {
+    /// Descriptor identifying the target object and any selection/object strings.
     pub mqod: structs::MQOD<'a>,
+    /// Bit flags controlling how MQ opens the object.
     pub options: T,
 }
 
+/// Open parameters using MQ's standard object-open flags.
 pub type OpenParam<'a> = OpenParamOption<'a, types::MQOO>;
 
 /// Options accepted by [`Object::open`](crate::Object::open).
@@ -26,6 +30,7 @@ pub type OpenParam<'a> = OpenParamOption<'a, types::MQOO>;
 /// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenOption<'oo, T> {
+    /// Apply this option to the object descriptor and open flags.
     fn apply_param(&self, param: &mut OpenParamOption<'oo, T>);
 }
 
@@ -34,6 +39,7 @@ pub unsafe trait OpenOption<'oo, T> {
 /// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenValue<S> {
+    /// Error returned when the opened object cannot be converted into this type.
     type Error: From<Error> + std::fmt::Debug;
 
     /// # Errors

@@ -51,22 +51,26 @@ impl<'ptr> structs::MQSD<'ptr> {
 
 // Functions to attach references to MQCNO
 impl<'ptr> structs::MQCNO<'ptr> {
+    /// Attach credential parameters and retain their borrow for the connection structure.
     pub fn attach_csp(&mut self, csp: &'ptr structs::MQCSP) {
         self.set_min_version(mq::MQCNO_VERSION_5);
         self.SecurityParmsPtr = (&raw const csp.struc).cast_mut();
     }
 
+    /// Attach a client channel definition for an MQ client connection.
     pub fn attach_cd(&mut self, cd: &'ptr structs::MQCD) {
         self.set_min_version(mq::MQCNO_VERSION_2);
         self.ClientConnPtr = (&raw const cd.struc).cast_mut().cast();
     }
 
+    /// Attach TLS configuration to the connection options.
     pub fn attach_sco(&mut self, sco: &'ptr structs::MQSCO) {
         self.set_min_version(mq::MQCNO_VERSION_4);
         self.SSLConfigPtr = (&raw const sco.struc).cast_mut();
     }
 
     #[cfg(feature = "mqc_9_3_0_0")]
+    /// Attach queue-manager connection balancing parameters.
     pub fn attach_bno(&mut self, bno: &'ptr structs::MQBNO) {
         self.set_min_version(mq::MQCNO_VERSION_8);
         self.BalanceParmsPtr = (&raw const bno.struc).cast_mut();

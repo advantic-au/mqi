@@ -9,10 +9,13 @@ use crate::{
 // use super::{Bag, BagDrop};
 
 #[derive(Debug, Clone, Copy)]
+/// Supplies a bag as the command options to an MQAI execute operation.
 pub struct OptionsBag<'a, B: BagDrop, L: MqaiLibrary>(&'a Bag<B, L>);
 #[derive(Debug, Clone, Copy)]
+/// Selects an object whose handle receives the execute command's reply.
 pub struct ReplyObject<'a, C: AsConnection>(&'a Object<C>);
 #[derive(Debug, Clone, Copy)]
+/// Selects the object to which an MQAI administration command applies.
 pub struct AdminObject<'a, C: AsConnection>(&'a Object<C>);
 
 impl<'a, B: BagDrop, L: MqaiLibrary> option::ExecuteOption<'a> for OptionsBag<'a, B, L> {

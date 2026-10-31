@@ -45,17 +45,33 @@ macro_rules! impl_openoption_tuple {
 all_multi_tuples!(impl_openoption_tuple);
 
 #[derive(Debug, Clone, Copy)]
-pub struct SelectionString<T>(pub T);
+/// Selection expression used when opening a topic or subscription.
+pub struct SelectionString<T>(
+    /// Encoded selection expression.
+    pub T,
+);
 
 #[derive(Debug, Clone, Copy)]
-pub struct ObjectString<T>(pub T);
+/// Object string identifying an MQ topic or other string-addressed object.
+pub struct ObjectString<T>(
+    /// Encoded MQ object string.
+    pub T,
+);
 
+/// Alternate user identity supplied when opening an object.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
-pub struct AlternateUserId(pub MqStr<12>);
+pub struct AlternateUserId(
+    /// The fixed-width alternate user identifier.
+    pub MqStr<12>,
+);
 impl_from_str!(AlternateUserId, MqStr<12>);
 
+/// Object string resolved by MQ, with its CCSID preserved.
 #[derive(Debug, Clone)]
-pub struct ResObjectString(pub StrCcsidOwned);
+pub struct ResObjectString(
+    /// The resolved object string.
+    pub StrCcsidOwned,
+);
 
 unsafe impl<'a, T: EncodedString + ?Sized, O> option::OpenOption<'a, O> for SelectionString<&'a T> {
     fn apply_param(&self, option::OpenParamOption { mqod, .. }: &mut option::OpenParamOption<'a, O>) {

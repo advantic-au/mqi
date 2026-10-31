@@ -9,6 +9,7 @@ use crate::{
 };
 
 #[derive(Debug)]
+/// Iterator over items in an MQAI bag for one selector.
 pub struct BagItem<'bag, T, B, L>
 where
     B: BagDrop,

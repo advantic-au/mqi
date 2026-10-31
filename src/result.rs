@@ -11,19 +11,23 @@ use crate::{
 #[derive(Debug, Clone, derive_more::Deref, derive_more::DerefMut, derive_more::AsRef, derive_more::AsMut)]
 #[must_use]
 pub struct Completion<T>(
+    /// The value returned by the MQ operation.
     #[deref]
     #[deref_mut]
     #[as_ref]
     #[as_mut]
     pub T,
+    /// The MQ reason code and verb when the operation completed with a warning.
     pub Option<(MQRC, &'static str)>,
 );
 
 impl<T> Completion<T> {
+    /// Wrap a successful value with no warning.
     pub const fn new(value: T) -> Self {
         Self(value, None)
     }
 
+    /// Wrap a value with the warning reason code and MQ verb that produced it.
     pub const fn new_warning(value: T, warning: (MQRC, &'static str)) -> Self {
         Self(value, Some(warning))
     }
@@ -36,12 +40,13 @@ impl<T: std::process::Termination> std::process::Termination for Completion<T> {
 }
 
 impl<T> Completion<T> {
+    /// Transform the contained value while preserving any MQ warning.
     pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> Completion<U> {
         let Self(value, warning) = self;
         Completion(op(value), warning)
     }
 
-    /// Discards the `MQCC_WARNING` in the Completion
+    /// Discard any warning and return the contained value.
     pub fn discard_warning(self) -> T {
         let Self(value, ..) = self;
         value
@@ -81,7 +86,14 @@ impl<T: Display> Display for Completion<T> {
 /// MQ failure with [`MQCC`] != `MQCC_OK`. Has the associated verb and [`MQRC`].
 #[derive(Debug, derive_more::Error, derive_more::Display)]
 #[display("{_0}: {_1} - {_2}")]
-pub struct Error(pub MQCC, pub &'static str, pub MQRC);
+pub struct Error(
+    /// MQ completion code describing the failure.
+    pub MQCC,
+    /// Name of the MQ verb that returned the error.
+    pub &'static str,
+    /// MQ reason code describing the specific failure.
+    pub MQRC,
+);
 
 /// Result of an MQI API call wrapped in a `Completion` for warnings
 pub type ResultCompErr<T, E> = Result<Completion<T>, E>;
@@ -99,7 +111,9 @@ pub trait ResultCompExt<T, E> {
     fn warn_as_error(self) -> Result<T, E>;
 }
 
+/// Provides access to the underlying MQ error when an error type wraps one.
 pub trait WithMqError {
+    /// Return the underlying MQ error, or `None` for errors unrelated to MQ.
     fn mqi_error(&self) -> Option<&Error>;
 }
 
@@ -117,7 +131,7 @@ pub trait ResultCompErrExt<T, E> {
     /// Preserves the error from the original result.
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E>;
 
-    /// Discards the completion
+    /// Discards the completion wrapper and any warning while retaining the value.
     ///
     /// # Errors
     /// Preserves the error from the original result.
@@ -229,8 +243,12 @@ impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
         }
     }
 }
+/// Extension methods for mapping or inspecting failed MQ results.
 pub trait ResultErrExt<T> {
-    /// Captures an [`MQRC`] error to a [`Result`]
+    /// Map an error only when its reason code equals `reason`.
+    ///
+    /// The closure receives the matching error; successful values and
+    /// non-matching errors are returned unchanged.
     ///
     /// # Errors
     /// Returns the original error unless its reason code matches `reason` and `map` handles it.
