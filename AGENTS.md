@@ -280,8 +280,7 @@ there - do not add a hand-written table to the README.
 
 - Run `bash scripts/clippy.sh` after **every** change to Rust source, not
   just once at the end of a task. Warnings are errors (`clippy::all` is deny and CI compiles with
-  `RUSTFLAGS=-Dwarnings`), except missing `# Errors` and `# Panics` sections, which the script
-  reports as warnings during their gradual cleanup.
+  `RUSTFLAGS=-Dwarnings`).
 - `rustfmt.toml` sets `max_width = 130`, Unix newlines, edition 2024, `reorder_imports`,
   `use_field_init_shorthand`. Run `cargo fmt`.
 - Lints are strict: `clippy::all` is **deny**, `nursery` + `pedantic` are warn,
@@ -297,10 +296,10 @@ there - do not add a hand-written table to the README.
   under a file-level `#![expect(clippy::allow_attributes, ...)]` prologue in `src/connection/param.rs`,
   `src/get/param.rs`, `src/properties/param.rs` and `src/test/mock/mod.rs`. Add a `reason` to new
   suppressions.
-- `missing_errors_doc` and `missing_panics_doc` are warnings in `Cargo.toml`. The strict matrix
-  temporarily allows only these two lints, then reports them in a separate non-failing pass. Add
-  accurate `# Errors` and `# Panics` sections as public APIs are touched; remove the corresponding
-  allow/reporting exception once no warnings remain.
+- `missing_errors_doc` and `missing_panics_doc` are warnings in `Cargo.toml`, promoted to errors by
+  `RUSTFLAGS=-Dwarnings` in the Clippy matrix. Document errors on every public `Result` function.
+  Add `# Panics` only when a caller can trigger the panic or invalid data returned by MQ can cause
+  it; do not document internal invariants as public panic behavior.
 - Doc comments are heavy and load-bearing: many doctests demonstrate how to implement the
   `*Value` / `*Option` traits yourself (`src/get/option.rs` is a good example). Doctests are run
   (`cargo test --doc`) and must compile under `--no-default-features` too.

@@ -38,6 +38,8 @@ pub trait Threading {
 
 /// A trait that represents the value of an outcome of an MQ connection call
 pub trait ConnectValue<S> {
+    /// # Errors
+    /// Returns an error if the MQ connection operation fails or the value cannot be extracted.
     fn connect_consume<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>,
@@ -46,6 +48,8 @@ pub trait ConnectValue<S> {
 
 /// A trait that represents an attribute of an outcome of an MQ connection call
 pub trait ConnectAttr<S> {
+    /// # Errors
+    /// Returns an error if the MQ connection operation fails or the attribute cannot be extracted.
     fn connect_extract<'a, F>(param: &mut ConnectParam<'a>, mqi: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut ConnectParam<'a>) -> ResultComp<S>,

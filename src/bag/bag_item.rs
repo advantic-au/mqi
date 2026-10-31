@@ -20,12 +20,18 @@ pub enum PutStringCcsidError {
 pub trait BagItemPut<L: MqaiLibrary> {
     type Error;
 
+    /// # Errors
+    /// Returns an error if MQ cannot add the item or its value cannot be represented by this type.
     fn add_to_bag(&self, selector: Selector, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error>;
+    /// # Errors
+    /// Returns an error if MQ cannot update the item or its value cannot be represented by this type.
     fn set_bag_item(&self, selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<(), Self::Error>;
 }
 
 pub trait BagItemGet<L: MqaiLibrary>: Sized {
     type Error: WithMqError + Debug;
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the item or its value cannot be represented by this type.
     fn inq_bag_item(selector: Selector, index: MQIND, bag: &Bag<impl BagDrop, L>) -> ResultCompErr<Self, Self::Error>;
 }
 

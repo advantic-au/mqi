@@ -5,17 +5,21 @@ use crate::{
     types::{MQCC, MQCHAR, MQLONG, MQOO, MQOT, MQRC, MQSO, ObjectName},
 };
 
+fn set_buffer_len(buffer: &mut Vec<MQCHAR>, length: MQLONG, buffer_size: MQLONG) {
+    let length = usize::try_from(length).expect("MQ returned a negative string length");
+    let buffer_size = usize::try_from(buffer_size).expect("provided buffer size is negative");
+    assert!(
+        length <= buffer_size && length <= buffer.capacity(),
+        "MQ returned a string length larger than the provided buffer"
+    );
+    // SAFETY: The MQ status call wrote no more than VSBufSize bytes, and the reported length was checked against capacity.
+    unsafe { buffer.set_len(length) };
+}
+
 impl AsyncPutStat {
     pub(crate) fn new(sts: &structs::MQSTS, buffer: Vec<MQCHAR>) -> Self {
         let mut buffer = buffer;
-        unsafe {
-            buffer.set_len(
-                sts.ObjectString
-                    .VSLength
-                    .try_into()
-                    .expect("buffer length should convert to usize"),
-            );
-        }
+        set_buffer_len(&mut buffer, sts.ObjectString.VSLength, sts.ObjectString.VSBufSize);
 
         Self {
             warning: match sts.CompCode {
@@ -58,23 +62,13 @@ impl ReconnectionStat {
 impl ReconnectionErrorStat {
     pub(crate) fn new(sts: &structs::MQSTS, object_string_buffer: Vec<MQCHAR>, sub_name_buffer: Vec<MQCHAR>) -> Self {
         let mut object_string_buffer = object_string_buffer;
-        unsafe {
-            object_string_buffer.set_len(
-                sts.ObjectString
-                    .VSLength
-                    .try_into()
-                    .expect("buffer length should convert to usize"),
-            );
-        }
+        set_buffer_len(
+            &mut object_string_buffer,
+            sts.ObjectString.VSLength,
+            sts.ObjectString.VSBufSize,
+        );
         let mut sub_name_buffer = sub_name_buffer;
-        unsafe {
-            sub_name_buffer.set_len(
-                sts.SubName
-                    .VSLength
-                    .try_into()
-                    .expect("buffer length should convert to usize"),
-            );
-        }
+        set_buffer_len(&mut sub_name_buffer, sts.SubName.VSLength, sts.SubName.VSBufSize);
 
         Self {
             warning: match sts.CompCode {
@@ -136,4 +130,36 @@ pub struct ReconnectionErrorStat {
     pub sub_name: Option<StrCcsidOwned>,
     pub open_options: MQOO,
     pub sub_options: MQSO,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::set_buffer_len;
+
+    #[test]
+    fn set_buffer_len_truncates_to_reported_length() {
+        let mut buffer = vec![0; 4];
+
+        set_buffer_len(&mut buffer, 2, 4);
+
+        assert_eq!(buffer.len(), 2);
+    }
+
+    #[test]
+    #[should_panic(expected = "MQ returned a negative string length")]
+    fn set_buffer_len_rejects_negative_length() {
+        set_buffer_len(&mut vec![0; 4], -1, 4);
+    }
+
+    #[test]
+    #[should_panic(expected = "MQ returned a string length larger than the provided buffer")]
+    fn set_buffer_len_rejects_length_larger_than_buffer_size() {
+        set_buffer_len(&mut vec![0; 2], 3, 2);
+    }
+
+    #[test]
+    #[should_panic(expected = "provided buffer size is negative")]
+    fn set_buffer_len_rejects_negative_buffer_size() {
+        set_buffer_len(&mut vec![0; 4], 0, -1);
+    }
 }

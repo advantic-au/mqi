@@ -27,6 +27,8 @@ pub struct SubscribeRequestParam {
 pub trait SubscribeValue<C: AsConnection> {
     type Error: From<Error> + std::fmt::Debug;
 
+    /// # Errors
+    /// Returns an error if MQSUB fails or the subscription value cannot be extracted.
     fn subscribe_consume<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,
@@ -34,6 +36,8 @@ pub trait SubscribeValue<C: AsConnection> {
 }
 
 pub trait SubscribeAttr<C: AsConnection> {
+    /// # Errors
+    /// Returns an error if MQSUB fails or the requested attribute cannot be extracted.
     fn subscribe_extract<'so, F>(param: &mut SubscribeParam<'so>, mqi: F) -> ResultComp<(Self, SubscribeState<C>)>
     where
         F: FnOnce(&mut SubscribeParam<'so>) -> ResultComp<SubscribeState<C>>,

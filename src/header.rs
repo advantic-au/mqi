@@ -140,6 +140,8 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     }
 
     #[expect(clippy::len_without_is_empty)]
+    /// # Errors
+    /// Returns an error if the encoded structure length is malformed or cannot be represented as `usize`.
     pub fn len(&self) -> Result<usize, HeaderError> {
         T::raw_struc_length(&self.raw_header).map_or(Ok(mem::size_of::<T>()), |length| {
             let ln = self.native_mqlong(length);
@@ -189,6 +191,8 @@ pub trait ChainedHeader: Sized {
     #[must_use]
     fn raw_version(&self) -> types::MQLONG;
 
+    /// # Errors
+    /// Returns [`HeaderError::MalformedLength`] if the encoded length is smaller than the structure.
     fn validate_length(length: types::MQLONG) -> Result<(), HeaderError> {
         #[expect(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let struc_len = mem::size_of::<Self>() as _;

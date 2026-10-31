@@ -18,6 +18,8 @@ use crate::{
 };
 
 impl<L: MqaiLibrary> MqFunctions<L> {
+    /// # Errors
+    /// Returns an error if MQ AI cannot create the bag.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_create_bag(&self, options: MQCBO) -> ResultComp<BagHandle> {
         let mut outcome = MqiOutcome::<BagHandle>::with_verb("mqCreateBag");
@@ -34,6 +36,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot delete the bag.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_delete_bag(&self, bag: &mut BagHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqDeleteBag");
@@ -47,6 +51,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot add the inquiry selector.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_add_inquiry(&self, bag: &BagHandle, selector: Selector) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddInquiry");
@@ -60,6 +66,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot delete the selected item.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_delete_item(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqDeleteItem");
@@ -73,6 +81,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot add the integer item.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_add_integer(&self, bag: &BagHandle, selector: Selector, value: MQLONG) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddInteger");
@@ -86,6 +96,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot add the integer filter.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_add_integer_filter(
         &self,
@@ -109,6 +121,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot add the 64-bit integer item.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_add_integer64(&self, bag: &BagHandle, selector: Selector, value: mq::MQINT64) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddInteger64");
@@ -122,6 +136,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot add the string item.
+    ///
+    /// # Panics
+    /// Panics if the value length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_add_string(&self, bag: &BagHandle, selector: Selector, value: &[mq::MQCHAR]) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddString");
@@ -142,6 +161,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot add the string filter.
+    ///
+    /// # Panics
+    /// Panics if the value length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_add_string_filter(
         &self,
@@ -168,6 +192,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot add the byte string item.
+    ///
+    /// # Panics
+    /// Panics if the value length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_add_byte_string(&self, bag: &BagHandle, selector: Selector, value: &[mq::MQBYTE]) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddByteString");
@@ -188,6 +217,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot add the byte string filter.
+    ///
+    /// # Panics
+    /// Panics if the value length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_add_byte_string_filter(
         &self,
@@ -214,6 +248,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot add the nested bag.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_add_bag(&self, bag: &BagHandle, selector: Selector, to_add: &BagHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqAddBag");
@@ -231,6 +267,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot update the integer item.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_set_integer(&self, bag: &BagHandle, selector: Selector, index: MQIND, value: mq::MQLONG) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqSetInteger");
@@ -249,6 +287,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot update the integer filter.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_set_integer_filter(
         &self,
@@ -274,6 +314,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot update the 64-bit integer item.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_set_integer64(&self, bag: &BagHandle, selector: Selector, index: MQIND, value: mq::MQINT64) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqSetInteger64");
@@ -292,6 +334,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot update the string item.
+    ///
+    /// # Panics
+    /// Panics if the value length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_set_string(&self, bag: &BagHandle, selector: Selector, index: MQIND, value: &[mq::MQCHAR]) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqSetString");
@@ -313,6 +360,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot update the string filter.
+    ///
+    /// # Panics
+    /// Panics if the value length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_set_string_filter(
         &self,
@@ -341,6 +393,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot update the byte string item.
+    ///
+    /// # Panics
+    /// Panics if the value length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_set_byte_string(&self, bag: &BagHandle, selector: Selector, index: MQIND, value: &[mq::MQBYTE]) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqSetByteString");
@@ -362,6 +419,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot update the byte string filter.
+    ///
+    /// # Panics
+    /// Panics if the value length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_set_byte_string_filter(
         &self,
@@ -390,6 +452,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot retrieve the integer item.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_inquire_integer(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<MQLONG> {
         let mut outcome = MqiOutcome::with_verb("mqInquireInteger");
@@ -408,6 +472,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot retrieve the integer filter.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_inquire_integer_filter(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<Filter<MQLONG>> {
         let mut outcome = MqiOutcome::new("mqInquireIntegerFilter", Filter::new(0, MQCFOP(0)));
@@ -427,6 +493,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot retrieve the 64-bit integer item.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_inquire_integer64(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<mq::MQINT64> {
         let mut outcome = MqiOutcome::with_verb("mqInquireInteger64");
@@ -445,6 +513,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot retrieve the byte string.
+    ///
+    /// # Panics
+    /// Panics if the output buffer length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(value, self)))]
     pub fn mq_inquire_byte_string(
         &self,
@@ -473,6 +546,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot retrieve the string.
+    ///
+    /// # Panics
+    /// Panics if the output buffer length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(value, self)))]
     pub fn mq_inquire_string(
         &self,
@@ -503,6 +581,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot retrieve the string filter.
+    ///
+    /// # Panics
+    /// Panics if the output buffer length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(value, self)))]
     pub fn mq_inquire_string_filter(
         &self,
@@ -534,6 +617,11 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot retrieve the byte string filter.
+    ///
+    /// # Panics
+    /// Panics if the output buffer length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(value, self)))]
     pub fn mq_inquire_byte_string_filter(
         &self,
@@ -564,6 +652,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot retrieve the nested bag.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_inquire_bag(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<BagHandle> {
         let mut outcome = MqiOutcome::<BagHandle>::with_verb("mqInquireBag");
@@ -582,6 +672,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
         outcome.into()
     }
 
+    /// # Errors
+    /// Returns an error if MQ AI cannot count the selected items.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_count_items(&self, bag: &BagHandle, selector: Selector) -> ResultComp<MQLONG> {
         let mut outcome = MqiOutcome::with_verb("mqCountItems");
@@ -600,6 +692,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
     }
 
     #[expect(clippy::too_many_arguments)]
+    /// # Errors
+    /// Returns an error if MQ AI cannot execute the command.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_execute(
         &self,
@@ -631,6 +725,9 @@ impl<L: MqaiLibrary> MqFunctions<L> {
     }
 
     /// Deletes all user items from the bag, and resets system items to their initial values
+    ///
+    /// # Errors
+    /// Returns an error if MQ AI cannot clear the bag.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_clear_bag(&self, bag: &BagHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqClearBag");
@@ -645,6 +742,9 @@ impl<L: MqaiLibrary> MqFunctions<L> {
     }
 
     /// Reduces the number of user items in a user bag to the specified value, by deleting user items from the end of the bag
+    ///
+    /// # Errors
+    /// Returns an error if MQ AI cannot truncate the bag.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_truncate_bag(&self, bag: &BagHandle, count: mq::MQLONG) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqTruncateBag");
@@ -659,6 +759,9 @@ impl<L: MqaiLibrary> MqFunctions<L> {
     }
 
     /// Removes a message from the specified queue and converts the message data into a data bag
+    ///
+    /// # Errors
+    /// Returns an error if MQ AI cannot get or convert the message.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, bag)))]
     pub fn mq_get_bag(
         &self,
@@ -689,6 +792,9 @@ impl<L: MqaiLibrary> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mq_put_bag`](MqFunctions::mq_put_bag) must ensure the [`MQPMO`](libmqm_sys::MQPMO) pointers are populated with valid pointers and offsets
+    ///
+    /// # Errors
+    /// Returns an error if MQ AI cannot convert and put the bag.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mq_put_bag(
         &self,
@@ -716,6 +822,12 @@ impl<L: MqaiLibrary> MqFunctions<L> {
     }
 
     /// Convert the bag into a PCF message in the supplied buffer
+    ///
+    /// # Errors
+    /// Returns an error if MQ AI cannot encode the bag or if the buffer is too small.
+    ///
+    /// # Panics
+    /// Panics if the buffer length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, buffer)))]
     pub fn mq_bag_to_buffer(
         &self,
@@ -755,6 +867,12 @@ impl<L: MqaiLibrary> MqFunctions<L> {
     }
 
     /// Convert the supplied buffer into bag form
+    ///
+    /// # Errors
+    /// Returns an error if MQ AI cannot decode the supplied buffer.
+    ///
+    /// # Panics
+    /// Panics if the buffer length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, buffer)))]
     pub fn mq_buffer_to_bag(&self, options_bag: &BagHandle, buffer: &[mq::MQBYTE], data_bag: &mut BagHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("mqBufferToBag");
@@ -776,6 +894,8 @@ impl<L: MqaiLibrary> MqFunctions<L> {
     }
 
     /// Return information about a specified item in a bag
+    /// # Errors
+    /// Returns an error if MQ AI cannot retrieve the selected item's selector and type.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mq_inquire_item_info(&self, bag: &BagHandle, selector: Selector, index: MQIND) -> ResultComp<(Selector, MQITEM)> {
         let mut outcome = MqiOutcome::new("mqInquireItemInfo", (Selector(-1), MQITEM(-1)));

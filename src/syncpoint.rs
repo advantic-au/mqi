@@ -38,6 +38,9 @@ impl<C: AsConnection> Syncpoint<C> {
     /// Begins a unit of work that is coordinated by the queue manager, and that can involve external resource managers.
     ///
     /// This function uses the [`MQBEGIN`](libmqm_sys::MQBEGIN) verb.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot begin the unit of work.
     pub fn begin(connection: C, mqbo: MQBO) -> ResultComp<Self> {
         let mut bo = structs::MQBO::new(libmqm_sys::MQBO {
             Options: mqbo.0,
@@ -50,6 +53,9 @@ impl<C: AsConnection> Syncpoint<C> {
     }
 
     /// This function uses the [`MQCMIT`](libmqm_sys::MQCMIT) verb.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot commit the unit of work.
     pub fn commit(self) -> ResultComp<C> {
         let mut self_mut = self;
         let conn = self_mut.connection.as_connection();
@@ -60,6 +66,9 @@ impl<C: AsConnection> Syncpoint<C> {
     }
 
     /// This function uses the [`MQBACK`](libmqm_sys::MQBACK) verb.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot back out the unit of work.
     pub fn backout(self) -> ResultComp<C> {
         let mut self_mut = self;
         let conn = self_mut.connection.as_connection();

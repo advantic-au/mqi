@@ -49,6 +49,9 @@ pub trait GetValue<'b, R, B>: std::marker::Sized {
     type Error: std::fmt::Debug;
 
     /// Execute and consumes the result of the provided `get` function, creating `Self` from the [`GetState`]
+    ///
+    /// # Errors
+    /// Returns an error if MQGET fails or the message cannot be converted to `Self`.
     fn get_consume<F>(param: &mut GetParam, get: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
@@ -88,6 +91,8 @@ pub trait GetOption {
 }
 
 pub trait GetAttr<'b, R> {
+    /// # Errors
+    /// Returns an error if MQGET fails or the attribute cannot be extracted.
     fn get_extract<F, B>(param: &mut GetParam, get: F) -> ResultComp<(Self, GetState<B>)>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
@@ -97,6 +102,8 @@ pub trait GetAttr<'b, R> {
 
 #[cfg(feature = "mqai")]
 pub trait GetBagAttr {
+    /// # Errors
+    /// Returns an error if MQGET fails or the requested bag attribute cannot be extracted.
     fn get_bag_extract<F>(param: &mut GetParam, mqi: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut GetParam) -> ResultComp<()>,

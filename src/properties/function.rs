@@ -244,6 +244,9 @@ impl<C: AsConnection> Properties<C> {
     }
 
     /// This function uses the [`MQCRTMH`](libmqm_sys::MQCRTMH) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot create the message handle.
     pub fn new(connection: C, options: MQCMHO) -> ResultErr<Self> {
         let mqcmho = mq::MQCMHO {
             Options: options.0,
@@ -255,6 +258,11 @@ impl<C: AsConnection> Properties<C> {
             .map(|handle| Self { handle, connection })
     }
 
+    /// Iterate over the properties beginning with `name`.
+    ///
+    /// # Panics
+    /// Panics if `name` is too long for MQ's `MQLONG` length field, or MQ returns malformed
+    /// property data, including an invalid name, value type, or length.
     pub fn property_iter<'message, 'name, P, N>(
         &'message self,
         name: &'name N,
@@ -273,6 +281,13 @@ impl<C: AsConnection> Properties<C> {
     }
 
     /// This function uses the [`MQINQMP`](libmqm_sys::MQINQMP) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the property or its value cannot be decoded.
+    ///
+    /// # Panics
+    /// Panics if the input name is too long for MQ's `MQLONG` length field, or MQ returns malformed
+    /// property data, including an invalid name, value type, or length.
     pub fn property<P>(&self, name: &(impl EncodedString + ?Sized), options: MQIMPO) -> ResultCompErr<Option<P>, Error>
     where
         P: option::PropertyValue,
@@ -358,6 +373,12 @@ impl<C: AsConnection> Properties<C> {
     }
 
     /// This function uses the [`MQDLTMP`](libmqm_sys::MQDLTMP) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot delete the property.
+    ///
+    /// # Panics
+    /// Panics if `name` is too long for MQ's `MQLONG` length field.
     pub fn delete_property(&self, name: &(impl EncodedString + ?Sized), options: MQDMPO) -> ResultComp<()> {
         let mut mqdmpo = structs::MQDMPO::new(default::MQDMPO_DEFAULT);
         *mqdmpo.Options.as_mut() = options;
@@ -369,6 +390,13 @@ impl<C: AsConnection> Properties<C> {
     }
 
     /// This function uses the [`MQSETMP`](libmqm_sys::MQSETMP) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot set the property.
+    ///
+    /// # Panics
+    /// Panics if `name` is too long for MQ's `MQLONG` length field, or if `value` configures an
+    /// MQPD or MQSMPO version unsupported by this build.
     pub fn set_property(
         &self,
         name: &(impl EncodedString + ?Sized),
@@ -404,6 +432,9 @@ impl<C: AsConnection> Properties<C> {
     /// need to be handled by the application.
     ///
     /// This function uses the [`MQDLTMH`](libmqm_sys::MQDLTMH) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot delete the message handle.
     pub fn close(self) -> ResultErr<()> {
         let mut s = self;
         let mqdmho = default::MQDMHO_DEFAULT;
@@ -412,6 +443,13 @@ impl<C: AsConnection> Properties<C> {
     }
 
     /// This function uses the [`MQMHBUF`](libmqm_sys::MQMHBUF) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot convert the message handle or the buffer is insufficient.
+    ///
+    /// # Panics
+    /// Panics if `name` is too long for MQ's `MQLONG` length field, or MQ reports an output length
+    /// that cannot be represented as `usize`.
     pub fn to_buffer<'a, A: Buffer<'a, impl WriteRaw<MQBYTE>>>(
         &self,
         name: &(impl EncodedString + ?Sized),
@@ -447,6 +485,13 @@ impl<C: AsConnection> Properties<C> {
     }
 
     /// This function uses the [`MQMHBUF`](libmqm_sys::MQMHBUF) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot convert the message handle or the buffer is insufficient.
+    ///
+    /// # Panics
+    /// Panics if `name` is too long for MQ's `MQLONG` length field, or MQ reports an output length
+    /// that cannot be represented as `usize`.
     pub fn to_buffer_mut<'a, A: Buffer<'a, impl WriteRaw<MQBYTE>>>(
         &mut self,
         name: &(impl EncodedString + ?Sized),
@@ -483,6 +528,9 @@ impl<C: AsConnection> Properties<C> {
     }
 
     /// This function uses the [`MQBUFMH`](libmqm_sys::MQBUFMH) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot convert the buffer into a message handle.
     pub fn from_buffer(&mut self, options: MQBMHO, format: &MessageFormat, buffer: &[MQBYTE]) -> ResultComp<()> {
         // Drop the delete properties option as this fn does not modify the buffer
         let options_read_only = options - constants::MQBMHO_DELETE_PROPERTIES;
@@ -499,6 +547,12 @@ impl<C: AsConnection> Properties<C> {
     }
 
     /// This function uses the [`MQBUFMH`](libmqm_sys::MQBUFMH) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot convert the buffer into a message handle.
+    ///
+    /// # Panics
+    /// Panics if MQ reports a converted length that is negative or exceeds `buffer`.
     pub fn from_buffer_mut<'a>(
         &mut self,
         options: MQBMHO,

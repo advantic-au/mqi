@@ -26,6 +26,9 @@ impl<'cb, C: AsConnection> EventCallback<'cb, C> {
     }
 
     /// Register an event handler of the connection
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot register the event handler.
     pub fn register_event_handler<F: FnMut(ConnectionRef<C::Lib, C::Thread>, &structs::MQCBC) + Send + 'cb>(
         &self,
         options: types::MQCBDO,
@@ -55,6 +58,9 @@ impl<'cb, C: AsConnection> EventCallback<'cb, C> {
     }
 
     /// Unregister the event handler and return the original connection
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot deregister the event handler.
     pub fn deregister_event_handler(self) -> ResultComp<C> {
         let mut self_mut = self;
         let result = self_mut.deregister_event_handler_internal();

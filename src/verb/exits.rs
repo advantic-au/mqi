@@ -11,6 +11,9 @@ impl<L: ExitsLibrary> MqFunctions<L> {
     /// Consumers of [`mqxep`](Self::mqxep) must ensure
     /// * [`MQIEP::Version`](exits::MQIEP::Version) <= [`MQIEP_CURRENT_VERSION`](exits::MQIEP_CURRENT_VERSION)
     /// * `entry_point` points to a valid function
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot register the exit entry point.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqxep(
         &self,
@@ -43,6 +46,9 @@ impl<L: ExitsLibrary> MqFunctions<L> {
     /// Consumers of [`mqzep`](Self::mqzep) must ensure
     /// * [`MQIEP::Version`](exits::MQIEP::Version) <= [`MQIEP_CURRENT_VERSION`](exits::MQIEP_CURRENT_VERSION)
     /// * `entry_point` points to a valid function
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot register the component entry point.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqzep(&self, config: &exits::MQIEP, function: mq::MQLONG, entry_point: mq::PMQFUNC) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQZEP");

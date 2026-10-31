@@ -5,6 +5,9 @@ use crate::{Connection, Object, connection::AsConnection, prelude::*, result::Re
 
 impl<C: AsConnection> Object<C> {
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the requested attributes.
     pub fn inquire<'a>(&self, selectors: impl IntoIterator<Item = &'a option::AttributeType>) -> ResultComp<option::MultiItem> {
         let mut text_total = 0;
         let mut int_count = 0;
@@ -50,12 +53,21 @@ impl<C: AsConnection> Object<C> {
     }
 
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the selected attribute.
     pub fn inquire_item(&self, selector: option::AttributeType) -> ResultComp<Option<option::InqResItem<Vec<types::MQCHAR>>>> {
         self.inquire(iter::once(&selector))
             .map_completion(option::MultiItem::into_first)
     }
 
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
+    ///
+    /// # Panics
+    /// Panics if `selector` is not an integer attribute, or if MQ returns a value with a non-integer type.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the selected attribute.
     pub fn inquire_integer(&self, selector: option::AttributeType) -> ResultComp<Option<types::MQLONG>> {
         assert!(selector.attribute >= libmqm_sys::MQIA_FIRST && selector.attribute <= libmqm_sys::MQIA_LAST);
         self.inquire_item(selector)
@@ -63,6 +75,12 @@ impl<C: AsConnection> Object<C> {
     }
 
     /// This function uses the [`MQINQ`](libmqm_sys::MQINQ) MQ API function.
+    ///
+    /// # Panics
+    /// Panics if `selector` is not a text attribute, or if MQ returns a value with a non-text type.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the selected attribute.
     pub fn inquire_text(&self, selector: option::AttributeType) -> ResultComp<Option<Vec<types::MQCHAR>>> {
         assert!(selector.attribute >= libmqm_sys::MQCA_FIRST && selector.attribute <= libmqm_sys::MQCA_LAST);
         self.inquire_item(selector)
@@ -70,6 +88,9 @@ impl<C: AsConnection> Object<C> {
     }
 
     /// This function uses the [`MQSET`](libmqm_sys::MQSET) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot change the requested attributes.
     pub fn set(&self, items: &impl option::SetItems) -> ResultComp<()> {
         let Connection { mq, handle, .. } = self.connection.as_connection();
         mq.mqset(*handle, self.handle(), items.selectors(), items.int_attr(), items.text_attr())

@@ -238,7 +238,6 @@ jobs:
         run: bash scripts/clippy.sh
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
-          REPORT_DOC_LINTS: ${{ matrix.toolchain == 'stable' }}
 
   minimum:
     runs-on: ubuntu-24.04

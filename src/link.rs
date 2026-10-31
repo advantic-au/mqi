@@ -29,6 +29,9 @@ use crate::{
 /// [`warn_as_error`](crate::result::ResultCompExt::warn_as_error) or
 /// [`discard_warning`](crate::result::ResultCompErrExt::discard_warning).
 ///
+/// # Errors
+/// Returns an error if MQ cannot establish the connection.
+///
 /// # Example
 ///
 /// ```no_run
@@ -53,6 +56,9 @@ pub fn connect_default<'co>(options: &impl ConnectOption<'co>) -> ResultComp<Con
 ///
 /// The options are the same as for [`connect`]: pass a single option or a tuple
 /// of options. MQ warnings remain available in the returned [`ResultComp`].
+///
+/// # Errors
+/// Returns an error if MQ cannot establish the connection or the requested value cannot be extracted.
 ///
 /// # Example
 ///
@@ -105,6 +111,9 @@ where
 /// [`MQCONNX`](libmqm_sys::MQCONNX) and returns a [`ResultComp`] so successful
 /// MQ warnings can be handled by the caller.
 ///
+/// # Errors
+/// Returns an error if MQ cannot establish the connection.
+///
 /// ## Examples
 ///
 /// ```no_run
@@ -132,7 +141,7 @@ where
 /// dynamically loaded or custom MQ library, use
 /// [`connect_lib`](crate::connect_lib).
 ///
-/// ## Panics
+/// # Panics
 /// This will panic when:
 /// * Any MQ structure Version numbers exceed the compiled in MQ client
 /// * Any MQ structure Offsets exceed the bounds of an [`MQLONG`](libmqm_sys::MQLONG)
@@ -154,6 +163,9 @@ where
 /// Options and threading behavior are the same as for [`connect`]. This
 /// function invokes [`MQCONNX`](libmqm_sys::MQCONNX), and its
 /// [`ResultComp`] may contain a warning.
+///
+/// # Errors
+/// Returns an error if MQ cannot establish the connection or the requested attribute cannot be extracted.
 ///
 /// # Example
 ///
@@ -189,6 +201,8 @@ where
 
 #[cfg(feature = "mqai")]
 impl bag::Bag<bag::Owned, LinkedMq> {
+    /// # Errors
+    /// Returns an error if MQ cannot create or initialize the bag.
     pub fn new(options: MQCBO) -> ResultComp<Self> {
         Self::new_lib(LinkedMq, options)
     }

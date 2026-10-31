@@ -26,11 +26,15 @@ fn set_mqcharv(mqcharv: &mut mq::MQCHARV, data: &[types::MQCHAR], ccsid: CCSID) 
 }
 
 impl<'ptr> structs::MQOD<'ptr> {
+    /// # Panics
+    /// Panics if the selection string length cannot be represented by MQ's `MQLONG` field.
     pub fn attach_selection_string<S: EncodedString + ?Sized>(&mut self, selection: &'ptr S) {
         self.set_min_version(mq::MQOD_VERSION_4);
         set_mqcharv(&mut self.SelectionString, selection.data(), selection.ccsid());
     }
 
+    /// # Panics
+    /// Panics if the object string length cannot be represented by MQ's `MQLONG` field.
     pub fn attach_object_string<S: EncodedString + ?Sized>(&mut self, object: &'ptr S) {
         self.set_min_version(mq::MQOD_VERSION_4);
         set_mqcharv(&mut self.ObjectString, object.data(), object.ccsid());
@@ -38,6 +42,8 @@ impl<'ptr> structs::MQOD<'ptr> {
 }
 
 impl<'ptr> structs::MQSD<'ptr> {
+    /// # Panics
+    /// Panics if the object string length cannot be represented by MQ's `MQLONG` field.
     pub fn attach_object_string<S: EncodedString + ?Sized>(&mut self, object: &'ptr S) {
         set_mqcharv(&mut self.ObjectString, object.data(), object.ccsid());
     }
@@ -66,6 +72,8 @@ impl<'ptr> structs::MQCNO<'ptr> {
         self.BalanceParmsPtr = (&raw const bno.struc).cast_mut();
     }
 
+    /// # Panics
+    /// Panics if the URL byte length cannot be represented by MQ's `MQLONG` length field.
     pub fn attach_ccdt(&mut self, url: &'ptr str) {
         self.set_min_version(mq::MQCNO_VERSION_6);
         self.CCDTUrlPtr = mq_str_ptr(url);
@@ -80,6 +88,8 @@ structs::impl_min_version!(['a], structs::MQCSP<'a>);
 
 // Functions to attach references to MQCSP
 impl<'ptr> structs::MQCSP<'ptr> {
+    /// # Panics
+    /// Panics if the password byte length cannot be represented by MQ's `MQLONG` length field.
     pub fn attach_password(&mut self, password: &'ptr str) {
         self.CSPPasswordPtr = mq_str_ptr(password);
         self.CSPPasswordLength = password
@@ -88,6 +98,8 @@ impl<'ptr> structs::MQCSP<'ptr> {
             .expect("Password length should not exceed maximum positive MQLONG");
     }
 
+    /// # Panics
+    /// Panics if the user ID byte length cannot be represented by MQ's `MQLONG` length field.
     pub fn attach_userid(&mut self, userid: &'ptr str) {
         self.CSPUserIdPtr = mq_str_ptr(userid);
         self.CSPUserIdLength = userid
@@ -97,6 +109,8 @@ impl<'ptr> structs::MQCSP<'ptr> {
     }
 
     #[cfg(feature = "mqc_9_3_4_0")]
+    /// # Panics
+    /// Panics if the token byte length cannot be represented by MQ's `MQLONG` length field.
     pub fn attach_token(&mut self, token: &'ptr str) {
         self.set_min_version(mq::MQCSP_VERSION_3);
         self.TokenPtr = mq_str_ptr(token);
@@ -107,6 +121,8 @@ impl<'ptr> structs::MQCSP<'ptr> {
     }
 
     #[cfg(feature = "mqc_9_3_0_0")]
+    /// # Panics
+    /// Panics if the key byte length cannot be represented by MQ's `MQLONG` length field.
     pub fn attach_initial_key(&mut self, initial_key: &'ptr str) {
         self.set_min_version(mq::MQCSP_VERSION_2);
         self.InitialKeyPtr = mq_str_ptr(initial_key);
@@ -120,6 +136,8 @@ impl<'ptr> structs::MQCSP<'ptr> {
 // Functions to attach references to MQSCO
 impl<'ptr> structs::MQSCO<'ptr> {
     #[cfg(feature = "mqc_9_3_0_0")]
+    /// # Panics
+    /// Panics if the password byte length cannot be represented by MQ's `MQLONG` length field.
     pub fn attach_repo_password<S: crate::traits::Secret<'ptr, str> + Copy>(&mut self, password: Option<S>) {
         self.set_min_version(mq::MQSCO_VERSION_6);
         if let Some(ps) = password {
@@ -135,6 +153,8 @@ impl<'ptr> structs::MQSCO<'ptr> {
         }
     }
 
+    /// # Panics
+    /// Panics if the record count cannot be represented by MQ's `MQLONG` length field.
     pub fn attach_auth_info_records(&mut self, air: &'ptr [structs::MQAIR]) {
         self.AuthInfoRecPtr = air.as_ptr().cast_mut().cast();
         self.AuthInfoRecCount = air

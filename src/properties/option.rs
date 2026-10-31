@@ -37,6 +37,8 @@ pub enum NameUsage {
 pub unsafe trait PropertyValue {
     type Error: From<Error> + Into<Error> + std::fmt::Debug;
 
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the property or its value cannot be decoded as `Self`.
     fn property_consume<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,
@@ -54,6 +56,8 @@ pub unsafe trait PropertyValue {
 ///
 /// Implementations of the [`PropertyAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PropertyAttr {
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the property or the requested attribute.
     fn property_extract<'p, 's, F>(param: &mut PropertyParam<'p>, mqi: F) -> ResultComp<(Self, PropertyState<'s>)>
     where
         F: FnOnce(&mut PropertyParam<'p>) -> ResultComp<PropertyState<'s>>,

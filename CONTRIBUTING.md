@@ -76,8 +76,9 @@ cargo install cargo-docs-rs --locked
 
 Run checks with the relevant feature combinations when changing feature-gated code. CI's
 [workflow](.github/workflows/ci.yml) is the authoritative list of checks and combinations; it treats
-warnings as errors, except missing `# Errors` and `# Panics` sections, which are reported as
-warnings during their gradual cleanup.
+warnings as errors. Public functions returning `Result` document their error conditions, and
+`# Panics` sections are reserved for panics that callers can trigger or that can result from invalid
+values returned by MQ.
 
 ### Coverage and mutation testing
 
