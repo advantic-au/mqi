@@ -11,7 +11,17 @@ use crate::{
 };
 
 impl<C: AsConnection> Object<C> {
-    /// Establish access and return an MQ object ([`Object`])
+    /// Open a queue, topic, or other MQ object.
+    ///
+    /// The option argument supplies the object name and MQOO flags, for
+    /// example `&(QueueName(mqstr!("APP.QUEUE")), MQOO_INPUT_AS_Q_DEF)`.
+    /// Pass the connection by value; use [`crate::Connection::connection_ref`] when
+    /// the connection must remain available for other operations. The returned
+    /// object retains its connection and closes on drop. Use
+    /// [`Object::close`] to observe the close completion status.
+    ///
+    /// For an object with a resolved name, use [`open_resolved`](Self::open_resolved).
+    /// To extract another open attribute, use [`open_with`](Self::open_with).
     ///
     /// # Errors
     /// Returns an error when MQOPEN cannot open the requested object.
@@ -22,7 +32,12 @@ impl<C: AsConnection> Object<C> {
         Self::open_as(connection, open_option)
     }
 
-    /// Establish access and return an MQ object and the name of the resolved object
+    /// Open an object and return the resolved queue and queue-manager names.
+    ///
+    /// MQ may resolve an alias, remote queue, or queue-manager name while
+    /// opening. The optional names in the result are the names returned by MQ;
+    /// they are `None` when MQ does not provide the corresponding value.
+    /// Otherwise, this behaves like [`open`](Self::open).
     ///
     /// # Errors
     /// Returns an error when MQOPEN cannot open the requested object.
@@ -36,7 +51,11 @@ impl<C: AsConnection> Object<C> {
         Self::open_as(connection, open_option).map_completion(|(obj, (qmgr, q))| (obj, qmgr, q))
     }
 
-    /// Establish access and return an MQ object ([`Object`]) and type inferred [`OpenAttr`](option::OpenAttr) in a tuple
+    /// Open an object and extract an additional MQ open attribute.
+    ///
+    /// The attribute type is selected through [`OpenAttr`](option::OpenAttr)
+    /// and inferred from the expected result type. Use [`open`](Self::open)
+    /// when the object handle alone is sufficient.
     ///
     /// # Errors
     /// Returns an error when MQOPEN cannot open the requested object or the selected

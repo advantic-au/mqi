@@ -243,7 +243,13 @@ impl<C: AsConnection> Properties<C> {
         &self.handle
     }
 
-    /// This function uses the [`MQCRTMH`](libmqm_sys::MQCRTMH) MQ API function.
+    /// Create a message handle for setting or inquiring message properties.
+    ///
+    /// Pass this value as a get or put option to have MQ read or write message
+    /// properties during that operation. For properties already encoded in
+    /// message data, use [`from_buffer`](Self::from_buffer) instead.
+    ///
+    /// This function uses [`MQCRTMH`](libmqm_sys::MQCRTMH).
     ///
     /// # Errors
     /// Returns an error if MQ cannot create the message handle.
@@ -258,7 +264,13 @@ impl<C: AsConnection> Properties<C> {
             .map(|handle| Self { handle, connection })
     }
 
-    /// Iterate over the properties beginning with `name`.
+    /// Iterate over properties beginning with `name`.
+    ///
+    /// Set `name` to a property name or an MQ wildcard pattern. The iterator
+    /// inquires for the first matching property, then uses
+    /// [`MQIMPO_INQ_NEXT`](crate::constants::MQIMPO_INQ_NEXT) to continue;
+    /// choose the `P` type to select how each value is decoded. Iteration ends
+    /// when MQ reports that no further matching property is available.
     ///
     /// # Panics
     /// Panics if `name` is too long for MQ's `MQLONG` length field, or MQ returns malformed
@@ -280,7 +292,14 @@ impl<C: AsConnection> Properties<C> {
         }
     }
 
-    /// This function uses the [`MQINQMP`](libmqm_sys::MQINQMP) MQ API function.
+    /// Inquire about a message property by name.
+    ///
+    /// The expected type `P` selects the property value representation. Returns
+    /// `None` when the named property is not present; use
+    /// [`property_iter`](Self::property_iter) to read multiple matching
+    /// properties. The name is encoded using its [`EncodedString`] CCSID.
+    ///
+    /// This function uses [`MQINQMP`](libmqm_sys::MQINQMP).
     ///
     /// # Errors
     /// Returns an error if MQ cannot retrieve the property or its value cannot be decoded.
@@ -372,7 +391,12 @@ impl<C: AsConnection> Properties<C> {
         }
     }
 
-    /// This function uses the [`MQDLTMP`](libmqm_sys::MQDLTMP) MQ API function.
+    /// Delete a property from the message handle.
+    ///
+    /// This only changes the properties represented by this handle. To send
+    /// the change with a message, use the handle in a put operation.
+    ///
+    /// This function uses [`MQDLTMP`](libmqm_sys::MQDLTMP).
     ///
     /// # Errors
     /// Returns an error if MQ cannot delete the property.
@@ -389,7 +413,13 @@ impl<C: AsConnection> Properties<C> {
         conn.mq.mqdltmp(Some(conn.handle), &self.handle, &mqdmpo, &name_mqcharv)
     }
 
-    /// This function uses the [`MQSETMP`](libmqm_sys::MQSETMP) MQ API function.
+    /// Set a typed property on the message handle.
+    ///
+    /// The value type selects the MQ property type, and `location` controls
+    /// whether the property is added or replaces an existing property. To
+    /// transmit the property, pass this handle as a put option.
+    ///
+    /// This function uses [`MQSETMP`](libmqm_sys::MQSETMP).
     ///
     /// # Errors
     /// Returns an error if MQ cannot set the property.
@@ -442,7 +472,13 @@ impl<C: AsConnection> Properties<C> {
         conn.mq.mqdltmh(Some(conn.handle), &mut s.handle, &mqdmho)
     }
 
-    /// This function uses the [`MQMHBUF`](libmqm_sys::MQMHBUF) MQ API function.
+    /// Encode properties from the message handle into a new message buffer.
+    ///
+    /// Returns both the message format produced by MQ and the buffer containing
+    /// the encoded message. Use [`to_buffer_mut`](Self::to_buffer_mut) when MQ
+    /// should also update the message handle.
+    ///
+    /// This function uses [`MQMHBUF`](libmqm_sys::MQMHBUF).
     ///
     /// # Errors
     /// Returns an error if MQ cannot convert the message handle or the buffer is insufficient.
@@ -484,7 +520,12 @@ impl<C: AsConnection> Properties<C> {
         }
     }
 
-    /// This function uses the [`MQMHBUF`](libmqm_sys::MQMHBUF) MQ API function.
+    /// Encode properties into a buffer and update the message handle.
+    ///
+    /// Unlike [`to_buffer`](Self::to_buffer), this may modify the handle's
+    /// properties according to `options`.
+    ///
+    /// This function uses [`MQMHBUF`](libmqm_sys::MQMHBUF).
     ///
     /// # Errors
     /// Returns an error if MQ cannot convert the message handle or the buffer is insufficient.
@@ -527,7 +568,13 @@ impl<C: AsConnection> Properties<C> {
         }
     }
 
-    /// This function uses the [`MQBUFMH`](libmqm_sys::MQBUFMH) MQ API function.
+    /// Inquire message properties encoded in a buffer into this handle.
+    ///
+    /// Use this when a message carries its properties in a message header or
+    /// body rather than through an MQ message handle. `format` describes the
+    /// encoded buffer and is updated only by [`from_buffer_mut`](Self::from_buffer_mut).
+    ///
+    /// This function uses [`MQBUFMH`](libmqm_sys::MQBUFMH).
     ///
     /// # Errors
     /// Returns an error if MQ cannot convert the buffer into a message handle.
@@ -546,7 +593,12 @@ impl<C: AsConnection> Properties<C> {
             .map_completion(|_| {})
     }
 
-    /// This function uses the [`MQBUFMH`](libmqm_sys::MQBUFMH) MQ API function.
+    /// Inquire properties from a buffer and return any converted message bytes.
+    ///
+    /// Use this when MQ needs to remove or transform property data in place;
+    /// the returned message format and slice describe the converted buffer.
+    ///
+    /// This function uses [`MQBUFMH`](libmqm_sys::MQBUFMH).
     ///
     /// # Errors
     /// Returns an error if MQ cannot convert the buffer into a message handle.
