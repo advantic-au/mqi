@@ -33,10 +33,10 @@ jobs:
             feature: mqc_10_0_1_0
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@stable
+      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
         id: mq-client
         with:
           client-version: ${{ matrix.version.client-version }}
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       mq:
-        image: icr.io/ibm-messaging/mq:10.0.1.0-r1
+        image: icr.io/ibm-messaging/mq:10.0.1.0-r1@sha256:129d1d736e94bae071039136585734b7ccc6cfd6e1cc7dacb9af59e60d0a57c2
         env:
           MQ_ENABLE_EMBEDDED_WEB_SERVER: false
           LICENSE: accept
@@ -66,10 +66,10 @@ jobs:
         ports:
           - 1414:1414
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@stable
+      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
         id: mq-client
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
@@ -99,10 +99,10 @@ jobs:
             os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@stable
+      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
         id: mq-client
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
@@ -142,7 +142,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: test
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
@@ -167,11 +167,11 @@ jobs:
     needs: test
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: advantic-au/action-mq-client@stable
+      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
         id: mq-client
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
@@ -193,7 +193,7 @@ jobs:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
         continue-on-error: true
       - name: Artefact mutants-incremental.out
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: mutants-incremental.out
@@ -202,7 +202,7 @@ jobs:
   rustfmt:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Install stable
@@ -222,10 +222,10 @@ jobs:
           - beta
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@stable
+      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
         id: mq-client
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
@@ -242,10 +242,10 @@ jobs:
   minimum:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@stable
+      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
         id: mq-client
       # Re-resolve Cargo.lock with minimal versions
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
@@ -273,7 +273,7 @@ jobs:
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8

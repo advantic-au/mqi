@@ -17,11 +17,11 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: true
           fetch-depth: 0
-      - uses: advantic-au/action-mq-client@stable
+      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
         id: mq-client
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
@@ -48,12 +48,12 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: true
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLZ }}
-      - uses: advantic-au/action-mq-client@stable
+      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
         id: mq-client
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8

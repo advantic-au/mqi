@@ -24,10 +24,10 @@ jobs:
       contents: read
       
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@stable
+      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
         id: mq-client
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
@@ -45,7 +45,7 @@ jobs:
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
         with:
           files: coverage/codecov.json
           token: ${{ secrets.CODECOV_TOKEN }}
