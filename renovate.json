@@ -3,10 +3,6 @@
   "extends": [
     "config:best-practices"
   ],
-  "cargo": {
-    "commitMessageTopic": "Rust dependency {{depName}}",
-    "rangeStrategy": "bump"
-  },
   "customManagers": [
     {
       "customType": "regex",
@@ -32,6 +28,11 @@
         "rust-version"
       ],
       "minimumReleaseAge": "6 months"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["pin"],
+      "enabled": false
     }
   ]
 }
