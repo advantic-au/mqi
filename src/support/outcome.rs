@@ -31,6 +31,12 @@ impl<T: Default> Default for MqiOutcome<T> {
 
 pub type MqiOutcomeVoid = MqiOutcome<()>;
 
+enum MqiOutcomeStatus<T> {
+    Success(T),
+    Warning(T, Error),
+    Failure(Error),
+}
+
 impl<T: Default> MqiOutcome<T> {
     #[must_use]
     pub fn with_verb(verb: &'static str) -> Self {
@@ -47,26 +53,59 @@ impl<T> MqiOutcome<T> {
             cc: constants::MQCC_UNKNOWN,
         }
     }
+
+    fn into_status(self) -> MqiOutcomeStatus<T> {
+        let Self { cc, rc, value, verb } = self;
+        match cc {
+            constants::MQCC_OK => MqiOutcomeStatus::Success(value),
+            constants::MQCC_WARNING => MqiOutcomeStatus::Warning(value, Error(cc, verb, rc)),
+            _ => MqiOutcomeStatus::Failure(Error(cc, verb, rc)),
+        }
+    }
 }
 
 impl<T, E: From<Error>> From<MqiOutcome<T>> for ResultCompErr<T, E> {
     fn from(outcome: MqiOutcome<T>) -> Self {
-        let MqiOutcome { cc, rc, value, verb } = outcome;
-        match cc {
-            constants::MQCC_OK => Ok(Completion::new(value)),
-            constants::MQCC_WARNING => Ok(Completion::new_warning(value, (rc, verb))),
-            _ => Err(Error(cc, verb, rc).into()),
+        match outcome.into_status() {
+            MqiOutcomeStatus::Success(value) => Ok(Completion::new(value)),
+            MqiOutcomeStatus::Warning(value, Error(_, verb, rc)) => Ok(Completion::new_warning(value, (rc, verb))),
+            MqiOutcomeStatus::Failure(error) => Err(error.into()),
         }
     }
 }
 
 impl<T, E: From<Error>> From<MqiOutcome<T>> for Result<T, E> {
     fn from(outcome: MqiOutcome<T>) -> Self {
-        let MqiOutcome { cc, rc, value, verb } = outcome;
-        match cc {
-            constants::MQCC_OK => Ok(value),
-            _ => Err(Error(cc, verb, rc).into()),
+        match outcome.into_status() {
+            MqiOutcomeStatus::Success(value) => Ok(value),
+            MqiOutcomeStatus::Warning(_, error) | MqiOutcomeStatus::Failure(error) => Err(error.into()),
         }
+    }
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn warning_is_preserved_in_completion_and_is_an_error_in_result() {
+        let mut outcome = MqiOutcome::new("MQGET", 42);
+        outcome.cc = constants::MQCC_WARNING;
+        outcome.rc = constants::MQRC_NO_MSG_AVAILABLE;
+
+        let completion: ResultCompErr<_, Error> = outcome.clone().into();
+        assert!(matches!(
+            completion,
+            Ok(Completion(42, Some((rc, "MQGET")))) if rc == constants::MQRC_NO_MSG_AVAILABLE
+        ));
+
+        let result: Result<i32, Error> = outcome.into();
+        assert!(matches!(
+            result,
+            Err(Error(cc, "MQGET", rc))
+                if cc == constants::MQCC_WARNING && rc == constants::MQRC_NO_MSG_AVAILABLE
+        ));
     }
 }
 
