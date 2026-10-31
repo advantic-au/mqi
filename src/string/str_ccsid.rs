@@ -135,6 +135,13 @@ impl<'a, T: Into<Cow<'a, [types::MQCHAR]>>> TryFrom<StringCcsid<T>> for Cow<'a, 
 
 #[cfg(feature = "exits")]
 impl<T: AsRef<[types::MQCHAR]>> StringCcsid<T> {
+    /// Converts the string using MQ's character conversion API.
+    ///
+    /// # Panics
+    /// Panics if MQ reports an output length that is negative or exceeds `buffer`.
+    ///
+    /// # Errors
+    /// Returns an MQ error if character-set conversion fails.
     pub fn try_mq_convert<'a, C>(
         &self,
         ccsid: CCSID,
@@ -208,6 +215,8 @@ impl<T: AsRef<[types::MQCHAR]>> EncodedString for StringCcsid<T> {
 }
 
 impl<'a> structs::MQCHARV<'a> {
+    /// # Panics
+    /// Panics if the string byte length cannot be represented by MQ's `MQLONG` length field.
     pub fn from_encoded_str(value: &'a (impl EncodedString + ?Sized)) -> Self {
         let data = value.data();
         let len = data

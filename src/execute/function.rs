@@ -10,6 +10,8 @@ use crate::{
 };
 
 impl<L: MqaiLibrary + Library<MQ: Mqi> + Clone, H> Connection<L, H> {
+    /// # Errors
+    /// Returns an error if MQ cannot create the response bag or execute the command.
     pub fn execute<'a>(&self, admin: &Bag<impl BagDrop, L>, options: &impl ExecuteOption<'a>) -> ResultComp<Bag<Owned, L>> {
         let functions = &self.mq;
         let handle = self.handle;

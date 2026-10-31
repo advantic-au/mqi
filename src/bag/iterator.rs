@@ -60,6 +60,8 @@ where
     B: BagDrop,
     L: MqaiLibrary + Clone,
 {
+    /// # Errors
+    /// Returns an error if MQ cannot count the selected items.
     pub fn try_iter<T: BagItemGet<L>>(&self, selector: Selector) -> ResultComp<BagItem<'_, T, B, L>> {
         self.mq.mq_count_items(self, selector).map_completion(|count| BagItem {
             selector,
@@ -70,6 +72,8 @@ where
         })
     }
 
+    /// # Errors
+    /// Returns an error if MQ cannot count the selected nested bags.
     pub fn try_bag_iter(&self, selector: Selector) -> ResultComp<BagItem<'_, Bag<Embedded, L>, B, L>> {
         self.try_iter(selector)
     }

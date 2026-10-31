@@ -49,6 +49,8 @@ pub unsafe trait PutOption<'po> {
 ///
 /// Implementations of the [`PutAttr`] trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait PutAttr {
+    /// # Errors
+    /// Returns an error if MQPUT fails or the result attribute cannot be extracted.
     fn put_extract<'p, F>(param: &mut PutParam<'p>, mqi: F) -> ResultComp<Self>
     where
         F: FnOnce(&mut PutParam<'p>) -> ResultComp<()>,

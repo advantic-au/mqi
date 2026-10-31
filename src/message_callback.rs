@@ -33,6 +33,11 @@ pub struct MessageCallback<'a, O: AsObject> {
 }
 
 impl<'cb, O: AsObject> MessageCallback<'cb, O> {
+    /// # Panics
+    /// Panics if `get_options` configures an MQGMO or MQMD version newer than the versions supported by this build.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot register the message consumer.
     pub fn register_message_consumer<F>(
         object: O,
         options: types::MQCBDO,
@@ -86,6 +91,8 @@ impl<'cb, O: AsObject> MessageCallback<'cb, O> {
         })
     }
 
+    /// # Errors
+    /// Returns an error if MQ cannot deregister the message consumer.
     pub fn deregister_message_consumer(self) -> ResultComp<O> {
         let result = Self::deregister_message_consumer_internal(self.object.as_object());
         let object = unsafe { std::ptr::read(&raw const self.object) };

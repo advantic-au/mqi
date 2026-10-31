@@ -9,10 +9,14 @@ pub struct AttributeType {
 }
 
 impl AttributeType {
+    /// # Errors
+    /// Returns an error if this attribute is not an integer attribute.
     pub const fn int_item(self, value: types::MQLONG) -> Result<IntItem, AttributeError> {
         IntItem::new(self.attribute, value)
     }
 
+    /// # Errors
+    /// Returns an error if this attribute is not a text attribute or the value length is incorrect.
     pub const fn text_item(self, value: &[types::MQCHAR]) -> Result<TextItem<&[types::MQCHAR]>, AttributeError> {
         TextItem::new(self, value)
     }
@@ -74,6 +78,8 @@ impl<T> InqResItem<T> {
 }
 
 impl IntItem {
+    /// # Errors
+    /// Returns [`AttributeError::NotIntType`] if `selector` is not an integer attribute.
     pub const fn new(selector: types::MQXA, value: types::MQLONG) -> Result<Self, AttributeError> {
         if selector.is_int() {
             Ok(Self { selector, value })
@@ -91,6 +97,8 @@ impl IntItem {
 }
 
 impl<'a> TextItem<&'a [types::MQCHAR]> {
+    /// # Errors
+    /// Returns an error if `attr_type` is not a text attribute or `value` has the wrong length.
     pub const fn new(attr_type: AttributeType, value: &'a [types::MQCHAR]) -> Result<Self, AttributeError> {
         if !attr_type.attribute.is_text() {
             Err(AttributeError::NotTextType(attr_type.attribute))

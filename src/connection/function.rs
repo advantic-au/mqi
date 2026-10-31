@@ -224,10 +224,10 @@ impl<L: Library<MQ: Mqi>, H: option::Threading> option::ConnectValue<Self> for C
 /// [`MQCONNX`](libmqm_sys::MQCONNX) and returns a
 /// [`ResultComp`](crate::result::ResultComp) that preserves successful MQ warnings.
 ///
-/// ## Panics
+/// # Panics
 /// This will panic when:
 /// * Any MQ structure Version exceeds the compiled MQ client
-/// * Any MQ structure Offset exceedd the bounds of an [`MQLONG`](types::MQLONG)
+/// * Any MQ structure Offset exceeds the bounds of an [`MQLONG`](types::MQLONG)
 ///
 /// # Errors
 /// Returns an error when MQCONNX fails to establish the connection.
@@ -250,10 +250,10 @@ where
 ///
 /// The function invokes [`MQCONNX`](libmqm_sys::MQCONNX).
 ///
-/// ## Panics
+/// # Panics
 /// This will panic when:
 /// * Any MQ structure Version exceeds the compiled MQ client
-/// * Any MQ structure Offset exceedd the bounds of an [`MQLONG`](types::MQLONG)
+/// * Any MQ structure Offset exceeds the bounds of an [`MQLONG`](types::MQLONG)
 ///
 /// # Errors
 /// Returns an error when MQCONNX fails to establish the connection.
@@ -276,10 +276,10 @@ where
 ///
 /// The function invokes [`MQCONNX`](libmqm_sys::MQCONNX).
 ///
-/// ## Panics
+/// # Panics
 /// This will panic when:
 /// * Any MQ structure Version exceeds the compiled MQ client
-/// * Any MQ structure Offset exceedd the bounds of an [`MQLONG`](types::MQLONG)
+/// * Any MQ structure Offset exceeds the bounds of an [`MQLONG`](types::MQLONG)
 ///
 /// # Errors
 /// Returns an error when MQCONNX fails to establish the connection or when the selected

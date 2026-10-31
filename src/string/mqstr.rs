@@ -62,6 +62,8 @@ impl<const N: usize, const Y: usize> PartialOrd<MqStr<Y>> for MqStr<N> {
 }
 
 impl<const N: usize> MqStr<N> {
+    /// # Errors
+    /// Returns [`MqStrError::Length`] if `value` contains fewer than `N` bytes.
     pub const fn from_mqchar_slice(value: &[types::MQCHAR]) -> Result<&Self, MqStrError> {
         match value.split_first_chunk::<N>() {
             Some((val, _)) => {
@@ -93,6 +95,8 @@ impl<const N: usize> MqStr<N> {
         Self { data: [0x20; N] } // Initialise with spaces
     }
 
+    /// # Errors
+    /// Returns [`MqStrError::Length`] if `value` is longer than `N` bytes.
     pub const fn from_str(value: &str) -> Result<Self, MqStrError> {
         let length = value.len();
         if length <= N {
@@ -106,7 +110,10 @@ impl<const N: usize> MqStr<N> {
         }
     }
 
-    /// Use when defining `MqStr` from const or literal `&str`. Panics on invalid `MqStr`.
+    /// Use when defining `MqStr` from const or literal `&str`.
+    ///
+    /// # Panics
+    /// Panics if `value` is longer than `N` bytes.
     #[must_use]
     pub const fn def_from_str(value: &str) -> Self {
         match Self::from_str(value) {

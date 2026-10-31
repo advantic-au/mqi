@@ -34,6 +34,11 @@ mod mqai {
     where
         C::Lib: crate::MqaiLibrary,
     {
+        /// # Errors
+        /// Returns an error if MQ cannot retrieve or convert the message into a bag.
+        ///
+        /// # Panics
+        /// Panics if `options` configures an MQGMO or MQMD version newer than the versions supported by this build.
         pub fn get_bag_with<R: option::GetBagAttr>(
             &self,
             options: &impl option::GetOption,
@@ -68,6 +73,8 @@ mod mqai {
             }
         }
 
+        /// # Errors
+        /// Returns an error if MQ cannot retrieve or convert the message into a bag.
         pub fn get_bag(
             &self,
             options: &impl option::GetOption,
@@ -131,9 +138,12 @@ impl<C: AsConnection> Object<C> {
     /// # fn main() {}
     /// ```
     ///
-    /// ## Panics
+    /// # Panics
     /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
     /// * The MQ client returns an invalid data length
+    ///
+    /// # Errors
+    /// Returns an error if MQGET fails.
     pub fn get_data<'b, R>(&self, options: &impl option::GetOption, buffer: &'b mut [R]) -> ResultComp<Option<&'b [R]>>
     where
         R: WriteRaw<u8>,
@@ -149,9 +159,12 @@ impl<C: AsConnection> Object<C> {
     /// message format. It returns `Ok(None)` when no message is available and
     /// `Ok(Some((bytes, attributes)))` when a message is received.
     ///
-    /// ## Panics
+    /// # Panics
     /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
     /// * The MQ client returns an invalid data length
+    ///
+    /// # Errors
+    /// Returns an error if MQGET fails or the requested attribute cannot be extracted.
     pub fn get_data_with<'b, A, R>(
         &self,
         options: &impl option::GetOption,
@@ -215,9 +228,12 @@ impl<C: AsConnection> Object<C> {
     ///
     /// For messages with another format, use [`get_data`](Self::get_data).
     ///
-    /// ## Panics
+    /// # Panics
     /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
     /// * The MQ client returns an invalid data length
+    ///
+    /// # Errors
+    /// Returns an error if MQGET fails or the message format/CCSID cannot be interpreted.
     pub fn get_string<'b>(
         &self,
         options: &impl option::GetOption,
@@ -232,9 +248,12 @@ impl<C: AsConnection> Object<C> {
     /// [`GetAttr`](crate::get::GetAttr), such as the MQ message format. The body
     /// must use `MQFMT_STRING`; its CCSID is retained rather than converted.
     ///
-    /// ## Panics
+    /// # Panics
     /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
     /// * The MQ client returns an invalid data length
+    ///
+    /// # Errors
+    /// Returns an error if MQGET fails or the message format/CCSID cannot be interpreted.
     pub fn get_string_with<'b, A>(
         &self,
         options: &impl option::GetOption,
@@ -285,9 +304,12 @@ impl<C: AsConnection> Object<C> {
     /// # fn main() {}
     /// ```
     ///
-    /// ## Panics
+    /// # Panics
     /// * An [`MQMD`](mq::MQMD) or [`MQGMO`](mq::MQGMO) Version exceeds the compiled MQ client
     /// * The MQ client returns an invalid data length
+    ///
+    /// # Errors
+    /// Returns an error if MQGET fails or `V` cannot interpret the message.
     pub fn get_as<'b, V, R, B>(&self, options: &impl option::GetOption, buffer: B) -> ResultCompErr<Option<V>, V::Error>
     where
         B: Buffer<'b, R>,

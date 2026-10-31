@@ -6,9 +6,17 @@ use super::option;
 use crate::{Connection, Library, constants, prelude::*, result::ResultComp, structs, types};
 
 const DEFAULT_OBJECTSTRING_LENGTH: types::MQLONG = 4096;
+const DEFAULT_OBJECTSTRING_CAPACITY: usize = 4096;
 
 impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
     /// This function uses the [`MQSTAT`](libmqm_sys::MQSTAT) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve asynchronous put status.
+    ///
+    /// # Panics
+    /// Panics if MQ reports a negative string length or buffer size, or a string length larger
+    /// than the provided buffer.
     pub fn stat_put(&self) -> ResultComp<option::AsyncPutStat> {
         let mut sts = structs::MQSTS::new(mq::MQSTS {
             Version: mq::MQSTS_VERSION_2,
@@ -18,12 +26,7 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
         if sts.ObjectString.VSBufSize == 0 {
             sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
         }
-        let mut buffer = Vec::with_capacity(
-            sts.ObjectString
-                .VSBufSize
-                .try_into()
-                .expect("buffer length should convert to usize"),
-        );
+        let mut buffer = Vec::with_capacity(DEFAULT_OBJECTSTRING_CAPACITY);
         sts.ObjectString.VSPtr = (&raw mut *buffer).cast();
 
         // SAFETY: MQSTS ObjectString MQCHARV constructed from buffer
@@ -35,6 +38,9 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
     }
 
     /// This function uses the [`MQSTAT`](libmqm_sys::MQSTAT) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve reconnection status.
     #[inline]
     pub fn stat_reconnection(&self) -> ResultComp<option::ReconnectionStat> {
         let mut sts = structs::MQSTS::new(default::MQSTS_DEFAULT);
@@ -48,6 +54,13 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
     }
 
     /// This function uses the [`MQSTAT`](libmqm_sys::MQSTAT) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve reconnection error details.
+    ///
+    /// # Panics
+    /// Panics if MQ reports a negative string length or buffer size, or a string length larger
+    /// than the provided buffer.
     #[inline]
     pub fn stat_reconnection_error(&self) -> ResultComp<option::ReconnectionErrorStat> {
         let mut sts = structs::MQSTS::new(mq::MQSTS {
@@ -56,21 +69,11 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
         });
 
         sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-        let mut object_string_buffer = Vec::with_capacity(
-            sts.ObjectString
-                .VSBufSize
-                .try_into()
-                .expect("buffer length should convert to usize"),
-        );
+        let mut object_string_buffer = Vec::with_capacity(DEFAULT_OBJECTSTRING_CAPACITY);
         sts.ObjectString.VSPtr = (&raw mut *object_string_buffer).cast();
 
         sts.SubName.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-        let mut sub_name_buffer = Vec::with_capacity(
-            sts.SubName
-                .VSBufSize
-                .try_into()
-                .expect("buffer length should convert to usize"),
-        );
+        let mut sub_name_buffer = Vec::with_capacity(DEFAULT_OBJECTSTRING_CAPACITY);
         sts.SubName.VSPtr = (&raw mut *sub_name_buffer).cast();
 
         // SAFETY: MQSTS ObjectString and SubName MQCHARV constructed from buffers

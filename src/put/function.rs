@@ -52,6 +52,11 @@ mod mqai {
     where
         C::Lib: MqaiLibrary,
     {
+        /// # Errors
+        /// Returns an error if MQ cannot convert and put the bag.
+        ///
+        /// # Panics
+        /// Panics if the put options configure MQMD or MQPMO versions unsupported by this build.
         pub fn put_bag<'po>(
             &self,
             put_options: &impl option::PutOption<'po>,
@@ -61,6 +66,11 @@ mod mqai {
             self.put_bag_with(put_options, format, bag)
         }
 
+        /// # Errors
+        /// Returns an error if MQ cannot convert and put the bag or extract the requested attribute.
+        ///
+        /// # Panics
+        /// Panics if the put options configure MQMD or MQPMO versions unsupported by this build.
         pub fn put_bag_with<'po, R>(
             &self,
             put_options: &impl option::PutOption<'po>,
@@ -134,6 +144,12 @@ impl<C: AsConnection> Object<C> {
     /// # #[cfg(not(feature = "link"))]
     /// # fn main() {}
     /// ```
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot put the message.
+    ///
+    /// # Panics
+    /// Panics if the put options configure MQMD or MQPMO versions unsupported by this build.
     pub fn put_message<'po>(
         &self,
         put_options: &impl option::PutOption<'po>,
@@ -149,6 +165,12 @@ impl<C: AsConnection> Object<C> {
     /// includes an attribute you need, such as a generated message identifier.
     /// The put options, message formats, and warning behavior are the same as
     /// for [`put_message`](Self::put_message).
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot put the message or extract the requested attribute.
+    ///
+    /// # Panics
+    /// Panics if the put options configure MQMD or MQPMO versions unsupported by this build.
     pub fn put_message_with<'po, R>(
         &self,
         put_options: &impl option::PutOption<'po>,
@@ -251,6 +273,13 @@ impl<L: Library<MQ: mq::Mqi>, H> Connection<L, H> {
     /// # #[cfg(not(feature = "link"))]
     /// # fn main() {}
     /// ```
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot open the destination and put the message.
+    ///
+    /// # Panics
+    /// Panics if the open options configure an MQOD version or the put options configure an MQMD
+    /// or MQPMO version unsupported by this build.
     #[inline]
     pub fn put_message<'po, 'oo>(
         &self,
@@ -269,6 +298,13 @@ impl<L: Library<MQ: mq::Mqi>, H> Connection<L, H> {
     /// warning behavior are the same as for [`put_message`](Self::put_message).
     /// The attribute type is inferred from the expected result type; specify
     /// `put_message_with::<AttributeType>` if inference needs help.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot open the destination, put the message, or extract the attribute.
+    ///
+    /// # Panics
+    /// Panics if the open options configure an MQOD version or the put options configure an MQMD
+    /// or MQPMO version unsupported by this build.
     pub fn put_message_with<'po, 'oo, R>(
         &self,
         open_options: &impl OpenOption<'oo, MQPMO>,

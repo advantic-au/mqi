@@ -36,6 +36,8 @@ pub unsafe trait OpenOption<'oo, T> {
 pub unsafe trait OpenValue<S> {
     type Error: From<Error> + std::fmt::Debug;
 
+    /// # Errors
+    /// Returns an error if MQOPEN fails or the value cannot be extracted.
     fn open_consume<'oo, F>(param: &mut OpenParam<'oo>, mqi: F) -> ResultCompErr<Self, Self::Error>
     where
         F: FnOnce(&mut OpenParam<'oo>) -> ResultComp<S>,
@@ -47,6 +49,8 @@ pub unsafe trait OpenValue<S> {
 /// Incorrect values in the [`MQOD`](structs::MQOD) can lead to undefined behaviour.
 /// Implementations of the trait must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait OpenAttr<S, O> {
+    /// # Errors
+    /// Returns an error if MQOPEN fails or the attribute cannot be extracted.
     fn open_extract<'a, F>(param: &mut OpenParamOption<'a, O>, mqi: F) -> ResultComp<(Self, S)>
     where
         F: FnOnce(&mut OpenParamOption<'a, O>) -> ResultComp<S>,

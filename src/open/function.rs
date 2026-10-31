@@ -15,6 +15,9 @@ impl<C: AsConnection> Object<C> {
     ///
     /// # Errors
     /// Returns an error when MQOPEN cannot open the requested object.
+    ///
+    /// # Panics
+    /// Panics if `open_option` configures an MQOD version unsupported by this build.
     pub fn open<'oo>(connection: C, open_option: &impl option::OpenOption<'oo, types::MQOO>) -> ResultComp<Self> {
         Self::open_as(connection, open_option)
     }
@@ -23,6 +26,9 @@ impl<C: AsConnection> Object<C> {
     ///
     /// # Errors
     /// Returns an error when MQOPEN cannot open the requested object.
+    ///
+    /// # Panics
+    /// Panics if `open_option` configures an MQOD version unsupported by this build.
     pub fn open_resolved<'oo>(
         connection: C,
         open_option: &impl option::OpenOption<'oo, types::MQOO>,
@@ -35,6 +41,9 @@ impl<C: AsConnection> Object<C> {
     /// # Errors
     /// Returns an error when MQOPEN cannot open the requested object or the selected
     /// [`OpenAttr`](option::OpenAttr) cannot extract its result.
+    ///
+    /// # Panics
+    /// Panics if `open_option` configures an MQOD version unsupported by this build.
     pub fn open_with<'oo, A>(connection: C, open_option: &impl option::OpenOption<'oo, types::MQOO>) -> ResultComp<(Self, A)>
     where
         A: option::OpenAttr<Self, types::MQOO>,

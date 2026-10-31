@@ -93,6 +93,9 @@ pub type ResultErr<T> = Result<T, Error>;
 /// Extends a `ResultComp` with additional methods to handle warnings.
 pub trait ResultCompExt<T, E> {
     /// Converts the MQ warning in the `Ok(Completion(..))` into an `Err`.
+    ///
+    /// # Errors
+    /// Returns the warning as an error, or preserves an existing error.
     fn warn_as_error(self) -> Result<T, E>;
 }
 
@@ -109,16 +112,22 @@ impl WithMqError for Error {
 /// Extends a `ResultCompErr` with additional methods to handle warnings.
 pub trait ResultCompErrExt<T, E> {
     /// Maps the value of the MQI API Result, maintaining the `Completion` wrapper with any associated warning.
+    ///
+    /// # Errors
+    /// Preserves the error from the original result.
     fn map_completion<U, F: FnOnce(T) -> U>(self, op: F) -> ResultCompErr<U, E>;
 
     /// Discards the completion
+    ///
+    /// # Errors
+    /// Preserves the error from the original result.
     fn discard_warning(self) -> Result<T, E>;
 
     /// Returns the contained `Ok(Completion(..))` value, discarding any warning and consumes the `self` value.
     ///
     /// This function can panic, so use it with caution.
     ///
-    /// ## Panic
+    /// # Panics
     /// Panics if the value is an `Err`, with a panic message provided by the `Err`'s value.
     fn unwrap_completion(self) -> T
     where
@@ -138,6 +147,9 @@ pub trait ResultCompErrExt<T, E> {
     /// Call this before `.warn_as_error()` or `.discard_warning()`, because
     /// those methods consume the warning that identifies the already-connected
     /// case.
+    ///
+    /// # Errors
+    /// Preserves the error from the original result.
     ///
     /// # Example
     ///
@@ -219,6 +231,9 @@ impl<T, E: From<Error>> ResultCompExt<T, E> for ResultCompErr<T, E> {
 }
 pub trait ResultErrExt<T> {
     /// Captures an [`MQRC`] error to a [`Result`]
+    ///
+    /// # Errors
+    /// Returns the original error unless its reason code matches `reason` and `map` handles it.
     fn map_reason_err<F: FnOnce(Error) -> ResultErr<T>>(self, reason: MQRC, map: F) -> ResultErr<T>;
 }
 

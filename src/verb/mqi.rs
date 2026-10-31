@@ -35,6 +35,9 @@ impl From<MqInqError> for Error {
 
 impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Connects an application program to a queue manager.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot connect to the queue manager.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqconn(&self, qm_name: &MqStr<48>) -> ResultComp<ConnectionHandle> {
         let mut outcome = MqiOutcome::<ConnectionHandle>::with_verb("MQCONN");
@@ -56,6 +59,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqconnx`](Self::mqconnx) must ensure the [`MQCNO`](mq::MQCNO) structure is populated with valid pointers and offsets
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot connect using the supplied options.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqconnx(&self, qm_name: &MqStr<48>, mqcno: &mut mq::MQCNO) -> ResultComp<ConnectionHandle> {
         let mut outcome = MqiOutcome::<ConnectionHandle>::with_verb("MQCONNX");
@@ -75,6 +81,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Breaks the connection between the queue manager and the application program,
     /// and is the inverse of the mqconn or mqconnx call
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot disconnect the connection.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqdisc(&self, connection: &mut ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQDISC");
@@ -92,6 +101,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqopen`](Self::mqopen) must ensure the [`MQOD`](mq::MQOD) structure is populated with valid pointers and offsets
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot open the object.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqopen(
         &self,
@@ -120,6 +132,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqput1`](Self::mqput1) must ensure the [`MQPMO`](mq::MQPMO) and [`MQOD`](mq::MQOD) structures are populated with valid pointers and offsets
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot open the destination and put the message.
+    ///
+    /// # Panics
+    /// Panics if the message body length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
     #[allow(clippy::allow_attributes, clippy::similar_names)]
     pub unsafe fn mqput1(
@@ -151,6 +169,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     }
 
     /// Relinquishes access to an object, and is the inverse of the mqopen and mqsub calls
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot close the object.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqclose(
         &self,
@@ -175,6 +196,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Indicates to the queue manager that the application has reached a sync point, and that all the
     /// message gets and puts that have occurred since the last sync point are to be made permanent.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot commit the unit of work.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqcmit(&self, connection_handle: ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQCMIT");
@@ -193,6 +217,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqput`](Self::mqput) must ensure the [`MQPMO`](mq::MQPMO) structure is populated with valid pointers and offsets
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot put the message.
+    ///
+    /// # Panics
+    /// Panics if the message body length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
     pub unsafe fn mqput(
         &self,
@@ -224,6 +254,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     }
 
     /// Retrieves a message from a local queue that has been opened using the mqopen call
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve a message.
+    ///
+    /// # Panics
+    /// Panics if the body buffer length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(body, self)))]
     pub fn mqget(
         &self,
@@ -256,6 +292,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Returns an array of integers and a set of character strings containing
     /// the attributes of an object
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the requested attributes.
+    ///
+    /// # Panics
+    /// Panics if an input slice length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", , skip(self, int_attr, text_attr)))]
     pub fn mqinq(
         &self,
@@ -296,6 +338,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     /// Register the applications subscription to a particular topic
     /// ## Safety
     /// Consumers of [`mqsub`](Self::mqsub) must ensure the [`MQSD`](mq::MQSD) structure is populated with valid pointers and offsets
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot register the subscription.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqsub(
         &self,
@@ -321,6 +366,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Make a request for the retained publication, when the subscriber has been
     /// registered with `MQSO_PUBLICATIONS_ON_REQUEST`
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot request the retained publication.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqsubrq(
         &self,
@@ -347,6 +395,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Begins a unit of work that is coordinated by the queue manager, and that can
     /// involve external resource managers.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot begin the unit of work.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqbegin(&self, connection_handle: ConnectionHandle, mqbo: Option<&mut mq::MQBO>) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQBEGIN");
@@ -362,6 +413,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
 
     /// Indicates to the queue manager that all the message gets and puts that have
     /// occurred since the last sync point are to be backed out
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot back out the unit of work.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqback(&self, connection_handle: ConnectionHandle) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQBACK");
@@ -376,6 +430,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     }
 
     /// Creates a message handle for use with mqsetmp, mqinqmp, and mqdltmp.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot create the message handle.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqcrtmh(&self, connection_handle: Option<ConnectionHandle>, cmho: &mq::MQCMHO) -> ResultErr<MessageHandle> {
         let mut outcome = MqiOutcome::<MessageHandle>::with_verb("MQCRTMH");
@@ -394,6 +451,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     }
 
     /// Deletes a message handle and is the inverse of the mqcrtmh call.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot delete the message handle.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqdltmh(
         &self,
@@ -420,6 +480,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqinqmp`](Self::mqinqmp) must ensure the name MQCHARV and MQIMPO structures are populated with valid pointers and offsets
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the property or its value does not fit the output buffer.
+    ///
+    /// # Panics
+    /// Panics if the output buffer length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, value)))]
     #[expect(clippy::too_many_arguments)]
     pub unsafe fn mqinqmp(
@@ -471,6 +537,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     }
 
     /// Deletes a property from a message handle and is the inverse of the mqsetmp call.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot delete the property.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqdltmp(
         &self,
@@ -500,6 +569,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqstat`](Self::mqstat) must ensure the [`MQSTS` MQCHARV](libmqm_sys::MQSTS) pointers are populated correctly.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot retrieve the requested status.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqstat(&self, connection_handle: ConnectionHandle, stat_type: MQSTAT, sts: &mut mq::MQSTS) -> ResultComp<()> {
         let mut outcome = MqiOutcomeVoid::with_verb("MQSTAT");
@@ -521,6 +593,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqsetmp`](Self::mqsetmp) must ensure the name [`MQCHARV`](mq::MQCHARV) pointer/offset is populated correctly.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot set the property.
+    ///
+    /// # Panics
+    /// Panics if the property value length cannot be represented by MQ's `MQLONG` length field.
     #[expect(clippy::too_many_arguments)]
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self, value)))]
     pub unsafe fn mqsetmp(
@@ -556,6 +634,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     }
 
     /// Changes the attributes of an object. The object must be a queue.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot change the requested attributes.
+    ///
+    /// # Panics
+    /// Panics if an input slice length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub fn mqset(
         &self,
@@ -598,6 +682,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqcb`](Self::mqcb) must populate the [`MQCBD`](libmqm_sys::MQCBD) structure with valid pointers
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot register, deregister, or resume the callback operation.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqcb(
         &self,
@@ -630,6 +717,9 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqctl`](Self::mqctl) must populate the [`MQCTLO`](libmqm_sys::MQCTLO) structure with valid pointers
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot perform the control operation.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(self)))]
     pub unsafe fn mqctl(
         &self,
@@ -656,6 +746,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     ///
     /// ## Safety
     /// Consumers of [`mqmhbuf`](Self::mqmhbuf) must populate the name MQCHARV structure with a valid pointer/offset
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot convert the message handle into a buffer or the buffer is too small.
+    ///
+    /// # Panics
+    /// Panics if the buffer length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(buffer, self)))]
     pub unsafe fn mqmhbuf(
         &self,
@@ -694,6 +790,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     }
 
     /// Converts a buffer into a message handle and is the inverse of the mqmhbuf call
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot convert the buffer into a message handle.
+    ///
+    /// # Panics
+    /// Panics if the buffer length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(buffer, self)))]
     pub fn mqbufmh(
         &self,
@@ -725,6 +827,12 @@ impl<L: Library<MQ: Mqi>> MqFunctions<L> {
     }
 
     /// Converts characters from one character set to another
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot convert the character data.
+    ///
+    /// # Panics
+    /// Panics if either input or output length cannot be represented by MQ's `MQLONG` length field.
     #[cfg_attr(feature = "tracing", instrument(level = "trace", skip(source, target, self)))]
     pub fn mqxcnvc(
         &self,

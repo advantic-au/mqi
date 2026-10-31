@@ -47,6 +47,12 @@ impl<C: AsConnection> Subscription<C> {
     /// Request the retained publication(s) for the subscription.
     ///
     /// This function uses the [`MQSUBRQ`](libmqm_sys::MQSUBRQ) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot request the retained publication.
+    ///
+    /// # Panics
+    /// Panics if `request_options` configures an MQSRO version unsupported by this build.
     pub fn request_retained(&self, request_options: &impl option::SubscribeRequestOption) -> ResultComp<MQLONG> {
         let mut srp = option::SubscribeRequestParam {
             sro: structs::MQSRO::new(default::MQSRO_DEFAULT),
@@ -75,11 +81,23 @@ impl<C: AsConnection> Drop for Subscription<C> {
 // Blanket implementation for SubscribeValue<C>
 impl<C: AsConnection + Clone> Subscription<C> {
     /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot create the subscription.
+    ///
+    /// # Panics
+    /// Panics if `subscribe_option` configures an MQSD version unsupported by this build.
     pub fn subscribe<'so>(connection: C, subscribe_option: &impl option::SubscribeOption<'so>) -> ResultComp<Self> {
         Self::subscribe_as(connection, subscribe_option)
     }
 
     /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot create the subscription or extract the requested attribute.
+    ///
+    /// # Panics
+    /// Panics if `subscribe_option` configures an MQSD version unsupported by this build.
     pub fn subscribe_with<'so, A>(connection: C, subscribe_option: &impl option::SubscribeOption<'so>) -> ResultComp<(Self, A)>
     where
         A: option::SubscribeAttr<C>,
@@ -88,6 +106,13 @@ impl<C: AsConnection + Clone> Subscription<C> {
     }
 
     /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot create the subscription or open its managed queue.
+    ///
+    /// # Panics
+    /// Panics if `subscribe_option` configures an MQSD version unsupported by this build, or if MQ
+    /// reports success without returning the managed queue handle.
     pub fn subscribe_managed_with<'so, A>(
         connection: C,
         subscribe_option: impl option::SubscribeOption<'so>,
@@ -106,6 +131,13 @@ impl<C: AsConnection + Clone> Subscription<C> {
     }
 
     /// This function uses the [`MQSUB`](libmqm_sys::MQSUB) MQ API function.
+    ///
+    /// # Errors
+    /// Returns an error if MQ cannot create the subscription or open its managed queue.
+    ///
+    /// # Panics
+    /// Panics if `subscribe_option` configures an MQSD version unsupported by this build, or if MQ
+    /// reports success without returning the managed queue handle.
     pub fn subscribe_managed<'so>(
         connection: C,
         subscribe_option: impl option::SubscribeOption<'so>,
