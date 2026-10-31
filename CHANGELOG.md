@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2](https://github.com/advantic-au/mqi/compare/v0.4.1...v0.4.2) - 2026-10-31
+
+### Other
+
+- *(deps)* pin dependencies
+- Renovate no pinning for cargo
+- *(config)* migrate config renovate.json
+- Renovate Rust no pinning
+- Renovate config for MSRV and best practices
+- Add renovate.json
+
 ## [0.4.1](https://github.com/advantic-au/mqi/compare/v0.4.0...v0.4.1) - 2026-10-31
 
 ### Fixed
