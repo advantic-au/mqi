@@ -1,14 +1,18 @@
-// Concept adapted from the axum crate
-// Used to implement a macro for tuples
+macro_rules! all_tuple_arities {
+    ($name:path; [$($prefix:tt)*]; [$($suffix:tt)*]) => {
+        $name!($($prefix)* [M1, M2] $($suffix)*);
+        $name!($($prefix)* [M1, M2, M3] $($suffix)*);
+        $name!($($prefix)* [M1, M2, M3, M4] $($suffix)*);
+        $name!($($prefix)* [M1, M2, M3, M4, M5] $($suffix)*);
+        $name!($($prefix)* [M1, M2, M3, M4, M5, M6] $($suffix)*);
+        $name!($($prefix)* [M1, M2, M3, M4, M5, M6, M7] $($suffix)*);
+        $name!($($prefix)* [M1, M2, M3, M4, M5, M6, M7, M8] $($suffix)*);
+    };
+}
+
 macro_rules! all_multi_tuples {
     ($name:ident) => {
-        $name!([M1, M2]);
-        $name!([M1, M2, M3]);
-        $name!([M1, M2, M3, M4]);
-        $name!([M1, M2, M3, M4, M5]);
-        $name!([M1, M2, M3, M4, M5, M6]);
-        $name!([M1, M2, M3, M4, M5, M6, M7]);
-        $name!([M1, M2, M3, M4, M5, M6, M7, M8]);
+        $crate::macros::all_tuple_arities!($name; []; []);
     };
 }
 
@@ -70,13 +74,7 @@ macro_rules! all_option_tuples {
             fn apply_param(&self, _param: &mut $ty) {}
         }
 
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5, M6] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5, M6, M7] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($trait, $ty, [M1, M2, M3, M4, M5, M6, M7, M8] $(,$safety)?);
+        $crate::macros::all_tuple_arities!($crate::macros::impl_option_tuple; [$trait, $ty,]; [$(,$safety)?]);
     };
     ($lt:lifetime, $trait:ident, $ty:ty $(,$safety:ident)?) => {
         $($safety)? impl<$lt, T: $trait<$lt>> $trait<$lt> for Option<T> {
@@ -90,13 +88,7 @@ macro_rules! all_option_tuples {
             fn apply_param(&self, _param: &mut $ty) {}
         }
 
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M5] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M6, M7] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M5, M6, M7] $(,$safety)?);
-        $crate::macros::impl_option_tuple!($lt, $trait, $ty, [M1, M2, M3, M4, M5, M6, M7, M8] $(,$safety)?);
+        $crate::macros::all_tuple_arities!($crate::macros::impl_option_tuple; [$lt, $trait, $ty,]; [$(,$safety)?]);
     };
 }
 
@@ -115,6 +107,7 @@ macro_rules! impl_from_str {
 
 pub(crate) use all_multi_tuples;
 pub(crate) use all_option_tuples;
+pub(crate) use all_tuple_arities;
 pub(crate) use impl_from_str;
 pub(crate) use impl_option_tuple;
 pub(crate) use reverse_ident;
