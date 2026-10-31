@@ -182,15 +182,15 @@ features = ["docsrs"]
 no-default-features = true
 
 [dev-dependencies]
-proptest = "1.12.0"
+proptest = "=1.12.0"
 # development dependencies for examples
-clap = { version = "4.6", features = ["derive"] }
-anyhow = "1.0.87"
-tracing = "0.1.40"
-tracing-subscriber = "0.3.19"
-ctrlc = "3.5"
+clap = { version = "=4.6.7", features = ["derive"] }
+anyhow = "=1.0.104"
+tracing = "=0.1.44"
+tracing-subscriber = "=0.3.23"
+ctrlc = "=3.5.2"
 # Force a higher minimum version for this transitive dependency by tracing-subscriber
-sharded-slab = "0.1.7"
+sharded-slab = "=0.1.7"
 
 [[example]]
 name = "subscribe_managed"
