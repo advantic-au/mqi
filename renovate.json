@@ -10,11 +10,11 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": [
-        "(^|/)Cargo\\.toml$",
-        "(^|/)\\.github/workflows/.*\\.yml$",
-        "(^|/)AGENTS\\.md$",
-        "(^|/)CONTRIBUTING\\.md$"
+      "managerFilePatterns": [
+        "/(^|/)Cargo\\.toml$/",
+        "/(^|/)\\.github/workflows/.*\\.yml$/",
+        "/(^|/)AGENTS\\.md$/",
+        "/(^|/)CONTRIBUTING\\.md$/"
       ],
       "matchStrings": [
         "rust-version\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+)\"",
