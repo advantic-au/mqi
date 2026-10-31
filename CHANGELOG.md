@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/advantic-au/mqi/compare/v0.4.0...v0.4.1) - 2026-10-31
+
+### Fixed
+
+- preserve MQ warnings in outcome conversions
+- preserve MQ warnings and validate inquiry attribute types
+- initialize MQINQ output buffers before FFI writes
+- avoid retrying failed MQ object closes
+
+### Other
+
+- document public API usage and types
+- expand consumer guidance and API error documentation
+- document public API errors and panics
+
 ## [0.4.0](https://github.com/advantic-au/mqi/compare/v0.3.0...v0.4.0) - 2026-10-30
 
 ### Added
