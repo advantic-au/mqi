@@ -2,6 +2,7 @@ use std::slice;
 
 use crate::types;
 
+/// Selector and expected fixed width for an MQ text attribute.
 #[derive(Debug, Clone, Copy)]
 pub struct AttributeType {
     pub(super) attribute: types::MQXA,
@@ -9,18 +10,24 @@ pub struct AttributeType {
 }
 
 impl AttributeType {
+    /// Create an integer attribute value with this selector.
+    ///
     /// # Errors
     /// Returns an error if this attribute is not an integer attribute.
     pub const fn int_item(self, value: types::MQLONG) -> Result<IntItem, AttributeError> {
         IntItem::new(self.attribute, value)
     }
 
+    /// Create a text attribute value after checking its type and width.
+    ///
     /// # Errors
     /// Returns an error if this attribute is not a text attribute or the value length is incorrect.
     pub const fn text_item(self, value: &[types::MQCHAR]) -> Result<TextItem<&[types::MQCHAR]>, AttributeError> {
         TextItem::new(self, value)
     }
 
+    /// Create a selector descriptor with its expected text-field width.
+    ///
     /// ## Safety
     /// Consumers must ensure the `text_len` is correct for the given `attribute`
     #[must_use]
@@ -29,31 +36,52 @@ impl AttributeType {
     }
 }
 
+/// One integer or text value returned by an attribute inquiry.
 #[derive(Debug, Clone, Copy)]
 pub enum InqResItem<T> {
-    Text(TextItem<T>),
-    Long(IntItem),
+    /// Text attribute value.
+    Text(
+        /// The selector and value for the text attribute.
+        TextItem<T>,
+    ),
+    /// Integer attribute value.
+    Long(
+        /// The selector and value for the integer attribute.
+        IntItem,
+    ),
 }
 
+/// An integer MQ attribute paired with its selector.
 #[derive(Debug, Clone, Copy)]
 pub struct IntItem {
     selector: types::MQXA,
     value: types::MQLONG,
 }
 
+/// A text MQ attribute paired with its selector.
 #[derive(Debug, Clone, Copy)]
 pub struct TextItem<T> {
     selector: types::MQXA,
     value: T,
 }
 
+/// Attribute value separated from the selector that identified it.
 #[derive(Debug, Clone, Copy)]
 pub enum AttributeValue<T> {
-    Text(T),
-    Long(types::MQLONG),
+    /// Text value, retaining the caller-selected storage type.
+    Text(
+        /// Text value returned by the inquiry.
+        T,
+    ),
+    /// Integer value.
+    Long(
+        /// Integer value returned by the inquiry.
+        types::MQLONG,
+    ),
 }
 
 impl<T> InqResItem<T> {
+    /// Return the selector and value without the typed item wrapper.
     #[must_use]
     pub fn into_tuple(self) -> (types::MQXA, AttributeValue<T>) {
         match self {
@@ -62,6 +90,7 @@ impl<T> InqResItem<T> {
         }
     }
 
+    /// Return the integer value, or `None` when this is a text item.
     pub const fn long_value(&self) -> Option<types::MQLONG> {
         match self {
             Self::Long(IntItem { value, .. }) => Some(*value),
@@ -69,6 +98,7 @@ impl<T> InqResItem<T> {
         }
     }
 
+    /// Return the text value, or `None` when this is an integer item.
     pub fn text_value(self) -> Option<T> {
         match self {
             Self::Text(TextItem { value, .. }) => Some(value),
@@ -88,6 +118,8 @@ impl IntItem {
         }
     }
 
+    /// Create an integer item without validating that the selector is an MQ integer attribute.
+    ///
     /// ## Safety
     /// Consumers must ensure the `selector` is within the MQIA constant range
     #[must_use]
@@ -97,6 +129,8 @@ impl IntItem {
 }
 
 impl<'a> TextItem<&'a [types::MQCHAR]> {
+    /// Associate a fixed-width text value with the selector in `attr_type`.
+    ///
     /// # Errors
     /// Returns an error if `attr_type` is not a text attribute or `value` has the wrong length.
     pub const fn new(attr_type: AttributeType, value: &'a [types::MQCHAR]) -> Result<Self, AttributeError> {
@@ -112,6 +146,8 @@ impl<'a> TextItem<&'a [types::MQCHAR]> {
         }
     }
 
+    /// Create a text item without validating the selector or value width.
+    ///
     /// ## Safety
     /// Consumers must ensure the `selector` is within the MQCA constant range and the slice is the correct length
     #[must_use]
@@ -120,16 +156,31 @@ impl<'a> TextItem<&'a [types::MQCHAR]> {
     }
 }
 
+/// Invalid selector or value supplied for an MQ attribute.
 #[derive(derive_more::Display, derive_more::Error, Debug)]
 pub enum AttributeError {
     #[error(ignore)]
     #[display("{_0} is not an integer attribute")]
-    NotIntType(types::MQXA),
+    /// The selector does not identify an integer attribute.
+    NotIntType(
+        /// Selector that does not identify an integer attribute.
+        types::MQXA,
+    ),
     #[error(ignore)]
     #[display("{_0} is not a text attribute")]
-    NotTextType(types::MQXA),
+    /// The selector does not identify a text attribute.
+    NotTextType(
+        /// Selector that does not identify a text attribute.
+        types::MQXA,
+    ),
     #[display("actual text attribute length = {_0}, expected length = {_1}")]
-    InvalidTextLength(usize, usize),
+    /// Text value length does not match the selector's configured width.
+    InvalidTextLength(
+        /// Expected text length configured for the selector.
+        usize,
+        /// Length of the provided text value.
+        usize,
+    ),
 }
 
 struct MultiItemIter<'a> {
@@ -140,6 +191,7 @@ struct MultiItemIter<'a> {
     int_attr: slice::Iter<'a, types::MQLONG>,
 }
 
+/// A collection of integer and text attributes prepared for inquiry or update.
 #[derive(Debug, Clone, Default)]
 pub struct MultiItem {
     pub(crate) selectors: Vec<types::MQXA>,
@@ -149,6 +201,7 @@ pub struct MultiItem {
 }
 
 impl MultiItem {
+    /// Iterate over the attribute values in insertion order.
     pub fn iter(&self) -> impl Iterator<Item = InqResItem<&[types::MQCHAR]>> {
         MultiItemIter {
             text_pos: 0,
@@ -159,6 +212,7 @@ impl MultiItem {
         }
     }
 
+    /// Consume the collection and return its first item, if present.
     #[must_use]
     pub fn into_first(self) -> Option<InqResItem<Vec<types::MQCHAR>>> {
         let selector = *self.selectors.first()?;
@@ -201,9 +255,13 @@ impl<'a> Iterator for MultiItemIter<'a> {
     }
 }
 
+/// Exposes the selector and value arrays consumed by an MQ attribute update.
 pub trait SetItems: sealed::Sealed {
+    /// Return the selectors in item order.
     fn selectors(&self) -> &[types::MQXA];
+    /// Return the integer values in selector order.
     fn int_attr(&self) -> &[types::MQLONG];
+    /// Return the concatenated text values in selector order.
     fn text_attr(&self) -> &[types::MQCHAR];
 }
 
@@ -227,6 +285,7 @@ impl SetItems for MultiItem {
 }
 
 impl MultiItem {
+    /// Append a text attribute and retain its selector and length.
     pub fn push_text_item(&mut self, text_item: &TextItem<&[types::MQCHAR]>) {
         self.selectors.push(text_item.selector);
         #[expect(clippy::cast_possible_truncation)]
@@ -234,6 +293,7 @@ impl MultiItem {
         self.text_attr.extend_from_slice(text_item.value);
     }
 
+    /// Append an integer attribute.
     pub fn push_int_item(&mut self, int_item: IntItem) {
         self.selectors.push(int_item.selector);
         self.int_attr.push(int_item.value);

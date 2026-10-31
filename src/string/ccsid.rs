@@ -1,16 +1,28 @@
 use crate::{encoding, types};
 
+/// MQ coded character set identifier.
+///
+/// The numeric value describes how character data is encoded; `name` and
+/// `is_ebcdic` return `None` when the identifier is not in this crate's lookup
+/// table.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
 #[repr(transparent)]
-pub struct CCSID(pub types::MQLONG);
+pub struct CCSID(
+    /// The numeric MQ CCSID value.
+    pub types::MQLONG,
+);
 
 impl CCSID {
+    /// Return the known CCSID name, or `None` when the value is not recognized.
     #[must_use]
     pub fn name(self) -> Option<&'static str> {
         #[expect(clippy::cast_sign_loss)]
         encoding::ccsid_lookup(self.0 as u32).map(|(.., name)| *name)
     }
 
+    /// Return whether this CCSID is recognized as EBCDIC.
+    ///
+    /// Returns `None` when the identifier is not in the crate's lookup table.
     #[must_use]
     pub fn is_ebcdic(self) -> Option<bool> {
         #[expect(clippy::cast_sign_loss)]

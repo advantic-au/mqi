@@ -18,16 +18,21 @@ mod filter;
 pub use bag_item::*;
 pub use filter::*;
 
+/// Iterator types for reading repeated items from MQAI bags.
 pub mod iterator;
 
+/// Defines how a bag's handle is released when the bag is dropped.
 pub trait BagDrop: Sized {
     /// # Errors
     /// Returns an error if MQ cannot delete the bag.
     fn drop_bag<L: MqaiLibrary>(bag: &mut Bag<Self, L>) -> ResultComp<()>;
 }
 
+/// Converts an inquiry selector, optionally paired with an item index.
 pub trait InqSelect: Copy {
+    /// Return the selector identifying the bag item.
     fn selector(&self) -> Selector;
+    /// Return an optional index for selecting one repeated item.
     fn index(&self) -> Option<MQIND> {
         None
     }
@@ -62,8 +67,10 @@ impl<T: Into<Selector> + Copy> InqSelect for (T, MQIND) {
 }
 
 #[derive(Debug)]
+/// Marker for a bag whose handle is owned and deleted when dropped.
 pub struct Owned {}
 #[derive(Debug)]
+/// Marker for a bag handle embedded in another bag and not deleted separately.
 pub struct Embedded {}
 
 impl BagDrop for Owned {
@@ -82,6 +89,10 @@ impl BagDrop for Embedded {
 }
 
 #[derive(Debug)]
+/// An MQAI bag containing typed items addressed by selectors.
+///
+/// Bags marked [`Owned`] release their MQ handle when dropped. Bags marked
+/// [`Embedded`] represent nested handles owned by another bag.
 pub struct Bag<B: BagDrop, L: MqaiLibrary> {
     handle: BagHandle,
     pub(super) mq: MqFunctions<L>,
@@ -129,11 +140,13 @@ impl<L: MqaiLibrary + Clone> BagItemGet<L> for Bag<Embedded, L> {
 }
 
 impl<B: BagDrop, L: MqaiLibrary> Bag<B, L> {
+    /// Return the MQAI handle for this bag.
     #[must_use]
     pub const fn handle(&self) -> &BagHandle {
         &self.handle
     }
 
+    /// Borrow the mutable MQAI handle slot used by MQAI calls.
     pub const fn mut_handle(&mut self) -> &mut BagHandle {
         &mut self.handle
     }

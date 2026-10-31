@@ -215,6 +215,10 @@ unsafe fn inqmp<'a, 'b, A: Library<MQ: Mqi>>(
     }
 }
 
+/// Iterator over message properties that match a name and value type.
+///
+/// Each item is an MQ completion containing the decoded property value; MQ
+/// warnings are preserved for the caller.
 pub struct MsgPropIter<'name, 'message, P, N: EncodedString + ?Sized, C: AsConnection> {
     name: &'name N,
     message: &'message Properties<C>,
@@ -239,6 +243,7 @@ impl<P: option::PropertyValue, N: EncodedString + ?Sized, C: AsConnection> Itera
 }
 
 impl<C: AsConnection> Properties<C> {
+    /// Return the MQ message handle backing these properties.
     pub const fn handle(&self) -> &MessageHandle {
         &self.handle
     }

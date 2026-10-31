@@ -6,25 +6,37 @@ use crate::{
 };
 
 #[derive(Debug)]
+/// Values returned by an MQ subscription call.
 pub struct SubscribeState<C: AsConnection> {
+    /// Subscription handle created by MQ.
     pub subscription: super::function::Subscription<C>,
+    /// Optional queue object opened or associated with the subscription.
     pub object: Option<Object<C>>,
 }
 
+/// Subscription descriptor and output settings assembled for `MQSUB`.
 #[derive(Debug, Clone)]
 pub struct SubscribeParam<'a> {
+    /// Topic, selection, and subscription settings passed to MQ.
     pub sd: structs::MQSD<'a>,
+    /// Close options retained for the subscription handle.
     pub close_options: types::MQCO,
+    /// Whether an existing object handle was provided by the caller.
     pub provided_object: types::MQLONG,
 }
 
+/// Request options and status returned by an MQ subscription request.
 #[derive(Debug, Clone)]
 pub struct SubscribeRequestParam {
+    /// Subscription request options passed to `MQSUBRQ`.
     pub sro: structs::MQSRO,
+    /// Subscription request status returned by MQ.
     pub sr: types::MQSR,
 }
 
+/// Converts the result of `MQSUB` into a caller-selected value.
 pub trait SubscribeValue<C: AsConnection> {
+    /// Error returned when MQSUB succeeds but the requested value cannot be extracted.
     type Error: From<Error> + std::fmt::Debug;
 
     /// # Errors
@@ -35,6 +47,7 @@ pub trait SubscribeValue<C: AsConnection> {
         Self: std::marker::Sized;
 }
 
+/// Extracts an additional typed attribute from a subscription operation.
 pub trait SubscribeAttr<C: AsConnection> {
     /// # Errors
     /// Returns an error if MQSUB fails or the requested attribute cannot be extracted.
@@ -54,9 +67,12 @@ pub trait SubscribeAttr<C: AsConnection> {
 ///
 /// Implementations of [`SubscribeOption`] must ensure that pointers and offsets contained in the structure point to active data.
 pub unsafe trait SubscribeOption<'so> {
+    /// Apply this option to the subscription descriptor and handle settings.
     fn apply_param(&self, param: &mut SubscribeParam<'so>);
 }
 
+/// Configures an MQ subscription request (`MQSUBRQ`).
 pub trait SubscribeRequestOption {
+    /// Apply this option to the subscription-request options.
     fn apply_param(&self, param: &mut SubscribeRequestParam);
 }

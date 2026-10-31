@@ -17,10 +17,18 @@ use crate::{
     types::{MQCO, MQDCC, MQLONG, MQOO, MQOP, MQSR, MQSTAT, MQTYPE, MQXA},
 };
 
+/// Error while inquiring a value whose length may need to be retried with a larger buffer.
 #[derive(Debug, derive_more::From, derive_more::Error, derive_more::Display)]
 pub enum MqInqError {
+    /// An inquiry buffer was too small; includes the required length and MQ error.
     #[display("{}, length: {}", _1, _0)]
-    Length(MQLONG, Error),
+    Length(
+        /// Required value length reported by MQ.
+        MQLONG,
+        /// MQ error returned because the inquiry buffer was too small.
+        Error,
+    ),
+    /// An MQ error unrelated to a buffer-length retry.
     #[from]
     #[display("{_0}")]
     MQ(Error),

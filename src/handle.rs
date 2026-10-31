@@ -17,10 +17,13 @@ macro_rules! impl_constant_lookup {
     };
 }
 
+/// Associates a typed MQ handle wrapper with its raw MQ handle representation.
 pub trait RawHandle {
+    /// Raw handle type accepted by the corresponding MQI calls.
     type HandleType: Copy;
 }
 
+/// Marker types that distinguish the raw handle domains accepted by MQI.
 pub mod raw {
     #[cfg(feature = "mqai")]
     use libmqm_sys::mqai;
@@ -28,18 +31,21 @@ pub mod raw {
     use super::{RawHandle, mq};
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    /// Marker for queue-manager connection handles.
     pub struct Connection;
     impl RawHandle for Connection {
         type HandleType = mq::MQHCONN;
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    /// Marker for message handles.
     pub struct Message;
     impl RawHandle for Message {
         type HandleType = mq::MQHMSG;
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    /// Marker for object handles.
     pub struct Object;
     impl RawHandle for Object {
         type HandleType = mq::MQHOBJ;
@@ -47,6 +53,7 @@ pub mod raw {
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     #[cfg(feature = "mqai")]
+    /// Marker for MQAI bag handles.
     pub struct Bag;
 
     #[cfg(feature = "mqai")]
@@ -55,9 +62,13 @@ pub mod raw {
     }
 }
 
+/// Typed wrapper for an MQ connection handle.
 pub type ConnectionHandle = Handle<raw::Connection>;
+/// Typed wrapper for an MQ object handle.
 pub type ObjectHandle = Handle<raw::Object>;
+/// Typed wrapper for an MQ message handle.
 pub type MessageHandle = Handle<raw::Message>;
+/// Subscription handles use the same MQ handle representation as object handles.
 pub type SubscriptionHandle = ObjectHandle;
 
 #[cfg(feature = "mqai")]
@@ -65,6 +76,7 @@ mod mqai {
     use libmqm_constants::lookup::{ConstLookup, HasConstLookup};
     use libmqm_sys::mqai;
 
+    /// Typed wrapper for an MQAI bag handle.
     pub type BagHandle = super::Handle<super::raw::Bag>;
 
     impl From<mqai::MQHBAG> for BagHandle {
@@ -95,6 +107,7 @@ mod mqai {
     }
 
     impl BagHandle {
+        /// Return whether this handle identifies a bag that MQAI can delete.
         #[must_use]
         pub const fn is_deletable(&self) -> bool {
             self.0 != mqai::MQHB_NONE && self.0 != mqai::MQHB_UNUSABLE_HBAG
@@ -107,9 +120,14 @@ pub use mqai::*;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[repr(transparent)]
+/// Type-safe wrapper around an MQ handle.
+///
+/// The marker parameter prevents connection, object, message, and bag handles
+/// from being accidentally interchanged.
 pub struct Handle<R: RawHandle>(pub(super) R::HandleType);
 
 impl<R: RawHandle> Handle<R> {
+    /// Return the raw handle value for use with the matching MQI call.
     /// ## Safety
     /// Consumers of the function must use the handle directly on MQ API calls
     #[must_use]
@@ -117,6 +135,7 @@ impl<R: RawHandle> Handle<R> {
         self.0
     }
 
+    /// Borrow the raw handle slot that MQ updates or invalidates during a call.
     /// ## Safety
     /// Primarily used by MQ to write/invalidate MQ handle
     #[must_use]
@@ -144,6 +163,7 @@ impl From<mq::MQHOBJ> for ObjectHandle {
 }
 
 impl ConnectionHandle {
+    /// Return whether this handle refers to a connection that can be disconnected.
     #[must_use]
     pub const fn is_disconnectable(&self) -> bool {
         self.0 != mq::MQHC_UNUSABLE_HCONN
@@ -168,6 +188,7 @@ impl Display for ConnectionHandle {
 }
 
 impl MessageHandle {
+    /// Return whether this handle refers to a message that can be deleted.
     #[must_use]
     pub const fn is_deleteable(&self) -> bool {
         self.0 != mq::MQHM_UNUSABLE_HMSG
@@ -175,6 +196,7 @@ impl MessageHandle {
 }
 
 impl ObjectHandle {
+    /// Return whether this handle refers to an object that can be closed.
     #[must_use]
     pub const fn is_closeable(&self) -> bool {
         self.0 != mq::MQHO_UNUSABLE_HOBJ

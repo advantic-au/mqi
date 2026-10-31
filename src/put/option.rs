@@ -5,10 +5,13 @@ use crate::{result::ResultComp, structs, types::MessageFormat};
 /// A trait that provides a rendered message for the [`mqput`](`crate::MqFunctions::mqput`) function
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutMessage` so it can't be used as an argument for MQI put")]
 pub trait PutMessage {
+    /// Render this message as bytes for MQPUT or MQPUT1.
     fn render(&self) -> Cow<'_, [u8]>;
+    /// Describe the CCSID, encoding, and format associated with the rendered bytes.
     fn format(&self) -> MessageFormat;
 }
 
+/// Message descriptor and put-message options assembled for an MQPUT call.
 pub type PutParam<'a> = (structs::MQMD, structs::MQPMO<'a>);
 
 /// Options accepted by the message put functions.
@@ -40,6 +43,7 @@ pub type PutParam<'a> = (structs::MQMD, structs::MQPMO<'a>);
 /// Implementations of the [`PutOption`] trait must ensure that pointers and offsets contained in the structure point to active data.
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `PutOption` so it can't be used as an argument for MQI put")]
 pub unsafe trait PutOption<'po> {
+    /// Apply this option to the message descriptor and put-message options.
     fn apply_param(&self, param: &mut PutParam<'po>);
 }
 

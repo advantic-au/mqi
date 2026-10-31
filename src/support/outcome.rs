@@ -83,32 +83,6 @@ impl<T, E: From<Error>> From<MqiOutcome<T>> for Result<T, E> {
     }
 }
 
-#[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn warning_is_preserved_in_completion_and_is_an_error_in_result() {
-        let mut outcome = MqiOutcome::new("MQGET", 42);
-        outcome.cc = constants::MQCC_WARNING;
-        outcome.rc = constants::MQRC_NO_MSG_AVAILABLE;
-
-        let completion: ResultCompErr<_, Error> = outcome.clone().into();
-        assert!(matches!(
-            completion,
-            Ok(Completion(42, Some((rc, "MQGET")))) if rc == constants::MQRC_NO_MSG_AVAILABLE
-        ));
-
-        let result: Result<i32, Error> = outcome.into();
-        assert!(matches!(
-            result,
-            Err(Error(cc, "MQGET", rc))
-                if cc == constants::MQCC_WARNING && rc == constants::MQRC_NO_MSG_AVAILABLE
-        ));
-    }
-}
-
 /// Traces the MQI outcome
 #[cfg(feature = "tracing")]
 pub fn tracing_outcome<T: std::fmt::Debug>(outcome: &MqiOutcome<T>) {
@@ -176,5 +150,31 @@ pub fn tracing_outcome_basic<T>(outcome: &MqiOutcome<T>) {
             rc = rc.0,
             verb
         ),
+    }
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn warning_is_preserved_in_completion_and_is_an_error_in_result() {
+        let mut outcome = MqiOutcome::new("MQGET", 42);
+        outcome.cc = constants::MQCC_WARNING;
+        outcome.rc = constants::MQRC_NO_MSG_AVAILABLE;
+
+        let completion: ResultCompErr<_, Error> = outcome.clone().into();
+        assert!(matches!(
+            completion,
+            Ok(Completion(42, Some((rc, "MQGET")))) if rc == constants::MQRC_NO_MSG_AVAILABLE
+        ));
+
+        let result: Result<i32, Error> = outcome.into();
+        assert!(matches!(
+            result,
+            Err(Error(cc, "MQGET", rc))
+                if cc == constants::MQCC_WARNING && rc == constants::MQRC_NO_MSG_AVAILABLE
+        ));
     }
 }

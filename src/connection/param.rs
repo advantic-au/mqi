@@ -112,15 +112,27 @@ structs::impl_min_version!(['a], structs::MQSCO<'a>);
 structs::impl_min_version!(['a], structs::MQCD<'a>);
 structs::impl_min_version!(['a], structs::MQCNO<'a>);
 
+/// Identifier returned by MQ for the current connection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
-pub struct ConnectionId(pub types::Identifier<24>);
+pub struct ConnectionId(
+    /// The fixed-width connection identifier bytes.
+    pub types::Identifier<24>,
+);
+/// Application-defined connection tag returned by MQ.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, derive_more::Deref)]
-pub struct ConnTag(pub [types::MQBYTE; mq::MQ_CONN_TAG_LENGTH]);
+pub struct ConnTag(
+    /// The fixed-width tag bytes supplied for the connection.
+    pub [types::MQBYTE; mq::MQ_CONN_TAG_LENGTH],
+);
 
 /// Client Channel Definition Table URL connection option. Sets the connection as `MQCNO_CLIENT_BINDING`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::From)]
-pub struct Ccdt<'url>(pub &'url str);
+pub struct Ccdt<'url>(
+    /// URL identifying the client channel definition table.
+    pub &'url str,
+);
 
+/// Client channel and transport settings parsed from an `MQSERVER`-style string.
 #[derive(Debug, Clone, Copy)]
 pub struct MqServer<'m> {
     channel_name: &'m [types::MQCHAR],
@@ -219,23 +231,38 @@ unsafe impl option::ConnectOption<'_> for QueueManagerName {
     }
 }
 
+/// A secret initial key used by MQ's initial-key connection option.
 #[cfg(feature = "mqc_9_3_0_0")]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut)]
 #[repr(transparent)]
 pub struct InitialKeySecret<S>(S);
 
+/// Initial key wrapped so its debug output is redacted.
 #[cfg(feature = "mqc_9_3_0_0")]
 pub type InitialKey<S> = InitialKeySecret<ProtectedSecret<S>>;
 
+/// Credentials supplied to MQ when establishing a connection.
 #[derive(Default, Debug, Clone, Copy)]
 pub enum CredentialsSecret<'cred, S> {
+    /// Use the credentials configured by MQ or the environment.
     #[default]
     Default,
-    User(&'cred str, S),
+    /// Authenticate as the user with the associated password or secret.
+    User(
+        /// User name presented to MQ.
+        &'cred str,
+        /// Password or other secret associated with the user.
+        S,
+    ),
     #[cfg(feature = "mqc_9_3_4_0")]
-    Token(S),
+    /// Authenticate with a token supplied as a secret.
+    Token(
+        /// Authentication token supplied to MQ.
+        S,
+    ),
 }
 
+/// Credentials whose secret is wrapped to redact it from debug output.
 pub type Credentials<'cred, S> = CredentialsSecret<'cred, ProtectedSecret<S>>;
 
 /// Holds TLS parameters for use with [`connect`](crate::connection).
@@ -257,8 +284,11 @@ impl Default for Tls<'_> {
     }
 }
 
+/// Minimum supported NIST Suite B security level for a TLS connection.
 pub enum SuiteB {
+    /// Do not request a Suite B level.
     None,
+    /// Require at least the specified security strength in bits.
     Min(usize),
 }
 
@@ -338,6 +368,7 @@ impl<'pw> Tls<'pw> {
         self
     }
 
+    /// Select cryptographic hardware for the TLS connection, or clear the setting with `None`.
     pub fn crypto_hardware(&mut self, hardware: Option<&CryptoHardware>) -> &mut Self {
         match hardware {
             Some(ch) => ch.as_mqchar().clone_into(&mut self.0.CryptoHardware),
@@ -346,6 +377,7 @@ impl<'pw> Tls<'pw> {
         self
     }
 
+    /// Select the certificate label from the key repository, or use MQ's default with `None`.
     pub fn certificate_label(&mut self, label: Option<&CertificateLabel>) -> &mut Self {
         self.0.set_min_version(mq::MQSCO_VERSION_5);
         match label {
@@ -355,24 +387,28 @@ impl<'pw> Tls<'pw> {
         self
     }
 
+    /// Require or disable FIPS-compliant cryptography for the TLS connection.
     pub fn fips_required(&mut self, is_required: bool) -> &mut Self {
         self.0.set_min_version(mq::MQSCO_VERSION_2);
         self.0.FipsRequired = if is_required { mq::MQSSL_FIPS_YES } else { mq::MQSSL_FIPS_NO };
         self
     }
 
+    /// Set the four Suite B encryption policy entries expected by MQ.
     pub fn suite_b_policy(&mut self, policy: [types::MQLONG; 4]) -> &mut Self {
         self.0.set_min_version(mq::MQSCO_VERSION_3);
         self.0.EncryptionPolicySuiteB = policy;
         self
     }
 
+    /// Set the certificate validation policy used during TLS negotiation.
     pub fn cert_val_policy(&mut self, policy: types::MQLONG) -> &mut Self {
         self.0.set_min_version(mq::MQSCO_VERSION_4);
         self.0.CertificateValPolicy = policy;
         self
     }
 
+    /// Set how many messages may be sent before MQ renegotiates the TLS secret key.
     pub fn key_reset_count(&mut self, count: types::MQLONG) -> &mut Self {
         self.0.set_min_version(mq::MQSCO_VERSION_2);
         self.0.KeyResetCount = count;
@@ -380,11 +416,13 @@ impl<'pw> Tls<'pw> {
     }
 
     #[cfg(feature = "mqc_9_3_0_0")]
+    /// Set or clear the key-repository password.
     pub fn key_repo_password<S: Secret<'pw, str> + Copy>(&mut self, password: Option<S>) -> &mut Self {
         self.0.attach_repo_password(password);
         self
     }
 
+    /// Set the key repository used to locate certificates and keys.
     pub fn key_repo(&mut self, repo: &KeyRepo) -> &mut Self {
         repo.as_mqchar().clone_into(&mut self.0.KeyRepository);
         self
@@ -579,18 +617,33 @@ impl<S> option::ConnectAttr<S> for ConnTag {
 }
 
 #[derive(Debug, derive_more::Error, derive_more::Display)]
+/// Invalid or unsupported component in an `MQSERVER`-style connection string.
 pub enum MqServerSyntaxError {
+    /// Input did not contain exactly `channel/transport/connection`.
     #[display("Invalid Format")]
+    /// Connection string did not contain the expected three components.
     InvalidFormat,
     #[display("Channel \"{_0}\" invalid format")]
     #[error(ignore)]
-    ChannelFormat(String),
+    /// Channel name exceeds the MQ channel-name limit.
+    ChannelFormat(
+        /// Channel string that exceeded the supported format or length.
+        String,
+    ),
     #[display("Connection Name \"{_0}\" invalid format")]
     #[error(ignore)]
-    ConnectionNameFormat(String),
+    /// Connection name exceeds the MQ connection-name limit.
+    ConnectionNameFormat(
+        /// Connection-name string that exceeded the supported format or length.
+        String,
+    ),
     #[display("Transport \"{_0}\" not recognized")]
     #[error(ignore)]
-    UnrecognizedTransport(String),
+    /// Transport component is not a supported MQ transport.
+    UnrecognizedTransport(
+        /// Transport name that is not supported by this parser.
+        String,
+    ),
 }
 
 #[cfg(test)]

@@ -51,11 +51,15 @@ macro_rules! impl_equivalent_type {
     };
 }
 
+/// Holds a secret value and redacts it from debug output.
+///
+/// This wrapper does not encrypt or otherwise protect the value in memory.
 #[derive(Clone, Copy, Default)]
 #[repr(transparent)]
 pub struct ProtectedSecret<T: ?Sized>(T);
 
 impl<T> ProtectedSecret<T> {
+    /// Wrap a value so its debug representation is redacted.
     pub const fn new(secret: T) -> Self {
         Self(secret)
     }
@@ -82,18 +86,34 @@ impl<T> From<T> for ProtectedSecret<T> {
     }
 }
 
+/// An MQ correlation identifier used to associate related request and reply messages.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
 #[repr(transparent)]
-pub struct CorrelationId(pub Identifier<24>);
+pub struct CorrelationId(
+    /// The fixed-width identifier bytes stored in the message descriptor.
+    pub Identifier<24>,
+);
+/// The unique identifier assigned to an MQ message.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
 #[repr(transparent)]
-pub struct MessageId(pub Identifier<24>);
+pub struct MessageId(
+    /// The fixed-width identifier bytes stored in the message descriptor.
+    pub Identifier<24>,
+);
+/// An identifier shared by messages belonging to the same MQ message group.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, derive_more::From)]
 #[repr(transparent)]
-pub struct GroupId(pub Identifier<24>);
+pub struct GroupId(
+    /// The fixed-width identifier bytes stored in the message descriptor.
+    pub Identifier<24>,
+);
+/// An opaque MQ message token used for token-based message operations.
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
-pub struct MsgToken(pub [u8; mq::MQ_MSG_TOKEN_LENGTH]);
+pub struct MsgToken(
+    /// The token bytes returned by MQ.
+    pub [u8; mq::MQ_MSG_TOKEN_LENGTH],
+);
 
 impl_equivalent_type!(CorrelationId, MessageId);
 impl_equivalent_type!(MessageId, CorrelationId);
@@ -116,24 +136,39 @@ impl Display for GroupId {
     }
 }
 
+/// The fixed-width user identifier stored in an MQ message descriptor.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct UserIdentifier(pub MqStr<12>);
+pub struct UserIdentifier(
+    /// The 12-character MQ user identifier.
+    pub MqStr<12>,
+);
 impl_from_str!(UserIdentifier, MqStr<12>);
 
+/// Four-character MQ structure identifier.
 pub type StrucId = MqChar<4>;
+/// Eight-character MQ message format identifier.
 pub type Fmt = MqChar<8>;
 
+/// An MQ warning reason code paired with the name of the MQ verb that returned it.
 pub type Warning = (MQRC, &'static str);
 
+/// Character set, numeric encoding, and format associated with message data.
+///
+/// These fields describe how to interpret the message body; they do not
+/// transcode the body themselves.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MessageFormat {
+    /// Character-set identifier for the message data.
     pub ccsid: CCSID,
+    /// Numeric encoding for integer and floating-point fields.
     pub encoding: MQENC,
+    /// Message format identifier, tagged with its character encoding.
     pub fmt: TextEnc<Fmt>,
 }
 
 impl MessageFormat {
+    /// Read the format fields from a message descriptor.
     #[must_use]
     #[allow(clippy::allow_attributes, clippy::missing_const_for_fn)]
     pub fn from_mqmd(md: &structs::MQMD) -> Self {
@@ -144,6 +179,7 @@ impl MessageFormat {
         }
     }
 
+    /// Create a message descriptor initialized with this format's fields.
     #[must_use]
     pub fn into_mqmd(&self) -> structs::MQMD {
         structs::MQMD::new(mq::MQMD {
@@ -178,14 +214,17 @@ impl str::FromStr for MessageFormat {
     }
 }
 
+/// Default message format used when no format has been specified.
 pub const FORMAT_NONE: MessageFormat = MessageFormat {
     ccsid: CCSID(1208),
     encoding: constants::MQENC_NATIVE,
     fmt: TextEnc::Ascii(crate::header::fmt::MQFMT_NONE),
 };
 
+/// A fixed-width array of opaque MQ identifier bytes.
 pub type Identifier<const N: usize> = [MQBYTE; N];
 
+/// Displays an MQ identifier as hexadecimal bytes prefixed by `ID:`.
 #[repr(transparent)]
 pub struct DisplayId<const N: usize>(Identifier<N>);
 
@@ -237,108 +276,179 @@ impl Debug for GroupId {
 }
 
 impl UserIdentifier {
+    /// Create a user identifier when the source contains a nonblank value.
     #[must_use]
     pub fn new(source: [MQCHAR; mq::MQ_USER_ID_LENGTH]) -> Option<Self> {
         Some(MqStr::from(source)).filter(MqStr::has_value).map(UserIdentifier)
     }
 }
 
+/// A fixed-width 48-character MQ object name.
 pub type ObjectName = MqStr<48>;
 
+/// The host and port portion of an MQ client connection definition.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct ConnectionName(pub MqStr<264>);
+pub struct ConnectionName(
+    /// The fixed-width connection name.
+    pub MqStr<264>,
+);
 impl_from_str!(ConnectionName, MqStr<264>);
 
+/// The name of an MQ channel.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct ChannelName(pub MqStr<20>);
+pub struct ChannelName(
+    /// The fixed-width channel name.
+    pub MqStr<20>,
+);
 impl_from_str!(ChannelName, MqStr<20>);
 
+/// The name of an MQ queue.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct QueueName(pub ObjectName);
+pub struct QueueName(
+    /// The fixed-width queue name.
+    pub ObjectName,
+);
 impl_from_str!(QueueName, ObjectName);
 
+/// The name of an MQ queue manager.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct QueueManagerName(pub ObjectName);
+pub struct QueueManagerName(
+    /// The fixed-width queue-manager name.
+    pub ObjectName,
+);
 impl_from_str!(QueueManagerName, ObjectName);
 
 impl_equivalent_type!(QueueManagerName, ReplyToQueueManagerName);
 impl_equivalent_type!(ReplyToQueueManagerName, QueueManagerName);
 
+/// The queue-manager name that identifies a reply destination.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct ReplyToQueueManagerName(pub ObjectName);
+pub struct ReplyToQueueManagerName(
+    /// The fixed-width reply-to queue-manager name.
+    pub ObjectName,
+);
 impl_from_str!(ReplyToQueueManagerName, ObjectName);
 
+/// The queue name to which an application should send a reply.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct ReplyToQueueName(pub ObjectName);
+pub struct ReplyToQueueName(
+    /// The fixed-width reply-to queue name.
+    pub ObjectName,
+);
 impl_from_str!(ReplyToQueueName, ObjectName);
 
+/// The TLS cipher specification negotiated for an MQ channel.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct CipherSpec(pub MqStr<32>);
+pub struct CipherSpec(
+    /// The fixed-width cipher specification name.
+    pub MqStr<32>,
+);
 impl_from_str!(CipherSpec, MqStr<32>);
 
+/// The path or name of the key repository used by an MQ TLS connection.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct KeyRepo(pub MqStr<256>);
+pub struct KeyRepo(
+    /// The fixed-width key repository name.
+    pub MqStr<256>,
+);
 impl_from_str!(KeyRepo, MqStr<256>);
 
+/// The application name reported to MQ when connecting.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct ApplName(pub MqStr<28>);
+pub struct ApplName(
+    /// The fixed-width application name.
+    pub MqStr<28>,
+);
 impl_from_str!(ApplName, MqStr<28>);
 
+/// The date field in an MQ message descriptor.
 #[derive(
     Debug, Clone, Copy, Default, PartialOrd, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From,
 )]
 #[repr(transparent)]
-pub struct PutDate(pub MqStr<8>);
+pub struct PutDate(
+    /// The MQ date in `YYYYMMDD` form.
+    pub MqStr<8>,
+);
 impl_from_str!(PutDate, MqStr<8>);
 
+/// The time field in an MQ message descriptor.
 #[derive(
     Debug, Clone, Copy, Default, PartialOrd, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From,
 )]
 #[repr(transparent)]
-pub struct PutTime(pub MqStr<8>);
+pub struct PutTime(
+    /// The MQ time in `HHMMSShh` form.
+    pub MqStr<8>,
+);
 impl_from_str!(PutTime, MqStr<8>);
 
+/// An opaque accounting token carried in an MQ message descriptor.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
-pub struct AccountingToken(pub [MQBYTE; mq::MQ_ACCOUNTING_TOKEN_LENGTH]);
+pub struct AccountingToken(
+    /// The fixed-width accounting-token bytes.
+    pub [MQBYTE; mq::MQ_ACCOUNTING_TOKEN_LENGTH],
+);
 
+/// Application identity data carried in an MQ message descriptor.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct ApplIdentityData(pub MqStr<32>);
+pub struct ApplIdentityData(
+    /// The fixed-width application identity text.
+    pub MqStr<32>,
+);
 impl_from_str!(ApplIdentityData, MqStr<32>);
 
+/// Application origin data carried in an MQ message descriptor.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct ApplOriginData(pub MqStr<4>);
+pub struct ApplOriginData(
+    /// The fixed-width application origin text.
+    pub MqStr<4>,
+);
 impl_from_str!(ApplOriginData, MqStr<4>);
 
+/// A key-repository password value used when configuring an MQ TLS connection.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut)]
 #[repr(transparent)]
-pub struct KeyRepoPassword<T: ?Sized>(pub T);
+pub struct KeyRepoPassword<T: ?Sized>(
+    /// The password value supplied to MQ.
+    pub T,
+);
 
 impl<'a> KeyRepoPassword<ProtectedSecret<&'a str>> {
+    /// Wrap a borrowed key-repository password with redacted debug output.
     #[must_use]
     pub const fn new(password: &'a str) -> Self {
         Self(ProtectedSecret::new(password))
     }
 }
 
+/// The name of the cryptographic hardware configuration used for TLS.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct CryptoHardware(pub MqStr<256>);
+pub struct CryptoHardware(
+    /// The fixed-width cryptographic hardware name.
+    pub MqStr<256>,
+);
 impl_from_str!(CryptoHardware, MqStr<256>);
 
+/// The certificate label MQ should select from a key repository.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, derive_more::Deref, derive_more::DerefMut, derive_more::From)]
 #[repr(transparent)]
-pub struct CertificateLabel(pub MqStr<64>);
+pub struct CertificateLabel(
+    /// The fixed-width certificate label.
+    pub MqStr<64>,
+);
 impl_from_str!(CertificateLabel, MqStr<64>);
 
 #[cfg(test)]

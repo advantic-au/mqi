@@ -68,7 +68,11 @@ pub type MQBO = MqStruct<'static, mq::MQBO>;
 /// Control Options - used to control the behavior of the MQCTL call
 pub type MQCTLO<'a> = MqStruct<'a, mq::MQCTLO>;
 
-/// MQ structure holding a `T` with an associated lifetime for pointer fields
+/// An MQ structure paired with a lifetime for any pointer fields it contains.
+///
+/// The wrapper dereferences to the underlying MQ structure, so its native
+/// fields can be read and updated while Rust keeps referenced data alive for
+/// the required lifetime.
 #[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct MqStruct<'ptr, T> {
@@ -77,6 +81,7 @@ pub struct MqStruct<'ptr, T> {
 }
 
 impl<T> MqStruct<'_, T> {
+    /// Wrap an initialized MQ structure.
     pub const fn new(struc: T) -> Self {
         Self {
             struc,

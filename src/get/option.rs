@@ -9,8 +9,11 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
+/// MQ message descriptor and options passed to a get operation.
 pub struct GetParam {
+    /// Message descriptor supplied to and updated by `MQGET`.
     pub md: structs::MQMD,
+    /// Get-message options supplied to and updated by `MQGET`.
     pub gmo: structs::MQGMO,
 }
 
@@ -46,6 +49,7 @@ pub struct GetParam {
 /// }
 /// ```
 pub trait GetValue<'b, R, B>: std::marker::Sized {
+    /// Error returned when MQGET succeeds but its message cannot be decoded.
     type Error: std::fmt::Debug;
 
     /// Execute and consumes the result of the provided `get` function, creating `Self` from the [`GetState`]
@@ -57,7 +61,7 @@ pub trait GetValue<'b, R, B>: std::marker::Sized {
         F: FnOnce(&mut GetParam) -> ResultComp<GetState<B>>,
         B: Buffer<'b, R>;
 
-    /// The maximum size in bytes `Self` can consume from a `get` function call
+    /// Return the maximum number of message bytes this type can consume, if bounded.
     #[must_use]
     #[inline]
     fn get_max_data_size() -> Option<NonZero<usize>> {
@@ -87,9 +91,11 @@ pub trait GetValue<'b, R, B>: std::marker::Sized {
 /// ```
 #[diagnostic::on_unimplemented(message = "{Self} does not implement `GetOption` so it can't be used as an argument for MQI get")]
 pub trait GetOption {
+    /// Apply this option to the MQ message descriptor and get options.
     fn apply_param(&self, param: &mut GetParam);
 }
 
+/// Extracts an additional typed attribute from a message get operation.
 pub trait GetAttr<'b, R> {
     /// # Errors
     /// Returns an error if MQGET fails or the attribute cannot be extracted.
@@ -101,6 +107,7 @@ pub trait GetAttr<'b, R> {
 }
 
 #[cfg(feature = "mqai")]
+/// Extracts MQAI bag data from a message get operation.
 pub trait GetBagAttr {
     /// # Errors
     /// Returns an error if MQGET fails or the requested bag attribute cannot be extracted.
@@ -111,18 +118,20 @@ pub trait GetBagAttr {
 }
 
 #[derive(Debug, Clone)]
+/// Message body returned by MQ together with its lengths and format metadata.
 pub struct GetState<B> {
     /// The buffer holding the message data from the `MQGET` call.
     pub buffer: B,
-    /// The length of the message data returned by the `MQGET` call, confined by buffer size
+    /// Number of message bytes copied into `buffer`, bounded by the buffer capacity.
     pub data_length: usize,
-    /// The full length of the message data unconfined by buffer size
+    /// Full message length reported by MQ, which may exceed `data_length`.
     pub message_length: usize,
-    /// The format of the returned message
+    /// Format metadata from the returned message descriptor.
     pub format: types::MessageFormat,
 }
 
 impl<B> GetState<B> {
+    /// Return the buffer truncated to the number of bytes copied by MQ.
     pub fn into_truncated_buffer<'b, R>(self) -> B
     where
         B: Buffer<'b, R>,

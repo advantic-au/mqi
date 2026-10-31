@@ -9,7 +9,9 @@ use crate::{
 
 /// Has the ability to return a reference to a [Connection](crate::Connection)
 pub trait AsConnection {
+    /// Library implementation used by the referenced connection.
     type Lib: Library<MQ: Mqi>;
+    /// Threading marker controlling the connection's `Send` and `Sync` behavior.
     type Thread;
 
     /// Returns a reference to the contained [Connection](crate::Connection)
@@ -152,17 +154,25 @@ pub unsafe trait ConnectOption<'a> {
     }
 }
 
-/// A collection of MQ structures used by MQ at connection time
+/// The MQ structures prepared for a connection attempt.
+///
+/// Connection options populate these structures before `MQCONNX` is called.
 #[derive(Debug, Clone)]
 pub struct ConnectStructs<'ptr> {
+    /// Connection options, including binding and handle-sharing settings.
     pub cno: structs::MQCNO<'ptr>,
+    /// TLS configuration.
     pub sco: structs::MQSCO<'ptr>,
+    /// Credentials and authentication mechanism.
     pub csp: structs::MQCSP<'ptr>,
+    /// Client channel definition for client connections.
     pub cd: structs::MQCD<'ptr>,
     #[cfg(feature = "mqc_9_3_0_0")]
+    /// Connection-balancing options.
     pub bno: structs::MQBNO,
 }
 
+/// Bit mask identifying which structures a connection option requires.
 #[derive(
     Debug,
     Clone,
@@ -176,6 +186,7 @@ pub struct ConnectStructs<'ptr> {
 )]
 pub struct ConnectStructFlags(usize);
 
+/// Indicates that the option does not require an additional MQ structure.
 pub const CONNECT_HAS_NONE: ConnectStructFlags = ConnectStructFlags(0b00000);
 
 /// A [`MQCNO`](libmqm_sys::MQCNO) structure is required for the connection option
