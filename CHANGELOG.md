@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2](https://github.com/advantic-au/mqi/compare/v0.4.1...v0.4.2) - 2026-11-01
+
+### Other
+
+- Replace maybe-owned with RawRefOwned
+- *(deps)* update dependency ubuntu to v26
+- *(deps)* update swatinem/rust-cache action to v2.9.3 ([#212](https://github.com/advantic-au/mqi/pull/212))
+- *(deps)* update release-plz/action action to v0.5.146 ([#209](https://github.com/advantic-au/mqi/pull/209))
+- *(deps)* update taiki-e/install-action action to v2.87.31 ([#213](https://github.com/advantic-au/mqi/pull/213))
+- *(deps)* update github/codeql-action action to v4.39.1 ([#202](https://github.com/advantic-au/mqi/pull/202))
+- *(deps)* update astral-sh/setup-uv action to v10.3.2 ([#201](https://github.com/advantic-au/mqi/pull/201))
+- set up renovate automerge
+- *(deps)* pin dependencies
+- Renovate no pinning for cargo
+- *(config)* migrate config renovate.json
+- Renovate Rust no pinning
+- Renovate config for MSRV and best practices
+- Add renovate.json
+
 ## [0.4.1](https://github.com/advantic-au/mqi/compare/v0.4.0...v0.4.1) - 2026-10-31
 
 ### Fixed
