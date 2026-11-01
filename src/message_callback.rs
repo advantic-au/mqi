@@ -24,7 +24,10 @@ struct CallbackData<O, F> {
     closure: F,
 }
 
-/// Manage the message handler callback of an object
+/// Manage an object's message consumer registration.
+///
+/// MQ retains the callback state until it invokes the deregistration callback. Dropping this
+/// handle attempts to deregister the consumer, but cannot report a deregistration failure.
 #[must_use]
 #[derive(Debug)]
 pub struct MessageCallback<'a, O: AsObject> {
@@ -33,6 +36,11 @@ pub struct MessageCallback<'a, O: AsObject> {
 }
 
 impl<'cb, O: AsObject> MessageCallback<'cb, O> {
+    /// Register a message consumer, attempting to replace any existing consumer for the object.
+    ///
+    /// The attempt to deregister an existing consumer is best-effort; its result is ignored.
+    /// After registration, MQ retains the callback state until it invokes the deregistration callback.
+    ///
     /// # Panics
     /// Panics if `get_options` configures an MQGMO or MQMD version newer than the versions supported by this build.
     ///
@@ -91,6 +99,10 @@ impl<'cb, O: AsObject> MessageCallback<'cb, O> {
         })
     }
 
+    /// Deregister this consumer and return its object.
+    ///
+    /// Unlike dropping this handle, this method reports deregistration failures.
+    ///
     /// # Errors
     /// Returns an error if MQ cannot deregister the message consumer.
     pub fn deregister_message_consumer(self) -> ResultComp<O> {
@@ -161,6 +173,7 @@ unsafe extern "C" fn message_callback<O, F>(
 
 impl<O: AsObject> Drop for MessageCallback<'_, O> {
     fn drop(&mut self) {
+        // Drop cannot report MQ errors; use explicit deregistration when the result matters.
         let _ = Self::deregister_message_consumer_internal(self.object.as_object());
     }
 }
