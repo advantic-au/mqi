@@ -226,7 +226,7 @@ impl EncodedString for str {
     }
 
     fn data(&self) -> &[types::MQCHAR] {
-        unsafe { &*(std::ptr::from_ref(self) as *const _) }
+        conversion::slice_byte_to_mqchar(self.as_bytes())
     }
 }
 

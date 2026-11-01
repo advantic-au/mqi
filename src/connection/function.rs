@@ -1,7 +1,7 @@
 use std::{
     fmt::Debug,
     marker::PhantomData,
-    mem::ManuallyDrop,
+    mem::{ManuallyDrop, offset_of},
     ops::{Deref, DerefMut},
     ptr::drop_in_place,
     rc::Rc,
@@ -12,6 +12,16 @@ use libmqm_sys::{self as mq, Mqi};
 
 use super::option;
 use crate::{Library, MqFunctions, connection::AsConnection, handle::ConnectionHandle, prelude::*, result::ResultComp, types};
+
+fn connect_struct_offset(field_offset: usize) -> types::MQLONG {
+    let cno_offset = offset_of!(option::ConnectStructs<'_>, cno);
+    let field_offset = isize::try_from(field_offset).expect("MQ structure offset should fit in isize");
+    let cno_offset = isize::try_from(cno_offset).expect("MQ structure offset should fit in isize");
+    let offset = field_offset
+        .checked_sub(cno_offset)
+        .expect("MQ structure offset should fit in isize");
+    offset.try_into().expect("MQ structure offset should convert to MQLONG")
+}
 
 /// A connection to an IBM MQ queue manager
 ///
@@ -305,38 +315,29 @@ where
     let struct_mask = options.apply_param(&mut structs);
     assert!(structs.cno.Version <= mq::MQCNO_CURRENT_VERSION);
 
-    let cno_ptr = &raw const structs.cno;
     #[cfg(feature = "mqc_9_3_0_0")]
     if struct_mask & option::CONNECT_HAS_BNO != option::CONNECT_HAS_NONE {
         assert!(structs.bno.Version <= mq::MQBNO_CURRENT_VERSION);
         structs.cno.set_min_version(mq::MQCNO_VERSION_8);
-        structs.cno.BalanceParmsOffset = unsafe { (&raw const structs.bno).byte_offset_from(cno_ptr) }
-            .try_into()
-            .expect("MQBNO offset from MQCNO should convert to MQLONG");
+        structs.cno.BalanceParmsOffset = connect_struct_offset(offset_of!(option::ConnectStructs<'_>, bno));
     }
 
     if struct_mask & option::CONNECT_HAS_CD != option::CONNECT_HAS_NONE {
         assert!(structs.cd.Version <= mq::MQCD_CURRENT_VERSION);
         structs.cno.set_min_version(mq::MQCNO_VERSION_2);
-        structs.cno.ClientConnOffset = unsafe { (&raw const structs.cd).byte_offset_from(cno_ptr) }
-            .try_into()
-            .expect("MQCD offset from MQCNO should convert to MQLONG");
+        structs.cno.ClientConnOffset = connect_struct_offset(offset_of!(option::ConnectStructs<'_>, cd));
     }
 
     if struct_mask & option::CONNECT_HAS_SCO != option::CONNECT_HAS_NONE {
         assert!(structs.sco.Version <= mq::MQSCO_CURRENT_VERSION);
         structs.cno.set_min_version(mq::MQCNO_VERSION_4);
-        structs.cno.SSLConfigOffset = unsafe { (&raw const structs.sco).byte_offset_from(cno_ptr) }
-            .try_into()
-            .expect("MQSCO offset from MQCNO should convert to MQLONG");
+        structs.cno.SSLConfigOffset = connect_struct_offset(offset_of!(option::ConnectStructs<'_>, sco));
     }
 
     if struct_mask & option::CONNECT_HAS_CSP != option::CONNECT_HAS_NONE {
         assert!(structs.csp.Version <= mq::MQCSP_CURRENT_VERSION);
         structs.cno.set_min_version(mq::MQCNO_VERSION_5);
-        structs.cno.SecurityParmsOffset = unsafe { (&raw const structs.csp).byte_offset_from(cno_ptr) }
-            .try_into()
-            .expect("MQCSP offset from MQCNO should convert to MQLONG");
+        structs.cno.SecurityParmsOffset = connect_struct_offset(offset_of!(option::ConnectStructs<'_>, csp));
     }
 
     R::connect_consume(&mut structs.cno, |cno| {
