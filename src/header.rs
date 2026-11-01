@@ -1,11 +1,12 @@
 use std::{
     ffi::CStr,
     fmt::{Debug, Display},
-    mem, ptr,
+    mem,
+    ops::Deref,
+    ptr,
 };
 
 use libmqm_sys as mq;
-use maybe_owned::MaybeOwned;
 
 use crate::{
     MqChar, constants, conversion,
@@ -149,6 +150,26 @@ pub enum Header<'a> {
 /// Result of decoding one header: the header, remaining data, consumed length, and next message format.
 pub type NextHeader<'a> = (Header<'a>, &'a [u8], usize, MessageFormat);
 
+/// A reference to a header structure that may be owned or borrowed.
+#[derive(Debug, Clone)]
+pub enum RawRefOwned<'a, T> {
+    /// The header structure is owned
+    Owned(T),
+    /// The header structure is borrowed
+    Borrowed(&'a T),
+}
+
+impl<T> Deref for RawRefOwned<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(value) => value,
+            Self::Borrowed(value) => value,
+        }
+    }
+}
+
 /// A parsed MQ header together with its encoding and any trailing header data.
 #[derive(Debug, Clone)]
 pub struct EncodedHeader<'a, T: ChainedHeader> {
@@ -157,7 +178,7 @@ pub struct EncodedHeader<'a, T: ChainedHeader> {
     /// Numeric encoding used by fields in this header.
     pub encoding: types::MQENC,
     /// Parsed header structure, borrowed when aligned or owned when unaligned.
-    pub raw_header: MaybeOwned<'a, T>,
+    pub raw_header: RawRefOwned<'a, T>,
     /// Bytes between the fixed structure and the total length declared by the header.
     pub tail: &'a [u8],
 }
@@ -400,9 +421,9 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
         ccsid: next_ccsid,
         encoding: next_encoding,
         raw_header: if unaligned.is_empty() {
-            MaybeOwned::Borrowed(unsafe { &*data.as_ptr().cast() })
+            RawRefOwned::Borrowed(unsafe { &*data.as_ptr().cast() })
         } else {
-            MaybeOwned::Owned(unsafe { ptr::read_unaligned(data.as_ptr().cast()) })
+            RawRefOwned::Owned(unsafe { ptr::read_unaligned(data.as_ptr().cast()) })
         },
         tail: &[],
     };
