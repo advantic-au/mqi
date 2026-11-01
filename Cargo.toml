@@ -156,7 +156,6 @@ derive_more = { version = "2.1.1", features = [
     "display",
     "constructor",
 ] }
-maybe-owned = "0.3.4"
 mockall = { version = "0.15.0", optional = true }
 document-features = { version = "0.2.10", optional = true }
 
