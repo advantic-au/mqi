@@ -489,11 +489,11 @@ impl ChainedHeader for mq::MQDH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {
@@ -532,11 +532,11 @@ impl ChainedHeader for mq::MQCIH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {
@@ -575,11 +575,11 @@ impl ChainedHeader for mq::MQDLH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {
@@ -614,11 +614,11 @@ impl ChainedHeader for mq::MQIIH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {
@@ -653,11 +653,11 @@ impl ChainedHeader for mq::MQRFH2 {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {
@@ -721,11 +721,11 @@ impl ChainedHeader for mq::MQRFH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {

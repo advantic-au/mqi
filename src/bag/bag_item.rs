@@ -237,16 +237,12 @@ impl<L: MqaiLibrary> BagItemGet<L> for StrCcsidOwned {
         let mut data_s = [const { mem::MaybeUninit::uninit() }; STACK_BUFFER_SIZE];
         let Completion((length, ccsid), mut warning) = bag.mq.mq_inquire_string(bag, selector, index, &mut data_s)?;
         let str_length: usize = length.try_into().expect("mq_inquire_string should not return negative");
-        let mut data = Vec::with_capacity(str_length);
-        let data_write = data.spare_capacity_mut();
+        let mut data = vec![0; str_length];
         if matches!(warning, Some((constants::MQRC_STRING_TRUNCATED, _))) {
-            let Completion((_, _), new_warning) = bag.mq.mq_inquire_string(bag, selector, index, data_write)?;
+            let Completion((_, _), new_warning) = bag.mq.mq_inquire_string(bag, selector, index, data.as_mut_slice())?;
             warning = new_warning;
         } else {
-            data_write.copy_from_slice(&data_s[..str_length]);
-        }
-        unsafe {
-            data.set_len(str_length);
+            data.copy_from_slice(&data_s[..str_length]);
         }
 
         Ok(Completion(Self::from_vec(data, ccsid), warning))
@@ -263,16 +259,12 @@ impl<L: MqaiLibrary> BagItemGet<L> for Filter<StrCcsidOwned> {
         let str_length: usize = length
             .try_into()
             .expect("mq_inquire_string_filter should not return a negative length");
-        let mut data = Vec::with_capacity(str_length);
-        let data_write = data.spare_capacity_mut();
+        let mut data = vec![0; str_length];
         if matches!(warning, Some((constants::MQRC_STRING_TRUNCATED, _))) {
-            let Completion(_, new_warning) = bag.mq.mq_inquire_string_filter(bag, selector, index, data_write)?;
+            let Completion(_, new_warning) = bag.mq.mq_inquire_string_filter(bag, selector, index, data.as_mut_slice())?;
             warning = new_warning;
         } else {
-            data_write.copy_from_slice(&data_s[..str_length]);
-        }
-        unsafe {
-            data.set_len(str_length);
+            data.copy_from_slice(&data_s[..str_length]);
         }
 
         Ok(Completion(Self::new(StringCcsid::from_vec(data, ccsid), operator), warning))
@@ -289,15 +281,12 @@ impl<L: MqaiLibrary> BagItemGet<L> for Vec<MQBYTE> {
             .try_into()
             .expect("mq_inquire_string_filter should not return a negative length");
         let mut data = Self::with_capacity(byte_str_length);
-        let data_write = data.spare_capacity_mut();
+        data.resize(byte_str_length, 0);
         if matches!(warning, Some((constants::MQRC_STRING_TRUNCATED, _))) {
-            let Completion(_, new_warning) = bag.mq.mq_inquire_byte_string(bag, selector, index, data_write)?;
+            let Completion(_, new_warning) = bag.mq.mq_inquire_byte_string(bag, selector, index, data.as_mut_slice())?;
             warning = new_warning;
         } else {
-            data_write.copy_from_slice(&data_s[..byte_str_length]);
-        }
-        unsafe {
-            data.set_len(byte_str_length);
+            data.copy_from_slice(&data_s[..byte_str_length]);
         }
         Ok(Completion(data, warning))
     }
@@ -325,16 +314,13 @@ impl<L: MqaiLibrary> BagItemGet<L> for Filter<Vec<MQBYTE>> {
         let byte_str_length: usize = length
             .try_into()
             .expect("mq_inquire_byte_string_filter should not return a negative length");
-        let mut data = Vec::with_capacity(byte_str_length);
-        let data_write = data.spare_capacity_mut();
+        let mut data = vec![0; byte_str_length];
         if matches!(warning, Some((constants::MQRC_STRING_TRUNCATED, _))) {
-            let Completion(_, new_warning) = bag.mq.mq_inquire_byte_string_filter(bag, selector, index, data_write)?;
+            let Completion(_, new_warning) =
+                bag.mq.mq_inquire_byte_string_filter(bag, selector, index, data.as_mut_slice())?;
             warning = new_warning;
         } else {
-            data_write.copy_from_slice(&data_s[..byte_str_length]);
-        }
-        unsafe {
-            data.set_len(byte_str_length);
+            data.copy_from_slice(&data_s[..byte_str_length]);
         }
         Ok(Completion(Self::new(data, operator), warning))
     }
