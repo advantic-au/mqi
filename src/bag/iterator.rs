@@ -10,6 +10,10 @@ use crate::{
 
 #[derive(Debug)]
 /// Iterator over items in an MQAI bag for one selector.
+///
+/// The item count is captured when the iterator is created, so later additions are not visited.
+/// If an item at the next index has been removed, `next` yields `None` for that call and advances
+/// the index; ordinary iterator consumers will treat that as the end of iteration.
 pub struct BagItem<'bag, T, B, L>
 where
     B: BagDrop,
@@ -61,6 +65,9 @@ where
     B: BagDrop,
     L: MqaiLibrary + Clone,
 {
+    /// Iterate over the items currently counted for `selector`.
+    ///
+    /// The count is captured at creation; mutations to the bag during iteration are not reflected.
     /// # Errors
     /// Returns an error if MQ cannot count the selected items.
     pub fn try_iter<T: BagItemGet<L>>(&self, selector: Selector) -> ResultComp<BagItem<'_, T, B, L>> {
@@ -73,6 +80,10 @@ where
         })
     }
 
+    /// Iterate over the nested bags currently counted for `selector`.
+    ///
+    /// The count is captured at creation; mutations to the bag during iteration are not reflected.
+    ///
     /// # Errors
     /// Returns an error if MQ cannot count the selected nested bags.
     pub fn try_bag_iter(&self, selector: Selector) -> ResultComp<BagItem<'_, Bag<Embedded, L>, B, L>> {

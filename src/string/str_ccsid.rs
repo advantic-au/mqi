@@ -9,6 +9,7 @@ use crate::{constants, conversion, string::CCSID, structs, types};
 ///
 /// The generic storage can be borrowed, owned, or copy-on-write; use the
 /// aliases below for those common ownership modes.
+/// Equality compares the CCSID and character data, but does not compare the byte-order metadata.
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct StringCcsid<T> {
     pub(crate) ccsid: CCSID,
@@ -225,7 +226,7 @@ impl EncodedString for str {
     }
 
     fn data(&self) -> &[types::MQCHAR] {
-        unsafe { &*(std::ptr::from_ref(self) as *const _) }
+        conversion::slice_byte_to_mqchar(self.as_bytes())
     }
 }
 

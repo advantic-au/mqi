@@ -1,6 +1,6 @@
 #![allow(clippy::significant_drop_tightening)]
 
-use std::{marker::PhantomData, mem::ManuallyDrop};
+use std::marker::PhantomData;
 
 use libmqm_default as default;
 use libmqm_sys::{self as mq, MQMD};
@@ -24,15 +24,31 @@ struct CallbackData<O, F> {
     closure: F,
 }
 
-/// Manage the message handler callback of an object
+/// Manage an object's message consumer registration.
+///
+/// MQ retains the callback state until it invokes the deregistration callback. Dropping this
+/// handle attempts to deregister the consumer, but cannot report a deregistration failure.
 #[must_use]
 #[derive(Debug)]
 pub struct MessageCallback<'a, O: AsObject> {
-    object: O,
+    object: Option<O>,
     _cb: PhantomData<&'a ()>,
 }
 
 impl<'cb, O: AsObject> MessageCallback<'cb, O> {
+    const fn inner_object(&self) -> &O {
+        self.object.as_ref().expect("message callback object is present")
+    }
+
+    const fn take_object(&mut self) -> O {
+        self.object.take().expect("message callback object is present")
+    }
+
+    /// Register a message consumer, attempting to replace any existing consumer for the object.
+    ///
+    /// The attempt to deregister an existing consumer is best-effort; its result is ignored.
+    /// After registration, MQ retains the callback state until it invokes the deregistration callback.
+    ///
     /// # Panics
     /// Panics if `get_options` configures an MQGMO or MQMD version newer than the versions supported by this build.
     ///
@@ -86,17 +102,21 @@ impl<'cb, O: AsObject> MessageCallback<'cb, O> {
         };
 
         mqcb_result.map_completion(|()| Self {
-            object,
+            object: Some(object),
             _cb: PhantomData,
         })
     }
 
+    /// Deregister this consumer and return its object.
+    ///
+    /// Unlike dropping this handle, this method reports deregistration failures.
+    ///
     /// # Errors
     /// Returns an error if MQ cannot deregister the message consumer.
     pub fn deregister_message_consumer(self) -> ResultComp<O> {
-        let result = Self::deregister_message_consumer_internal(self.object.as_object());
-        let object = unsafe { std::ptr::read(&raw const self.object) };
-        let _ = ManuallyDrop::new(self); // Suppress drop
+        let mut self_mut = self;
+        let result = Self::deregister_message_consumer_internal(self_mut.inner_object().as_object());
+        let object = self_mut.take_object();
         result.map_completion(|()| object)
     }
 
@@ -161,7 +181,10 @@ unsafe extern "C" fn message_callback<O, F>(
 
 impl<O: AsObject> Drop for MessageCallback<'_, O> {
     fn drop(&mut self) {
-        let _ = Self::deregister_message_consumer_internal(self.object.as_object());
+        // Drop cannot report MQ errors; use explicit deregistration when the result matters.
+        if let Some(object) = &self.object {
+            let _ = Self::deregister_message_consumer_internal(object.as_object());
+        }
     }
 }
 
@@ -169,6 +192,8 @@ impl<O: AsObject> Drop for MessageCallback<'_, O> {
 #[cfg_attr(coverage_nightly, coverage(off))]
 #[expect(clippy::ref_option_ref)]
 mod tests {
+    use std::sync::atomic::Ordering;
+
     use mockall::{Sequence, automock};
 
     use super::*;
@@ -192,7 +217,7 @@ mod tests {
         let connection = mock::connect_ok(|mock| {
             let mut seq = mockall::Sequence::new();
             mock::open_ok(mock, 0x0c0c, 1, &mut seq);
-            mock::callback::mock_cb(mock, constants::MQCBT_MESSAGE_CONSUMER);
+            let _ = mock::callback::mock_cb(mock, constants::MQCBT_MESSAGE_CONSUMER);
         });
 
         let mut cb = MockCallback::new();
@@ -223,11 +248,13 @@ mod tests {
 
     #[test]
     fn deregister_message_consumer() -> Result<(), Box<dyn std::error::Error>> {
+        let mut deregister_calls = None;
         let connection = mock::connect_ok(|mock| {
             let mut seq = mockall::Sequence::new();
             mock::open_ok(mock, 0x0c0c, 1, &mut seq);
-            mock::callback::mock_cb(mock, constants::MQCBT_MESSAGE_CONSUMER);
+            deregister_calls = Some(mock::callback::mock_cb(mock, constants::MQCBT_MESSAGE_CONSUMER));
         });
+        let deregister_calls = deregister_calls.expect("callback mock counter is set");
         let object = Object::open(connection, &QueueManagerName(MqStr::empty())).warn_as_error()?;
         let callback =
             MessageCallback::register_message_consumer(&object, constants::MQCBDO_NONE, &(), |_obj, _cbc, _md, _gmo, _buffer| {
@@ -237,6 +264,30 @@ mod tests {
 
         let result = callback.deregister_message_consumer();
         assert!(result.is_ok());
+        assert_eq!(deregister_calls.load(Ordering::SeqCst), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn dropping_message_consumer_deregisters_once() -> Result<(), Box<dyn std::error::Error>> {
+        let mut deregister_calls = None;
+        let connection = mock::connect_ok(|mock| {
+            let mut seq = mockall::Sequence::new();
+            mock::open_ok(mock, 0x0c0c, 1, &mut seq);
+            deregister_calls = Some(mock::callback::mock_cb(mock, constants::MQCBT_MESSAGE_CONSUMER));
+        });
+        let deregister_calls = deregister_calls.expect("callback mock counter is set");
+        let object = Object::open(connection, &QueueManagerName(MqStr::empty())).warn_as_error()?;
+        let callback =
+            MessageCallback::register_message_consumer(&object, constants::MQCBDO_NONE, &(), |_obj, _cbc, _md, _gmo, _buffer| {
+                panic!("Should not be called");
+            })
+            .warn_as_error()?;
+
+        drop(callback);
+        assert_eq!(deregister_calls.load(Ordering::SeqCst), 2);
+        drop(object);
+
         Ok(())
     }
 }

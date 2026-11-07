@@ -1,5 +1,3 @@
-use std::mem::ManuallyDrop;
-
 use libmqm_default as default;
 
 use crate::{
@@ -20,10 +18,18 @@ use crate::{
 #[derive(Debug)]
 #[must_use]
 pub struct Syncpoint<C: AsConnection> {
-    connection: ManuallyDrop<C>,
+    connection: Option<C>,
 }
 
 impl<C: AsConnection> Syncpoint<C> {
+    const fn inner_connection(&self) -> &C {
+        self.connection.as_ref().expect("syncpoint connection is present")
+    }
+
+    const fn take_connection(&mut self) -> C {
+        self.connection.take().expect("syncpoint connection is present")
+    }
+
     /// Manage the current MQ unit of work without calling `MQBEGIN`.
     ///
     /// MQ operations join the unit of work when called with the appropriate
@@ -31,7 +37,7 @@ impl<C: AsConnection> Syncpoint<C> {
     /// `MQPMO_SYNCPOINT` for a put.
     pub const fn new(connection: C) -> Self {
         Self {
-            connection: ManuallyDrop::new(connection),
+            connection: Some(connection),
         }
     }
 
@@ -58,10 +64,9 @@ impl<C: AsConnection> Syncpoint<C> {
     /// Returns an error if MQ cannot commit the unit of work.
     pub fn commit(self) -> ResultComp<C> {
         let mut self_mut = self;
-        let conn = self_mut.connection.as_connection();
+        let conn = self_mut.inner_connection().as_connection();
         let result = conn.mq.mqcmit(conn.handle);
-        let wrapped = unsafe { ManuallyDrop::take(&mut self_mut.connection) };
-        let _ = ManuallyDrop::new(self_mut); // Suppress default drop
+        let wrapped = self_mut.take_connection();
         result.map_completion(|()| wrapped)
     }
 
@@ -71,10 +76,9 @@ impl<C: AsConnection> Syncpoint<C> {
     /// Returns an error if MQ cannot back out the unit of work.
     pub fn backout(self) -> ResultComp<C> {
         let mut self_mut = self;
-        let conn = self_mut.connection.as_connection();
+        let conn = self_mut.inner_connection().as_connection();
         let result = conn.mq.mqback(conn.handle);
-        let wrapped = unsafe { ManuallyDrop::take(&mut self_mut.connection) };
-        let _ = ManuallyDrop::new(self_mut); // Suppress default drop
+        let wrapped = self_mut.take_connection();
         result.map_completion(|()| wrapped)
     }
 }
@@ -84,21 +88,22 @@ impl<C: AsConnection> AsConnection for Syncpoint<C> {
     type Thread = C::Thread;
 
     fn as_connection(&self) -> &crate::Connection<C::Lib, C::Thread> {
-        self.connection.as_connection()
+        self.inner_connection().as_connection()
     }
 }
 
 impl<C: AsConnection> AsRef<crate::Connection<C::Lib, C::Thread>> for Syncpoint<C> {
     fn as_ref(&self) -> &crate::Connection<C::Lib, C::Thread> {
-        self.connection.as_connection()
+        self.inner_connection().as_connection()
     }
 }
 
 impl<C: AsConnection> Drop for Syncpoint<C> {
     fn drop(&mut self) {
-        let conn = self.connection.as_connection();
-        let _ = conn.mq.mqback(conn.handle);
-        unsafe { ManuallyDrop::drop(&mut self.connection) };
+        if let Some(connection) = &self.connection {
+            let conn = connection.as_connection();
+            let _ = conn.mq.mqback(conn.handle);
+        }
     }
 }
 
@@ -128,5 +133,38 @@ mod tests {
         sync.commit().warn_as_error()?;
 
         Ok(Completion::new(()))
+    }
+
+    #[test]
+    #[cfg(feature = "mock")]
+    fn backout_returns_connection_without_backing_out_twice() -> ResultComp<()> {
+        use crate::{Syncpoint, result::Completion, test::mock};
+
+        let mock_connection = mock::connect_ok(|mock_library| {
+            mock_library
+                .expect_MQBACK()
+                .returning(|_, cc, rc| mock::mqi_outcome_ok(cc, rc))
+                .once();
+        });
+
+        let connection = Syncpoint::new(mock_connection).backout().warn_as_error()?;
+        drop(connection);
+
+        Ok(Completion::new(()))
+    }
+
+    #[test]
+    #[cfg(feature = "mock")]
+    fn dropping_unfinished_syncpoint_backs_out_once() {
+        use crate::{Syncpoint, test::mock};
+
+        let mock_connection = mock::connect_ok(|mock_library| {
+            mock_library
+                .expect_MQBACK()
+                .returning(|_, cc, rc| mock::mqi_outcome_ok(cc, rc))
+                .once();
+        });
+
+        drop(Syncpoint::new(mock_connection));
     }
 }

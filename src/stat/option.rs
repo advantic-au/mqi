@@ -9,11 +9,10 @@ fn set_buffer_len(buffer: &mut Vec<MQCHAR>, length: MQLONG, buffer_size: MQLONG)
     let length = usize::try_from(length).expect("MQ returned a negative string length");
     let buffer_size = usize::try_from(buffer_size).expect("provided buffer size is negative");
     assert!(
-        length <= buffer_size && length <= buffer.capacity(),
+        length <= buffer_size && length <= buffer.len(),
         "MQ returned a string length larger than the provided buffer"
     );
-    // SAFETY: The MQ status call wrote no more than VSBufSize bytes, and the reported length was checked against capacity.
-    unsafe { buffer.set_len(length) };
+    buffer.truncate(length);
 }
 
 impl AsyncPutStat {
@@ -183,6 +182,12 @@ mod tests {
     #[should_panic(expected = "MQ returned a string length larger than the provided buffer")]
     fn set_buffer_len_rejects_length_larger_than_buffer_size() {
         set_buffer_len(&mut vec![0; 2], 3, 2);
+    }
+
+    #[test]
+    #[should_panic(expected = "MQ returned a string length larger than the provided buffer")]
+    fn set_buffer_len_rejects_length_larger_than_initialized_buffer() {
+        set_buffer_len(&mut vec![0; 2], 3, 4);
     }
 
     #[test]

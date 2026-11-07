@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, mem::ManuallyDrop};
+use std::marker::PhantomData;
 
 use libmqm_default as default;
 use libmqm_sys::{self as mq, MQMD, Mqi};
@@ -12,7 +12,7 @@ use crate::{
 #[must_use]
 #[derive(Debug)]
 pub struct EventCallback<'a, C: AsConnection> {
-    connection: ManuallyDrop<C>,
+    connection: Option<C>,
     _cb: PhantomData<&'a ()>,
 }
 
@@ -20,9 +20,17 @@ impl<'cb, C: AsConnection> EventCallback<'cb, C> {
     /// Wrap a connection to manage the event handler callback
     pub const fn new(connection: C) -> Self {
         Self {
-            connection: ManuallyDrop::new(connection),
+            connection: Some(connection),
             _cb: PhantomData,
         }
+    }
+
+    const fn inner_connection(&self) -> &C {
+        self.connection.as_ref().expect("event callback connection is present")
+    }
+
+    const fn take_connection(&mut self) -> C {
+        self.connection.take().expect("event callback connection is present")
     }
 
     /// Register an event handler of the connection
@@ -37,7 +45,7 @@ impl<'cb, C: AsConnection> EventCallback<'cb, C> {
     where
         C::Lib: Clone,
     {
-        let Connection { mq, handle, .. } = self.connection.as_connection();
+        let Connection { mq, handle, .. } = self.inner_connection().as_connection();
 
         let cb_data: *mut CallbackData<C::Lib, F> = Box::into_raw(Box::from(CallbackData {
             options,
@@ -64,13 +72,12 @@ impl<'cb, C: AsConnection> EventCallback<'cb, C> {
     pub fn deregister_event_handler(self) -> ResultComp<C> {
         let mut self_mut = self;
         let result = self_mut.deregister_event_handler_internal();
-        let wrapped = unsafe { ManuallyDrop::take(&mut self_mut.connection) };
-        let _ = ManuallyDrop::new(self_mut); // Suppress drop of self
+        let wrapped = self_mut.take_connection();
         result.map_completion(|()| wrapped)
     }
 
     fn deregister_event_handler_internal(&self) -> ResultComp<()> {
-        let Connection { mq, handle, .. } = self.connection.as_connection();
+        let Connection { mq, handle, .. } = self.inner_connection().as_connection();
 
         let mut cbd = structs::MQCBD::new(default::MQCBD_DEFAULT);
         *cbd.CallbackType.as_mut() = constants::MQCBT_EVENT_HANDLER;
@@ -80,8 +87,9 @@ impl<'cb, C: AsConnection> EventCallback<'cb, C> {
 
 impl<C: AsConnection> Drop for EventCallback<'_, C> {
     fn drop(&mut self) {
-        let _ = self.deregister_event_handler_internal();
-        unsafe { ManuallyDrop::drop(&mut self.connection) };
+        if self.connection.is_some() {
+            let _ = self.deregister_event_handler_internal();
+        }
     }
 }
 
@@ -91,7 +99,7 @@ impl<C: std::ops::Deref<Target = Connection<L, H>> + AsConnection, L: Library<MQ
     type Target = Connection<L, H>;
 
     fn deref(&self) -> &Self::Target {
-        &self.connection
+        self.inner_connection()
     }
 }
 
@@ -100,7 +108,7 @@ impl<C: AsConnection> AsConnection for EventCallback<'_, C> {
     type Thread = C::Thread;
 
     fn as_connection(&self) -> &Connection<Self::Lib, Self::Thread> {
-        self.connection.as_connection()
+        self.inner_connection().as_connection()
     }
 }
 
@@ -136,5 +144,72 @@ unsafe extern "C" fn event_callback<L, H, F>(
                 let _ = unsafe { Box::<CallbackData<L, F>>::from_raw(context.CallbackArea.cast()) };
             }
         }
+    }
+}
+
+#[cfg(all(test, feature = "mock"))]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    use super::*;
+    use crate::{result::Completion, test::mock};
+
+    #[test]
+    fn deregister_event_handler_returns_connection_without_second_deregister() -> ResultComp<()> {
+        let mut deregister_calls = None;
+        let mock_connection = mock::connect_ok(|mock_library| {
+            deregister_calls = Some(mock::callback::mock_cb(mock_library, constants::MQCBT_EVENT_HANDLER));
+        });
+        let deregister_calls = deregister_calls.expect("callback mock counter is set");
+        let callback_count = Arc::new(AtomicUsize::new(0));
+        let callback = EventCallback::new(mock_connection);
+        let callback_count_ref = Arc::clone(&callback_count);
+
+        callback
+            .register_event_handler(
+                constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL,
+                move |_, _| {
+                    callback_count_ref.fetch_add(1, Ordering::SeqCst);
+                },
+            )
+            .warn_as_error()?;
+
+        let connection = callback.deregister_event_handler().warn_as_error()?;
+        drop(connection);
+
+        assert_eq!(callback_count.load(Ordering::SeqCst), 2);
+        assert_eq!(deregister_calls.load(Ordering::SeqCst), 2);
+        Ok(Completion::new(()))
+    }
+
+    #[test]
+    fn dropping_event_callback_deregisters_once() -> ResultComp<()> {
+        let mut deregister_calls = None;
+        let mock_connection = mock::connect_ok(|mock_library| {
+            deregister_calls = Some(mock::callback::mock_cb(mock_library, constants::MQCBT_EVENT_HANDLER));
+        });
+        let deregister_calls = deregister_calls.expect("callback mock counter is set");
+        let callback_count = Arc::new(AtomicUsize::new(0));
+        let callback = EventCallback::new(mock_connection);
+        let callback_count_ref = Arc::clone(&callback_count);
+
+        callback
+            .register_event_handler(
+                constants::MQCBDO_REGISTER_CALL | constants::MQCBDO_DEREGISTER_CALL,
+                move |_, _| {
+                    callback_count_ref.fetch_add(1, Ordering::SeqCst);
+                },
+            )
+            .warn_as_error()?;
+
+        drop(callback);
+
+        assert_eq!(callback_count.load(Ordering::SeqCst), 2);
+        assert_eq!(deregister_calls.load(Ordering::SeqCst), 2);
+        Ok(Completion::new(()))
     }
 }

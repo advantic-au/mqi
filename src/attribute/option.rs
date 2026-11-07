@@ -218,8 +218,9 @@ impl MultiItem {
         let selector = *self.selectors.first()?;
 
         if selector.is_int() {
-            Some(InqResItem::Long(unsafe {
-                IntItem::new_unchecked(selector, *self.int_attr.first()?)
+            Some(InqResItem::Long(IntItem {
+                selector,
+                value: *self.int_attr.first()?,
             }))
         } else if selector.is_text() {
             let len = *self.text_len.first()?;
@@ -241,14 +242,15 @@ impl<'a> Iterator for MultiItemIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let selector = *self.selectors.next()?;
         if selector.is_int() {
-            Some(InqResItem::Long(unsafe {
-                IntItem::new_unchecked(selector, *self.int_attr.next()?)
+            Some(InqResItem::Long(IntItem {
+                selector,
+                value: *self.int_attr.next()?,
             }))
         } else if selector.is_text() {
             let len = *self.text_len.next()?;
             let mqchar = &self.text_attr[self.text_pos..(len as usize) + self.text_pos];
             self.text_pos += len as usize;
-            Some(InqResItem::Text(unsafe { TextItem::new_unchecked(selector, mqchar) }))
+            Some(InqResItem::Text(TextItem { selector, value: mqchar }))
         } else {
             None
         }
@@ -379,5 +381,45 @@ mod tests {
         );
         assert_eq!(text.long_value(), None);
         assert_eq!(text.text_value(), Some(value.as_slice()));
+    }
+
+    #[test]
+    fn multi_item_iteration_preserves_integer_and_text_values() {
+        let mut items = MultiItem::default();
+        let integer = attribute::MQIA_MAX_MSG_LENGTH
+            .int_item(1024)
+            .expect("MQIA_MAX_MSG_LENGTH is an integer attribute");
+        let text_value = [0x20; 48];
+        let text = attribute::MQCA_DEF_XMIT_Q_NAME
+            .text_item(&text_value)
+            .expect("MQCA_DEF_XMIT_Q_NAME is a text attribute");
+        items.push_int_item(integer);
+        items.push_text_item(&text);
+
+        let mut iter = items.iter();
+        assert_eq!(iter.next().and_then(|item| item.long_value()), Some(1024));
+        assert_eq!(iter.next().and_then(InqResItem::text_value), Some(text_value.as_slice()));
+        assert!(iter.next().is_none());
+    }
+
+    #[test]
+    fn multi_item_into_first_preserves_integer_and_text_values() {
+        let integer = attribute::MQIA_MAX_MSG_LENGTH
+            .int_item(1024)
+            .expect("MQIA_MAX_MSG_LENGTH is an integer attribute");
+        let mut integer_items = MultiItem::default();
+        integer_items.push_int_item(integer);
+        assert_eq!(integer_items.into_first().and_then(|item| item.long_value()), Some(1024));
+
+        let text_value = [0x20; 48];
+        let text = attribute::MQCA_DEF_XMIT_Q_NAME
+            .text_item(&text_value)
+            .expect("MQCA_DEF_XMIT_Q_NAME is a text attribute");
+        let mut text_items = MultiItem::default();
+        text_items.push_text_item(&text);
+        assert_eq!(
+            text_items.into_first().and_then(InqResItem::text_value),
+            Some(text_value.to_vec())
+        );
     }
 }
