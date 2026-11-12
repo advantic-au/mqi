@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
+      - uses: advantic-au/action-mq-client@c1a22a36eb8340308dce3d1f845d0e2d2bbde3ca # stable
         id: mq-client
         with:
           client-version: ${{ matrix.version.client-version }}
@@ -69,7 +69,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
+      - uses: advantic-au/action-mq-client@c1a22a36eb8340308dce3d1f845d0e2d2bbde3ca # stable
         id: mq-client
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
@@ -102,7 +102,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
+      - uses: advantic-au/action-mq-client@c1a22a36eb8340308dce3d1f845d0e2d2bbde3ca # stable
         id: mq-client
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
@@ -171,7 +171,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
+      - uses: advantic-au/action-mq-client@c1a22a36eb8340308dce3d1f845d0e2d2bbde3ca # stable
         id: mq-client
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
@@ -225,7 +225,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
+      - uses: advantic-au/action-mq-client@c1a22a36eb8340308dce3d1f845d0e2d2bbde3ca # stable
         id: mq-client
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
@@ -245,7 +245,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: advantic-au/action-mq-client@34d47069ef76049a2689b2c8100457223d964102 # stable
+      - uses: advantic-au/action-mq-client@c1a22a36eb8340308dce3d1f845d0e2d2bbde3ca # stable
         id: mq-client
       # Re-resolve Cargo.lock with minimal versions
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
