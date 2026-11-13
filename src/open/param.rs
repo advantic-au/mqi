@@ -7,7 +7,7 @@ use crate::{
     constants,
     macros::{all_multi_tuples, impl_from_str, reverse_ident},
     prelude::*,
-    result::{Error, ResultComp},
+    result::{Completion, Error, ResultComp},
     string::{CCSID, EncodedString, StrCcsidOwned},
     structs,
     types::{MQLONG, MQOO, MQOT, MQPMO, QueueManagerName, QueueName},
@@ -196,36 +196,27 @@ unsafe impl<S, O> option::OpenAttr<S, O> for Option<ResObjectString> {
         if od.ResObjectString.VSBufSize == 0 {
             od.ResObjectString.VSBufSize = DEFAULT_RESOBJECTSTRING_LENGTH;
         }
-        let mut buffer = Vec::with_capacity(
-            od.ResObjectString
-                .VSBufSize
-                .try_into()
-                .expect("buffer length should convert to usize"),
-        );
-        od.ResObjectString.VSPtr = (&raw mut *buffer).cast();
+        let buffer_len = usize::try_from(od.ResObjectString.VSBufSize).expect("buffer length should convert to usize");
+        let mut buffer = vec![0; buffer_len];
+        od.ResObjectString.VSPtr = buffer.as_mut_ptr().cast();
 
-        open(param).map_completion(|state| {
-            let od = &mut param.mqod;
-            unsafe {
-                buffer.set_len(
-                    od.ResObjectString
-                        .VSLength
-                        .try_into()
-                        .expect("buffer length should convert to usize"),
-                );
-            }
-            (
-                if buffer.is_empty() {
-                    None
-                } else {
-                    Some(ResObjectString(StrCcsidOwned::from_vec(
-                        buffer,
-                        CCSID(od.ResObjectString.VSCCSID),
-                    )))
-                },
-                state,
-            )
-        })
+        let Completion(state, warning) = open(param)?;
+        let od = &mut param.mqod;
+        let returned_len = usize::try_from(od.ResObjectString.VSLength)
+            .map_err(|_| Error(constants::MQCC_FAILED, "MQOPEN", constants::MQRC_BUFFER_LENGTH_ERROR))?;
+        if returned_len > buffer.len() {
+            return Err(Error(constants::MQCC_FAILED, "MQOPEN", constants::MQRC_BUFFER_LENGTH_ERROR));
+        }
+        buffer.truncate(returned_len);
+
+        let ccsid = CCSID(od.ResObjectString.VSCCSID);
+        od.ResObjectString.VSPtr = std::ptr::null_mut();
+        let resolved_string = if buffer.is_empty() {
+            None
+        } else {
+            Some(ResObjectString(StrCcsidOwned::from_vec(buffer, ccsid)))
+        };
+        Ok(Completion((resolved_string, state), warning))
     }
 }
 
@@ -267,6 +258,7 @@ mod open_impl {
                         (a, $($ty),*)
                     })
                 }
+
             }
         }
     }
@@ -303,4 +295,55 @@ mod open_impl {
 
     all_multi_tuples!(impl_openvalue_tuple);
     all_multi_tuples!(impl_openattr_tuple);
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use libmqm_default as default;
+
+    use super::*;
+    use crate::{conversion, result::Completion};
+
+    #[test]
+    fn resolved_object_string_uses_only_the_reported_bytes() {
+        let mut param = option::OpenParamOption {
+            mqod: structs::MQOD::new(default::MQOD_DEFAULT),
+            options: (),
+        };
+        let result = <Option<ResObjectString> as option::OpenAttr<(), ()>>::open_extract(&mut param, |param| {
+            let returned = &mut param.mqod.ResObjectString;
+            unsafe {
+                std::ptr::copy_nonoverlapping(b"resolved".as_ptr(), returned.VSPtr.cast(), 8);
+            }
+            returned.VSLength = 8;
+            returned.VSCCSID = 1208;
+            Ok(Completion::new(()))
+        });
+
+        let Completion((resolved, ()), warning) = result.expect("valid returned length should succeed");
+        let resolved = resolved.expect("non-empty returned string should be present");
+        assert!(warning.is_none());
+        assert_eq!(resolved.0.ccsid, CCSID(1208));
+        assert_eq!(resolved.0.data, conversion::slice_byte_to_mqchar(b"resolved"));
+        assert!(param.mqod.ResObjectString.VSPtr.is_null());
+    }
+
+    #[test]
+    fn resolved_object_string_rejects_length_larger_than_buffer() {
+        let mut param = option::OpenParamOption {
+            mqod: structs::MQOD::new(default::MQOD_DEFAULT),
+            options: (),
+        };
+        param.mqod.ResObjectString.VSBufSize = 2;
+        let result = <Option<ResObjectString> as option::OpenAttr<(), ()>>::open_extract(&mut param, |param| {
+            param.mqod.ResObjectString.VSLength = 3;
+            Ok(Completion::new(()))
+        });
+
+        assert!(matches!(
+            result,
+            Err(Error(constants::MQCC_FAILED, "MQOPEN", constants::MQRC_BUFFER_LENGTH_ERROR))
+        ));
+    }
 }

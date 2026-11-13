@@ -16,7 +16,10 @@ use crate::{
     types::{Fmt, MessageFormat, StrucId},
 };
 
-/// Copy a Cstr to an array of length N (const)
+/// Copy the bytes of an MQ C string into its fixed-width character array.
+///
+/// MQ format and structure identifiers use fixed-width fields without a trailing NUL; `mqi`
+/// must therefore contain at least `N` bytes.
 const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
     let mut i = 0;
     let bytes = mqi.to_bytes();
@@ -29,6 +32,7 @@ const fn cstr_array<const N: usize>(mqi: &CStr) -> MqChar<N> {
     result
 }
 
+// The integer-order bits in MQENC_NATIVE identify when numeric fields need no byte swap.
 const INTEGER_NATIVE_MASK: types::MQENC = constants::MQENC_NATIVE.intersection(constants::MQENC_INTEGER_MASK);
 
 /// MQ format identifiers used to identify message bodies and chained headers.
@@ -69,7 +73,7 @@ pub mod fmt {
 pub enum HeaderError {
     #[display("Unexpected STRUC_ID: {:?} or version", _0)]
     #[error(ignore)]
-    /// The bytes did not contain the structure identifier expected for the format.
+    /// The structure identifier or version did not match the value expected for the format.
     UnexpectedStruc(
         /// The structure identifier found in the message data.
         StrucId,
@@ -150,12 +154,12 @@ pub enum Header<'a> {
 /// Result of decoding one header: the header, remaining data, consumed length, and next message format.
 pub type NextHeader<'a> = (Header<'a>, &'a [u8], usize, MessageFormat);
 
-/// A reference to a header structure that may be owned or borrowed.
+/// A header structure borrowed from aligned input or copied from unaligned input.
 #[derive(Debug, Clone)]
 pub enum RawRefOwned<'a, T> {
-    /// The header structure is owned
+    /// The structure was copied because the source bytes were not aligned for `T`.
     Owned(T),
-    /// The header structure is borrowed
+    /// The structure is borrowed directly from aligned source bytes.
     Borrowed(&'a T),
 }
 
@@ -198,6 +202,8 @@ impl Header<'_> {
 
 impl<T: ChainedHeader> EncodedHeader<'_, T> {
     /// Return the CCSID declared for the data following this header.
+    ///
+    /// MQ uses zero to mean that the following data retains this header's CCSID.
     #[must_use]
     pub fn next_ccsid(&self) -> CCSID {
         let next_ccsid = self.native_mqlong(T::next_raw_ccsid(&self.raw_header));
@@ -205,6 +211,8 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     }
 
     /// Return the numeric encoding declared for the data following this header.
+    ///
+    /// MQ uses zero to mean that the following data retains this header's encoding.
     #[must_use]
     pub fn next_encoding(&self) -> types::MQENC {
         let next_encoding = self.native_mqlong(T::next_raw_encoding(&self.raw_header)).into();
@@ -212,6 +220,9 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
     }
 
     /// Return the format declared for the data following this header.
+    ///
+    /// The format bytes are tagged using this header's CCSID, which determines whether they
+    /// should be interpreted as ASCII-compatible or EBCDIC.
     #[must_use]
     pub fn next_format(&self) -> TextEnc<Fmt> {
         if self.ccsid.is_ebcdic().unwrap_or(false) {
@@ -234,6 +245,7 @@ impl<T: ChainedHeader> EncodedHeader<'_, T> {
 
     #[must_use]
     fn struc_matches(&self) -> bool {
+        // The structure version is numeric and follows MQENC byte order; STRUC_ID follows CCSID.
         swap_to_native(T::raw_version(&self.raw_header), self.encoding.contains(INTEGER_NATIVE_MASK)) == T::VERSION && {
             let struc_id = T::raw_struc_id(&self.raw_header);
             let ebcdic = self.ccsid.is_ebcdic().unwrap_or(false);
@@ -300,6 +312,8 @@ pub trait ChainedHeader: Sized {
 
     #[inline]
     /// Read the declared structure length when the MQ structure has one.
+    ///
+    /// `None` means the fixed Rust structure size is the complete header length.
     fn raw_struc_length(&self) -> Option<types::MQLONG> {
         None
     }
@@ -415,6 +429,8 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
         Err(HeaderError::DataTruncated(struc_len, data.len()))?;
     }
 
+    // Supported MQ headers contain integer/character fields; after the length check, alignment
+    // determines whether typed access can borrow the bytes or must use an owned unaligned copy.
     let (unaligned, _, _) = unsafe { data.align_to::<T>() };
 
     let header = EncodedHeader::<T> {
@@ -432,6 +448,7 @@ fn parse_header<'a, T: ChainedHeader + 'a>(
         Err(HeaderError::UnexpectedStruc(T::raw_struc_id(&header.raw_header)))?;
     }
 
+    // The MQ-declared length includes both the fixed structure and any trailing header data.
     let total_len = header.len()?;
     if total_len > data.len() || total_len < struc_len {
         Err(HeaderError::StrucLengthOffsetMismatch(total_len, struc_len, data.len()))?;
@@ -472,11 +489,11 @@ impl ChainedHeader for mq::MQDH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {
@@ -515,11 +532,11 @@ impl ChainedHeader for mq::MQCIH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {
@@ -558,11 +575,11 @@ impl ChainedHeader for mq::MQDLH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {
@@ -597,11 +614,11 @@ impl ChainedHeader for mq::MQIIH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {
@@ -636,11 +653,11 @@ impl ChainedHeader for mq::MQRFH2 {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {
@@ -665,7 +682,7 @@ impl ChainedHeader for mq::MQRFH2 {
     fn validate_length(length: types::MQLONG) -> Result<(), HeaderError> {
         #[expect(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let struc_len = mem::size_of::<Self>() as _;
-        // +4 bytes for MQLONG length field
+        // RFH2 may have no name/value data, but any such data starts with a 4-byte length field.
         if length == struc_len || length >= struc_len + 4 {
             Ok(())
         } else {
@@ -675,7 +692,9 @@ impl ChainedHeader for mq::MQRFH2 {
 }
 
 impl<'a> EncodedHeader<'a, mq::MQRFH2> {
-    /// Return the rules-and-formatting name/value data, excluding its length prefix.
+    /// Return the rules-and-formatting name/value data, excluding its leading 4-byte length prefix.
+    ///
+    /// The returned data uses the RFH2 `NameValueCCSID`; its length prefix uses the header's integer encoding.
     #[must_use]
     pub fn name_value_data(&self) -> StrCcsid<'a> {
         StringCcsid::new(
@@ -702,11 +721,11 @@ impl ChainedHeader for mq::MQRFH {
     }
 
     fn next_raw_format(&self) -> Fmt {
-        unsafe { *(&raw const self.Format).cast() }
+        self.Format
     }
 
     fn raw_struc_id(&self) -> StrucId {
-        unsafe { *(&raw const self.StrucId).cast() }
+        self.StrucId
     }
 
     fn raw_version(&self) -> types::MQLONG {

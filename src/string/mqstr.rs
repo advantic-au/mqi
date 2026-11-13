@@ -181,9 +181,7 @@ impl<const N: usize> Default for MqStr<N> {
 
 impl<const N: usize> Display for MqStr<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // SAFETY: MQCHAR is a one-byte C integer type; the slice length and
-        // allocation are unchanged by this element-type cast.
-        String::from_utf8_lossy(unsafe { &*(ptr::from_ref(self.value()) as *const _) }).fmt(f)
+        String::from_utf8_lossy(conversion::slice_mqchar_to_byte(self.value())).fmt(f)
     }
 }
 

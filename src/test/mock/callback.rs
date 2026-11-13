@@ -2,7 +2,10 @@ use std::{
     collections::HashMap,
     ffi::c_void,
     ptr,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use libmqm_sys::{self as mq, mock::MockMq};
@@ -25,7 +28,7 @@ const MQCBC_DEFAULT: libmqm_sys::MQCBC = mq::MQCBC {
     ReconnectDelay: mq::MQRD_NO_DELAY,
 };
 
-pub fn mock_cb(mock_library: &mut MockMq, cb_type: types::MQCBT) {
+pub fn mock_cb(mock_library: &mut MockMq, cb_type: types::MQCBT) -> Arc<AtomicUsize> {
     type MqCbFn = unsafe extern "C" fn(_: mq::MQHCONN, _: mq::PMQVOID, _: mq::PMQVOID, _: mq::PMQVOID, _: *const mq::MQCBC);
     #[derive(Clone)]
     struct MqCallback(*mut c_void, *mut c_void, types::MQCBDO);
@@ -34,6 +37,8 @@ pub fn mock_cb(mock_library: &mut MockMq, cb_type: types::MQCBT) {
     type CbMap = HashMap<(mq::MQHCONN, Option<mq::MQHOBJ>), MqCallback>;
     let cb_map: Arc<Mutex<CbMap>> = Arc::default();
     let cb_disc = cb_map.clone();
+    let deregister_calls = Arc::new(AtomicUsize::new(0));
+    let deregister_calls_mqcb = Arc::clone(&deregister_calls);
 
     mock_library
         .expect_MQCB()
@@ -46,6 +51,9 @@ pub fn mock_cb(mock_library: &mut MockMq, cb_type: types::MQCBT) {
         .returning(move |hconn, op, cbd, hobj, _, _, cc, rc| {
             let cbd = cbd.expect("MQCBD should be non-null");
             let op = types::MQOP(op);
+            if op == constants::MQOP_DEREGISTER {
+                deregister_calls_mqcb.fetch_add(1, Ordering::SeqCst);
+            }
 
             let maybe_hobj = Some(hobj).filter(|o| *o != mq::MQHO_NONE);
 
@@ -124,4 +132,5 @@ pub fn mock_cb(mock_library: &mut MockMq, cb_type: types::MQCBT) {
         }
         super::mqi_outcome_ok(cc, rc);
     });
+    deregister_calls
 }

@@ -26,8 +26,8 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
         if sts.ObjectString.VSBufSize == 0 {
             sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
         }
-        let mut buffer = Vec::with_capacity(DEFAULT_OBJECTSTRING_CAPACITY);
-        sts.ObjectString.VSPtr = (&raw mut *buffer).cast();
+        let mut buffer = vec![0; DEFAULT_OBJECTSTRING_CAPACITY];
+        sts.ObjectString.VSPtr = buffer.as_mut_ptr().cast();
 
         // SAFETY: MQSTS ObjectString MQCHARV constructed from buffer
         unsafe {
@@ -69,12 +69,12 @@ impl<L: Library<MQ: Mqi>, H> Connection<L, H> {
         });
 
         sts.ObjectString.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-        let mut object_string_buffer = Vec::with_capacity(DEFAULT_OBJECTSTRING_CAPACITY);
-        sts.ObjectString.VSPtr = (&raw mut *object_string_buffer).cast();
+        let mut object_string_buffer = vec![0; DEFAULT_OBJECTSTRING_CAPACITY];
+        sts.ObjectString.VSPtr = object_string_buffer.as_mut_ptr().cast();
 
         sts.SubName.VSBufSize = DEFAULT_OBJECTSTRING_LENGTH;
-        let mut sub_name_buffer = Vec::with_capacity(DEFAULT_OBJECTSTRING_CAPACITY);
-        sts.SubName.VSPtr = (&raw mut *sub_name_buffer).cast();
+        let mut sub_name_buffer = vec![0; DEFAULT_OBJECTSTRING_CAPACITY];
+        sts.SubName.VSPtr = sub_name_buffer.as_mut_ptr().cast();
 
         // SAFETY: MQSTS ObjectString and SubName MQCHARV constructed from buffers
         unsafe {

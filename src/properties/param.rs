@@ -18,6 +18,14 @@ use crate::{
 pub const INQUIRE_ALL: &str = "%";
 pub const INQUIRE_ALL_USR: &str = "usr.%";
 
+const fn property_format_error() -> Error {
+    Error(constants::MQCC_FAILED, "MQINQMP", constants::MQRC_FORMAT_ERROR)
+}
+
+const fn property_buffer_length_error() -> Error {
+    Error(constants::MQCC_FAILED, "MQINQMP", constants::MQRC_BUFFER_LENGTH_ERROR)
+}
+
 macro_rules! impl_setproperty_tuple {
     ([$first:ident, $($ty:ident),*]) => {
         #[diagnostic::do_not_recommend]
@@ -367,6 +375,9 @@ impl From<option::NameUsage> for Option<NonZero<usize>> {
 }
 
 /// A property name requested as a decoded Rust string.
+///
+/// When the inner type is `MqStr<N>`, `N` must be nonzero. A zero capacity is reported as
+/// [`MQRC_BUFFER_LENGTH_ERROR`](crate::constants::MQRC_BUFFER_LENGTH_ERROR).
 #[derive(Debug, Clone, Copy, Eq, derive_more::Deref, derive_more::DerefMut)]
 pub struct Name<T>(
     /// The decoded property name.
@@ -394,14 +405,11 @@ unsafe impl option::PropertyAttr for Name<String> {
             Completion(_, Some((rc @ constants::MQRC_PROP_NAME_NOT_CONVERTED, verb))) => {
                 Err(Error(constants::MQCC_WARNING, verb, rc))
             }
-            other => Ok(other.map(|state| {
-                // SAFETY: The `expect` will succeed as the Option is always `Some` when
-                // `NameUsage::AnyLength` is specified
+            Completion(state, warning) => {
                 let name = conversion::vec_mqchar_to_byte(state.name.clone().expect("Name should not be None").into_owned());
-                // SAFETY: The bytes coming from the MQI library should be correct as there
-                // is no conversion error (MQRC_PROP_NAME_NOT_CONVERTED)
-                (Self(unsafe { String::from_utf8_unchecked(name) }), state)
-            })),
+                let name = String::from_utf8(name).map_err(|_| property_format_error())?;
+                Ok(Completion((Self(name), state), warning))
+            }
         }
     }
 }
@@ -414,21 +422,22 @@ unsafe impl<const N: usize> option::PropertyAttr for Name<MqStr<N>> {
     where
         F: FnOnce(&mut option::PropertyParam<'p>) -> ResultComp<option::PropertyState<'s>>,
     {
+        let Some(max_length) = NonZero::new(N) else {
+            return Err(property_buffer_length_error());
+        };
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_CONVERT_VALUE);
-        param.name_required = option::NameUsage::MaxLength(unsafe { NonZero::new_unchecked(N) });
+        param.name_required = option::NameUsage::MaxLength(max_length);
         match mqinqmp(param)? {
             Completion(_, Some((rc @ constants::MQRC_PROP_NAME_NOT_CONVERTED, verb))) => {
                 Err(Error(constants::MQCC_WARNING, verb, rc))
             }
-            other => Ok(other.map(|state| {
+            Completion(state, warning) => {
                 let name = state.name.as_ref().expect("Name should not be None");
-                let name_str = unsafe { str::from_utf8_unchecked(conversion::slice_mqchar_to_byte(name)) };
-                (
-                    Self(MqStr::from_str(name_str).expect("buffer size should equal required length")),
-                    state,
-                )
-            })),
+                let name_str = str::from_utf8(conversion::slice_mqchar_to_byte(name)).map_err(|_| property_format_error())?;
+                let name = MqStr::from_str(name_str).map_err(|_| property_buffer_length_error())?;
+                Ok(Completion((Self(name), state), warning))
+            }
         }
     }
 }
@@ -594,9 +603,11 @@ unsafe impl<const N: usize> option::PropertyValue for MqStr<N> {
         let impo_options: &mut MQIMPO = param.impo.Options.as_mut();
         impo_options.insert(constants::MQIMPO_CONVERT_VALUE | constants::MQIMPO_CONVERT_TYPE);
         param.value_type = constants::MQTYPE_STRING;
-        mqinqmp(param).map_completion(|state| {
-            let value_str = unsafe { str::from_utf8_unchecked(&state.value) };
-            Self::from_str(value_str).expect("buffer size should equal required length")
+        mqinqmp(param).and_then(|completion| {
+            let Completion(state, warning) = completion;
+            let value_str = str::from_utf8(&state.value).map_err(|_| property_format_error())?;
+            let value = Self::from_str(value_str).map_err(|_| property_buffer_length_error())?;
+            Ok(Completion(value, warning))
         })
     }
 
@@ -670,9 +681,10 @@ unsafe impl option::PropertyValue for String {
             Completion(_, Some((rc @ constants::MQRC_PROP_VALUE_NOT_CONVERTED, verb))) => {
                 Err(Error(constants::MQCC_WARNING, verb, rc))
             }
-            // SAFETY: The bytes coming from the MQI library must be correct as there
-            // is no conversion error
-            other => Ok(other.map(|state| unsafe { str::from_utf8_unchecked(&state.value).to_string() })),
+            Completion(state, warning) => {
+                let value = Self::from_utf8(state.value.into_owned()).map_err(|_| property_format_error())?;
+                Ok(Completion(value, warning))
+            }
         }
     }
 }
@@ -1086,13 +1098,43 @@ mod tests {
         .warn_as_error()?;
         assert_eq!(name, Name("name"));
 
+        let zero_capacity = execute_pa::<Name<MqStr<0>>>(|_| panic!("MQINQMP should not be called for a zero-capacity name"));
+        assert!(matches!(
+            zero_capacity,
+            Err(crate::result::Error(
+                constants::MQCC_FAILED,
+                "MQINQMP",
+                constants::MQRC_BUFFER_LENGTH_ERROR
+            ))
+        ));
+
+        let invalid_fixed_name = execute_pa::<Name<MqStr<25>>>(|_| name_state(&[0xff]));
+        assert!(matches!(
+            invalid_fixed_name,
+            Err(crate::result::Error(
+                constants::MQCC_FAILED,
+                "MQINQMP",
+                constants::MQRC_FORMAT_ERROR
+            ))
+        ));
+
         execute_pa::<Name<String>>(|_| name_state_warning(b"name")).expect_err("should return error");
         execute_pa::<Name<MqStr<25>>>(|_| name_state_warning(b"name")).expect_err("should return error");
+
+        let invalid_utf8 = execute_pa::<Name<String>>(|_| name_state(&[0xff]));
+        assert!(matches!(
+            invalid_utf8,
+            Err(crate::result::Error(
+                constants::MQCC_FAILED,
+                "MQINQMP",
+                constants::MQRC_FORMAT_ERROR
+            ))
+        ));
 
         let (name, _) = execute_pa::<Name<MqStr<25>>>(|param| {
             assert_eq!(
                 param.name_required,
-                option::NameUsage::MaxLength(unsafe { NonZero::new_unchecked(25) })
+                option::NameUsage::MaxLength(NonZero::new(25).expect("25 is nonzero"))
             );
             assert!(types::MQIMPO(param.impo.Options).contains(constants::MQIMPO_CONVERT_VALUE));
             name_state(b"name")
@@ -1111,6 +1153,30 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn property_values_reject_invalid_utf8() {
+        let invalid_string = execute_pv::<String>(|_| value_property_state(&[0xff]));
+        assert!(matches!(
+            invalid_string,
+            Err(crate::result::Error(
+                constants::MQCC_FAILED,
+                "MQINQMP",
+                constants::MQRC_FORMAT_ERROR
+            ))
+        ));
+
+        let invalid_fixed_string = execute_pv::<MqStr<4>>(|_| value_property_state(&[0xff]));
+        assert!(matches!(
+            invalid_fixed_string,
+            Err(crate::result::Error(
+                constants::MQCC_FAILED,
+                "MQINQMP",
+                constants::MQRC_FORMAT_ERROR
+            ))
+        ));
+    }
+
     fn execute_pa<'a, A: option::PropertyAttr>(
         f: impl FnOnce(&mut option::PropertyParam<'_>) -> ResultComp<option::PropertyState<'a>>,
     ) -> ResultComp<(A, option::PropertyState<'a>)> {
