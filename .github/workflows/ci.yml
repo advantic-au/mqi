@@ -117,6 +117,7 @@ jobs:
         run: |
           cargo nextest run --profile ci --all-features
           cargo test --all-features --doc
+          cargo test -p mqi-pool
         env:
           MQ_HOME: ${{ steps.mq-client.outputs.client-install-path }}
       - name: Test default features
