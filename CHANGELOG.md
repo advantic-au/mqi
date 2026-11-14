@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2](https://github.com/advantic-au/mqi/compare/v0.4.1...v0.4.2) - 2026-11-14
+
+### Other
+
+- *(deps)* update taiki-e/install-action action to v2.90.2 ([#236](https://github.com/advantic-au/mqi/pull/236))
+- *(deps)* update advantic-au/action-mq-client digest to c1a22a3 ([#235](https://github.com/advantic-au/mqi/pull/235))
+- *(deps)* update taiki-e/install-action action to v2.90.1 ([#234](https://github.com/advantic-au/mqi/pull/234))
+- *(deps)* update github/codeql-action action to v4.39.3 ([#233](https://github.com/advantic-au/mqi/pull/233))
+- *(deps)* update taiki-e/install-action action to v2.90.0 ([#232](https://github.com/advantic-au/mqi/pull/232))
+- *(deps)* update github/codeql-action action to v4.39.2 ([#231](https://github.com/advantic-au/mqi/pull/231))
+- *(deps)* update taiki-e/install-action action to v2.89.1 ([#230](https://github.com/advantic-au/mqi/pull/230))
+- *(deps)* update release-plz/action action to v0.5.148 ([#229](https://github.com/advantic-au/mqi/pull/229))
+- *(deps)* update taiki-e/install-action action to v2.89.0 ([#228](https://github.com/advantic-au/mqi/pull/228))
+- *(deps)* update taiki-e/install-action action to v2.88.1 ([#227](https://github.com/advantic-au/mqi/pull/227))
+- *(deps)* remove dependabot
+- *(deps)* update astral-sh/setup-uv action to v10.3.3 ([#224](https://github.com/advantic-au/mqi/pull/224))
+- *(deps)* update taiki-e/install-action action to v2.88.0 ([#225](https://github.com/advantic-au/mqi/pull/225))
+- *(deps)* update release-plz/action action to v0.5.147 ([#219](https://github.com/advantic-au/mqi/pull/219))
+- *(deps)* update taiki-e/install-action action to v2.87.32 ([#218](https://github.com/advantic-au/mqi/pull/218))
+- Replace maybe-owned with RawRefOwned
+- *(deps)* update dependency ubuntu to v26
+- *(deps)* update swatinem/rust-cache action to v2.9.3 ([#212](https://github.com/advantic-au/mqi/pull/212))
+- *(deps)* update release-plz/action action to v0.5.146 ([#209](https://github.com/advantic-au/mqi/pull/209))
+- *(deps)* update taiki-e/install-action action to v2.87.31 ([#213](https://github.com/advantic-au/mqi/pull/213))
+- *(deps)* update github/codeql-action action to v4.39.1 ([#202](https://github.com/advantic-au/mqi/pull/202))
+- *(deps)* update astral-sh/setup-uv action to v10.3.2 ([#201](https://github.com/advantic-au/mqi/pull/201))
+- set up renovate automerge
+- *(deps)* pin dependencies
+- Renovate no pinning for cargo
+- *(config)* migrate config renovate.json
+- Renovate Rust no pinning
+- Renovate config for MSRV and best practices
+- Add renovate.json
+
 ## [0.4.1](https://github.com/advantic-au/mqi/compare/v0.4.0...v0.4.1) - 2026-10-31
 
 ### Fixed
