@@ -31,7 +31,7 @@ An IBM MQ client (or server) install is **required** to build or test anything, 
 - Put the MQ shared library on the loader path at runtime, e.g.
   `LD_LIBRARY_PATH=$MQ_HOME/lib64` on Linux (`libmqm.so`). Required for `dlopen2`-loaded and
   link-time-linked tests alike.
-- Rust 1.95 minimum (see `rust-version` in `Cargo.toml`; edition 2024).
+- Rust 1.96 minimum (see `rust-version` in `Cargo.toml`; edition 2024).
 - `cargo-nextest` is the test runner CI uses; `cargo-mutants`, `cargo-llvm-cov` and
   `cargo-semver-checks` are used by specific workflows.
 
@@ -95,7 +95,7 @@ The `ci` nextest profile is in `.config/nextest.toml` (note: `.config/`, not `.c
 sets `fail-fast = false`.
 
 The `minimum` CI job regenerates `Cargo.lock` with `cargo generate-lockfile -Z minimal-versions`
-(nightly) and then runs the locked commands on Rust 1.95:
+(nightly) and then runs the locked commands on Rust 1.96:
 
 ```sh
 cargo check --locked --all-features
@@ -325,7 +325,7 @@ there - do not add a hand-written table to the README.
 - **`Cargo.lock` is gitignored and not committed.** A stale local `Cargo.lock` can also pin a
   dependency mix that no longer matches `Cargo.toml`; if dependency errors look impossible,
   regenerate it. The CI `minimum` job intentionally regenerates it with `-Z minimal-versions` and
-  builds on Rust 1.95.
+  builds on Rust 1.96.
 - **`mock` is a first-class feature, not only a dev-dependency toggle.** It forwards to
   `libmqm-sys/mock` and is combined with `link`, `dlopen2`, `mqai`, `exits` in CI in six different
   clippy permutations. Renaming or regating anything under `src/test/` must keep all of them working.
@@ -363,7 +363,7 @@ there - do not add a hand-written table to the README.
   `mock,exits,link`; `mock,mqai,link`; `mock,mqai,exits,dlopen2`; and `mock,link` - all
   `--no-default-features` except the first two. `RUSTFLAGS=-Dwarnings` is set.
 - `minimum` regenerates `Cargo.lock` with `cargo generate-lockfile -Z minimal-versions` (nightly),
-  then runs the locked commands on Rust 1.95.
+  then runs the locked commands on Rust 1.96.
 - `coverage.yml` runs `cargo llvm-cov --no-report nextest ...` and `cargo llvm-cov --no-report test
   --doc ...` with `mqai,dlopen2,mqc_latest,mock`, then reports with `--doctests`.
 - `mutants` on PRs uses `--in-diff git.diff --all-features` and `continue-on-error: true`.
