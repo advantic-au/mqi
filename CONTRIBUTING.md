@@ -21,7 +21,7 @@ used as a client install.
   `C:\Program Files\IBM\MQ` on Windows).
 - Make the MQ shared library available to the system loader. On Linux, for example, run
   `export LD_LIBRARY_PATH="$MQ_HOME/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"`.
-- Install Rust 1.95 or newer. The project will not raise its MSRV to a stable Rust release until
+- Install Rust 1.96 or newer. The project will not raise its MSRV to a stable Rust release until
   that release has been available for at least six months; see the
   [MSRV policy](README.md#version-compatibility).
 - Add the Rust formatting and lint components, and install the test runner used by CI:
